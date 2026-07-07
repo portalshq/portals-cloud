@@ -18,6 +18,9 @@ on:
           - '@portals/runtime-core'
           - '@portals/sdk'
           - '@portals/capabilities-redirect'
+  push:
+    tags:
+      - '@portals/**'
   release:
     types: [created]
 
@@ -41,55 +44,55 @@ jobs:
         run: npm run build
 
       - name: Publish @portals/contracts
-        if: github.event_name == 'release' || inputs.package == 'all' || inputs.package == '@portals/contracts'
+        if: github.event_name == 'release' || github.event_name == 'push' || inputs.package == 'all' || inputs.package == '@portals/contracts'
         run: npm run release @portals/contracts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @portals/billing-metering
-        if: github.event_name == 'release' || inputs.package == 'all' || inputs.package == '@portals/billing-metering'
+        if: github.event_name == 'release' || github.event_name == 'push' || inputs.package == 'all' || inputs.package == '@portals/billing-metering'
         run: npm run release @portals/billing-metering
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @portals/billing-engine
-        if: github.event_name == 'release' || inputs.package == 'all' || inputs.package == '@portals/billing-engine'
+        if: github.event_name == 'release' || github.event_name == 'push' || inputs.package == 'all' || inputs.package == '@portals/billing-engine'
         run: npm run release @portals/billing-engine
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @portals/billing-marketplace
-        if: github.event_name == 'release' || inputs.package == 'all' || inputs.package == '@portals/billing-marketplace'
+        if: github.event_name == 'release' || github.event_name == 'push' || inputs.package == 'all' || inputs.package == '@portals/billing-marketplace'
         run: npm run release @portals/billing-marketplace
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @portals/registry
-        if: github.event_name == 'release' || inputs.package == 'all' || inputs.package == '@portals/registry'
+        if: github.event_name == 'release' || github.event_name == 'push' || inputs.package == 'all' || inputs.package == '@portals/registry'
         run: npm run release @portals/registry
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @portals/resolver
-        if: github.event_name == 'release' || inputs.package == 'all' || inputs.package == '@portals/resolver'
+        if: github.event_name == 'release' || github.event_name == 'push' || inputs.package == 'all' || inputs.package == '@portals/resolver'
         run: npm run release @portals/resolver
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @portals/runtime-core
-        if: github.event_name == 'release' || inputs.package == 'all' || inputs.package == '@portals/runtime-core'
+        if: github.event_name == 'release' || github.event_name == 'push' || inputs.package == 'all' || inputs.package == '@portals/runtime-core'
         run: npm run release @portals/runtime-core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @portals/sdk
-        if: github.event_name == 'release' || inputs.package == 'all' || inputs.package == '@portals/sdk'
+        if: github.event_name == 'release' || github.event_name == 'push' || inputs.package == 'all' || inputs.package == '@portals/sdk'
         run: npm run release @portals/sdk
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @portals/capabilities-redirect
-        if: github.event_name == 'release' || inputs.package == 'all' || inputs.package == '@portals/capabilities-redirect'
+        if: github.event_name == 'release' || github.event_name == 'push' || inputs.package == 'all' || inputs.package == '@portals/capabilities-redirect'
         run: npm run release @portals/capabilities-redirect
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
