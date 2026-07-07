@@ -2,20 +2,24 @@
   "name": "portals-platform",
   "private": true,
   "version": "0.1.0",
-  "description": "Capability-first infrastructure platform for composable entertainment channels. Formalizes existing NAP v0 and Narrative Engine v0 (currently embedded in studio-app and 25thChapter) into reusable, contract-bound packages.",
+  "description": "Capability-first infrastructure platform for composable entertainment channels. ",
   "workspaces": [
     "packages/*",
-    "packages/capabilities/*"
+    "packages/capabilities/*",
+    "packages/stubs/*"
   ],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "prepare": "husky",
+    "release": "node scripts/release.js"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "turbo": "^2.0.0",
     "typescript": "^5.5.0"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "npm@10.0.0"
 }

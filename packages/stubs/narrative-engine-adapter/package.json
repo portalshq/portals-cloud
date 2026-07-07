@@ -4,7 +4,7 @@
   "description": "Adapter over the existing Narrative Engine v0 (alpha), currently embedded in studio-app and 25thChapter. Same non-rebuild approach as @portals/resolver.",
   "main": "src/index.ts",
   "dependencies": {
-    "@portals/contracts": "workspace:*",
-    "@portals/resolver": "workspace:*"
+    "@portals/contracts": "*",
+    "@portals/resolver": "*"
   }
 }

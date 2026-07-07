@@ -4,6 +4,6 @@
   "description": "Federated audience identity, persistent across every channel — current and future, platform-provided and developer-created.",
   "main": "src/index.ts",
   "dependencies": {
-    "@portals/contracts": "workspace:*"
+    "@portals/contracts": "*"
   }
 }
