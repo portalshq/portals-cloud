@@ -1,0 +1,9 @@
+{
+  "name": "@portals/capability-text-image-delivery",
+  "version": "0.1.0",
+  "description": "Chapter/text/image delivery — the 25thChapter content model, generalized into a capability any channel can use.",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@portals/contracts": "workspace:*"
+  }
+}

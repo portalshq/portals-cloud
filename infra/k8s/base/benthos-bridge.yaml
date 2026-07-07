@@ -1,0 +1,42 @@
+# Redpanda Connect (Benthos) bridge: NATS JetStream → OpenMeter
+# For high-throughput metering paths (viewer.joined / viewer.left events
+# from the realtime-fanout capability at scale).
+# Low-volume control-plane events use @nap/billing-metering's HTTP client
+# directly and don't need this bridge.
+#
+# The @openmeterio/benthos-openmeter plugin adds an openmeter output
+# component to Redpanda Connect that posts CloudEvents to OpenMeter's
+# ingest endpoint. See: https://github.com/openmeterio/benthos-openmeter
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: benthos-nats-openmeter-config
+  namespace: portals-platform
+data:
+  benthos.yaml: |
+    input:
+      nats_jetstream:
+        urls:
+          - nats://nats.portals-platform.svc.cluster.local:4222
+        subject: "billing.meter.>"
+        durable: "openmeter-bridge"
+
+    pipeline:
+      processors:
+        - mapping: |
+            root.specversion = "1.0"
+            root.id = uuid_v4()
+            root.type = this.type
+            root.source = "portals-platform/realtime-fanout"
+            root.subject = this.subject
+            root.time = now()
+            root.datacontenttype = "application/json"
+            root.data = this.data
+
+    output:
+      http_client:
+        url: "http://openmeter.portals-platform.svc.cluster.local:8888/api/v1/events"
+        verb: POST
+        headers:
+          Content-Type: "application/cloudevents+json"
+        max_in_flight: 64

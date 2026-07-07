@@ -1,0 +1,32 @@
+# K8s CronJob that runs BillingSync from @nap/billing-engine.
+# Pulls OpenMeter aggregates per tenant and reports to Lago hourly.
+# Hourly is fine — Lago's billing cycle is monthly; sub-hourly granularity
+# on usage reporting buys nothing except more API calls.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: billing-sync
+  namespace: portals-platform
+spec:
+  schedule: "0 * * * *"   # hourly
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: billing-sync
+              image: REPLACE_ME/nap-billing-sync:latest
+              env:
+                - name: OPENMETER_ENDPOINT
+                  value: "http://openmeter.portals-platform.svc.cluster.local:8888"
+                - name: LAGO_API_URL
+                  value: "http://lago-api.portals-platform.svc.cluster.local:3000"
+                - name: LAGO_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: lago-secrets
+                      key: api-key
+              resources:
+                requests: { cpu: "50m", memory: "64Mi" }
+                limits: { cpu: "200m", memory: "256Mi" }

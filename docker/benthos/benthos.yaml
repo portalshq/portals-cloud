@@ -1,0 +1,46 @@
+# Redpanda Connect (Benthos) — NATS JetStream → OpenMeter bridge
+# Bridges high-throughput viewer.joined/viewer.left events from
+# the realtime-fanout capability into OpenMeter CloudEvents format.
+# Low-volume control-plane events bypass this and use the HTTP client.
+input:
+  nats_jetstream:
+    urls:
+      - ${NATS_URL:nats://nats:4222}
+    subject: "billing.meter.>"
+    queue: "openmeter-bridge"
+    durable: "openmeter-consumer"
+    deliver: all
+
+pipeline:
+  threads: 4
+  processors:
+    - mapping: |
+        root.specversion     = "1.0"
+        root.id              = uuid_v4()
+        root.type            = this.type | "viewer.event"
+        root.source          = "portals-platform/realtime-fanout"
+        root.subject         = this.subject | "unknown"
+        root.time            = now()
+        root.datacontenttype = "application/json"
+        root.data            = this.data | {}
+
+    # Drop events with no subject (malformed)
+    - bloblang: |
+        root = if this.subject == "unknown" { deleted() } else { this }
+
+output:
+  http_client:
+    url: "${OPENMETER_ENDPOINT:http://openmeter:8888}/api/v1/events"
+    verb: POST
+    headers:
+      Content-Type: "application/cloudevents+json"
+    max_in_flight: 64
+    backoff_on:
+      - 429
+      - 503
+    retries: 3
+    retry_period: 1s
+
+metrics:
+  prometheus:
+    prefix: benthos_nats_openmeter

@@ -1,0 +1,9 @@
+{
+  "name": "@portals/capability-identity",
+  "version": "0.1.0",
+  "description": "Federated audience identity, persistent across every channel — current and future, platform-provided and developer-created.",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@portals/contracts": "workspace:*"
+  }
+}

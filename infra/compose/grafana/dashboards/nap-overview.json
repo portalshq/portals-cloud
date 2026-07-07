@@ -1,0 +1,49 @@
+{
+  "title": "Portals Platform Overview",
+  "uid": "nap-overview",
+  "schemaVersion": 38,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Capability Invocations (1h)",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "sum(increase(benthos_nats_openmeter_output_sent_total[1h]))", "legendFormat": "events bridged" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "green" }] } } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Active NATS Connections",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "gnatsd_connz_total_connections", "legendFormat": "connections" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "blue" }] } } }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Kafka Messages/s",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "rate(vectorized_kafka_handler_requests_completed_total[1m])", "legendFormat": "msg/s" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "orange" }] } } }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Benthos Bridge Latency (p99)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "histogram_quantile(0.99, benthos_nats_openmeter_output_latency_ns_bucket)", "legendFormat": "p99 ns" }],
+      "fieldConfig": { "defaults": { "unit": "ns", "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 1000000, "color": "yellow" }, { "value": 10000000, "color": "red" }] } } }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Metering events bridged (NATS → OpenMeter)",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "targets": [{ "expr": "rate(benthos_nats_openmeter_output_sent_total[1m])", "legendFormat": "events/s" }],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Service health (HTTP 2xx rate)",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "up{job='runtime-core'}", "legendFormat": "runtime-core" },
+        { "expr": "up{job='capability-registry'}", "legendFormat": "registry" },
+        { "expr": "up{job='openmeter'}", "legendFormat": "openmeter" },
+        { "expr": "up{job='benthos-bridge'}", "legendFormat": "benthos bridge" }
+      ]
+    }
+  ]
+}

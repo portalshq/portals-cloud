@@ -1,0 +1,66 @@
+# OpenMeter configuration for local compose environment.
+# Mirrors prod config as closely as possible — same meters, same Kafka topics.
+# ClickHouse and Kafka are bundled in the openmeter image for local dev.
+address: 0.0.0.0:8888
+
+telemetry:
+  address: 0.0.0.0:10000
+
+ingest:
+  kafka:
+    broker: kafka:9092
+    topic: openmeter-events
+    partitions: 4          # matches prod; prod will use more but logic is identical
+    securityProtocol: PLAINTEXT
+
+aggregation:
+  clickhouse:
+    address: clickhouse:9000
+    database: openmeter
+    username: default
+    password: ""
+
+# The 5 billable meters — identical to what the bootstrap script creates in prod.
+# Defined here so the compose env starts pre-configured with no manual step.
+meters:
+  - slug: capability-invocations
+    description: "Per-capability invocation count"
+    eventType: capability.invoked
+    aggregation: COUNT
+    groupBy:
+      capabilityId: $.data.capabilityId
+      channelId:    $.data.channelId
+
+  - slug: session-minutes
+    description: "Billable session duration in seconds (display as minutes)"
+    eventType: session.ended
+    aggregation: SUM
+    valueProperty: $.data.durationSeconds
+    groupBy:
+      channelId: $.data.channelId
+
+  - slug: peak-concurrent-viewers
+    description: "Peak concurrent viewer count per session — drives live event pricing"
+    eventType: session.ended
+    aggregation: MAX
+    valueProperty: $.data.peakConcurrentViewers
+    groupBy:
+      channelId:  $.data.channelId
+      sessionId:  $.data.sessionId
+
+  - slug: storage-written-bytes
+    description: "World/narrative state bytes written — drives persistence billing"
+    eventType: storage.written
+    aggregation: SUM
+    valueProperty: $.data.bytes
+    groupBy:
+      worldId: $.data.worldId
+
+  - slug: marketplace-gmv-cents
+    description: "Marketplace gross transaction value in cents — rake calculation basis"
+    eventType: marketplace.transaction
+    aggregation: SUM
+    valueProperty: $.data.grossAmountCents
+    groupBy:
+      capabilityId: $.data.capabilityId
+      providerId:   $.data.providerId

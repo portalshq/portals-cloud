@@ -1,0 +1,14 @@
+# Local env — contains secrets, never commit
+.env.compose.local
+*.local
+
+# Build outputs
+dist/
+node_modules/
+.turbo/
+
+# Compose runtime
+.compose-data/
+
+# OS
+.DS_Store

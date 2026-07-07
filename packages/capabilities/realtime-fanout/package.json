@@ -1,0 +1,9 @@
+{
+  "name": "@portals/capability-realtime-fanout",
+  "version": "0.1.0",
+  "description": "Chat, polls, and lobby controls as ONE pub/sub fan-out primitive, not three bespoke services. Used by every channel type that needs audience interaction.",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@portals/contracts": "workspace:*"
+  }
+}

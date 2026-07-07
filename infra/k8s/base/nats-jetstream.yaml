@@ -1,0 +1,14 @@
+# Backing bus for @nap/capability-realtime-fanout. Reference deployment —
+# for production, install via the official NATS Helm chart instead of
+# hand-rolled manifests:
+#   helm repo add nats https://nats-io.github.io/k8s/helm/charts/
+#   helm install nats nats/nats -n portals-platform --set cluster.enabled=true --set jetstream.enabled=true
+# Kept as a placeholder here so the dependency is visible in the repo
+# even before the Helm release is wired into CI/CD.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-jetstream-placeholder
+  namespace: portals-platform
+data:
+  note: "Install via NATS Helm chart with jetstream.enabled=true — see comment above"

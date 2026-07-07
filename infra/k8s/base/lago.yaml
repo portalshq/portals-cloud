@@ -1,0 +1,29 @@
+# Lago — billing engine + invoicing.
+# Lago ships a Docker Compose for local dev. For K8s, the community
+# maintains a Helm chart. Self-host is free (AGPL v3); Lago Cloud
+# available if you want managed.
+#
+# Community Helm:
+# helm repo add lago https://getlago.github.io/lago-helm-charts
+# helm upgrade --install lago lago/lago \
+#   --namespace portals-platform \
+#   --set lagoBehindProxy=true \
+#   --set global.postgresql.auth.postgresPassword=<secret> \
+#   --set global.redis.password=<secret>
+#
+# After install:
+# 1. Set LAGO_API_URL and LAGO_API_KEY as K8s secrets
+# 2. Run bootstrap script to create plans defined in @nap/billing-engine/src/plans.ts
+# 3. Configure Stripe payment provider in Lago UI (Settings → Payment providers)
+#    so Lago can auto-collect invoices via Stripe
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lago-install-notes
+  namespace: portals-platform
+data:
+  note: |
+    Install via Helm chart — see comments in this file.
+    In-cluster API URL for @nap/billing-engine:
+      http://lago-api.portals-platform.svc.cluster.local:3000
+    Required K8s secrets: LAGO_API_URL, LAGO_API_KEY, STRIPE_SECRET_KEY

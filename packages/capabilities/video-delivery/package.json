@@ -1,0 +1,9 @@
+{
+  "name": "@portals/capability-video-delivery",
+  "version": "0.1.0",
+  "description": "Live and VOD session delivery, abstracted behind one interface. Edge delivery target: Akamai CDN.",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@portals/contracts": "workspace:*"
+  }
+}

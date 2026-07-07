@@ -1,0 +1,27 @@
+# OpenMeter — usage metering. Deployed via official Helm chart which
+# bundles Kafka + ClickHouse for dev/staging. For production, use separate
+# managed ClickHouse and a real Kafka cluster (Redpanda on LKE works well).
+#
+# helm repo add openmeter https://openmeterio.github.io/helm-charts
+# helm upgrade --install openmeter openmeter/openmeter \
+#   --namespace portals-platform \
+#   --set ingress.enabled=false \
+#   --set config.telemetry.address=":10000"
+#
+# After install, create the 5 billable meters defined in @nap/billing-metering README.md
+# via: POST http://openmeter.portals-platform.svc.cluster.local:8888/api/v1/meters
+#
+# NATS → OpenMeter bridge for high-throughput fan-out events:
+# Use @openmeterio/benthos-openmeter (Redpanda Connect plugin).
+# See benthos-bridge.yaml in this directory.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openmeter-install-notes
+  namespace: portals-platform
+data:
+  note: |
+    Install via Helm chart — see comments in this file.
+    In-cluster service URL for @nap/billing-metering:
+      http://openmeter.portals-platform.svc.cluster.local:8888
+    Set OPENMETER_ENDPOINT env var on runtime-core deployment to this URL.

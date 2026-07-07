@@ -1,0 +1,11 @@
+apiVersion: nap/v1
+kind: Channel
+metadata:
+  name: my-live-game-show
+  owner: dev-team-acme
+spec:
+  worldTemplate: "nap://world-templates/game-show-v1"
+  capabilities:
+    - capabilityId: realtime-fanout
+    - capabilityId: video-delivery
+    - capabilityId: identity
