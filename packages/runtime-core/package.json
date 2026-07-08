@@ -1,6 +1,6 @@
 {
   "name": "@portals/runtime-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Session orchestration (control plane) + real-time fan-out gateway (data plane). Now instrumented with billing metering hooks.",
   "main": "src/index.ts",
   "dependencies": {}

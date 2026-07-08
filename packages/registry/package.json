@@ -1,6 +1,6 @@
 {
   "name": "@portals/registry",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Capability registry: register, version, and resolve capabilities. Control-plane component.",
   "main": "src/index.ts",
   "dependencies": {
