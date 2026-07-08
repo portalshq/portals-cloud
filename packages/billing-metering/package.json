@@ -1,9 +1,9 @@
 {
-  "name": "@portals/billing-metering",
+  "name": "@portalshq/billing-metering",
   "version": "0.0.2",
   "description": "Thin wrapper over the OpenMeter HTTP API. The single instrumentation surface for all billable events flowing through the platform. runtime-core calls this; nothing else does.",
   "main": "src/index.ts",
   "dependencies": {
-    "@portals/contracts": "*"
+    "@portalshq/contracts": "*"
   }
 }

@@ -44,6 +44,6 @@ export interface CapabilityContext {
   sessionId: string;
   channelId: string;
   worldId: string;
-  /** Resolves a NAP address to a narrative/world resource. See @portals/resolver. */
+  /** Resolves a NAP address to a narrative/world resource. See @portalshq/resolver. */
   resolve: (napAddress: string) => Promise<unknown>;
 }

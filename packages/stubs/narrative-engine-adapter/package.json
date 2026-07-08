@@ -1,10 +1,10 @@
 {
-  "name": "@portals/capability-narrative-engine-adapter",
+  "name": "@portalshq/capability-narrative-engine-adapter",
   "version": "0.1.0",
-  "description": "Adapter over the existing Narrative Engine v0 (alpha), currently embedded in studio-app and 25thChapter. Same non-rebuild approach as @portals/resolver.",
+  "description": "Adapter over the existing Narrative Engine v0 (alpha), currently embedded in studio-app and 25thChapter. Same non-rebuild approach as @portalshq/resolver.",
   "main": "src/index.ts",
   "dependencies": {
-    "@portals/contracts": "*",
-    "@portals/resolver": "*"
+    "@portalshq/contracts": "*",
+    "@portalshq/resolver": "*"
   }
 }

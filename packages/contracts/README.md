@@ -1,4 +1,4 @@
-# @portals/contracts
+# @portalshq/contracts
 
 The schema layer every other package depends on. Nothing here has runtime
 behavior — it's types and zod schemas only, so it can be imported by the

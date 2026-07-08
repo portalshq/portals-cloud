@@ -12,7 +12,7 @@
  * packages can be built against it in parallel.
  */
 
-// import { NapClientV0 } from "@portals/protocol-v0"; // <-- existing v0 client, once extracted
+// import { NapClientV0 } from "@portalshq/protocol-v0"; // <-- existing v0 client, once extracted
 
 export interface NarrativeObject {
   napAddress: string;

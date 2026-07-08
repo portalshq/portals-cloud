@@ -1,4 +1,4 @@
-# @portals/resolver
+# @portalshq/resolver
 
 Thin adapter over the existing NAP v0 client. The whole point of this
 package is to NOT contain protocol logic — that already exists and is

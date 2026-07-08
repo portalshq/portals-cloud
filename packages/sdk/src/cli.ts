@@ -18,7 +18,7 @@ program
 
 program
   .command("channel validate <manifestPath>")
-  .description("Validate a channel manifest against @portals/contracts")
+  .description("Validate a channel manifest against @portalshq/contracts")
   .action((manifestPath: string) => {
     const manifest = loadManifest(manifestPath);
     console.log(`Valid manifest: ${manifest.metadata.name}`);

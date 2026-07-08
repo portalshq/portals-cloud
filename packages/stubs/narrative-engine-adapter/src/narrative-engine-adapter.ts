@@ -4,7 +4,7 @@
  * through the registry — not just through studio-app/25thChapter's direct,
  * bespoke integration.
  *
- * TODO(integration): same pattern as @portals/resolver — replace the
+ * TODO(integration): same pattern as @portalshq/resolver — replace the
  * placeholder import once the v0 engine is extracted into its own
  * publishable package. Do not change the v0 engine's existing API surface
  * to fit this adapter; the adapter conforms to it, not the reverse, so
@@ -12,7 +12,7 @@
  * extraction. See docs/architecture-decision-records/0003-*.md.
  */
 
-// import { NarrativeEngineV0 } from "@portals/narrative-engine-v0"; // <-- existing engine, once extracted
+// import { NarrativeEngineV0 } from "@portalshq/narrative-engine-v0"; // <-- existing engine, once extracted
 
 export interface NarrativeBranch {
   branchId: string;

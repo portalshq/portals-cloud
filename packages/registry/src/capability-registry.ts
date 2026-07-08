@@ -1,4 +1,4 @@
-import { Capability, CapabilityContract, CapabilityContractSchema } from "@portals/contracts";
+import { Capability, CapabilityContract, CapabilityContractSchema } from "@portalshq/contracts";
 
 /**
  * Control-plane component. Channels never reference a capability

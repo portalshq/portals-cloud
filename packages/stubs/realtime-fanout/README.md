@@ -1,4 +1,4 @@
-# @portals/capability-realtime-fanout
+# @portalshq/capability-realtime-fanout
 
 Chat + polls + lobby controls, all built on one `FanoutBus`. This is the
 capability that makes "all four channel types in parallel" cheap: a live

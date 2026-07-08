@@ -1,4 +1,4 @@
-# @portals/billing-marketplace
+# @portalshq/billing-marketplace
 
 Three responsibilities:
 1. `calculateRake()` — single source of truth for platform rake rates.

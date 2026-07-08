@@ -1,4 +1,4 @@
-import { ChannelManifestSchema, ChannelManifest } from "@portals/contracts";
+import { ChannelManifestSchema, ChannelManifest } from "@portalshq/contracts";
 import { readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 

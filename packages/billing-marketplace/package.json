@@ -1,10 +1,10 @@
 {
-  "name": "@portals/billing-marketplace",
+  "name": "@portalshq/billing-marketplace",
   "version": "0.0.2",
   "description": "Revenue share and rake calculation for the capability marketplace. Platform rake + provider payout via Stripe Connect. Also handles Portals lineage-weighted royalty splits.",
   "main": "src/index.ts",
   "dependencies": {
-    "@portals/contracts": "*",
-    "@portals/billing-metering": "*"
+    "@portalshq/contracts": "*",
+    "@portalshq/billing-metering": "*"
   }
 }

@@ -1,4 +1,4 @@
-# @portals/capability-identity
+# @portalshq/capability-identity
 
 Cross-channel audience identity. Every other capability that needs to know
 "who is this audience member" depends on this rather than rolling its own

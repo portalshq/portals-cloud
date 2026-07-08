@@ -1,9 +1,9 @@
 {
-  "name": "@portals/billing-engine",
+  "name": "@portalshq/billing-engine",
   "version": "0.0.2",
   "description": "Lago billing engine wrapper. Applies pricing plans against OpenMeter usage data and generates invoices per tenant.",
   "main": "src/index.ts",
   "dependencies": {
-    "@portals/contracts": "*"
+    "@portalshq/contracts": "*"
   }
 }

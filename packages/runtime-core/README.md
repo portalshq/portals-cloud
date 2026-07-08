@@ -1,4 +1,4 @@
-# @portals/runtime-core
+# @portalshq/runtime-core
 
 The control plane (`SessionOrchestrator`) and data plane (`DataPlaneGateway`)
 are deliberately separate classes that should eventually be separate

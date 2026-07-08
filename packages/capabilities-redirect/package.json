@@ -1,5 +1,5 @@
 {
-  "name": "@portals/capabilities-redirect",
+  "name": "@portalshq/capabilities-redirect",
   "version": "0.0.2",
   "type": "module",
   "main": "./dist/index.js",

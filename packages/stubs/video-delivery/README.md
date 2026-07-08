@@ -1,4 +1,4 @@
-# @portals/capability-video-delivery
+# @portalshq/capability-video-delivery
 
 Live + VOD behind one interface so branching-film, game-show, and any
 future video-bearing channel type share the same delivery capability

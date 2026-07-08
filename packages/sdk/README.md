@@ -1,4 +1,4 @@
-# @portals/sdk
+# @portalshq/sdk
 
 The CLI a third-party developer actually types. `nap channel init` should
 produce a manifest that already lists the shared capabilities — the goal

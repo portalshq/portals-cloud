@@ -1,4 +1,4 @@
-# @portals/billing-metering
+# @portalshq/billing-metering
 
 OpenMeter client. The only package in the repo that knows how to emit
 billable events. runtime-core imports this; capability packages do not.

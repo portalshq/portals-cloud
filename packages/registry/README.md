@@ -1,4 +1,4 @@
-# @portals/registry
+# @portalshq/registry
 
 Capability registry — the control-plane component that lets channel
 manifests reference capabilities by id+version instead of by hardcoded

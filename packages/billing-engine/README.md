@@ -1,4 +1,4 @@
-# @portals/billing-engine
+# @portalshq/billing-engine
 
 Lago wrapper. Owns the bridge between raw OpenMeter usage aggregates and
 Lago's pricing/invoicing engine. Two components:

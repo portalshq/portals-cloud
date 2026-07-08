@@ -5,12 +5,12 @@
 **✅ COMPLETED: Phase 0 (Code Merge - Week 1)**
 - Copied @platform-no-context packages into @portals-platform
 - Removed models/ directory
-- Normalized naming to @portals/*
+- Normalized naming to @portalshq/*
 - Merged capability-contract → contracts
 - Merged realtime-engine → runtime-core
 - Merged state-cache → runtime-core
 - Moved instant-redirect → capabilities/redirect
-- Updated all @nap/* references to @portals/*
+- Updated all @nap/* references to @portalshq/*
 - Added VISION.md and tsconfig.base.json
 
 **⏳ PENDING: Phase 1 (Contract Merge - Week 2)**
@@ -63,7 +63,7 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
 
 ## Phase 1: Contract Merge (Week 2)
 
-**Goal**: Merge CapabilityModule (platform-no-context) with Capability (portals-platform) into unified @portals/contracts.
+**Goal**: Merge CapabilityModule (platform-no-context) with Capability (portals-platform) into unified @portalshq/contracts.
 
 ### Steps
 
@@ -146,7 +146,7 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
    - Add OpenMeter instrumentation hooks in SessionOrchestrator
    - Meter session start/end events
    - Meter capability invocations
-   - Connect to @portals/billing-metering package
+   - Connect to @portalshq/billing-metering package
 
 4. **Update session lifecycle**
    - Ensure lazy-start is honored (no compute until first viewer)
@@ -162,11 +162,11 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
 
 ## Phase 3: Construct Library (Weeks 4-6)
 
-**Goal**: Build @portals/constructs using the open-source constructs npm package.
+**Goal**: Build @portalshq/constructs using the open-source constructs npm package.
 
 ### Steps
 
-1. **Create @portals/constructs package**
+1. **Create @portalshq/constructs package**
    ```bash
    mkdir -p packages/constructs
    npm install constructs
@@ -183,7 +183,7 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
    - `nap.synth(channel, target)` - generates infra code
    - Target interface: `{ target: 'aws' | 'local' }`
 
-4. **Build @portals/cdk-target**
+4. **Build @portalshq/cdk-target**
    - Maps constructs to AWS CDK
    - Channel → ECS Service + Task Definition
    - Capability → Lambda functions or sidecars
@@ -191,7 +191,7 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
    - Video → IVS channel + CloudFront distribution
    - Realtime → AppSync or NATS on ECS
 
-5. **Build @portals/compose-target**
+5. **Build @portalshq/compose-target**
    - Maps constructs to Docker Compose
    - Reuse existing docker-compose.yml as base
    - Channel → docker-compose service
@@ -225,7 +225,7 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
    - Template for "build me a X channel" requests
    - Template for capability selection and configuration
 
-3. **Publish @portals/constructs with rich JSDoc**
+3. **Publish @portalshq/constructs with rich JSDoc**
    - Add comprehensive documentation for all constructs
    - Include examples in JSDoc
    - Ensure agents can read and understand the API

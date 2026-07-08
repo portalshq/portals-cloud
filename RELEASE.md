@@ -22,7 +22,7 @@ Once code hits your `main` branch, a new Release Engine workflow takes over. It 
 * **The Release PR is Born:** The CI sees new changeset markdown files on `main`. It automatically runs `changeset version`, creates a new Git branch, updates the `package.json` versions/changelogs, and opens a permanent **"Release Packages"** Pull Request on GitHub.
 * **The Accumulation Phase:** As more feature PRs are merged into `main`, the CI automatically updates this pending Release PR with the new versions and aggregated changelogs.
 * **The Final Push:** When you are ready to actually publish to npm, a maintainer simply merges the **"Release Packages"** Pull Request.
-* **Automatic Tagging & Publishing:** The CI detects the merge, automatically generates all corresponding Git tags (e.g., `@portals/sdk@1.0.1`), pushes them to Git, builds the code, and publishes to npm.
+* **Automatic Tagging & Publishing:** The CI detects the merge, automatically generates all corresponding Git tags (e.g., `@portalshq/sdk@1.0.1`), pushes them to Git, builds the code, and publishes to npm.
 
 ---
 
@@ -44,13 +44,13 @@ When your team begins pushing features, here is the exact automated flow that un
                         │
                         ▼
        [CI auto-creates individual Git tags]
-    (e.g., @portals/sdk@1.0.4, @portals/resolver@2.1.1)
+    (e.g., @portalshq/sdk@1.0.4, @portalshq/resolver@2.1.1)
                         │
                         ▼
        [CI publishes only changed to npm]
 ```
 
-* **Developing:** A developer creates a bugfix for `@portals/sdk`. They run `npx changeset`, select `@portals/sdk`, choose `patch`, and type a summary. They commit the markdown file and merge their PR to `main`.
+* **Developing:** A developer creates a bugfix for `@portalshq/sdk`. They run `npx changeset`, select `@portalshq/sdk`, choose `patch`, and type a summary. They commit the markdown file and merge their PR to `main`.
 * **The Automation Ingestion:** The Release Engine CI kicks off on `main`. It sees the new markdown file and compiles a unique git branch called `changesets-release`.
 * **The Automated Pull Request:** The CI opens a Pull Request back into `main` titled **"Version Packages"**. If you open this PR on GitHub, you will see it has edited only the `package.json` and `CHANGELOG.md` inside the `packages/sdk/` directory.
 * **The Deployment Trigger:** When a maintainer clicks **Merge** on that specific automated PR, the CI executes your publish script. It isolates the changed packages, builds them with Turborepo, creates separate Git tags for each modified package, pushes those tags back to GitHub for tracking, and pushes the code straight to npm.
