@@ -1,6 +1,10 @@
 {
   "name": "@portalshq/billing-engine",
   "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
   "description": "Lago billing engine wrapper. Applies pricing plans against OpenMeter usage data and generates invoices per tenant.",
   "main": "src/index.ts",
   "dependencies": {

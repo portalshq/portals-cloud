@@ -1,6 +1,10 @@
 {
   "name": "@portalshq/sdk",
   "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
   "description": "Developer-facing CLI + channel manifest loader. The primary interface a third-party channel developer touches.",
   "main": "src/index.ts",
   "bin": {

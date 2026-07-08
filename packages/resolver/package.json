@@ -1,6 +1,10 @@
 {
   "name": "@portalshq/resolver",
   "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
   "description": "Adapter over the existing NAP v0 client. Gives NAP a stable, contract-compliant interface consumable by any capability, not just studio-app/25thChapter's bespoke integrations.",
   "main": "src/index.ts",
   "dependencies": {

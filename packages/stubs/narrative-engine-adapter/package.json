@@ -1,6 +1,10 @@
 {
   "name": "@portalshq/capability-narrative-engine-adapter",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
   "description": "Adapter over the existing Narrative Engine v0 (alpha), currently embedded in studio-app and 25thChapter. Same non-rebuild approach as @portalshq/resolver.",
   "main": "src/index.ts",
   "dependencies": {

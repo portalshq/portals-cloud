@@ -1,6 +1,10 @@
 {
   "name": "@portalshq/runtime-core",
   "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
   "description": "Session orchestration (control plane) + real-time fan-out gateway (data plane). Now instrumented with billing metering hooks.",
   "main": "src/index.ts",
   "dependencies": {}

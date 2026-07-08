@@ -1,6 +1,10 @@
 {
   "name": "@portalshq/contracts",
   "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
   "description": "Capability contract types and channel manifest schema. The single source of truth every other package validates against.",
   "main": "src/index.ts",
   "dependencies": {

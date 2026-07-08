@@ -1,6 +1,10 @@
 {
   "name": "@portalshq/capability-video-delivery",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
   "description": "Live and VOD session delivery, abstracted behind one interface. Edge delivery target: Akamai CDN.",
   "main": "src/index.ts",
   "dependencies": {

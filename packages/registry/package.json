@@ -1,6 +1,10 @@
 {
   "name": "@portalshq/registry",
   "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
   "description": "Capability registry: register, version, and resolve capabilities. Control-plane component.",
   "main": "src/index.ts",
   "dependencies": {

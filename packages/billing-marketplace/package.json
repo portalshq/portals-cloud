@@ -1,6 +1,10 @@
 {
   "name": "@portalshq/billing-marketplace",
   "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
   "description": "Revenue share and rake calculation for the capability marketplace. Platform rake + provider payout via Stripe Connect. Also handles Portals lineage-weighted royalty splits.",
   "main": "src/index.ts",
   "dependencies": {
