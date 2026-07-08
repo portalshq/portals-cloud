@@ -14,7 +14,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "prepare": "husky",
-    "release": "node scripts/release.js"
+    "local-version-script": "changeset version",
+    "local-publish-script": "turbo build && npm publish --workspaces --if-needed --provenance"
   },
   "devDependencies": {
     "husky": "^9.1.7",
