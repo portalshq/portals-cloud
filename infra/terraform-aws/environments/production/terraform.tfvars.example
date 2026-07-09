@@ -1,0 +1,109 @@
+# =============================================================================
+# Production Environment — Example Terraform Variables
+# =============================================================================
+#
+# Copy this file to terraform.tfvars and fill in the required values.
+#
+# Usage:
+#   cp terraform.tfvars.example terraform.tfvars
+#   vi terraform.tfvars  # fill in values
+#   terraform init
+#   terraform plan
+#   terraform apply
+#
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# AWS Configuration
+# ---------------------------------------------------------------------------
+aws_region = "us-east-1"
+environment = "production"
+
+# ---------------------------------------------------------------------------
+# OPTIONAL: Domain configuration (leave empty to use raw ALB/NLB DNS)
+# ---------------------------------------------------------------------------
+domain_name = ""
+hosted_zone_id = ""
+
+# ---------------------------------------------------------------------------
+# JWT Configuration
+# ---------------------------------------------------------------------------
+jwt_issuer = "portals-cloud"
+jwt_audience = ["lore-server"]
+
+# ---------------------------------------------------------------------------
+# Image Tags (set these when pushing images to ECR)
+# ---------------------------------------------------------------------------
+lore_image_tag = "latest"
+server_image_tag = "latest"
+frontend_image_tag = "latest"
+
+# ---------------------------------------------------------------------------
+# Resource Names
+# ---------------------------------------------------------------------------
+s3_bucket_name = "portals-cloud-production-fragments"
+dynamodb_fragments_table_name = "portals-cloud-fragments"
+dynamodb_metadata_table_name = "portals-cloud-fragment-metadata"
+ecr_repository_names = [
+  "portals-cloud/lore-server",
+  "portals-cloud/server",
+  "portals-cloud/frontend"
+]
+
+# ---------------------------------------------------------------------------
+# VPC Configuration
+# ---------------------------------------------------------------------------
+vpc_cidr = "10.0.0.0/16"
+availability_zones = []
+
+# ---------------------------------------------------------------------------
+# RDS Configuration
+# ---------------------------------------------------------------------------
+rds_instance_class = "db.t4g.micro"
+rds_allocated_storage = 20
+rds_db_name = "portals_cloud"
+rds_db_username = "portals_admin"
+# rds_db_password = "your-strong-password-here"  # REQUIRED — no default
+rds_skip_final_snapshot = false
+rds_deletion_protection = true
+rds_performance_insights_enabled = false
+
+# ---------------------------------------------------------------------------
+# Task Configuration — Lore
+# ---------------------------------------------------------------------------
+lore_cpu = 1024
+lore_memory = 2048
+lore_desired_count = 1
+
+# ---------------------------------------------------------------------------
+# Task Configuration — Server
+# ---------------------------------------------------------------------------
+server_cpu = 512
+server_memory = 1024
+server_desired_count = 2
+
+# ---------------------------------------------------------------------------
+# Task Configuration — Frontend
+# ---------------------------------------------------------------------------
+frontend_cpu = 256
+frontend_memory = 512
+frontend_desired_count = 2
+
+# ---------------------------------------------------------------------------
+# Frontend
+# ---------------------------------------------------------------------------
+frontend_api_base_url = "/api"
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+log_retention_days = 30
+
+# ---------------------------------------------------------------------------
+# Tags
+# ---------------------------------------------------------------------------
+tags = {
+  Project     = "PortalsCloud"
+  Environment = "production"
+  ManagedBy   = "Terraform"
+}
