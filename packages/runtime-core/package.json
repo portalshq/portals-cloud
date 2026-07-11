@@ -6,6 +6,17 @@
     "url": "git+https://github.com/portalshq/portals-cloud"
   },
   "description": "Session orchestration (control plane) + real-time fan-out gateway (data plane). Now instrumented with billing metering hooks.",
-  "main": "src/index.ts",
-  "dependencies": {}
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0"
+  }
 }

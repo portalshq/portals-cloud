@@ -1,1 +1,1 @@
-export * from "./capability-registry";
+export * from "./capability-registry.js";

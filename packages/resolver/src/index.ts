@@ -1,1 +1,1 @@
-export * from "./nap-resolver-adapter";
+export * from "./nap-resolver-adapter.js";

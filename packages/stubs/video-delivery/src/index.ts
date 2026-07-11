@@ -1,2 +1,2 @@
-export * from "./live-session";
-export * from "./vod-session";
+export * from "./live-session.js";
+export * from "./vod-session.js";

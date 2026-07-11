@@ -1,3 +1,3 @@
-export * from "./rake-calculator";
-export * from "./royalty-splitter";
-export * from "./stripe-connect-client";
+export * from "./rake-calculator.js";
+export * from "./royalty-splitter.js";
+export * from "./stripe-connect-client.js";

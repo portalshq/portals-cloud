@@ -13,7 +13,7 @@
  * review -- this only guarantees a rating can't be silently absent.
  */
 
-import type { CapabilityContext } from "./capabilities.js";
+import type { RegistryCapabilityContext } from "./capabilities.js";
 
 export type AgeRating = "all-ages" | "teen" | "mature" | "unrated";
 
@@ -45,5 +45,5 @@ export interface ContentDescriptor {
 
 export interface ContentDeliveryAdapter<TContent = unknown, TConfig = unknown> {
   contentType: string;
-  describe(ctx: CapabilityContext<TConfig>, content: TContent): Promise<ContentDescriptor>;
+  describe(ctx: RegistryCapabilityContext<TConfig>, content: TContent): Promise<ContentDescriptor>;
 }

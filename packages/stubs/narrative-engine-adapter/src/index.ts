@@ -1,1 +1,1 @@
-export * from "./narrative-engine-adapter";
+export * from "./narrative-engine-adapter.js";

@@ -1,3 +1,3 @@
-export * from "./plans";
-export * from "./lago-client";
-export * from "./billing-sync";
+export * from "./plans.js";
+export * from "./lago-client.js";
+export * from "./billing-sync.js";

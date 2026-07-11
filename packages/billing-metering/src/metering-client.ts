@@ -1,4 +1,4 @@
-import { MeteringEvent } from "./metering-events";
+import { MeteringEvent } from "./metering-events.js";
 
 /**
  * Sends CloudEvents to OpenMeter's HTTP ingest endpoint.

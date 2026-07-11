@@ -6,9 +6,19 @@
     "url": "git+https://github.com/portalshq/portals-cloud"
   },
   "description": "Revenue share and rake calculation for the capability marketplace. Platform rake + provider payout via Stripe Connect. Also handles Portals lineage-weighted royalty splits.",
-  "main": "src/index.ts",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
   "dependencies": {
-    "@portalshq/contracts": "*",
-    "@portalshq/billing-metering": "*"
+    "@portalshq/contracts": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0"
   }
 }

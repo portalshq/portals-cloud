@@ -20,7 +20,7 @@ export interface ValidationResult {
   errors?: string[];
 }
 
-export interface CapabilityContext<TConfig = unknown> {
+export interface RegistryCapabilityContext<TConfig = unknown> {
   channelId: string;
   tenant: TenantContext;
   config: TConfig;
@@ -41,9 +41,9 @@ export interface CapabilityModule<TConfig = unknown> {
    */
   validateConfig(config: unknown): ValidationResult;
   /** Called once when a channel using this capability is first resolved. */
-  onChannelRegistered?(ctx: CapabilityContext<TConfig>): Promise<void>;
+  onChannelRegistered?(ctx: RegistryCapabilityContext<TConfig>): Promise<void>;
   /** Called when the channel is torn down or the capability is removed. */
-  onChannelUnregistered?(ctx: CapabilityContext<TConfig>): Promise<void>;
+  onChannelUnregistered?(ctx: RegistryCapabilityContext<TConfig>): Promise<void>;
 }
 
 // ── Channel manifests ────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ export interface CapabilityUsage {
   config: unknown;
 }
 
-export interface ChannelManifest {
+export interface ChannelManifestConfig {
   channelId: string;
   /** Declared owner. Verified against the trusted TenantContext passed into
    *  `resolve()`, not taken on faith -- see the mismatch check below. */
@@ -104,7 +104,7 @@ export class CapabilityRegistry {
    * manifest declaring its own trust level would let any tenant grant
    * themselves unlimited quota.
    */
-  resolve(manifest: ChannelManifest, tenant: TenantContext): ResolvedChannel {
+  resolve(manifest: ChannelManifestConfig, tenant: TenantContext): ResolvedChannel {
     if (tenant.tenantId !== manifest.tenantId) {
       return {
         ok: false,

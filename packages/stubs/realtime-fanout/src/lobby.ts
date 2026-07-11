@@ -1,4 +1,4 @@
-import { FanoutBus } from "./fanout-bus";
+import { FanoutBus } from "./fanout-bus.js";
 
 /** Pre-session/in-session audience controls: capacity, entry gating, host actions. */
 export interface LobbyState {

@@ -1,4 +1,4 @@
-import { FanoutBus } from "./fanout-bus";
+import { FanoutBus } from "./fanout-bus.js";
 
 export interface ChatMessage {
   sessionId: string;

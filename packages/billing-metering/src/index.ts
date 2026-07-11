@@ -1,2 +1,2 @@
-export * from "./metering-events";
-export * from "./metering-client";
+export * from "./metering-events.js";
+export * from "./metering-client.js";

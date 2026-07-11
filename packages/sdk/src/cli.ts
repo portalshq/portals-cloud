@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { loadManifest } from "./channel-manifest-loader";
+import { loadManifest } from "./channel-manifest-loader.js";
 
 const program = new Command();
 program.name("nap").description("Portals Platform developer CLI");

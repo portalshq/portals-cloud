@@ -1,1 +1,1 @@
-export * from "./channel-manifest-loader";
+export * from "./channel-manifest-loader.js";

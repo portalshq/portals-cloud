@@ -33,6 +33,9 @@ jobs:
       - name: Lint All Packages
         run: npx turbo lint
 
+      - name: Build All Packages
+        run: npx turbo build
+
       - name: Test All Packages
         run: npx turbo test
 

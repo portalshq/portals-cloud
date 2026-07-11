@@ -1,1 +1,1 @@
-export * from "./chapter-feed";
+export * from "./chapter-feed.js";

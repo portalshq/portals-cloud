@@ -1,4 +1,4 @@
-import { LagoClient, LagoUsageRecord } from "./lago-client";
+import { LagoClient, LagoUsageRecord } from "./lago-client.js";
 
 /**
  * Pulls aggregated usage from OpenMeter and pushes it to Lago.
