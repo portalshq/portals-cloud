@@ -1,0 +1,264 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: capabilities
+    description: Service catalog / roadmap capabilities
+  - name: feedback
+    description: Visitor feedback on capabilities
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /capabilities:
+    get:
+      operationId: listCapabilities
+      tags: [capabilities]
+      summary: List service catalog capabilities
+      description: Returns every capability in the service catalog with status and vote count
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CapabilityStatus"
+      responses:
+        "200":
+          description: List of capabilities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Capability"
+  /capabilities/{id}:
+    get:
+      operationId: getCapability
+      tags: [capabilities]
+      summary: Get a single capability
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Capability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Capability"
+        "404":
+          description: Not found
+  /capabilities/{id}/vote:
+    post:
+      operationId: voteCapability
+      tags: [capabilities]
+      summary: Cast one vote for a capability
+      description: Increments the capability's vote count by one. Idempotent per client via clientId.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoteInput"
+      responses:
+        "200":
+          description: Updated capability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Capability"
+        "404":
+          description: Not found
+  /capabilities/{id}/comments:
+    get:
+      operationId: listCapabilityComments
+      tags: [feedback]
+      summary: List feedback comments for a capability
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+    post:
+      operationId: createCapabilityComment
+      tags: [feedback]
+      summary: Submit feedback comment on a capability
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentInput"
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "404":
+          description: Not found
+  /catalog/summary:
+    get:
+      operationId: getCatalogSummary
+      tags: [capabilities]
+      summary: Service catalog summary
+      description: Aggregate counts by status plus total votes and comments, for a roadmap overview strip
+      responses:
+        "200":
+          description: Catalog summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogSummary"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    CapabilityStatus:
+      type: string
+      enum: [shipped, beta, proposed]
+    Capability:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - description
+        - category
+        - status
+        - votes
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        status:
+          $ref: "#/components/schemas/CapabilityStatus"
+        votes:
+          type: integer
+        commentCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    VoteInput:
+      type: object
+      required:
+        - clientId
+      properties:
+        clientId:
+          type: string
+          minLength: 1
+          description: Stable anonymous id generated client-side to prevent duplicate votes
+    Comment:
+      type: object
+      required:
+        - id
+        - capabilityId
+        - body
+        - createdAt
+      properties:
+        id:
+          type: integer
+        capabilityId:
+          type: integer
+        authorName:
+          type: ["string", "null"]
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    CommentInput:
+      type: object
+      required:
+        - body
+      properties:
+        authorName:
+          type: string
+          maxLength: 80
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    CatalogSummary:
+      type: object
+      required:
+        - shippedCount
+        - betaCount
+        - proposedCount
+        - totalVotes
+        - totalComments
+      properties:
+        shippedCount:
+          type: integer
+        betaCount:
+          type: integer
+        proposedCount:
+          type: integer
+        totalVotes:
+          type: integer
+        totalComments:
+          type: integer
+

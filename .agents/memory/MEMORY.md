@@ -1,0 +1,1 @@
+- [Vote/like counters need DB-level idempotency](vote-idempotency.md) — check-then-write on a clientId is a race condition; use a unique index + onConflictDoNothing.

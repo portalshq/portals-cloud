@@ -324,7 +324,7 @@ services:
       S3_ENDPOINT:          ${S3_ENDPOINT:-http://minio:9000}
       S3_ACCESS_KEY:        ${S3_ACCESS_KEY:-minioadmin}
       S3_SECRET_KEY:        ${S3_SECRET_KEY:-minioadmin}
-      S3_BUCKET_WORLD_STATE:${S3_BUCKET_WORLD_STATE:-nap-world-state}
+      S3_BUCKET_WORLD_STATE: ${S3_BUCKET_WORLD_STATE:-nap-world-state}
     ports:
       - "8080:8080"
     healthcheck:
@@ -406,7 +406,7 @@ services:
       OPENMETER_ENDPOINT:      ${OPENMETER_ENDPOINT:-http://openmeter:8888}
       LAGO_API_URL:            ${LAGO_API_URL:-http://lago-api:3000}
       LAGO_API_KEY:            ${LAGO_API_KEY:-}
-      BILLING_SYNC_INTERVAL_MS:${BILLING_SYNC_INTERVAL_MS:-300000}
+      BILLING_SYNC_INTERVAL_MS: ${BILLING_SYNC_INTERVAL_MS:-300000}
 
 # ─────────────────────────────────────────────
 # TIER 4 — Observability

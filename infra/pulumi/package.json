@@ -1,0 +1,37 @@
+{
+  "name": "portals-platform-infrastructure",
+  "version": "1.0.0",
+  "description": "Production-grade Pulumi AWS infrastructure stack for Portals platform",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint . --ext .ts",
+    "predeploy": "npm run build",
+    "deploy": "pulumi up",
+    "destroy": "pulumi destroy",
+    "preview": "pulumi preview"
+  },
+  "keywords": [
+    "pulumi",
+    "aws",
+    "infrastructure",
+    "ecs",
+    "fargate",
+    "aurora"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@pulumi/aws": "^6.0.0",
+    "@pulumi/awsx": "^2.0.0",
+    "@pulumi/docker": "^4.0.0",
+    "@pulumi/pulumi": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}

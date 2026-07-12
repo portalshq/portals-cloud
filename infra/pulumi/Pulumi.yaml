@@ -1,0 +1,58 @@
+name: portals-platform
+runtime: nodejs
+description: Production-grade Pulumi AWS infrastructure stack for Portals platform
+main: index.ts
+config:
+  aws:region:
+    description: AWS region for deployment
+    default: us-east-1
+  aws:profile:
+    description: AWS profile to use for authentication
+  projectName:
+    description: Project name for resource naming
+    default: portals
+  environment:
+    description: Environment name (dev, staging, prod)
+    default: dev
+  vpcCidr:
+    description: VPC CIDR block
+    default: "10.0.0.0/16"
+  publicSubnetCidrs:
+    description: Public subnet CIDR blocks (comma-separated)
+    default: "10.0.1.0/24,10.0.2.0/24,10.0.3.0/24"
+  privateSubnetCidrs:
+    description: Private subnet CIDR blocks (comma-separated)
+    default: "10.0.10.0/24,10.0.11.0/24,10.0.12.0/24"
+  databaseInstanceClass:
+    description: Aurora PostgreSQL instance class
+    default: "db.r6g.xlarge"
+  databaseVersion:
+    description: Aurora PostgreSQL version
+    default: "15.4"
+  databaseAllocatedStorage:
+    description: Aligned storage for Aurora (GB)
+    default: "100"
+  ecsFargateCpu:
+    description: Fargate task CPU units
+    default: "2048"
+  ecsFargateMemory:
+    description: Fargate task memory (MB)
+    default: "4096"
+  loreServiceDesiredCount:
+    description: Desired count for Lore service
+    default: "2"
+  serverServiceDesiredCount:
+    description: Desired count for Server service
+    default: "2"
+  frontendServiceDesiredCount:
+    description: Desired count for Frontend service
+    default: "2"
+  loreServerDockerPath:
+    description: Relative path to Lore server Docker context
+    default: "../../apps/lore-server"
+  serverDockerPath:
+    description: Relative path to Server Docker context
+    default: "../../apps/server"
+  frontendDockerPath:
+    description: Relative path to Frontend Docker context
+    default: "../../apps/frontend"

@@ -4,9 +4,10 @@
   "version": "0.1.0",
   "description": "Capability-first infrastructure platform for composable entertainment channels. ",
   "workspaces": [
+    "frontend",
     "packages/*",
-    "packages/capabilities/*",
-    "packages/stubs/*"
+    "packages/stubs/*",
+    "lib/*"
   ],
   "scripts": {
     "build": "turbo run build",
