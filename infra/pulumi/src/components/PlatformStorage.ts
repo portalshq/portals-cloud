@@ -14,6 +14,7 @@ export class PlatformStorage extends pulumi.ComponentResource {
   public readonly loreEcrRepository: aws.ecr.Repository;
   public readonly serverEcrRepository: aws.ecr.Repository;
   public readonly frontendEcrRepository: aws.ecr.Repository;
+  public readonly controlPlaneEcrRepository: aws.ecr.Repository;
   public readonly efsFileSystem: aws.efs.FileSystem;
   public readonly efsMountTargets: aws.efs.MountTarget[];
   public readonly efsSecurityGroup: aws.ec2.SecurityGroup;
@@ -56,6 +57,18 @@ export class PlatformStorage extends pulumi.ComponentResource {
         Project: args.projectName,
         Environment: args.environment,
         Service: "frontend",
+      },
+    }, { parent: this });
+
+    // Create ECR repository for Control Plane service
+    this.controlPlaneEcrRepository = new aws.ecr.Repository(`${resourcePrefix}-controlplane-ecr`, {
+      name: `${resourcePrefix}-controlplane`,
+      forceDelete: true,
+      tags: {
+        Name: `${resourcePrefix}-controlplane-ecr`,
+        Project: args.projectName,
+        Environment: args.environment,
+        Service: "control-plane",
       },
     }, { parent: this });
 

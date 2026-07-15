@@ -36,6 +36,7 @@ export interface PlatformDataStoreArgs {
   readonly databaseVersion: string;
   readonly databaseAllocatedStorage: number;
   readonly databaseUsername: string;
+  readonly controlPlaneSecurityGroupId?: pulumi.Input<string>;
 }
 
 /**
@@ -120,4 +121,57 @@ export interface FrontendServiceArgs {
   readonly desiredCount: number;
   readonly cpu: string;
   readonly memory: string;
+}
+
+/**
+ * Interface for PlatformEventBus component arguments
+ */
+export interface PlatformEventBusArgs {
+  readonly vpcId: pulumi.Input<string>;
+  readonly projectName: string;
+  readonly environment: string;
+}
+
+/**
+ * Interface for ControlPlaneService component arguments
+ */
+export interface ControlPlaneServiceArgs {
+  readonly clusterArn: pulumi.Input<string>;
+  readonly clusterName: pulumi.Input<string>;
+  readonly vpcId: pulumi.Input<string>;
+  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
+  readonly ecrRepositoryUrl: pulumi.Input<string>;
+  readonly albTargetGroupArn: pulumi.Input<string>;
+  readonly albSecurityGroupId: pulumi.Input<string>;
+  readonly projectName: string;
+  readonly environment: string;
+  readonly dockerPath: string;
+  readonly desiredCount: number;
+  readonly cpu: string;
+  readonly memory: string;
+  readonly databaseUrl: pulumi.Output<string>;
+  readonly eventQueueUrl: pulumi.Output<string>;
+  readonly eventQueueArn: pulumi.Output<string>;
+  readonly deadLetterQueueUrl: pulumi.Output<string>;
+  readonly deadLetterQueueArn: pulumi.Output<string>;
+  /** Ed25519 signing key for data plane JWT tokens (base64-encoded) */
+  readonly ed25519SigningKey: pulumi.Input<string>;
+  /** S3 endpoint URL (empty string to use mock provider) */
+  readonly s3Endpoint?: string;
+  /** S3 bucket name for repository chunks */
+  readonly s3BucketChunks?: string;
+  /** Whether to use S3 path-style addressing (true for MinIO/localhost) */
+  readonly s3ForcePathStyle?: string;
+  /** Docker image tag (defaults to "latest") */
+  readonly imageTag?: string;
+  /** RUST_LOG filter (defaults to "info") */
+  readonly rustLog?: string;
+  /** Enable JWT authentication (defaults to "false") */
+  readonly jwtAuthEnabled?: pulumi.Input<string>;
+  /** Enable idempotency (defaults to "true") */
+  readonly idempotencyEnabled?: pulumi.Input<string>;
+  /** Enable metrics (defaults to "true") */
+  readonly metricsEnabled?: pulumi.Input<string>;
+  /** Redis URL for idempotency cache (optional, falls back to in-memory) */
+  readonly redisUrl?: pulumi.Input<string>;
 }

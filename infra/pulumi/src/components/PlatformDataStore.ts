@@ -95,6 +95,18 @@ export class PlatformDataStore extends pulumi.ComponentResource {
       cidrBlocks: ["0.0.0.0/0"], // Will be restricted to specific security groups in production
     }, { parent: this });
 
+    // Allow ingress from control-plane security group if provided
+    if (args.controlPlaneSecurityGroupId) {
+      new aws.ec2.SecurityGroupRule(`${resourcePrefix}-db-controlplane-ingress`, {
+        type: "ingress",
+        fromPort: 5432,
+        toPort: 5432,
+        protocol: "tcp",
+        securityGroupId: this.securityGroup.id,
+        sourceSecurityGroupId: args.controlPlaneSecurityGroupId,
+      }, { parent: this });
+    }
+
     this.registerOutputs();
   }
 }
