@@ -63,7 +63,7 @@ impl DataPlaneSigningKey {
     ) -> Result<String, TokenError> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .map_err(|e| TokenError::InvalidToken(format!("system time error: {e}")))?
             .as_secs();
 
         let claims = DataPlaneClaims {

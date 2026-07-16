@@ -4,7 +4,7 @@
 #   docker run --env-file .env lorecloud-control-plane
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
-FROM rust:1.82-slim-bookworm AS builder
+FROM rust:1.97-slim-bookworm AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends pkg-config libssl-dev && \
@@ -15,7 +15,7 @@ WORKDIR /app
 # Cache dependencies: copy all Cargo.toml files first, create stub src files,
 # build deps only. Real source is copied after this layer.
 COPY control-plane/Cargo.toml /app/control-plane/Cargo.toml
-COPY control-plane/Cargo.lock /app/control-plane/Cargo.lock 2>/dev/null || true
+COPY control-plane/Cargo.lock /app/control-plane/Cargo.lock
 COPY control-plane/models/Cargo.toml /app/control-plane/models/Cargo.toml
 COPY control-plane/api/Cargo.toml /app/control-plane/api/Cargo.toml
 COPY control-plane/controllers/Cargo.toml /app/control-plane/controllers/Cargo.toml
@@ -37,11 +37,11 @@ RUN for crate in models events observability config controllers providers persis
     echo "fn main() {}" > /app/control-plane/api/src/main.rs
 
 # Pre-build dependencies (this layer is cached unless Cargo.toml changes)
-RUN cd /app/control-plane && cargo build --release 2>/dev/null || true
+RUN cd /app/control-plane && cargo build --release
 
 # Now copy real source and build the binary
 COPY control-plane/ /app/control-plane/
-RUN cd /app/control-plane && cargo build --release --bin lorecloud-control-plane 2>&1
+RUN cd /app/control-plane && cargo build --release --bin lorecloud-control-plane
 
 # ── Stage 2: Runtime ────────────────────────────────────────────────────────
 FROM debian:bookworm-slim AS runtime

@@ -137,6 +137,14 @@ export class ControlPlaneService extends pulumi.ComponentResource {
               "value": "${args.s3Endpoint}"
             },
             {
+              "name": "S3_ACCESS_KEY",
+              "value": "${args.s3AccessKey}"
+            },
+            {
+              "name": "S3_SECRET_KEY",
+              "value": "${args.s3SecretKey}"
+            },
+            {
               "name": "S3_BUCKET_CHUNKS",
               "value": "${args.s3BucketChunks}"
             },
@@ -167,6 +175,18 @@ export class ControlPlaneService extends pulumi.ComponentResource {
             {
               "name": "REDIS_URL",
               "value": "${args.redisUrl ?? ""}"
+            },
+            {
+              "name": "DP_TOKEN_EXPIRY_SECS",
+              "value": "${args.dpTokenExpirySecs ?? "3600"}"
+            },
+            {
+              "name": "CORS_ALLOWED_ORIGINS",
+              "value": "${args.corsAllowedOrigins ?? "*"}"
+            },
+            {
+              "name": "PROVIDER_TYPE",
+              "value": "${args.providerType ?? "aws"}"
             }
           ],
           "logConfiguration": {

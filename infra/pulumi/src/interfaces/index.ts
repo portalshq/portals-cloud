@@ -158,6 +158,10 @@ export interface ControlPlaneServiceArgs {
   readonly ed25519SigningKey: pulumi.Input<string>;
   /** S3 endpoint URL (empty string to use mock provider) */
   readonly s3Endpoint?: string;
+  /** S3 access key for authentication */
+  readonly s3AccessKey?: pulumi.Input<string>;
+  /** S3 secret key for authentication */
+  readonly s3SecretKey?: pulumi.Input<string>;
   /** S3 bucket name for repository chunks */
   readonly s3BucketChunks?: string;
   /** Whether to use S3 path-style addressing (true for MinIO/localhost) */
@@ -174,4 +178,10 @@ export interface ControlPlaneServiceArgs {
   readonly metricsEnabled?: pulumi.Input<string>;
   /** Redis URL for idempotency cache (optional, falls back to in-memory) */
   readonly redisUrl?: pulumi.Input<string>;
+  /** Data plane token expiry seconds (defaults to "3600") */
+  readonly dpTokenExpirySecs?: pulumi.Input<string>;
+  /** CORS allowed origins (defaults to "*") */
+  readonly corsAllowedOrigins?: pulumi.Input<string>;
+  /** Provider type: "aws" or "mock" (defaults to "aws") */
+  readonly providerType?: pulumi.Input<string>;
 }

@@ -1,6 +1,152 @@
 # Lore Cloud Control Plane
 
-An AWS-style control plane for the Lore VCS server. Manages repositories, organizations, and data plane tokens via a Postgres state store with transactional outbox and optimistic concurrency control.
+An AWS-style control plane for Portals Cloud & Lore VCS server. implementing a Kubernetes-style controller architecture for managing repositories, organizations, and data plane tokens via a Postgres state store with transactional outbox and optimistic concurrency control.
+
+## Architecture Overview
+
+The control plane follows a declarative resource management pattern inspired by Kubernetes controllers. It manages the lifecycle of infrastructure resources through reconciliation loops, ensuring desired state matches actual state.
+
+### Core Components
+
+- **Controllers**: Reconcile resource state with desired specifications
+- **Providers**: Abstract cloud provider implementations (AWS, Mock)
+- **Event Bus**: Publish/subscribe for platform events with acknowledgment
+- **State Store**: Versioned persistence with transactional outbox
+- **Circuit Breaker**: Fault tolerance wrapper for provider calls
+- **Configuration**: Layered configuration (defaults, file, environment, runtime)
+- **Observability**: OpenTelemetry integration for logs, metrics, traces
+- **Workflows**: Long-running workflow execution with orphan cleanup
+
+## Crate Structure
+
+```
+control-plane/
+├── Cargo.toml                    # Workspace manifest
+├── reconciler/                   # Core controller traits and loop
+│   ├── src/lib.rs               # Controller, Resource traits
+│   └── src/loop.rs              # ReconcileLoop with graceful shutdown
+├── providers/                    # Provider implementations
+│   ├── trait/                   # Provider trait definitions
+│   │   ├── src/lib.rs           # All provider traits
+│   │   └── src/circuit_breaker.rs # CircuitBreaker wrapper
+│   ├── aws/                     # AWS SDK implementations
+│   │   ├── src/lib.rs
+│   │   ├── src/repository.rs
+│   │   ├── src/storage.rs
+│   │   ├── src/compute.rs
+│   │   ├── src/identity.rs
+│   │   ├── src/networking.rs
+│   │   ├── src/secret.rs
+│   │   └── src/circuit_breaker.rs
+│   └── mock/                    # In-memory mock for testing
+│       └── src/lib.rs
+├── controllers/                  # Controller implementations
+│   ├── organization/            # Phase 1: Organization lifecycle
+│   ├── permissions/             # Phase 1: ACL and policy management
+│   ├── audit/                   # Phase 1: Audit logging
+│   ├── repository/              # Phase 2: Repository provisioning
+│   ├── storage/                 # Phase 2: Storage allocation
+│   ├── billing/                 # Phase 2: Billing anchors
+│   ├── quota/                   # Phase 2: Quota enforcement
+│   ├── gc/                      # Phase 2: Garbage collection
+│   ├── channel/                 # Phase 3: Channel composition
+│   ├── world/                   # Phase 3: World state management
+│   ├── session/                 # Phase 3: Session lifecycle
+│   ├── capability-deployment/   # Phase 3: Capability deployment
+│   ├── resolver/                # Phase 3: NAP address resolution
+│   ├── audience-session/        # Phase 3: Audience session binding
+│   └── runtime-scheduling/      # Phase 3: Compute scheduling
+├── events/                       # Event bus implementation
+│   └── src/lib.rs               # EventBus trait, PlatformEvent enum
+├── persistence/                  # State store implementation
+│   └── src/lib.rs               # StateStore trait, versioned writes
+├── config/                       # Configuration management
+│   ├── src/lib.rs               # Config loading
+│   └── src/defaults.toml        # Default values
+├── observability/                # OpenTelemetry integration
+│   └── src/lib.rs               # Telemetry initialization
+├── workflows/                    # Workflow execution engine
+│   └── src/lib.rs               # WorkflowRunner with orphan cleanup
+├── api/                          # API definitions
+│   └── smithy/                  # Smithy IDL models
+│       ├── lorecloud.smithy     # Core API
+│       ├── events.smithy        # Event definitions
+│       └── README.md
+└── tests/                        # Test suite
+    ├── src/unit/                # Unit tests
+    ├── src/integration/         # Integration tests
+    ├── src/contract/            # Contract tests
+    ├── src/e2e/                 # End-to-end tests
+    └── src/common/              # Test utilities
+```
+
+## Controller Phases
+
+Controllers are organized into phases based on startup dependencies:
+
+### Phase 1 (Foundation)
+- **Organization**: Manages organization lifecycle and identity namespace
+- **Permissions**: Manages ACL records, policy attachments, token scopes
+- **Audit**: Manages audit log retention and access log aggregation
+
+### Phase 2 (Resource Management)
+- **Repository**: Manages repository provisioning with finalizer-safe deletion
+- **Storage**: Manages storage bucket provisioning and quota enforcement
+- **Billing**: Manages billing anchors and usage metering
+- **Quota**: Enforces API rate limits, concurrent session limits, capability quotas
+- **GC**: Owner-reference validation and orphan cleanup
+
+### Phase 3 (Entertainment Platform - Horizon B)
+- **Channel**: Manages channel declaration and capability composition graph
+- **World**: Manages world state store provisioning and schema migration
+- **Session**: Manages session lifecycle (scheduling, start, drain, terminate)
+- **CapabilityDeployment**: Manages capability runtime artifact deployment
+- **NAPResolver**: Manages NAP address → resource binding
+- **AudienceSession**: Manages per-session audience context and identity binding
+- **RuntimeScheduling**: Manages compute allocation for active sessions
+
+## Key Design Patterns
+
+### Reconciliation Semantics
+
+- **Optimistic Concurrency Control**: Resources have a version field that must match on updates
+- **Finalizers**: Controllers register finalizers to ensure cleanup before deletion
+- **Transactional Outbox**: Events are enqueued atomically with state updates
+- **Error Policies**: Configurable backoff strategies for transient failures
+
+### Circuit Breaker
+
+Provider calls are wrapped with a circuit breaker to prevent cascading failures:
+
+- **Closed**: Normal operation, tracking failure rate
+- **Open**: After failure threshold, reject calls for a duration
+- **Half-Open**: Allow limited calls to test recovery
+
+### Configuration Hierarchy
+
+Configuration is loaded from multiple sources in priority order:
+
+1. Defaults (hardcoded)
+2. Config file (TOML)
+3. Environment variables
+4. Runtime overrides
+
+### Event Bus
+
+The event bus provides:
+
+- **Publish/Subscribe**: Decoupled event delivery
+- **Acknowledgment**: At-least-once delivery semantics
+- **Replay**: Replay events from a given position
+- **Dead-Letter Queue**: Failed events for inspection
+
+## Getting Started
+
+### Prerequisites
+
+- Rust 1.70 or later
+- Cargo
+- (Optional) AWS credentials for AWS provider
 
 ## Quick Start
 
@@ -31,6 +177,22 @@ docker compose --env-file .env.local up -d control-plane
 ```bash
 cp .env.compose .env.compose.local   # edit with real values
 docker compose --env-file .env.compose.local up -d
+```
+
+### Running Tests
+
+```bash
+# Unit tests
+cargo test --package control-plane-tests --lib unit
+
+# Integration tests
+cargo test --package control-plane-tests --lib integration
+
+# Contract tests
+cargo test --package control-plane-tests --lib contract
+
+# E2E tests (requires AWS credentials)
+cargo test --package control-plane-tests --lib e2e --features e2e
 ```
 
 ## Architecture
@@ -225,23 +387,202 @@ cargo +1.97.0-aarch64-apple-darwin test -- --ignored
 | `./control-plane/scripts/generate-key.sh` | Generate Ed25519 signing key |
 | `./control-plane/scripts/dev.sh` | Start dev environment and run server |
 
-## Project Structure
+### Configuration
 
+Create a configuration file or set environment variables:
+
+```toml
+[server]
+port = 8080
+host = "0.0.0.0"
+
+[log]
+level = "info"
+
+[provider]
+type = "mock"  # or "aws"
+
+[aws]
+region = "us-east-1"
 ```
-control-plane/
-├── api/              HTTP server, handlers, auth (Ed25519 JWTs)
-├── config/           AppConfig (clap + env)
-├── controllers/      Domain controllers (Repository reconciler)
-├── events/           Platform event types, EventBus trait
-├── models/           Shared types (ResourceId, Resource trait, etc.)
-├── observability/    Tracing initialization
-├── persistence/      Postgres StateStore, migrations, outbox relay
-├── providers/        Repository/Secret provider traits + mocks + S3 impl
-├── reconciler/       Typed reconciler loop (edge + level triggered)
-├── workflows/        WorkflowOrchestrator (multi-step orchestration)
-├── tests/            Integration tests
-└── scripts/          Dev helper scripts
+
+Environment variables override config file:
+
+```bash
+export CONTROL_PLANE_PORT=9090
+export CONTROL_PLANE_LOG_LEVEL=debug
+export CONTROL_PLANE_PROVIDER_TYPE=aws
+export AWS_REGION=us-west-2
 ```
+
+## Usage Example
+
+### Creating a Controller
+
+```rust
+use std::sync::Arc;
+use reconciler::{Controller, Resource, ReconcileContext, ReconcileResult};
+use persistence::StateStore;
+use events::EventBus;
+
+struct MyController {
+    store: Arc<dyn StateStore>,
+    event_bus: Arc<dyn EventBus>,
+}
+
+#[async_trait::async_trait]
+impl Controller for MyController {
+    type Resource = MyResource;
+    type Error = MyError;
+
+    async fn reconcile(
+        &self,
+        resource: Arc<Self::Resource>,
+        ctx: ReconcileContext,
+    ) -> Result<ReconcileResult, Self::Error> {
+        // Implement reconciliation logic
+        Ok(ReconcileResult::Ok)
+    }
+
+    fn error_policy(&self, resource: Arc<Self::Resource>, error: &Self::Error, ctx: ReconcileContext) -> ErrorPolicy {
+        // Define error handling strategy
+        ErrorPolicy::Backoff { /* ... */ }
+    }
+
+    fn finalizers(&self) -> &[&'static str] {
+        &["myapp.io/resource-cleanup"]
+    }
+
+    async fn health_check(&self) -> Result<(), HealthError> {
+        // Health check implementation
+        Ok(())
+    }
+}
+```
+
+### Using Providers
+
+```rust
+use control_plane_aws_provider::create_aws_provider;
+use control_plane_provider_trait::InfrastructureProvider;
+use aws_config::Region;
+
+let metrics = Arc::new(ControllerMetrics::new("myapp".to_string()));
+let circuit_config = CircuitBreakerConfig::default();
+
+let provider = create_aws_provider(
+    Region::new("us-east-1"),
+    metrics,
+    circuit_config,
+).await?;
+
+// Use provider
+let spec = RepositorySpec {
+    name: "my-repo".to_string(),
+    storage_class: "standard".to_string(),
+    region: "us-east-1".to_string(),
+    tags: vec![],
+};
+
+let handle = provider.repository.provision(&spec).await?;
+```
+
+### Running a Reconcile Loop
+
+```rust
+use reconciler::ReconcileLoop;
+use tokio::sync::mpsc;
+
+let controller = Arc::new(MyController::new(store, event_bus));
+let (work_tx, work_rx) = mpsc::channel(100);
+let (shutdown_tx, shutdown_rx) = oneshot::channel();
+
+let loop_handle = ReconcileLoop::new(
+    controller,
+    work_rx,
+    shutdown_rx,
+    metrics,
+).run();
+
+// Submit work
+work_tx.send(resource).await?;
+
+// Shutdown
+shutdown_tx.send(()).await?;
+loop_handle.await?;
+```
+
+## Development
+
+### Adding a New Controller
+
+1. Create a new crate under `controllers/`
+2. Implement the `Controller` trait
+3. Define the resource type and phases
+4. Add the controller to the workspace `Cargo.toml`
+5. Add tests in `tests/src/`
+
+### Adding a New Provider
+
+1. Implement the provider traits in `providers/aws/` or `providers/mock/`
+2. Wrap with circuit breaker
+3. Add contract tests in `tests/src/contract/`
+
+### Adding a New Resource Type
+
+1. Add to `ResourceKind` enum in `reconciler/src/lib.rs`
+2. Add Smithy model in `api/smithy/lorecloud.smithy`
+3. Implement controller
+4. Add events to `api/smithy/events.smithy`
+
+## Observability
+
+The control plane uses OpenTelemetry for observability:
+
+- **Logs**: Structured logging with tracing
+- **Metrics**: Prometheus metrics via `ControllerMetrics`
+- **Traces**: Distributed tracing for request flow
+
+Initialize telemetry:
+
+```rust
+use observability::Telemetry;
+
+let telemetry = Telemetry::new("control-plane".to_string());
+telemetry.init_logging(&config.log.level);
+telemetry.init_metrics();
+telemetry.init_tracing("http://localhost:4317").await?;
+```
+
+## Infrastructure Integration
+
+The control plane integrates with the existing Pulumi infrastructure in `cloud/infra/pulumi`:
+
+### StateStore Integration
+- **Database**: Shares Aurora PostgreSQL (PlatformDataStore) with existing platform services
+- **Migrations**: Uses sqlx migrations in `persistence/migrations/`
+- **Schema**: Tables for resources, events (outbox), dead-letter queue, and workflows
+- **Security**: Control-plane security group granted access to PostgreSQL
+- **Implementation**: `PostgresStateStore` in `persistence/src/postgres.rs`
+
+### EventBus Integration
+- **Service**: AWS SQS with dead-letter queue (PlatformEventBus component)
+- **Implementation**: `SqsEventBus` in `events/src/sqs.rs`
+- **Features**: At-least-once delivery, acknowledgment, DLQ for failed events
+- **IAM**: Task execution role has SQS permissions via attached policy
+
+### Service Deployment
+- **Component**: ControlPlaneService in `cloud/infra/pulumi/src/components/`
+- **Platform**: ECS Fargate in existing PlatformCluster
+- **Image**: Built and pushed to dedicated ECR repository
+- **Environment**: DATABASE_URL, EVENT_QUEUE_URL, DEAD_LETTER_QUEUE_URL, AWS_REGION
+
+### Local Development
+- **Docker Compose**: PostgreSQL + ElasticMQ (SQS-compatible) + Control Plane
+- **Parity**: Local setup matches production infrastructure
+- **Migrations**: Run via `scripts/migrate.sh`
+- **Configuration**: Environment variables override defaults
+
 
 ## Database Schema
 

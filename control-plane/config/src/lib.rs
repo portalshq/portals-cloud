@@ -61,6 +61,9 @@ pub struct AppConfig {
 
     #[arg(long, env = "REDIS_URL", default_value = "")]
     pub redis_url: String,
+
+    #[arg(long, env = "PROVIDER_TYPE", default_value = "aws")]
+    pub provider_type: String,
 }
 
 impl AppConfig {

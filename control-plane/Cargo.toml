@@ -1,17 +1,39 @@
 [workspace]
 members = [
-    "models",
     "api",
+    "config",
     "controllers",
+    "controllers/audit",
+    "controllers/quota",
+    "controllers/permissions",
+    "controllers/billing",
+    "controllers/gc",
+    "controllers/session",
+    "controllers/storage",
+    "controllers/world",
+    "controllers/channel",
+    "controllers/capability-deployment",
+    "controllers/runtime-scheduling",
+    "controllers/resolver",
+    "controllers/audience-session",
     "events",
+    "models",
+    "observability",
     "persistence",
     "providers",
     "reconciler",
-    "observability",
-    "config",
-    "workflows",
+    "server",
+    "tests",
+    "workflows"
 ]
 resolver = "2"
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+authors = ["Portals Cloud Platform Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/portalshq/portals-cloud"
 
 [workspace.dependencies]
 tokio = { version = "1.34", features = ["full", "time"] }
@@ -21,6 +43,9 @@ serde_json = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
 tracing-appender = "0.2"
+opentelemetry = "0.21"
+opentelemetry-otlp = "0.14"
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio", "metrics"] }
 anyhow = "1.0"
 thiserror = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
@@ -46,3 +71,18 @@ metrics = "0.24"
 metrics-exporter-prometheus = "0.16"
 # Rate limiting
 tower_governor = "0.8"
+# Configuration
+config = "0.14"
+toml = "0.8"
+# AWS SDK (only in providers/aws)
+aws-config = "1.1"
+aws-sdk-s3 = "1.4"
+aws-sdk-sqs = "1.4"
+aws-sdk-ecs = "1.4"
+aws-sdk-lambda = "1.4"
+aws-sdk-iam = "1.4"
+aws-sdk-route53 = "1.4"
+aws-sdk-secretsmanager = "1.4"
+aws-sdk-sfn = "1.4"
+# Testing
+tokio-test = "0.4"

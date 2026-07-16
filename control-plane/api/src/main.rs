@@ -4,6 +4,8 @@ use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use tokio::signal;
 use tracing::{error, info, warn};
+use aws_sdk_sqs::Client as SqsClient;
+use aws_config::BehaviorVersion;
 
 use api::{auth, http};
 
@@ -40,9 +42,23 @@ async fn main() -> anyhow::Result<()> {
         let outbox_store = store.clone();
         let outbox_interval = config.outbox_poll_interval_ms;
         let sqs_url = config.sqs_queue_url.clone();
+        let aws_region = config.s3_region.clone();
+        
         Some(tokio::spawn(async move {
-            let relay = persistence::OutboxRelay::new(outbox_store, outbox_interval);
-            relay.run(&sqs_url).await;
+            let relay = if !sqs_url.is_empty() {
+                // Create SQS client for event delivery
+                let config = aws_config::defaults(BehaviorVersion::latest())
+                    .region(aws_sdk_sqs::config::Region::new(aws_region.clone()))
+                    .load()
+                    .await;
+                let sqs_client = SqsClient::new(&config);
+                persistence::OutboxRelay::new(outbox_store, outbox_interval)
+                    .with_sqs(sqs_url, sqs_client)
+            } else {
+                // EventBridge not yet implemented, use basic relay
+                persistence::OutboxRelay::new(outbox_store, outbox_interval)
+            };
+            relay.run().await;
         }))
     };
 
@@ -54,9 +70,13 @@ async fn main() -> anyhow::Result<()> {
 
         let repo_store = store.clone();
 
-        // Use real S3 provider if endpoint is configured, otherwise mock
+        // Use real S3 provider if provider_type is "aws", otherwise mock
         let repo_provider: Arc<dyn providers::r#trait::repository::RepositoryProvider> =
-            if !config.s3_endpoint.is_empty() {
+            if config.provider_type == "aws" {
+                if config.s3_endpoint.is_empty() {
+                    error!("PROVIDER_TYPE=aws but S3_ENDPOINT is not configured");
+                    return Err(anyhow::anyhow!("PROVIDER_TYPE=aws requires S3_ENDPOINT to be configured"));
+                }
                 info!(endpoint = %config.s3_endpoint, bucket = %config.s3_bucket_chunks, "using S3 storage provider");
                 Arc::new(providers::aws::s3_storage::S3StorageProvider::new(
                     config.s3_endpoint.clone(),
@@ -66,9 +86,12 @@ async fn main() -> anyhow::Result<()> {
                     config.s3_bucket_chunks.clone(),
                     config.s3_force_path_style(),
                 ))
-            } else {
-                warn!("no S3 endpoint configured — using mock storage provider (data will not be persisted)");
+            } else if config.provider_type == "mock" {
+                warn!("PROVIDER_TYPE=mock — using mock storage provider (data will not be persisted)");
                 Arc::new(providers::mock::repository::MockRepositoryProvider::new())
+            } else {
+                error!("Invalid PROVIDER_TYPE: {} (must be 'aws' or 'mock')", config.provider_type);
+                return Err(anyhow::anyhow!("PROVIDER_TYPE must be either 'aws' or 'mock'"));
             };
 
         let repo_controller = Arc::new(RepositoryController {
@@ -81,6 +104,24 @@ async fn main() -> anyhow::Result<()> {
         });
 
         let loop_store = store.clone();
+
+        // Phase 1: Initialize controllers
+        info!("Phase 1: Initializing controllers");
+
+        // Phase 2: Health check gate - verify controllers are healthy
+        info!("Phase 2: Running controller health checks");
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Brief initialization delay
+        
+        repo_controller.health_check().await
+            .map_err(|e| anyhow::anyhow!("Repository controller health check failed: {}", e))?;
+        info!("Repository controller health check passed");
+        
+        org_controller.health_check().await
+            .map_err(|e| anyhow::anyhow!("Organization controller health check failed: {}", e))?;
+        info!("Organization controller health check passed");
+
+        // Phase 3: Start reconciler loops
+        info!("Phase 3: Starting reconciler loops");
         
         // Repository reconciler loop
         let repo_reconciler_loop = reconciler::TypedReconcilerLoop::new(
@@ -97,6 +138,8 @@ async fn main() -> anyhow::Result<()> {
             ResourceKind::Organization,
             config.reconciler_sweep_interval_ms,
         );
+
+        info!("All controllers started successfully");
 
         tokio::spawn(async move {
             tokio::select! {

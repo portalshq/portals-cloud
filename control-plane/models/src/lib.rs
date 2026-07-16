@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::time::Duration;
 use thiserror::Error;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ResourceId(pub String);
 
 impl ResourceId {
@@ -72,7 +72,7 @@ impl ResourceKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OwnerReference {
     pub kind: ResourceKind,
     pub id: ResourceId,

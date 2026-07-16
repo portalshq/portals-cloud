@@ -1,0 +1,18 @@
+[package]
+name = "control-plane-runtime-scheduling-controller"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+reconciler = { path = "../../reconciler" }
+persistence = { path = "../../persistence" }
+events = { path = "../../events" }
+control-plane-provider-trait = { path = "../../providers/trait" }

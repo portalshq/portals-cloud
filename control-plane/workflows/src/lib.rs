@@ -131,7 +131,8 @@ impl WorkflowOrchestrator {
                     "source_url": source_url,
                     "state": "Running",
                     "current_step": 0,
-                    "steps": serde_json::to_value(&steps).unwrap(),
+                    "steps": serde_json::to_value(&steps)
+                        .map_err(|e| WorkflowError::Parse(format!("failed to serialize steps: {e}")))?,
                 }),
                 &[],
             )
@@ -204,7 +205,8 @@ impl WorkflowOrchestrator {
                     "kind": "RepositoryImport",
                     "state": new_state,
                     "current_step": next_step,
-                    "steps": serde_json::to_value(&updated_steps).unwrap(),
+                    "steps": serde_json::to_value(&updated_steps)
+                        .map_err(|e| WorkflowError::Parse(format!("failed to serialize steps: {e}")))?,
                 }),
             )
             .await

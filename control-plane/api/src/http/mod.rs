@@ -30,10 +30,17 @@ async fn request_id_middleware(request: Request, next: Next) -> Response {
     let request_id = Uuid::new_v4().to_string();
     let mut response = next.run(request).await;
     use axum::http::header::HeaderName;
-    response.headers_mut().insert(
-        HeaderName::from_static("x-request-id"),
-        request_id.parse().expect("valid header value"),
-    );
+    match request_id.parse() {
+        Ok(header_value) => {
+            response.headers_mut().insert(
+                HeaderName::from_static("x-request-id"),
+                header_value,
+            );
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to parse request_id as header value");
+        }
+    }
     response
 }
 

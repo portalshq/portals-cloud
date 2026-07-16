@@ -38,8 +38,13 @@ pub async fn jwt_auth_middleware(
     };
 
     // Verify token
+    let token_str = token.as_deref().ok_or_else(|| {
+        warn!("Authorization header present but token is empty");
+        StatusCode::UNAUTHORIZED
+    })?;
+    
     let claims: DataPlaneClaims = signing_key
-        .verify_data_plane_token(token.as_deref().unwrap())
+        .verify_data_plane_token(token_str)
         .map_err(|e| {
             warn!(error = %e, "JWT verification failed");
             StatusCode::UNAUTHORIZED

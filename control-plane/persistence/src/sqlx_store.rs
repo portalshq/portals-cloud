@@ -34,7 +34,7 @@ impl PostgresStateStore {
 }
 
 pub struct PostgresTransactionPool {
-    pool: PgPool,
+    tx: sqlx::Transaction<sqlx::Postgres>,
 }
 
 #[async_trait]
@@ -53,7 +53,7 @@ impl StoreTransaction for PostgresTransactionPool {
         .bind(state)
         .bind(id.as_str())
         .bind(version as i64)
-        .execute(&self.pool)
+        .execute(&mut *self.tx)
         .await
         .map_err(|e| StoreError::Database(format!("set_observed: {e}")))?;
 
@@ -74,7 +74,7 @@ impl StoreTransaction for PostgresTransactionPool {
         )
         .bind(workflow_id)
         .bind(id.as_str())
-        .execute(&self.pool)
+        .execute(&mut *self.tx)
         .await
         .map_err(|e| StoreError::Database(format!("set_workflow_id: {e}")))?;
         Ok(())
@@ -98,7 +98,7 @@ impl StoreTransaction for PostgresTransactionPool {
         .bind(&event_type)
         .bind(&partition_key)
         .bind(&payload)
-        .execute(&self.pool)
+        .execute(&mut *self.tx)
         .await
         .map_err(|e| StoreError::Database(format!("enqueue_outbox_event: {e}")))?;
 
@@ -145,15 +145,33 @@ impl StateStore for PostgresStateStore {
         F: FnOnce(Arc<dyn StoreTransaction>) -> Fut + Send,
         Fut: Future<Output = Result<T, StoreError>> + Send,
     {
-        // For the Postgres implementation, we create a transactional wrapper
-        // that uses the pool. The StoreTransaction methods use the pool directly.
-        // Optimistic concurrency (version checks) ensures correctness without
-        // requiring strict DB-level transactions for the MVP.
-        let pg_tx = PostgresTransactionPool {
-            pool: self.pool.clone(),
-        };
-
-        f(Arc::new(pg_tx)).await
+        // Begin a real database transaction
+        let mut tx = self.pool
+            .begin()
+            .await
+            .map_err(|e| StoreError::Database(format!("failed to begin transaction: {e}")))?;
+        
+        // Create transactional wrapper
+        let pg_tx = PostgresTransactionPool { tx };
+        
+        // Execute the transactional operations
+        let result = f(Arc::new(pg_tx)).await;
+        
+        // Commit or rollback based on result
+        match result {
+            Ok(value) => {
+                tx.commit()
+                    .await
+                    .map_err(|e| StoreError::Database(format!("failed to commit transaction: {e}")))?;
+                Ok(value)
+            }
+            Err(e) => {
+                tx.rollback()
+                    .await
+                    .map_err(|e2| StoreError::Database(format!("failed to rollback transaction: {e2}")))?;
+                Err(e)
+            }
+        }
     }
 
     async fn get_observed<T: DeserializeOwned>(

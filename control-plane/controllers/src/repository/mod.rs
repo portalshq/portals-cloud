@@ -80,7 +80,8 @@ impl Controller for RepositoryController {
             let new_handle = self.provider.provision(&resource.spec).await?;
             let version = resource.version();
             let id = resource.id.clone();
-            let handle_json = serde_json::to_value(&new_handle).unwrap();
+            let handle_json = serde_json::to_value(&new_handle)
+                .map_err(|e| RepositoryError::InvalidSpec(format!("failed to serialize handle: {e}")))?;
 
             self.store
                 .transaction(|tx| {
