@@ -18,3 +18,5 @@ sqlx = { workspace = true }
 models = { path = "../models" }
 events = { path = "../events" }
 metrics = { workspace = true }
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+aws-sdk-sqs = { version = "1.46" }

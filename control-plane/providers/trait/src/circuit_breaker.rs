@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use async_trait::async_trait;
-use reconciler::ControllerMetrics;
+use tokio::sync::Mutex;
 use super::{
     RepositoryProvider, RepositoryHandle, RepositorySpec, RepositoryStatus, RepositorySpecPatch,
     ProviderError,
@@ -117,17 +117,15 @@ impl CircuitBreaker {
 /// Circuit breaker wrapper for RepositoryProvider.
 pub struct CircuitBreakerRepositoryProvider<P> {
     inner: P,
-    breaker: Arc<CircuitBreaker>,
-    metrics: Arc<ControllerMetrics>,
+    breaker: Arc<Mutex<CircuitBreaker>>,
     provider_name: String,
 }
 
 impl<P> CircuitBreakerRepositoryProvider<P> {
-    pub fn new(inner: P, breaker: Arc<CircuitBreaker>, metrics: Arc<ControllerMetrics>, provider_name: String) -> Self {
+    pub fn new(inner: P, breaker: Arc<Mutex<CircuitBreaker>>, provider_name: String) -> Self {
         Self {
             inner,
             breaker,
-            metrics,
             provider_name,
         }
     }
@@ -136,67 +134,107 @@ impl<P> CircuitBreakerRepositoryProvider<P> {
 #[async_trait]
 impl<P: RepositoryProvider> RepositoryProvider for CircuitBreakerRepositoryProvider<P> {
     async fn provision(&self, spec: &RepositorySpec) -> Result<RepositoryHandle, ProviderError> {
-        match self.breaker.state() {
+        let state = {
+            let breaker = self.breaker.lock().await;
+            breaker.state()
+        };
+        
+        match state {
             CircuitState::Open => {
-                self.metrics
-                    .circuit_breaker_state
-                    .with_label_values(&[&self.provider_name])
-                    .set(1.0);
                 return Err(ProviderError::CircuitOpen {
                     provider: self.provider_name.clone(),
-                    retry_after: self.breaker.retry_after(),
+                    retry_after: {
+                        let breaker = self.breaker.lock().await;
+                        breaker.retry_after()
+                    },
                 });
             }
             _ => {}
         }
 
         let result = self.inner.provision(spec).await;
-        self.breaker.record(&result);
+        {
+            let mut breaker = self.breaker.lock().await;
+            breaker.record(&result);
+        }
         result
     }
 
     async fn deprovision(&self, handle: &RepositoryHandle) -> Result<(), ProviderError> {
-        match self.breaker.state() {
+        let state = {
+            let breaker = self.breaker.lock().await;
+            breaker.state()
+        };
+        
+        match state {
             CircuitState::Open => {
                 return Err(ProviderError::CircuitOpen {
                     provider: self.provider_name.clone(),
-                    retry_after: self.breaker.retry_after(),
+                    retry_after: {
+                        let breaker = self.breaker.lock().await;
+                        breaker.retry_after()
+                    },
                 });
             }
             _ => {}
         }
         let result = self.inner.deprovision(handle).await;
-        self.breaker.record(&result);
+        {
+            let mut breaker = self.breaker.lock().await;
+            breaker.record(&result);
+        }
         result
     }
 
     async fn describe(&self, handle: &RepositoryHandle) -> Result<RepositoryStatus, ProviderError> {
-        match self.breaker.state() {
+        let state = {
+            let breaker = self.breaker.lock().await;
+            breaker.state()
+        };
+        
+        match state {
             CircuitState::Open => {
                 return Err(ProviderError::CircuitOpen {
                     provider: self.provider_name.clone(),
-                    retry_after: self.breaker.retry_after(),
+                    retry_after: {
+                        let breaker = self.breaker.lock().await;
+                        breaker.retry_after()
+                    },
                 });
             }
             _ => {}
         }
         let result = self.inner.describe(handle).await;
-        self.breaker.record(&result);
+        {
+            let mut breaker = self.breaker.lock().await;
+            breaker.record(&result);
+        }
         result
     }
 
     async fn update(&self, handle: &RepositoryHandle, patch: &RepositorySpecPatch) -> Result<(), ProviderError> {
-        match self.breaker.state() {
+        let state = {
+            let breaker = self.breaker.lock().await;
+            breaker.state()
+        };
+        
+        match state {
             CircuitState::Open => {
                 return Err(ProviderError::CircuitOpen {
                     provider: self.provider_name.clone(),
-                    retry_after: self.breaker.retry_after(),
+                    retry_after: {
+                        let breaker = self.breaker.lock().await;
+                        breaker.retry_after()
+                    },
                 });
             }
             _ => {}
         }
         let result = self.inner.update(handle, patch).await;
-        self.breaker.record(&result);
+        {
+            let mut breaker = self.breaker.lock().await;
+            breaker.record(&result);
+        }
         result
     }
 

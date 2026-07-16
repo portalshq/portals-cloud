@@ -3,12 +3,13 @@
 //! This crate defines the provider traits that abstract cloud infrastructure.
 //! Controllers depend only on these traits, never on aws-sdk-* directly.
 
+pub mod circuit_breaker;
+
 use std::sync::Arc;
 use async_trait::async_trait;
 use thiserror::Error;
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use reconciler::ResourceId;
 
 /// Provider error types.

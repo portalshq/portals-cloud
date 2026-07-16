@@ -1,24 +1,18 @@
 //! Unit tests for controller logic.
 
 use std::sync::Arc;
-use std::time::Duration;
 use async_trait::async_trait;
-use reconciler::{
-    Controller, Resource, ResourceId, ResourceKind, OwnerReference,
+use models::{
+    Controller, Resource, ResourceId, OwnerReference,
     ReconcileContext, ReconcileResult, ErrorPolicy, HealthError,
 };
-use control_plane_provider_trait::IdentityProvider;
-use control_plane_mock_provider::MockRepositoryProvider;
-use control_plane_mock_provider::MockProviderConfig;
 
 #[cfg(test)]
 mod test_controller {
     use super::*;
 
     /// Test controller for unit testing.
-    struct TestController {
-        store: Arc<dyn MockStore>,
-    }
+    struct TestController;
 
     #[async_trait]
     impl Controller for TestController {
@@ -27,7 +21,7 @@ mod test_controller {
 
         async fn reconcile(
             &self,
-            resource: Arc<Self::Resource>,
+            _resource: Arc<Self::Resource>,
             _ctx: ReconcileContext,
         ) -> Result<ReconcileResult, Self::Error> {
             Ok(ReconcileResult::Ok)
@@ -40,10 +34,6 @@ mod test_controller {
             _ctx: ReconcileContext,
         ) -> ErrorPolicy {
             ErrorPolicy::Discard
-        }
-
-        fn finalizers(&self) -> &[&'static str] {
-            &[]
         }
 
         async fn health_check(&self) -> Result<(), HealthError> {
@@ -87,33 +77,16 @@ mod test_controller {
 
     #[tokio::test]
     async fn test_controller_reconcile() {
-        let controller = TestController {
-            store: Arc::new(MockStoreImpl),
-        };
+        let controller = TestController;
 
         let resource = Arc::new(TestResource {
             id: ResourceId::new("test-id"),
             version: 1,
         });
 
-        let ctx = ReconcileContext {
-            attempt: 1,
-            timestamp: chrono::Utc::now(),
-        };
+        let ctx = ReconcileContext::new();
 
         let result = controller.reconcile(resource, ctx).await;
         assert!(result.is_ok());
-    }
-}
-
-trait MockStore: Send + Sync {
-    fn ping(&self) -> Result<(), String>;
-}
-
-struct MockStoreImpl;
-
-impl MockStore for MockStoreImpl {
-    fn ping(&self) -> Result<(), String> {
-        Ok(())
     }
 }

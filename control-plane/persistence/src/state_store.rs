@@ -19,9 +19,9 @@ pub enum StoreError {
 
 #[async_trait]
 pub trait StoreTransaction: Send + Sync {
-    async fn set_observed(&self, id: &ResourceId, state: &serde_json::Value, version: u64) -> Result<(), StoreError>;
-    async fn set_workflow_id(&self, id: &ResourceId, workflow_id: &str, version: u64) -> Result<(), StoreError>;
-    async fn enqueue_outbox_event(&self, event: PlatformEvent) -> Result<(), StoreError>;
+    async fn set_observed(&mut self, id: &ResourceId, state: &serde_json::Value, version: u64) -> Result<(), StoreError>;
+    async fn set_workflow_id(&mut self, id: &ResourceId, workflow_id: &str, version: u64) -> Result<(), StoreError>;
+    async fn enqueue_outbox_event(&mut self, event: PlatformEvent) -> Result<(), StoreError>;
 }
 
 #[async_trait]
@@ -36,7 +36,8 @@ pub trait StateStore: Send + Sync {
     async fn transaction<F, Fut, T>(&self, f: F) -> Result<T, StoreError>
     where
         F: FnOnce(Arc<dyn StoreTransaction>) -> Fut + Send,
-        Fut: Future<Output = Result<T, StoreError>> + Send;
+        Fut: Future<Output = Result<T, StoreError>> + Send,
+        T: Send;
 
     async fn get_observed<T: DeserializeOwned>(&self, id: &ResourceId) -> Result<Option<T>, StoreError>;
     async fn get_handle(&self, id: &ResourceId) -> Result<serde_json::Value, StoreError>;

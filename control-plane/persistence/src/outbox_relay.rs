@@ -1,8 +1,7 @@
 use crate::sqlx_store::PostgresStateStore;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
-use aws_sdk_sqs::{Client as SqsClient, Error as SqsError};
-use aws_config::BehaviorVersion;
+use aws_sdk_sqs::Client as SqsClient;
 
 pub struct OutboxRelay {
     store: Arc<PostgresStateStore>,
@@ -101,24 +100,24 @@ impl OutboxRelay {
             let message_body = serde_json::to_string(&event.payload)
                 .map_err(|e| format!("failed to serialize event payload: {e}"))?;
 
+            let event_attr = aws_sdk_sqs::types::MessageAttributeValue::builder()
+                .string_value(event.event_type.clone())
+                .data_type("String")
+                .build()
+                .map_err(|e| format!("failed to build event_type attribute: {e}"))?;
+
+            let partition_attr = aws_sdk_sqs::types::MessageAttributeValue::builder()
+                .string_value(event.partition_key.clone())
+                .data_type("String")
+                .build()
+                .map_err(|e| format!("failed to build partition_key attribute: {e}"))?;
+
             let send_result = sqs_client
                 .send_message()
                 .queue_url(&self.queue_url)
                 .message_body(&message_body)
-                .message_attributes(
-                    "event_type",
-                    aws_sdk_sqs::types::MessageAttributeValue::builder()
-                        .string_value(event.event_type.clone())
-                        .data_type("String")
-                        .build(),
-                )
-                .message_attributes(
-                    "partition_key",
-                    aws_sdk_sqs::types::MessageAttributeValue::builder()
-                        .string_value(event.partition_key.clone())
-                        .data_type("String")
-                        .build(),
-                )
+                .message_attributes("event_type", event_attr)
+                .message_attributes("partition_key", partition_attr)
                 .send()
                 .await
                 .map_err(|e| format!("SQS send_message failed: {e}"))?;

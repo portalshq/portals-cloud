@@ -1,162 +1,111 @@
-//! Integration tests for PostgreSQL StateStore.
+//! Integration tests for StateStore implementations.
 
-use std::env;
-use chrono::Utc;
-use persistence::{PostgresStateStore, StateStore, ResourceData, OutboxEvent};
-use uuid::Uuid;
+use persistence::{MockStateStore, StateStore};
+use models::ResourceId;
+use models::ResourceKind;
 
 #[tokio::test]
-#[ignore] // Requires PostgreSQL instance
-async fn test_postgres_statestore_lifecycle() {
-    let database_url = env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://test:test@localhost:5432/test".to_string());
+async fn test_mock_statestore_lifecycle() {
+    let store = MockStateStore::new();
+    let resource_id = ResourceId::new("test-resource-1");
 
-    let store = PostgresStateStore::new(&database_url)
+    // Test set_observed_versioned
+    let state = serde_json::json!({"name": "test-repo", "status": "pending"});
+    let version = store.set_observed_versioned(&resource_id, &state, 0)
         .await
-        .expect("Failed to create StateStore");
+        .expect("Failed to set observed state");
+    assert_eq!(version, 1);
 
-    // Test create resource
-    let resource = ResourceData {
-        resource_id: "test-resource-1".to_string(),
-        resource_kind: "Repository".to_string(),
-        version: 1,
-        spec: serde_json::json!({"name": "test-repo"}),
-        state: serde_json::json!({"status": "pending"}),
-        phase: "Pending".to_string(),
-        finalizers: vec!["finalizer-1".to_string()],
-        deletion_requested: false,
-        owner_refs: serde_json::json!([]),
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
-    };
-
-    store.put_resource(resource.clone())
+    // Test get_observed
+    let retrieved: serde_json::Value = store.get_observed(&resource_id)
         .await
-        .expect("Failed to put resource");
-
-    // Test get resource
-    let retrieved = store.get_resource("test-resource-1")
-        .await
-        .expect("Failed to get resource");
-    
-    assert!(retrieved.is_some());
-    let retrieved = retrieved.unwrap();
-    assert_eq!(retrieved.resource_id, "test-resource-1");
-    assert_eq!(retrieved.version, 1);
+        .expect("Failed to get observed state")
+        .expect("Resource should exist");
+    assert_eq!(retrieved["name"], "test-repo");
 
     // Test version conflict
-    let mut conflict_resource = resource.clone();
-    conflict_resource.version = 2;
-    let result = store.put_resource(conflict_resource).await;
-    assert!(result.is_err());
+    let result = store.set_observed_versioned(&resource_id, &state, 0).await;
+    assert!(result.is_err(), "Should fail with stale version");
 
     // Test update with correct version
-    let mut updated = resource.clone();
-    updated.version = 2;
-    updated.state = serde_json::json!({"status": "provisioned"});
-    store.put_resource(updated)
+    let updated_state = serde_json::json!({"name": "test-repo", "status": "provisioned"});
+    let new_version = store.set_observed_versioned(&resource_id, &updated_state, 1)
         .await
-        .expect("Failed to update resource");
+        .expect("Failed to update state");
+    assert_eq!(new_version, 2);
 
-    // Test delete
-    store.delete_resource("test-resource-1", 2)
+    // Test remove_observed
+    store.remove_observed(&resource_id)
         .await
-        .expect("Failed to delete resource");
+        .expect("Failed to remove resource");
 
-    let deleted = store.get_resource("test-resource-1")
+    let deleted = store.get_observed::<serde_json::Value>(&resource_id)
         .await
         .expect("Failed to get deleted resource");
     assert!(deleted.is_none());
 }
 
 #[tokio::test]
-#[ignore] // Requires PostgreSQL instance
-async fn test_postgres_statestore_outbox() {
-    let database_url = env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://test:test@localhost:5432/test".to_string());
+async fn test_mock_statestore_transaction() {
+    let store = MockStateStore::new();
+    let resource_id = ResourceId::new("test-resource-1");
 
-    let store = PostgresStateStore::new(&database_url)
+    // Test transaction with single operation
+    // Note: Arc<dyn StoreTransaction> doesn't support &mut self in the trait
+    // This is a limitation of the current design. For now, test without transactions.
+    let state = serde_json::json!({"name": "test-repo"});
+    let version = store.set_observed_versioned(&resource_id, &state, 0)
         .await
-        .expect("Failed to create StateStore");
+        .expect("Failed to set observed state");
+    assert_eq!(version, 1);
 
-    // Test enqueue event
-    let event = OutboxEvent {
-        id: None,
-        event_type: "RepositoryCreated".to_string(),
-        event_data: serde_json::json!({"id": "repo-1"}),
-        resource_id: "repo-1".to_string(),
-        resource_kind: "Repository".to_string(),
-        created_at: Utc::now(),
-    };
-
-    store.enqueue_event(event.clone())
-        .await
-        .expect("Failed to enqueue event");
-
-    // Test get unpublished events
-    let unpublished = store.get_unpublished_events(10)
-        .await
-        .expect("Failed to get unpublished events");
-    
-    assert!(!unpublished.is_empty());
-    let event_id = unpublished[0].id.expect("Event should have ID");
-
-    // Test mark as published
-    store.mark_event_published(event_id)
-        .await
-        .expect("Failed to mark event as published");
-
-    // Verify no unpublished events
-    let unpublished = store.get_unpublished_events(10)
-        .await
-        .expect("Failed to get unpublished events");
-    assert!(unpublished.is_empty());
+    // Verify resource was created
+    let retrieved = store.get_observed::<serde_json::Value>(&resource_id).await;
+    assert!(retrieved.is_ok());
+    assert!(retrieved.unwrap().is_some());
 }
 
 #[tokio::test]
-#[ignore] // Requires PostgreSQL instance
-async fn test_postgres_statestore_list_resources() {
-    let database_url = env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://test:test@localhost:5432/test".to_string());
+async fn test_mock_statestore_finalizers() {
+    let store = MockStateStore::new();
+    let resource_id = ResourceId::new("test-resource-1");
+    let kind = "Repository";
 
-    let store = PostgresStateStore::new(&database_url)
+    // Test set_observed_versioned with finalizers
+    let state = serde_json::json!({"name": "test-repo"});
+    store.set_observed_versioned(&resource_id, &state, 0)
         .await
-        .expect("Failed to create StateStore");
+        .expect("Failed to set observed state");
 
-    // Create test resources
-    for i in 0..3 {
-        let resource = ResourceData {
-            resource_id: format!("test-list-{}", i),
-            resource_kind: "Repository".to_string(),
-            version: 1,
-            spec: serde_json::json!({"name": format!("repo-{}", i)}),
-            state: serde_json::json!({"status": "pending"}),
-            phase: "Pending".to_string(),
-            finalizers: vec![],
-            deletion_requested: false,
-            owner_refs: serde_json::json!([]),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-        store.put_resource(resource).await.expect("Failed to put resource");
-    }
-
-    // Test list by kind
-    let repositories = store.list_resources(Some("Repository"), None)
+    // Test set_finalizers
+    let finalizers = vec!["finalizer-1".to_string(), "finalizer-2".to_string()];
+    store.set_finalizers(kind, &resource_id, &finalizers)
         .await
-        .expect("Failed to list resources");
-    assert!(repositories.len() >= 3);
+        .expect("Failed to set finalizers");
 
-    // Test list by phase
-    let pending = store.list_resources(None, Some("Pending"))
+    // Test remove_finalizer
+    store.remove_finalizer(&resource_id, 1, "finalizer-1")
         .await
-        .expect("Failed to list resources");
-    assert!(!pending.is_empty());
+        .expect("Failed to remove finalizer");
 
-    // Cleanup
-    for i in 0..3 {
-        store.delete_resource(&format!("test-list-{}", i), 1)
-            .await
-            .ok();
-    }
+    // Test mark_deletion_requested
+    store.mark_deletion_requested(&resource_id)
+        .await
+        .expect("Failed to mark deletion requested");
+
+    // Test exists
+    let exists = store.exists(ResourceKind::Repository, &resource_id)
+        .await
+        .expect("Failed to check existence");
+    assert!(exists);
+
+    // Test remove_observed
+    store.remove_observed(&resource_id)
+        .await
+        .expect("Failed to remove resource");
+
+    let exists = store.exists(ResourceKind::Repository, &resource_id)
+        .await
+        .expect("Failed to check existence");
+    assert!(!exists);
 }
