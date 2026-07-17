@@ -38,6 +38,14 @@ const frontendDockerPath = config.require("frontendDockerPath");
 const controlPlaneDockerPath = config.require("controlPlaneDockerPath");
 const controlPlaneDesiredCount = parseInt(config.require("controlPlaneDesiredCount"));
 
+// Control Plane S3 and signing config
+const ed25519SigningKey = config.requireSecret("ed25519SigningKey");
+const s3Endpoint = config.get("s3Endpoint") ?? "";
+const s3AccessKey = config.requireSecret("s3AccessKey");
+const s3SecretKey = config.requireSecret("s3SecretKey");
+const s3BucketChunks = config.get("s3BucketChunks") ?? "lore-chunks";
+const s3Region = config.get("s3Region") ?? "us-east-1";
+
 // Get availability zones
 const availabilityZones = pulumi.output(aws.getAvailabilityZones({ state: "available" })).then(azs => azs.names.slice(0, 3));
 
@@ -160,7 +168,7 @@ const controlPlaneService = new ControlPlaneService(`${projectName}-controlplane
   vpcId: platformNetwork.vpc.id,
   privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
   ecrRepositoryUrl: platformStorage.controlPlaneEcrRepository.repositoryUrl,
-  albTargetGroupArn: loadBalancers.serverAlbTargetGroup.arn,
+  albTargetGroupArn: loadBalancers.controlPlaneAlbTargetGroup.arn,
   albSecurityGroupId: loadBalancers.albSecurityGroup.id,
   projectName,
   environment,
@@ -171,8 +179,12 @@ const controlPlaneService = new ControlPlaneService(`${projectName}-controlplane
   databaseUrl: platformDataStore.databaseUrl,
   eventQueueUrl: platformEventBus.queueUrl,
   eventQueueArn: platformEventBus.queueArn,
-  deadLetterQueueUrl: platformEventBus.deadLetterQueueUrl,
-  deadLetterQueueArn: platformEventBus.deadLetterQueueArn,
+  ed25519SigningKey,
+  s3Endpoint,
+  s3AccessKey,
+  s3SecretKey,
+  s3BucketChunks,
+  s3Region,
 });
 
 // Export critical connection strings

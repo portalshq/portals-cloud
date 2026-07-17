@@ -56,3 +56,24 @@ config:
   frontendDockerPath:
     description: Relative path to Frontend Docker context
     default: "../../apps/frontend"
+  controlPlaneDockerPath:
+    description: Relative path to Control Plane Docker context (repo root for multi-stage build)
+    default: "../.."
+  controlPlaneDesiredCount:
+    description: Desired count for Control Plane service
+    default: "2"
+  ed25519SigningKey:
+    description: Ed25519 signing key for data plane JWT tokens (base64-encoded, mark as secret)
+  s3Endpoint:
+    description: S3 endpoint URL (empty string for real AWS S3, http://localhost:9000 for MinIO)
+    default: ""
+  s3AccessKey:
+    description: S3 access key for repository chunk storage
+  s3SecretKey:
+    description: S3 secret key for repository chunk storage
+  s3BucketChunks:
+    description: S3 bucket name for repository chunks
+    default: "lore-chunks"
+  s3Region:
+    description: AWS region for S3 storage
+    default: "us-east-1"

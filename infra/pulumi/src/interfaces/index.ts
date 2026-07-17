@@ -152,23 +152,21 @@ export interface ControlPlaneServiceArgs {
   readonly databaseUrl: pulumi.Output<string>;
   readonly eventQueueUrl: pulumi.Output<string>;
   readonly eventQueueArn: pulumi.Output<string>;
-  readonly deadLetterQueueUrl: pulumi.Output<string>;
-  readonly deadLetterQueueArn: pulumi.Output<string>;
   /** Ed25519 signing key for data plane JWT tokens (base64-encoded) */
   readonly ed25519SigningKey: pulumi.Input<string>;
-  /** S3 endpoint URL (empty string to use mock provider) */
-  readonly s3Endpoint?: string;
-  /** S3 access key for authentication */
-  readonly s3AccessKey?: pulumi.Input<string>;
-  /** S3 secret key for authentication */
-  readonly s3SecretKey?: pulumi.Input<string>;
+  /** S3 endpoint URL (empty string for real AWS S3) */
+  readonly s3Endpoint: string;
+  /** S3 access key for repository chunk storage */
+  readonly s3AccessKey: pulumi.Input<string>;
+  /** S3 secret key for repository chunk storage */
+  readonly s3SecretKey: pulumi.Input<string>;
   /** S3 bucket name for repository chunks */
-  readonly s3BucketChunks?: string;
-  /** Whether to use S3 path-style addressing (true for MinIO/localhost) */
-  readonly s3ForcePathStyle?: string;
+  readonly s3BucketChunks: string;
+  /** AWS region for S3 storage */
+  readonly s3Region: string;
   /** Docker image tag (defaults to "latest") */
   readonly imageTag?: string;
-  /** RUST_LOG filter (defaults to "info") */
+  /** RUST_LOG filter (defaults to "info,lorecloud_control_plane=debug,sqlx=warn") */
   readonly rustLog?: string;
   /** Enable JWT authentication (defaults to "false") */
   readonly jwtAuthEnabled?: pulumi.Input<string>;

@@ -1302,6 +1302,7 @@ dependencies = [
  "async-trait",
  "aws-config",
  "chrono",
+ "clap",
  "config",
  "control-plane-mock-provider",
  "control-plane-provider-trait",

@@ -16,25 +16,44 @@ WORKDIR /app
 # build deps only. Real source is copied after this layer.
 COPY control-plane/Cargo.toml /app/control-plane/Cargo.toml
 COPY control-plane/Cargo.lock /app/control-plane/Cargo.lock
-COPY control-plane/models/Cargo.toml /app/control-plane/models/Cargo.toml
 COPY control-plane/api/Cargo.toml /app/control-plane/api/Cargo.toml
+COPY control-plane/config/Cargo.toml /app/control-plane/config/Cargo.toml
 COPY control-plane/controllers/Cargo.toml /app/control-plane/controllers/Cargo.toml
+COPY control-plane/controllers/audit/Cargo.toml /app/control-plane/controllers/audit/Cargo.toml
+COPY control-plane/controllers/quota/Cargo.toml /app/control-plane/controllers/quota/Cargo.toml
+COPY control-plane/controllers/permissions/Cargo.toml /app/control-plane/controllers/permissions/Cargo.toml
+COPY control-plane/controllers/billing/Cargo.toml /app/control-plane/controllers/billing/Cargo.toml
+COPY control-plane/controllers/gc/Cargo.toml /app/control-plane/controllers/gc/Cargo.toml
+COPY control-plane/controllers/session/Cargo.toml /app/control-plane/controllers/session/Cargo.toml
+COPY control-plane/controllers/storage/Cargo.toml /app/control-plane/controllers/storage/Cargo.toml
+COPY control-plane/controllers/world/Cargo.toml /app/control-plane/controllers/world/Cargo.toml
+COPY control-plane/controllers/channel/Cargo.toml /app/control-plane/controllers/channel/Cargo.toml
+COPY control-plane/controllers/capability-deployment/Cargo.toml /app/control-plane/controllers/capability-deployment/Cargo.toml
+COPY control-plane/controllers/runtime-scheduling/Cargo.toml /app/control-plane/controllers/runtime-scheduling/Cargo.toml
+COPY control-plane/controllers/resolver/Cargo.toml /app/control-plane/controllers/resolver/Cargo.toml
+COPY control-plane/controllers/audience-session/Cargo.toml /app/control-plane/controllers/audience-session/Cargo.toml
 COPY control-plane/events/Cargo.toml /app/control-plane/events/Cargo.toml
+COPY control-plane/models/Cargo.toml /app/control-plane/models/Cargo.toml
+COPY control-plane/observability/Cargo.toml /app/control-plane/observability/Cargo.toml
 COPY control-plane/persistence/Cargo.toml /app/control-plane/persistence/Cargo.toml
 COPY control-plane/providers/Cargo.toml /app/control-plane/providers/Cargo.toml
 COPY control-plane/reconciler/Cargo.toml /app/control-plane/reconciler/Cargo.toml
-COPY control-plane/observability/Cargo.toml /app/control-plane/observability/Cargo.toml
-COPY control-plane/config/Cargo.toml /app/control-plane/config/Cargo.toml
+COPY control-plane/server/Cargo.toml /app/control-plane/server/Cargo.toml
+COPY control-plane/tests/Cargo.toml /app/control-plane/tests/Cargo.toml
 COPY control-plane/workflows/Cargo.toml /app/control-plane/workflows/Cargo.toml
 
 # Create minimal stub source files so `cargo build` can resolve deps.
 # Each crate needs a lib.rs or main.rs to compile.
-RUN for crate in models events observability config controllers providers persistence reconciler workflows; do \
+RUN for crate in models events observability config controllers providers persistence reconciler workflows server tests; do \
         mkdir -p /app/control-plane/$crate/src && \
         echo "pub fn init() {}" > /app/control-plane/$crate/src/lib.rs; \
     done && \
     mkdir -p /app/control-plane/api/src && \
-    echo "fn main() {}" > /app/control-plane/api/src/main.rs
+    echo "fn main() {}" > /app/control-plane/api/src/main.rs && \
+    for controller in audit quota permissions billing gc session storage world channel capability-deployment runtime-scheduling resolver audience-session; do \
+        mkdir -p /app/control-plane/controllers/$controller/src && \
+        echo "pub fn init() {}" > /app/control-plane/controllers/$controller/src/lib.rs; \
+    done
 
 # Pre-build dependencies (this layer is cached unless Cargo.toml changes)
 RUN cd /app/control-plane && cargo build --release

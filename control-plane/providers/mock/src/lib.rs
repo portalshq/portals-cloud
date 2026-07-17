@@ -83,6 +83,10 @@ impl RepositoryProvider for MockRepositoryProvider {
 
     async fn describe(&self, handle: &RepositoryHandle) -> Result<RepositoryStatus, ProviderError> {
         self.maybe_fail()?;
+        let repositories = self.repositories.lock().unwrap();
+        if !repositories.contains_key(&handle.id) {
+            return Err(ProviderError::NotFound(format!("Repository {} not found", handle.id.as_str())));
+        }
         Ok(RepositoryStatus {
             handle: handle.clone(),
             size_bytes: 0,

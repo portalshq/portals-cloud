@@ -21,6 +21,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
   public readonly loreNlbTargetGroup: aws.lb.TargetGroup;
   public readonly serverAlbTargetGroup: aws.lb.TargetGroup;
   public readonly frontendAlbTargetGroup: aws.lb.TargetGroup;
+  public readonly controlPlaneAlbTargetGroup: aws.lb.TargetGroup;
 
   constructor(name: string, args: LoadBalancersArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:platform:LoadBalancers", name, {}, opts);
@@ -160,6 +161,31 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
+    // Create ALB target group for Control Plane service (port 8083)
+    this.controlPlaneAlbTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-controlplane-alb-tg`, {
+      port: 8083,
+      protocol: "HTTP",
+      targetType: "ip",
+      vpcId: args.vpcId,
+      healthCheck: {
+        enabled: true,
+        path: "/healthz",
+        port: "8083",
+        protocol: "HTTP",
+        healthyThreshold: 3,
+        unhealthyThreshold: 3,
+        timeout: 5,
+        interval: 30,
+        matcher: "200",
+      },
+      tags: {
+        Name: `${resourcePrefix}-controlplane-alb-tg`,
+        Project: args.projectName,
+        Environment: args.environment,
+        Service: "control-plane",
+      },
+    }, { parent: this });
+
     // Create ALB listener for HTTP (port 80)
     new aws.lb.Listener(`${resourcePrefix}-alb-http-listener`, {
       loadBalancerArn: this.alb.arn,
@@ -182,6 +208,19 @@ export class LoadBalancers extends pulumi.ComponentResource {
         {
           type: "forward",
           targetGroupArn: this.loreAlbTargetGroup.arn,
+        },
+      ],
+    }, { parent: this });
+
+    // Create ALB listener for Control Plane service on port 8083
+    new aws.lb.Listener(`${resourcePrefix}-alb-controlplane-listener`, {
+      loadBalancerArn: this.alb.arn,
+      port: 8083,
+      protocol: "HTTP",
+      defaultActions: [
+        {
+          type: "forward",
+          targetGroupArn: this.controlPlaneAlbTargetGroup.arn,
         },
       ],
     }, { parent: this });
