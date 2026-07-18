@@ -12,6 +12,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:lore": "docker compose up -d lore-server control-plane",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "prepare": "husky",

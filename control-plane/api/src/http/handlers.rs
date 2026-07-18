@@ -5,7 +5,7 @@ use axum::{
 };
 use chrono::Utc;
 use models::{ResourceId, ResourceKind};
-use persistence::state_store::StateStore;
+use persistence::{StateStore, StoreError};
 use providers::r#trait::repository::RepositorySpec;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
@@ -49,18 +49,18 @@ impl ApiError {
     }
 }
 
-impl From<persistence::state_store::StoreError> for ApiError {
-    fn from(e: persistence::state_store::StoreError) -> Self {
+impl From<StoreError> for ApiError {
+    fn from(e: StoreError) -> Self {
         match e {
-            persistence::state_store::StoreError::NotFound => ApiError {
+            StoreError::NotFound => ApiError {
                 error: "resource not found".to_string(),
                 code: Some("NOT_FOUND".to_string()),
             },
-            persistence::state_store::StoreError::StaleVersion => ApiError {
+            StoreError::StaleVersion => ApiError {
                 error: "concurrent modification detected, retry".to_string(),
                 code: Some("STALE_VERSION".to_string()),
             },
-            persistence::state_store::StoreError::Database(msg) => ApiError {
+            StoreError::Database(msg) => ApiError {
                 error: format!("internal error: {msg}"),
                 code: Some("INTERNAL".to_string()),
             },

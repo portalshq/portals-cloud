@@ -100,6 +100,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "aws-config",
+ "aws-sdk-sqs",
  "axum 0.7.9",
  "axum-extra",
  "axum-prometheus",

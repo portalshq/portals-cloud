@@ -101,6 +101,8 @@ impl DataPlaneSigningKey {
 
 #[derive(Debug, thiserror::Error)]
 pub enum TokenError {
+    #[error("Invalid token: {0}")]
+    InvalidToken(String),
     #[error("Signing error: {0}")]
     Signing(String),
     #[error("Verification error: {0}")]

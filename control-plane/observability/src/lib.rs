@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 use opentelemetry_otlp::WithExportConfig;
+use opentelemetry::trace::TracerProvider as TracerProviderTrait;
 use thiserror::Error;
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
@@ -33,7 +34,7 @@ impl Telemetry {
     pub fn init(service_name: &str, config: &ObservabilityConfig) -> Result<Self, ObservabilityError> {
         // 1. Structured logging to stdout — JSON in prod, pretty in local dev
         let env_filter = EnvFilter::from_default_env();
-        
+
         tracing_subscriber::fmt()
             .json()
             .with_span_events(FmtSpan::CLOSE)
@@ -51,7 +52,6 @@ impl Telemetry {
             tracer: Arc::new(tracer),
         })
     }
-
 
     /// Shutdown telemetry providers.
     pub fn shutdown(self) -> Result<(), ObservabilityError> {
@@ -76,4 +76,25 @@ pub fn reconcile_span(kind: &str, resource_id: &str, version: u64) -> tracing::S
         "resource.version" = version,
         "otel.kind" = "INTERNAL",
     )
+}
+
+/// Initialize with just a log filter string (simplified version for main.rs)
+pub fn init_with_log_filter(log_filter: &str) -> Result<Telemetry, ObservabilityError> {
+    let env_filter = EnvFilter::try_new(log_filter)
+        .map_err(|e| ObservabilityError::TracingInitError(e.to_string()))?;
+
+    tracing_subscriber::fmt()
+        .json()
+        .with_span_events(FmtSpan::CLOSE)
+        .with_env_filter(env_filter)
+        .init();
+
+    // Create a simple tracer provider without actual export
+    let provider = opentelemetry_sdk::trace::TracerProvider::builder()
+        .build();
+    let tracer = provider.tracer("lorecloud-control-plane");
+
+    Ok(Telemetry {
+        tracer: Arc::new(tracer),
+    })
 }

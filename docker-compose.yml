@@ -196,6 +196,32 @@ services:
       "
     restart: "no"
 
+  localstack:
+    # LocalStack — AWS-compatible local cloud for DynamoDB (fragment metadata).
+    # [COMPOSE ONLY] prod uses AWS DynamoDB. Lore server requires DynamoDB for
+    # fragment metadata storage. S3 uses MinIO (already configured above).
+    image: localstack/localstack:latest
+    <<: [*restart, *logging]
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN- }
+      SERVICES: dynamodb
+      DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      EDGE_PORT: 4566
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - ./infra/lore/scripts/init-localstack.sh:/etc/localstack/init/ready.d/init-localstack.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
+
 # ─────────────────────────────────────────────
 # TIER 1 — Billing infrastructure
 # ─────────────────────────────────────────────
@@ -358,6 +384,47 @@ services:
       retries: 10
       start_period: 20s
 
+  lore-server:
+    # Lore VCS Server — core version control service.
+    # Manages repositories, fragments, and provides gRPC/QUIC APIs.
+    # In prod: ECS Fargate (infra/pulumi/src/components/LoreService.ts)
+    build:
+      context: .
+      dockerfile: infra/lore/Dockerfile.loreserver
+    <<: [*restart, *logging]
+    depends_on:
+      minio:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    environment:
+      LORE_CONFIG_PATH: /etc/lore/config
+      LORE_ENV: dev
+      RUST_LOG: info
+      # AWS credentials for MinIO (S3) and LocalStack (DynamoDB)
+      # Note: MinIO uses minioadmin/minioadmin, LocalStack uses test/test
+      # Lore server needs credentials that work with both services
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      # Persistent repository data
+      - lore-data:/data
+      # TLS certificates (self-signed for development)
+      - ./infra/lore/certs:/etc/lore/certs:ro
+      # Configuration directory
+      - ./infra/lore/config:/etc/lore/config:ro
+    ports:
+      - "41337:41337/tcp"  # gRPC
+      - "41337:41337/udp"  # QUIC
+      - "41339:41339"      # HTTP (health check, admin)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:41339/health_check"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   control-plane:
     # Lore Cloud Control Plane — Rust-based reconciliation engine.
     # Manages Repository resources via Postgres state store + transactional outbox.
@@ -374,6 +441,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      lore-server:
+        condition: service_healthy
     environment:
       DATABASE_URL:          postgres://${POSTGRES_USER:-lago}:${POSTGRES_PASSWORD:-lago_dev_password_change_in_prod}@postgres:5432/${POSTGRES_DB:-lago}
       LISTEN_ADDR:           "0.0.0.0:8083"
@@ -384,7 +453,7 @@ services:
       S3_SECRET_KEY:         ${S3_SECRET_KEY:-minioadmin}
       S3_REGION:             us-east-1
       S3_BUCKET_CHUNKS:      lore-chunks
-      ED25519_SIGNING_KEY:   ${ED25519_SIGNING_KEY:-dGVzdC1rZXktZm9yLWRldmVsb3BtZW50LW9ubHktMzJieXRlcw==}
+      ED25519_SIGNING_KEY:   ${ED25519_SIGNING_KEY:-TPYUEWxc5o8g+syDNQBFD/J2IJuhpov/N37DeB1ZGB8=}
       DP_TOKEN_EXPIRY_SECS:  "3600"
       RUST_LOG:              info,lorecloud_control_plane=debug,sqlx=warn
       METRICS_ENABLED:       "true"
@@ -534,6 +603,10 @@ volumes:
   nats-data:
     driver: local
   minio-data:
+    driver: local
+  localstack-data:
+    driver: local
+  lore-data:
     driver: local
   lago-storage:
     driver: local

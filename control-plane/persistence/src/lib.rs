@@ -3,7 +3,7 @@ pub mod memory;
 pub mod sqlx_store;
 pub mod outbox_relay;
 
-pub use state_store::*;
-pub use memory::*;
-pub use sqlx_store::*;
-pub use outbox_relay::*;
+// Re-exports for public API
+pub use state_store::{StateStore, StoreError, StoreTransaction};
+pub use sqlx_store::{PostgresStateStore, ResourceRow, OutboxRow};
+pub use outbox_relay::OutboxRelay;

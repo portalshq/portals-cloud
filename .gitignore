@@ -11,5 +11,8 @@ target/
 # Compose runtime
 .compose-data/
 
+# Lore TLS certs (private keys — never commit)
+infra/lore/certs/
+
 # OS
 .DS_Store
