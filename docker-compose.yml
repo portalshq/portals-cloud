@@ -200,10 +200,9 @@ services:
     # LocalStack — AWS-compatible local cloud for DynamoDB (fragment metadata).
     # [COMPOSE ONLY] prod uses AWS DynamoDB. Lore server requires DynamoDB for
     # fragment metadata storage. S3 uses MinIO (already configured above).
-    image: localstack/localstack:latest
+    image: localstack/localstack:3.0
     <<: [*restart, *logging]
     environment:
-      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN- }
       SERVICES: dynamodb
       DEFAULT_REGION: us-east-1
       AWS_DEFAULT_REGION: us-east-1
@@ -402,10 +401,9 @@ services:
       LORE_ENV: dev
       RUST_LOG: info
       # AWS credentials for MinIO (S3) and LocalStack (DynamoDB)
-      # Note: MinIO uses minioadmin/minioadmin, LocalStack uses test/test
-      # Lore server needs credentials that work with both services
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
+      # MinIO uses minioadmin/minioadmin; LocalStack accepts any credentials
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
       AWS_DEFAULT_REGION: us-east-1
     volumes:
       # Persistent repository data

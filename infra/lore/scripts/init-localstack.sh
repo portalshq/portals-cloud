@@ -29,14 +29,18 @@ create_table() {
     local key_schema="$2"
     local attribute_definitions="$3"
 
-    # Check if table exists
-    if curl -sf "${LOCALSTACK_URL}/_aws/dynamodb/tables/${table_name}" > /dev/null 2>&1; then
+    # Check if table exists via ListTables
+    if curl -sf "${LOCALSTACK_URL}/" \
+        -H "Content-Type: application/x-amz-json-1.1" \
+        -H "X-Amz-Target: DynamoDB_20120810.ListTables" \
+        -d '{}' 2>/dev/null | grep -q "\"${table_name}\""; then
         echo "DynamoDB table already exists: ${table_name}"
         return 0
     fi
 
     echo "Creating DynamoDB table: ${table_name}"
-    curl -s -X POST "${LOCALSTACK_URL}/" \
+    local response
+    response=$(curl -s -w "\n%{http_code}" -X POST "${LOCALSTACK_URL}/" \
         -H "Content-Type: application/x-amz-json-1.1" \
         -H "X-Amz-Target: DynamoDB_20120810.CreateTable" \
         -d "{
@@ -44,8 +48,16 @@ create_table() {
             \"KeySchema\": ${key_schema},
             \"AttributeDefinitions\": ${attribute_definitions},
             \"BillingMode\": \"PAY_PER_REQUEST\"
-        }" > /dev/null
-    echo "Created table: ${table_name}"
+        }")
+    local http_code
+    http_code=$(echo "$response" | tail -1)
+    if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+        echo "Created table: ${table_name}"
+    else
+        echo "ERROR: Failed to create table ${table_name} (HTTP ${http_code})"
+        echo "$response" | head -n -1
+        return 1
+    fi
 }
 
 # ---------------------------------------------------------------------------
