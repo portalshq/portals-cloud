@@ -24,11 +24,6 @@ const comparisonRows = [
     withPortals: 'Stays in the repository, permanently',
   },
   {
-    metric: 'AI tool changes its model',
-    without: 'Hope someone documented the settings',
-    withPortals: 'Recreate from the preserved generation recipe',
-  },
-  {
     metric: 'Reviewing what changed',
     without: 'Screenshots and memory',
     withPortals: 'Full diff across every version',
@@ -50,7 +45,7 @@ const capabilities = [
     desc: 'Generate with OpenAI, Runway, Midjourney, Adobe, or your own fine-tuned models. Portals sits underneath the generation layer and doesn\'t care which tool produced the asset.',
   },
   {
-    title: 'Fits into your existing production pipeline.',
+    title: 'API-first',
     desc: 'Every capability — registry, versioning, provenance, relationships — is available through the API. Automate ingestion, build internal tools, or wire Portals into your existing pipeline.',
   },
   {
@@ -80,50 +75,46 @@ const icps = [
 
 const pricingTiers = [
   {
-    name: 'Team',
-    price: '$500',
-    period: '/ month',
-    subtitle: 'For small creative teams building a trusted production repository.',
+    name: 'Creator',
+    price: '$299',
+    period: '/month',
+    subtitle: 'Small teams getting started.',
     features: [
-      'Shared production repository',
+      'Hosted repositories',
       'Version history & rollback',
-      'Asset identity & provenance',
-      'Up to 10 collaborators',
-      'Email support',
+      'Provenance tracking',
+      'Basic sharing',
     ],
     popular: false,
   },
   {
     name: 'Studio',
     price: '$2,000',
-    period: '/ month',
-    subtitle: 'For production teams managing client work and high-volume AI assets.',
+    period: '/month',
+    subtitle: 'Production teams running real client work.',
     features: [
-      'Everything in Team',
+      'Everything in Creator',
       'Unlimited collaborators',
-      'Asset lineage & dependency graph',
-      'API access & webhooks',
-      'Priority support',
+      'Asset lineage & relationships',
+      'API access, audit history',
+      'Team permissions',
     ],
     popular: true,
   },
   {
     name: 'Enterprise',
     price: '$5,000+',
-    period: '/ month',
-    subtitle: 'For organizations standardizing AI production across multiple teams.',
+    period: '/month',
+    subtitle: 'Multi-team organizations requiring governance and scale.',
     features: [
       'Everything in Studio',
-      'SSO & enterprise identity',
-      'Dedicated infrastructure',
-      'Fine-grained permissions',
-      'Governance & compliance controls',
-      'Personalized onboarding with the founders',
-      'SLA & dedicated success manager',
+      'SSO / SAML, compliance logs',
+      'Dedicated infrastructure, SLA',
       'Custom integrations',
+      'Dedicated success & support',
     ],
     popular: false,
-  }
+  },
 ];
 
 export function VCS() {
@@ -143,7 +134,7 @@ export function VCS() {
             </div>
 
             <h1 className="text-5xl lg:text-7xl tracking-[-0.04em] leading-[1.05] mb-8">
-              Stop losing the history behind your best work.
+              Stop rebuilding AI work you already solved.
             </h1>
 
             <p className="text-lg text-portals-on-surface-variant max-w-xl mb-12">
@@ -153,12 +144,17 @@ export function VCS() {
             <div className="flex gap-4 mb-6">
               <Button>
                 Request access
-                <ArrowRight className="ml-2 w-4 h-4" />
+                <ArrowRight className="ml-2 w-4 h-4"/>
               </Button>
               <Button variant="ghost">
                 Read Docs
               </Button>
             </div>
+
+            <p className="text-sm text-portals-on-surface-variant/60">
+              Hosted on an open-source version control core. Built for the layer above it.
+            </p>
+
           </div>
 
           <div className="relative min-h-[500px] overflow-hidden">
@@ -173,7 +169,7 @@ export function VCS() {
               "
             />
 
-            <div className="absolute inset-0 bg-gradient-to-r from-portals-bg via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-portals-bg via-transparent to-transparent"/>
 
             <div className="
               absolute
@@ -265,11 +261,11 @@ export function VCS() {
 
           <div className="max-w-4xl">
             <h2 className="text-4xl lg:text-5xl tracking-[-0.03em] leading-[1.1] mb-8">
-              The production repository for AI-native creative organizations.
+              Portals is the production repository for AI-native creative organizations.
             </h2>
 
             <p className="text-lg text-portals-on-surface-variant leading-relaxed mb-8">
-              Portals gives every production asset a permanent identity, complete history, and reproducible creation record, so successful work can always be trusted, found, and extended.
+              Not a file store. Not another DAM. A system that treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it.
             </p>
 
             <p className="text-lg text-portals-on-surface-variant leading-relaxed mb-8">
@@ -354,7 +350,7 @@ export function VCS() {
               <div className="text-portals-secondary font-mono text-sm mb-4">03</div>
               <h3 className="text-3xl lg:text-4xl tracking-[-0.02em] mb-6">History</h3>
               <p className="text-xl text-portals-on-surface-variant leading-relaxed mb-8">
-                Never lose an approved version again.
+                Nothing is overwritten. Everything is recoverable.
               </p>
               <p className="text-portals-on-surface-variant leading-relaxed mb-8">
                 Every edit, regeneration, and approval becomes a new version — not a replacement. Portals preserves the full lineage of an asset from first generation to shipped output, so any prior state can be recalled, compared, or restored in seconds.
@@ -379,9 +375,9 @@ export function VCS() {
           {/* Pillar 04 — Provenance */}
           <div className="py-20 border-t border-portals-surface-variant">
             <div className="text-portals-secondary font-mono text-sm mb-4">04</div>
-            <h3 className="text-3xl lg:text-4xl tracking-[-0.02em] mb-6">Reproducibility</h3>
+            <h3 className="text-3xl lg:text-4xl tracking-[-0.02em] mb-6">Provenance</h3>
             <p className="text-xl text-portals-on-surface-variant leading-relaxed mb-6">
-              Reproduce successful work instead of rebuilding it.
+              The reasoning behind the result, not just the result.
             </p>
             <p className="text-portals-on-surface-variant leading-relaxed mb-10 max-w-3xl">
               The final export is the least interesting part of an AI-generated asset. The valuable part is what produced it: the prompt, the model and version, the seed, the reference images, the parameters, the edits, and the approvals along the way. Portals captures that chain automatically, attached to the asset itself.
@@ -405,7 +401,7 @@ export function VCS() {
               <div className="text-portals-secondary font-mono text-sm mb-4">05</div>
               <h3 className="text-3xl lg:text-4xl tracking-[-0.02em] mb-6">Collaboration</h3>
               <p className="text-xl text-portals-on-surface-variant leading-relaxed mb-8">
-                Work from a single source of truth.
+                One shared source of truth, not eleven personal copies.
               </p>
               <p className="text-portals-on-surface-variant leading-relaxed mb-8">
                 Because every asset lives in a single governed repository with real identity and history, teams collaborate on the assets themselves — not on synced folders and hopeful naming conventions. Everyone sees the same version, the same history, and the same provenance, without a separate tool layered on top.
@@ -489,7 +485,7 @@ export function VCS() {
           </div>
 
           <div className="bg-portals-surface-lowest border border-portals-surface-variant p-10">
-            <h3 className="text-xl mb-4">An open core</h3>
+            <h3 className="text-xl mb-4">An open core, honestly</h3>
             <p className="text-portals-on-surface-variant leading-relaxed mb-8">
               Portals is hosted on an open-source version control foundation. We didn't reinvent that layer — we built the layer above it: entity-aware versioning, automatic provenance, and the identity graph that connects every asset your organization creates.
             </p>
@@ -521,12 +517,11 @@ export function VCS() {
             ))}
           </div>
 
-          {/* for pitch deck  */}
-          {/* <div className="mt-12 max-w-3xl">
+          <div className="mt-12 max-w-3xl">
             <p className="text-portals-on-surface-variant text-sm leading-relaxed">
               Common thread: these teams already generate high volumes of AI content, already collaborate across multiple people, and already carry a software budget for the tools that touch production. Portals becomes the layer none of those tools replace.
             </p>
-          </div> */}
+          </div>
 
         </section>
 
@@ -547,8 +542,9 @@ export function VCS() {
             {pricingTiers.map((tier, i) => (
               <div
                 key={i}
-                className={`bg-portals-bg p-10 flex flex-col ${tier.popular ? 'border border-portals-secondary' : ''
-                  }`}
+                className={`bg-portals-bg p-10 flex flex-col ${
+                  tier.popular ? 'border border-portals-secondary' : ''
+                }`}
               >
                 {tier.popular && (
                   <div className="text-portals-secondary text-xs font-mono uppercase tracking-widest mb-6">
@@ -559,7 +555,7 @@ export function VCS() {
                 <h3 className="text-2xl mb-2">{tier.name}</h3>
 
                 <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-4xl">{tier.price}</span>
+                  <span className="text-4xl font-mono">{tier.price}</span>
                   <span className="text-portals-on-surface-variant text-sm">{tier.period}</span>
                 </div>
 
@@ -612,7 +608,7 @@ export function VCS() {
           <div className="flex gap-4 mb-6">
             <Button>
               Request Access
-              <ArrowRight className="ml-2 w-4 h-4" />
+              <ArrowRight className="ml-2 w-4 h-4"/>
             </Button>
             <Button variant="ghost">
               Read the Docs

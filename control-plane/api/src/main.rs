@@ -6,14 +6,13 @@ use tokio::signal;
 use tracing::{error, info, warn};
 use aws_sdk_sqs::Client as SqsClient;
 use aws_config::BehaviorVersion;
-use models::Controller;
 
 use api::{auth, http};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = AppConfig::from_env();
-    observability::init_with_log_filter(&config.log_filter)?;
+    observability::init(&config.log_filter);
 
     info!("connecting to database");
     let pool = PgPoolOptions::new()
