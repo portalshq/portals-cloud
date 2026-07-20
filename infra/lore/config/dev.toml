@@ -35,6 +35,7 @@ mode = "aws"
 [server.quic]
 verify_client_certs = false
 handler_timeout_seconds = 300  # Increased for slow MinIO operations
+idle_timeout = 60_000  # Increase from 30s to 60s to accommodate AWS operations
 
 [server.grpc]
 request_handler_timeout_seconds = 300
