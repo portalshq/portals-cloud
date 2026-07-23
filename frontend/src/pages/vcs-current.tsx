@@ -537,7 +537,6 @@ function CTAButton({ href, children }: { href: string; children: ReactNode }) {
   return (
     <a className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 pr-12 pl-18 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:bg-white/30" href={href}>
       <span>{children}</span>
-      <ArrowIcon />
     </a>
   );
 }

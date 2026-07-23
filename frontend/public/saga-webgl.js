@@ -742,8 +742,10 @@ class SagaEngine {
   }
 
   resize = () => {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const bounds = this.canvas.parentElement?.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const w = Math.max(1, Math.ceil(bounds?.width || viewport?.width || window.innerWidth));
+    const h = Math.max(1, Math.ceil(bounds?.height || viewport?.height || window.innerHeight));
     const dpr = Math.min(window.devicePixelRatio, 2);
 
     this.renderer.setPixelRatio(dpr);
@@ -825,6 +827,8 @@ class SagaEngine {
     this.onReady = options?.onReady ?? null;
     this.resize();
     window.addEventListener("resize", this.resize);
+    window.visualViewport?.addEventListener("resize", this.resize);
+    window.visualViewport?.addEventListener("scroll", this.resize);
     this.timer.connect();
     this.tick(performance.now());
 
@@ -1028,6 +1032,8 @@ class SagaEngine {
     this._disposeRampSlot(this.colorRamp1);
     this._disposeRampSlot(this.colorRamp2);
     window.removeEventListener("resize", this.resize);
+    window.visualViewport?.removeEventListener("resize", this.resize);
+    window.visualViewport?.removeEventListener("scroll", this.resize);
     if (this.rig) { this.rig.dispose(); this.rig = null; }
     this.positionAnimation = null;
     this.startPosition = 0;
