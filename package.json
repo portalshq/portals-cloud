@@ -14,14 +14,12 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "prepare": "husky",
+    "prepare": "test -d .git && husky || echo 'Skipping Husky (Not a local Git repo)'",
     "local-version-script": "npx changeset version",
     "local-publish-script": "turbo build && npm publish --workspaces --if-needed --provenance"
   },
-  "dependencies": {
-    "husky": "^9.1.7"
-  },
   "devDependencies": {
+    "husky": "^9.1.7",
     "@changesets/cli": "^2.27.0",
     "turbo": "^2.0.0",
     "typescript": "^5.5.0"
