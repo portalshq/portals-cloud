@@ -540,6 +540,7 @@ function ProblemSection() {
           </h2>
           <p className="t-p-lg-serif text-white">
             AI production teams generate thousands of images and videos, and iterations daily. The final asset ships. The client approves it. Everyone moves on. 
+            <br /><br />
             When a client returns and asks for five more like this, can the team that made it tell you how?
           </p>
         </div>
@@ -568,14 +569,14 @@ function SolutionSection() {
   return (
     <section data-header-theme="light">
       <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white lg:min-h-screen">
-        <div className="col-span-full space-y-24 mx-auto max-w-[90%] lg:max-w-[80.58ch]">
-          <h2 className="t-d2-sans">
+        <div className="col-span-full space-y-24 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
+          <h2 className="t-d2-sans mx-auto max-w-[13em]">
             The production repository for AI-native creative organizations.
           </h2>
-          <p className="t-p-lg-serif max-w-[26em] mx-auto text-white">
+          <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
             Portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it.
           </p>
-          <p className="t-p-lg-serif max-w-[26em] mx-auto text-white">
+          <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
             Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.
           </p>
         </div>
