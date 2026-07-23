@@ -190,6 +190,22 @@ const pricingTiers = [
   },
 ];
 
+const requestAccessMailto = `mailto:sales@portals.works?subject=${encodeURIComponent('Request Access to Portals')}&body=${encodeURIComponent(`Hi Portals team,
+
+I’d like to request access to Portals and learn more about how it can support our creative production workflow.
+
+A bit about us:
+- Company:
+- Team size:
+- Use case:
+- Current tools/workflow:
+- Timeline:
+
+Please let me know the next steps.
+
+Best,
+[Your Name]`)}`;
+
 function formatNumber(index: number) {
   return String(index + 1).padStart(3, '0');
 }
@@ -583,7 +599,7 @@ function SolutionSection() {
             Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.
           </p>
           <div className="flex justify-center">
-            <CTAButton href="mailto:sales@portals.works"><span className="t-p-sans">Request Access</span></CTAButton>
+            <CTAButton href={requestAccessMailto}><span className="t-p-sans">Request Access</span></CTAButton>
           </div>
         </div>
       </div>
@@ -724,7 +740,7 @@ function PricingSection() {
                   </li>
                 ))}
               </ul>
-              <CTAButton href="mailto:sales@portals.works">{tier.cta}</CTAButton>
+              <CTAButton href={requestAccessMailto}>{tier.cta}</CTAButton>
             </article>
           ))}
         </div>
@@ -747,7 +763,7 @@ export function VCS() {
               </span>
             </a>
 
-            <CTAButton href="mailto:sales@portals.works">Request Access</CTAButton>
+            <CTAButton href={requestAccessMailto}>Request Access</CTAButton>
           </div>
         </div>
       </header>
@@ -801,7 +817,7 @@ export function VCS() {
               <p className="t-p-lg-serif max-w-[26em] text-white">
                 Give every asset your team creates a permanent identity, a complete history, and a system of record it can be trusted against from first generation through shipped production.
               </p>
-              <CTAButton href="mailto:sales@portals.works">Request Access</CTAButton>
+              <CTAButton href={requestAccessMailto}>Request Access</CTAButton>
             </div>
           </div>
           <div className="absolute inset-0 z-10" />
