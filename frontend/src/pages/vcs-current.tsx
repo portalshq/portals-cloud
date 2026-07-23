@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 
 type OverviewItem = {
   heading: string;
@@ -170,6 +170,7 @@ const pricingTiers = [
     period: '/ month',
     subtitle: 'Small teams getting started.',
     features: ['Hosted repositories', 'Version history and rollback', 'Provenance tracking', 'Basic sharing'],
+    cta: 'Request Access',
   },
   {
     name: 'Studio',
@@ -177,13 +178,15 @@ const pricingTiers = [
     period: '/ month',
     subtitle: 'Production teams running real client work.',
     features: ['Everything in Creator', 'Unlimited collaborators', 'Asset lineage and relationships', 'API access and audit history', 'Team permissions'],
+    cta: 'Request Access',
   },
   {
     name: 'Enterprise',
-    price: '$5,000+',
+    price: '$5,000',
     period: '/ month',
     subtitle: 'Multi-team organizations requiring governance and scale.',
     features: ['Everything in Studio', 'SSO / SAML and compliance logs', 'Dedicated infrastructure and SLA', 'Custom integrations', 'Dedicated success and support'],
+    cta: 'Contact Sales',
   },
 ];
 
@@ -514,9 +517,9 @@ function ArrowIcon() {
   );
 }
 
-function CTAButton({ href, children }: { href: string; children: string }) {
+function CTAButton({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <a className="t-button inline-flex items-center rounded-sm h-48 gap-x-9 pr-12 pl-18 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:bg-white/30" href={href}>
+    <a className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 pr-12 pl-18 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:bg-white/30" href={href}>
       <span>{children}</span>
       <ArrowIcon />
     </a>
@@ -556,7 +559,7 @@ function ProblemSection() {
             </article>
           ))}
         </div>
-        <blockquote className="col-span-full border-l border-white/30 pl-18 t-p-lg-serif text-white lg:col-span-14 lg:col-start-7">
+        <blockquote className="col-span-full border-l border-white/30 pl-18 t-p-lg-serif text-white lg:col-span-14">
           Tencent's video chief named this the main blocker to AI replacing long-form production: visual and continuity drift becomes obvious as productions scale.
           <cite className="mt-16 block t-m2 text-white !normal-case">Variety, 2026</cite>
         </blockquote>
@@ -569,7 +572,7 @@ function SolutionSection() {
   return (
     <section data-header-theme="light">
       <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white lg:min-h-screen">
-        <div className="col-span-full space-y-24 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
+        <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
           <h2 className="t-d2-sans mx-auto max-w-[13em]">
             The production repository for AI-native creative organizations.
           </h2>
@@ -579,6 +582,9 @@ function SolutionSection() {
           <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
             Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.
           </p>
+          <div className="flex justify-center">
+            <CTAButton href="mailto:sales@portals.works"><span className="t-p-sans">Request Access</span></CTAButton>
+          </div>
         </div>
       </div>
     </section>
@@ -634,7 +640,7 @@ function CapabilitiesSection() {
         </div>
         {/* <div className="col-span-full grid gap-y-30 border border-white/20 bg-white/10 p-24 lg:grid-cols-[var(--width)_1fr_1fr]">
           <h3 className="t-h3-sans lg:col-span-1">An open core, honestly</h3>
-          <p className="t-p-lg-serif text-white/75 lg:col-span-2">
+          <p className="t-p-lg-serif text-white lg:col-span-2">
             Portals is hosted on an open-source version control foundation. We did not reinvent that layer. We built the layer above it: entity-aware versioning, automatic provenance, and the identity graph that connects every asset your organization creates.
           </p>
         </div> */}
@@ -649,8 +655,8 @@ function WorkflowSection() {
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full space-y-24 lg:col-span-9">
           <h2 className="t-d2-sans">One system behind every AI tool.</h2>
-          <p className="t-p-lg-serif text-white/75">
-            Continue using the tools your team already depends on. Portals becomes the memory layer connecting them.
+          <p className="t-p-lg-serif">
+            Continue using the tools your team already depends on. 
           </p>
         </div>
         <div className="col-span-full grid gap-y-8 lg:col-span-12 lg:col-start-13">
@@ -704,11 +710,13 @@ function PricingSection() {
             <article key={tier.name} className="flex min-h-194 flex-col p-24">
               <h3 className="t-h3-sans">{tier.name}</h3>
               <div className="my-20 flex items-baseline gap-x-8">
-                <span className="t-d2-sans">{tier.price}</span>
-                <span className="t-m2 !lowercase">{tier.period}</span>
+                <>
+                  <span className="t-d2-sans">{tier.price}</span>
+                  <span className="t-m2 !lowercase">{tier.period}</span>
+                </>
               </div>
               <p className="t-p-sans">{tier.subtitle}</p>
-              <ul className="mt-24 flex flex-1 flex-col gap-y-8">
+              <ul className="my-24 flex flex-1 flex-col gap-y-8">
                 {tier.features.map((feature) => (
                   <li key={feature} className="flex gap-x-8 t-p-sans text-white">
                     <span className="text-white">+</span>
@@ -716,6 +724,7 @@ function PricingSection() {
                   </li>
                 ))}
               </ul>
+              <CTAButton href="mailto:sales@portals.works">{tier.cta}</CTAButton>
             </article>
           ))}
         </div>
@@ -729,16 +738,18 @@ export function VCS() {
     <main className="relative z-(--z-main)">
       <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollFrom" data-webgl-position="0" data-webgl-easing="easeInOut" />
 
-      <header className="pointer-events-none absolute top-0 z-(--z-header)">
+      <header className="pointer-events-none w-full absolute md:!fixed inset-x-0 top-0 z-(--z-header)">
         <div className="flex h-Header-h items-center px-sms">
-          <div className="flex flex-1 items-center justify-between gap-x-sgs">
-            <a className="pointer-events-auto size-48 md:size-64" href="/">
+          <div className="pointer-events-auto flex flex-1 items-center justify-between gap-x-sgs">
+            <a className="" href="/">
               <span className="t-h3-sans !font-medium">
                 portals
               </span>
             </a>
-            </div>
-            </div>
+
+            <CTAButton href="mailto:sales@portals.works">Request Access</CTAButton>
+          </div>
+        </div>
       </header>
       <section data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
         <div className="ui-grid min-h-screen gap-y-[max(var(--spacing-sgs),12.5svh)] pt-[max(var(--spacing-Header-h),29.5svh)] pb-sms text-white">
@@ -753,7 +764,7 @@ export function VCS() {
           </div>
           <div className="col-span-full grid grid-cols-subgrid">
             <div className="col-span-8 col-start-5 flex justify-end lg:col-span-full">
-              <div className="max-w-[10.85em] t-m1 lowercase!">
+              <div className="max-w-[10.85em] t-p-sans lowercase!">
                 <p>THE PRODUCTION REPOSITORY FOR AI-NATIVE CREATIVE ORGANIZATIONS</p>
               </div>
             </div>
@@ -767,7 +778,7 @@ export function VCS() {
             <p className="t-d2-sans">
               Portals preserves every version and creative decision behind your best assets, so your teams can {' '}
               <strong className="t-d2-serif">build on previous work, deliver faster, and scale production </strong>
-              without losing what works.
+              without losing quality.
             </p>
           </div>
         </div>

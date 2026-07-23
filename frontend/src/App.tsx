@@ -107,15 +107,15 @@ function Footer() {
         }}
       />
       <div className="relative z-10 col-span-full grid grid-cols-1 lg:grid-cols-4 gap-12 mb-12">
-        <div className='col-span-1 lg:!col-span-2'>
-          <div className="t-d2-sans tracking-tight mb-4 !font-medium">portals</div>
+        <div className="col-span-full t-d2-sans tracking-tight mb-4 !font-medium">portals</div>
+        <div className='col-span-2'>
           <p className="lowercase text-white t-p-sans">
             The production repository for AI-native creative organizations
           </p>
         </div>
-        <div className='col-span-1 lg:col-span-1 pt-90'>
+        <div className='col-span-1 lg:col-span-1'>
           {/* <h4 className="font-medium mb-4">Company</h4> */}
-          <ul className="space-y-2 t-p-sans text-white/80">
+          <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
             {/* <li><a href="#" className="hover:text-white transition-colors">About</a></li>
             <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
             <li><a href="#" className="hover:text-white transition-colors">Contact</a></li> */}
@@ -124,7 +124,7 @@ function Footer() {
           </ul>
         </div>
       </div>
-      <div className="relative z-10 flex flex-col items-center pt-12 text-sm text-white col-span-full">
+      <div className="relative z-10 flex flex-col lg:items-center pt-12 text-sm text-white col-span-full">
         <div>© 2026 portals.works</div>
       </div>
     </footer>
