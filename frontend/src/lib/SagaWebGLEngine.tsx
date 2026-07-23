@@ -36,7 +36,7 @@ export const SagaWebGLEngine: React.FC = () => {
 
   return (
     // The exact HTML structure demanded by the script's configuration header
-    <div ref={containerRef} className="fixed inset-0 z-(--z-webgl)">
+    <div ref={containerRef} className="saga-webgl-viewport fixed z-(--z-webgl)">
       <canvas className="size-full"></canvas>
     </div>
   );
