@@ -790,7 +790,7 @@ export function VCS() {
               <p className="t-p-lg-serif max-w-[26em] text-white">
                 Give every asset your team creates a permanent identity, a complete history, and a system of record it can be trusted against from first generation through shipped production.
               </p>
-              <CTAButton href="/platform">Explore Use Cases</CTAButton>
+              <CTAButton href="mailto:sales@portals.works">Request Access</CTAButton>
             </div>
           </div>
           <div className="absolute inset-0 z-10" />

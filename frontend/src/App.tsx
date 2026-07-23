@@ -114,18 +114,6 @@ function Footer() {
           </p>
         </div>
         <div className='col-span-1 lg:col-span-1 pt-90'>
-          {/* <h4 className="font-medium mb-4">Product</h4> */}
-          {/* <h4 className="font-medium mb-4">Resources</h4> */}
-          <ul className="space-y-2 t-p-sans text-white/80">
-            <li><a href="#pillars" className="hover:text-white transition-colors">Pillars</a></li>
-            <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
-            {/* <li><a href="#" className="hover:text-white transition-colors">Integrations</a></li> */}
-            <li><a href="#docs" className="hover:text-white transition-colors">Documentation</a></li>
-            {/* <li><a href="#" className="hover:text-white transition-colors">API Reference</a></li> */}
-            {/* <li><a href="#" className="hover:text-white transition-colors">Changelog</a></li> */}
-          </ul>
-        </div>
-        <div className='col-span-1 lg:col-span-1 pt-90'>
           {/* <h4 className="font-medium mb-4">Company</h4> */}
           <ul className="space-y-2 t-p-sans text-white/80">
             {/* <li><a href="#" className="hover:text-white transition-colors">About</a></li>
@@ -134,19 +122,6 @@ function Footer() {
             <li><a href="/privacy-policy" className="hover:text-white transition-colors">Privacy</a></li>
             <li><a href="/terms-of-service" className="hover:text-white transition-colors">terms of service</a></li>
           </ul>
-        </div>
-        <div className='col-span-1 lg:col-span-4 row-start-2'>
-          <h4 className="font-medium mb-4">Subscribe for product updates</h4>
-          <div className="flex border border-white/20 focus-within:border-white/40 transition-colors max-w-md p-12 rounded">
-            <input
-              type="email"
-              placeholder="you@company.com"
-              className="bg-transparent px-4 py-2 w-full outline-none text-white placeholder:text-white/80"
-            />
-            <button className="px-4 t-button text-white/80 hover:text-white transition-colors">
-              subscribe
-            </button>
-          </div>
         </div>
       </div>
       <div className="relative z-10 flex flex-col items-center pt-12 text-sm text-white col-span-full">
