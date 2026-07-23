@@ -21,43 +21,169 @@ const iconPaths = [
 
 const overviewItems: OverviewItem[] = [
   {
-    heading: 'Synthetic\nRelationships',
+    heading: 'Repository',
     iconPath: iconPaths[0],
-    textA: ['The internet was built around content distribution. The next phase of the internet is built around synthetic relationships.'],
-    textB: ['Saga builds character AI agents that can engage users continuously across social platforms, messaging environments, and online communities. These agents do more than generate content. They build familiarity, sustain interaction, and create persistent synthetic relationships between audiences and digital IP.'],
-    textC: ['Characters are no longer confined to games, apps, campaigns, or content feeds.'],
+    textA: ['A canonical home for every production asset.'],
+    textB: ['Every image, video, character, model, prompt, and dataset your team creates lives inside one governed repository, not scattered across tool histories, project folders, chat threads, and personal desktops.'],
+    textC: ['Portals does not replace the tools your team uses to generate work. It becomes the place that work lives once it matters.'],
   },
   {
-    heading: 'What\nSaga is',
+    heading: 'Identity',
     iconPath: iconPaths[1],
     textA: [
-      'Saga is a hyperscaling platform for persistent AI agents, character AI systems, and autonomous digital personalities.',
-      'It enables studios, creators, and brands to launch persistent AI characters that:',
+      'Every asset gets a permanent, stable address.',
+      'A character is not a folder of PNGs. A campaign is not a stack of final files.',
     ],
     list: [
-      'Maintain identity and memory',
-      'Interact naturally with users',
-      'Operate across multiple platforms simultaneously',
-      'Extend the reach and lifespan of digital IP',
+      'Stable identity independent of filename, location, or export format',
+      'Characters, props, styles, and locations become addressable entities',
+      'Search, automation, and integrations can reference assets with certainty',
     ],
-    textC: ['Saga agents are coordinated AI systems designed for continuous interaction at global scale.'],
+    textC: ['Without identity, the approved version is a claim. With identity, it is a fact.'],
   },
   {
-    heading: 'The Next\nEvolution of IP',
+    heading: 'History',
     iconPath: iconPaths[2],
     textA: [
-      'For decades, digital IP has been limited by format. Characters could appear in games, films, and social content, but they could not truly participate alongside their audiences.',
-      'Advances in conversational AI and autonomous agents are changing that.',
+      'Nothing is overwritten. Everything is recoverable.',
+      'Every edit, regeneration, and approval becomes a new version, not a replacement.',
     ],
-    textB: ['Characters can now speak, remember, evolve, and build ongoing relationships with people directly. What was once passive media becomes an active participant capable of sustaining engagement far beyond a single platform or moment.'],
-    textC: ['This creates an entirely new relationship layer between audiences and the worlds they care about.'],
+    textB: ['Portals preserves the full lineage of an asset from first generation to shipped output, so any prior state can be recalled, compared, restored, or branched from in seconds.'],
+    textC: ['History turns institutional guesswork into institutional memory.'],
   },
   {
-    heading: 'Why it\nMatters',
+    heading: 'Provenance',
     iconPath: iconPaths[3],
-    textA: ['Persistent AI agents unlock new monetization, engagement, and audience growth opportunities for gaming, entertainment, and digital IP brands.'],
-    textB: ['For audiences, experiences become more personal, dynamic, and continuous. For creators and brands, characters become continuously active, discoverable, and socially present across the internet.'],
-    textC: ['This is more than a new software category.', 'It is a new interface layer for the internet itself.'],
+    textA: ['The reasoning behind the result, not just the result.'],
+    textB: ['The valuable part of an AI-generated asset is what produced it: the prompt, model version, seed, reference images, parameters, edits, and approvals along the way. Portals captures that chain automatically, attached to the asset itself.'],
+    textC: ['Your best results become reproducible, explainable, and reusable.'],
+  },
+  {
+    heading: 'Collaboration',
+    iconPath: iconPaths[0],
+    textA: ['One shared source of truth, not eleven personal copies.'],
+    textB: ['Because every asset lives in one governed repository with real identity and history, teams collaborate on the assets themselves, not on synced folders and hopeful naming conventions.'],
+    textC: ['Everyone sees the same version, the same history, and the same provenance.'],
+  },
+];
+
+const problemCards = [
+  {
+    label: '01',
+    title: 'Consistency',
+    text: 'Nobody trusts the version. Seven files named final, final_v2, and use-this-one, and no one is sure which one shipped or whether it still matches the approved character, style, or brand.',
+  },
+  {
+    label: '02',
+    title: 'Reproducibility',
+    text: 'Nobody can reproduce it. The exact prompt, model, seed, and reference chain behind an approved asset disappear the moment the file is exported.',
+  },
+  {
+    label: '03',
+    title: 'History',
+    text: 'Work gets paid for twice. Decisions, iterations, and approvals vanish after delivery, so teams regenerate from scratch instead of building on what already worked.',
+  },
+];
+
+const comparisonRows = [
+  {
+    metric: 'Finding the approved version',
+    without: 'Guessed from filenames and Slack history',
+    withPortals: 'Known, with certainty, in seconds',
+  },
+  {
+    metric: 'Recreating a shipped asset',
+    without: 'Rebuilt from scratch, often imperfectly',
+    withPortals: 'Reproduced exactly from its full recipe',
+  },
+  {
+    metric: 'Client asks for five more like this',
+    without: 'Hours to days of rediscovery work',
+    withPortals: 'Extended directly from the original lineage',
+  },
+  {
+    metric: 'Knowledge when someone leaves',
+    without: 'Walks out the door with them',
+    withPortals: 'Stays in the repository, permanently',
+  },
+  {
+    metric: 'Reviewing what changed',
+    without: 'Screenshots and memory',
+    withPortals: 'Full diff across every version',
+  },
+  {
+    metric: 'Team confidence in final',
+    without: 'Constant double-checking',
+    withPortals: 'Trusted by default',
+  },
+];
+
+const capabilities = [
+  {
+    title: 'Every asset type, one system',
+    text: 'Images, video, characters, 3D assets, models, prompts, and datasets are first-class citizens, not edge cases bolted onto a document store.',
+  },
+  {
+    title: 'Model-agnostic by design',
+    text: 'Generate with OpenAI, Runway, Midjourney, Adobe, or your own fine-tuned models. Portals sits underneath the generation layer and preserves what it creates.',
+  },
+  {
+    title: 'API-first',
+    text: 'Every capability, from registry and versioning to provenance and relationships, is available through the API for internal tools and production pipelines.',
+  },
+  {
+    title: 'Automatic, not manual',
+    text: 'Provenance capture, version creation, and identity assignment happen at generation time, not through after-the-fact tagging discipline.',
+  },
+];
+
+const workflow = [
+  'Register every AI-generated asset',
+  'Capture prompts and production context',
+  'Track versions',
+  'Search across your entire creative history',
+];
+
+const audiences = [
+  {
+    title: 'AI creative agencies',
+    text: 'Manage thousands of campaign variations while keeping a clear line to the approved client version, its full source history, and the production context behind it.',
+  },
+  {
+    title: 'Film, video, and animation studios',
+    text: 'Preserve characters, scenes, props, and visual continuity across production cycles that span months.',
+  },
+  {
+    title: 'Game studios',
+    text: 'Version characters, environments, and generated worlds as they evolve from early concept through shipped asset.',
+  },
+  {
+    title: 'AI-native marketing and brand teams',
+    text: 'Keep brand assets, campaign creative, and style guides under one canonical version so teams stop shipping conflicting versions of the same thing.',
+  },
+];
+
+const pricingTiers = [
+  {
+    name: 'Creator',
+    price: '$299',
+    period: '/ month',
+    subtitle: 'Small teams getting started.',
+    features: ['Hosted repositories', 'Version history and rollback', 'Provenance tracking', 'Basic sharing'],
+  },
+  {
+    name: 'Studio',
+    price: '$2,000',
+    period: '/ month',
+    subtitle: 'Production teams running real client work.',
+    features: ['Everything in Creator', 'Unlimited collaborators', 'Asset lineage and relationships', 'API access and audit history', 'Team permissions'],
+  },
+  {
+    name: 'Enterprise',
+    price: '$5,000+',
+    period: '/ month',
+    subtitle: 'Multi-team organizations requiring governance and scale.',
+    features: ['Everything in Studio', 'SSO / SAML and compliance logs', 'Dedicated infrastructure and SLA', 'Custom integrations', 'Dedicated success and support'],
   },
 ];
 
@@ -192,7 +318,7 @@ function OverviewMobileItem({ item, index }: { item: OverviewItem; index: number
         <div className="col-span-11 col-start-2 space-y-24 sm:col-span-21 sm:col-start-4">
           <Paragraphs lines={item.textA} className="t-p-lg-serif" />
           <ListColumn item={item} />
-          <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={index === overviewItems.length - 1} />
+          <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={false} />
         </div>
       </div>
     </div>
@@ -349,7 +475,7 @@ function OverviewSection() {
                     <div className="grid">
                       {overviewItems.map((item, index) => (
                         <div key={`${item.heading}-c`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, 3)}>
-                          <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={index === overviewItems.length - 1} />
+                          <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={false} />
                         </div>
                       ))}
                     </div>
@@ -380,22 +506,256 @@ function OverviewSection() {
   );
 }
 
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 18.31 16.53" className="size-19 fill-current" aria-hidden="true">
+      <path d="m18.31 8.26-8.26 8.26-1.12-1.12 6.36-6.36H0V7.46h15.28L8.93 1.12 10.05 0z" />
+    </svg>
+  );
+}
+
+function CTAButton({ href, children }: { href: string; children: string }) {
+  return (
+    <a className="t-button inline-flex items-center rounded-sm h-48 gap-x-9 pr-12 pl-18 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:bg-white/30" href={href}>
+      <span>{children}</span>
+      <ArrowIcon />
+    </a>
+  );
+}
+
+function SectionKicker({ children }: { children: string }) {
+  return <p className="t-m2 text-white">{children}</p>;
+}
+
+function ProblemSection() {
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white lg:min-h-screen lg:content-center">
+        {/* <div className="col-span-full lg:col-span-6">
+          <SectionKicker>the problem</SectionKicker>
+        </div> */}
+        <div className="col-span-full space-y-34 lg:col-span-16">
+          <h2 className="t-d2-sans max-w-[13.8em]">
+            Your team delivered. You just can’t prove it, find it, or do it again.
+          </h2>
+          <p className="t-p-lg-serif text-white">
+            AI production teams generate thousands of images and videos, and iterations daily. The final asset ships. The client approves it. Everyone moves on. 
+            When a client returns and asks for five more like this, can the team that made it tell you how?
+          </p>
+        </div>
+        <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
+          {problemCards.map((card) => (
+            <article key={card.title} className="min-h-194 p-24 text-white">
+              <div className="mb-20 flex items-center gap-x-8">
+                <span className="size-8 bg-white" />
+                <span className="t-m2">{card.label}</span>
+              </div>
+              <h3 className="t-h3-sans mb-[0.1em]">{card.title}</h3>
+              <p className="t-p-sans text-white">{card.text}</p>
+            </article>
+          ))}
+        </div>
+        <blockquote className="col-span-full border-l border-white/30 pl-18 t-p-lg-serif text-white lg:col-span-14 lg:col-start-7">
+          Tencent's video chief named this the main blocker to AI replacing long-form production: visual and continuity drift becomes obvious as productions scale.
+          <cite className="mt-16 block t-m2 text-white !normal-case">Variety, 2026</cite>
+        </blockquote>
+      </div>
+    </section>
+  );
+}
+
+function SolutionSection() {
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white lg:min-h-screen">
+        <div className="col-span-full space-y-24 mx-auto max-w-[90%] lg:max-w-[80.58ch]">
+          <h2 className="t-d2-sans">
+            The production repository for AI-native creative organizations.
+          </h2>
+          <p className="t-p-lg-serif max-w-[26em] mx-auto text-white">
+            Portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it.
+          </p>
+          <p className="t-p-lg-serif max-w-[26em] mx-auto text-white">
+            Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ComparisonSection() {
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+        <div className="col-span-full lg:col-span-12">
+          <h2 className="t-d2-sans max-w-[12.58em]">What changes when your production has a memory.</h2>
+        </div>
+        <div className="col-span-full">
+          <div className="hidden grid-cols-3 t-m2 text-white/80 lg:grid">
+            <div className="p-16" />
+            <div className="p-16 lowercase">without portals</div>
+            <div className="p-16 text-white lowercase">with portals</div>
+          </div>
+          {comparisonRows.map((row) => (
+            <div key={row.metric} className="grid grid-cols-1 border-t border-white/20 lg:grid-cols-3 lowercase">
+              <div className="p-16 t-p-sans text-white lg:bg-transparent">{row.metric}</div>
+              <div className="border-white/20 p-16 t-p-sans text-white/80 lg:border-t-0 lg:border-l">
+                <span className="mb-8 block t-m2 Your best results become reproducible, explainable lg:hidden !lowercase">without portals</span>
+                {row.without}
+              </div>
+              <div className="border-white/20 p-16 t-p-sans text-white lg:border-t-0 lg:border-l">
+                <span className="mb-8 block t-m2 text-white/80 lg:hidden !lowercase">with portals</span>
+                {row.withPortals}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CapabilitiesSection() {
+  return (
+    <section data-header-theme="light" id="docs">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+        <div className="col-span-full lg:col-span-9">
+          <h2 className="t-d2-sans">Built for how AI production actually works.</h2>
+        </div>
+        <div className="col-span-full grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-2">
+          {capabilities.map((capability) => (
+            <article key={capability.title} className="p-24">
+              <h3 className="t-h3-sans mb-16">{capability.title}</h3>
+              <p className="t-p-sans text-white">{capability.text}</p>
+            </article>
+          ))}
+        </div>
+        {/* <div className="col-span-full grid gap-y-30 border border-white/20 bg-white/10 p-24 lg:grid-cols-[var(--width)_1fr_1fr]">
+          <h3 className="t-h3-sans lg:col-span-1">An open core, honestly</h3>
+          <p className="t-p-lg-serif text-white/75 lg:col-span-2">
+            Portals is hosted on an open-source version control foundation. We did not reinvent that layer. We built the layer above it: entity-aware versioning, automatic provenance, and the identity graph that connects every asset your organization creates.
+          </p>
+        </div> */}
+      </div>
+    </section>
+  );
+}
+
+function WorkflowSection() {
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+        <div className="col-span-full space-y-24 lg:col-span-9">
+          <h2 className="t-d2-sans">One system behind every AI tool.</h2>
+          <p className="t-p-lg-serif text-white/75">
+            Continue using the tools your team already depends on. Portals becomes the memory layer connecting them.
+          </p>
+        </div>
+        <div className="col-span-full grid gap-y-8 lg:col-span-12 lg:col-start-13">
+          {workflow.map((item, index) => (
+            <div key={item} className="flex items-center gap-x-16 border rounded-sm p-18 t-p-sans">
+              {/* <span className="t-m2 text-white">{formatNumber(index)}</span> */}
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AudienceSection() {
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+        <div className="col-span-full lg:col-span-14">
+          <h2 className="t-d2-sans max-w-[13.8em]">For organizations where AI output becomes intellectual property.</h2>
+        </div>
+        <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-2">
+          {audiences.map((audience) => (
+            <article key={audience.title} className="p-24">
+              <h3 className="t-h3-sans mb-16">{audience.title}</h3>
+              <p className="t-p-sans text-white">{audience.text}</p>
+            </article>
+          ))}
+        </div>
+        {/* <p className="col-span-full t-p-sans text-white lg:col-span-12 lg:col-start-7">
+          Common thread: these teams already generate high volumes of AI content, already collaborate across multiple people, and already carry a software budget for the tools that touch production. Portals becomes the layer none of those tools replace.
+        </p> */}
+      </div>
+    </section>
+  );
+}
+
+function PricingSection() {
+  return (
+    <section data-header-theme="light" id="pricing">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+        {/* <div className="col-span-full lg:col-span-6">
+          <SectionKicker>pricing</SectionKicker>
+        </div> */}
+        <div className="col-span-full lg:col-start-6 lg:mx-auto">
+          <h2 className="t-d2-sans max-w-[12.58em] lg:text-center">A clear path from adoption to enterprise scale.</h2>
+        </div>
+        <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
+          {pricingTiers.map((tier) => (
+            <article key={tier.name} className="flex min-h-194 flex-col p-24">
+              <h3 className="t-h3-sans">{tier.name}</h3>
+              <div className="my-20 flex items-baseline gap-x-8">
+                <span className="t-d2-sans">{tier.price}</span>
+                <span className="t-m2 !lowercase">{tier.period}</span>
+              </div>
+              <p className="t-p-sans">{tier.subtitle}</p>
+              <ul className="mt-24 flex flex-1 flex-col gap-y-8">
+                {tier.features.map((feature) => (
+                  <li key={feature} className="flex gap-x-8 t-p-sans text-white">
+                    <span className="text-white">+</span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function VCS() {
   return (
     <main className="relative z-(--z-main)">
       <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollFrom" data-webgl-position="0" data-webgl-easing="easeInOut" />
 
+      <header className="pointer-events-none absolute top-0 z-(--z-header)">
+        <div className="flex h-Header-h items-center px-sms">
+          <div className="flex flex-1 items-center justify-between gap-x-sgs">
+            <a className="pointer-events-auto size-48 md:size-64" href="/">
+              <span className="t-h3-sans !font-medium">
+                portals
+              </span>
+            </a>
+            </div>
+            </div>
+      </header>
       <section data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
         <div className="ui-grid min-h-screen gap-y-[max(var(--spacing-sgs),12.5svh)] pt-[max(var(--spacing-Header-h),29.5svh)] pb-sms text-white">
           <div className="col-span-full space-y-20">
             <h1 className="max-w-[8.725em] t-d1-sans">
-              Pioneering Synthetic <strong className="t-d1-serif">Relationships</strong>
+              preserve the
+              <br/>
+              history of your
+              <br/>
+              <strong className="t-d1-serif">
+                best creative <span className="max-sm:block">work</span>
+              </strong>
             </h1>
           </div>
           <div className="col-span-full grid grid-cols-subgrid">
-            <div className="col-span-8 col-start-5 flex justify-end lg:col-span-full">
-              <div className="max-w-[10.85em] t-m1">
-                <p>Character AI Agents as a growth channel.</p>
+            <div className="col-span-full flex justify-end lg:col-span-full">
+              <div className="max-w-[7.5em] t-m1 lowercase! lg:max-w-[10.85em]">
+                <p>THE PRODUCTION REPOSITORY FOR AI-NATIVE CREATIVE ORGANIZATIONS</p>
               </div>
             </div>
           </div>
@@ -406,32 +766,35 @@ export function VCS() {
         <div className="ui-grid items-center text-white py-fluid-[76,106] lg:min-h-screen">
           <div className="space-y-[0.95em] col-span-full lg:col-span-20 lg:col-start-3">
             <p className="t-d2-sans">
-              Saga builds AI agents that turn characters, brands, and worlds into living digital participants that can{' '}
-              <strong className="t-d2-serif">engage, adapt, and grow </strong>
-              across the internet.
+              Portals preserves every version and creative decision behind your best assets, so your teams can {' '}
+              <strong className="t-d2-serif">build on previous work, deliver faster, and scale production </strong>
+              without losing what works.
             </p>
           </div>
         </div>
       </section>
 
+      <ProblemSection />
+      <SolutionSection />
       <OverviewSection />
+      <ComparisonSection />
+      <CapabilitiesSection />
+      <WorkflowSection />
+      <AudienceSection />
+      <PricingSection />
 
       <section data-header-theme="light">
         <div className="relative flex min-h-screen items-center text-white">
           <div className="ui-grid flex-1 gap-y-sms py-sms">
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
-              <NumberLabel index={0} />
-              <h4 className="t-global-cta_heading">See how it works in practice</h4>
-              <a className="t-button inline-flex items-center rounded-sm h-48 gap-x-9 pr-12 pl-18 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:bg-white/30" href="/platform">
-                <span>Explore Use Cases</span>
-                <svg viewBox="0 0 18.31 16.53" className="size-19 fill-current" aria-hidden="true">
-                  <path d="m18.31 8.26-8.26 8.26-1.12-1.12 6.36-6.36H0V7.46h15.28L8.93 1.12 10.05 0z" />
-                </svg>
-              </a>
+              <h4 className="t-global-cta_heading max-w-[9.85em]">Stop losing your best AI work. Start building on it.</h4>
+              <p className="t-p-lg-serif max-w-[26em] text-white">
+                Give every asset your team creates a permanent identity, a complete history, and a system of record it can be trusted against from first generation through shipped production.
+              </p>
+              <CTAButton href="/platform">Explore Use Cases</CTAButton>
             </div>
           </div>
           <div className="absolute inset-0 z-10" />
-          <div className="absolute inset-x-0 bottom-0 z-20 h-194 bg-[linear-gradient(180deg,rgba(255,255,255,0)_9.93%,#FFF_100%)]" />
         </div>
       </section>
     </main>
