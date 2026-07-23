@@ -1,3 +1,5 @@
+@import 'saga.css';
+@import 'saga-repro.css';
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 @import 'tailwindcss';
@@ -37,10 +39,6 @@
   --color-destructive-foreground: hsl(var(--destructive-foreground));
 
   --color-surface-variant: hsl(var(--surface-variant));
-  --color-black-100: #101010;
-  --color-black-500: #878787;
-  --color-black-700: #585858;
-  --color-black-900: #282828;
 
   --color-portals-primary: hsl(var(--portals-primary));
   --color-portals-secondary: hsl(var(--portals-secondary));
@@ -52,14 +50,6 @@
 
   --font-sans: 'Geist', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  --font-die-grotesk-b: var(--font-die-grotesk-b);
-  --font-die-grotesk-c: var(--font-die-grotesk-c);
-  --font-aeonik-fono: var(--font-aeonik-fono);
-  --font-stk-bureau: var(--font-stk-bureau);
-
-  --spacing-sgs: var(--fluid-site-gutter);
-  --spacing-sms: var(--fluid-site-margin);
-  --spacing-Header-h: var(--Header-h);
 
   --radius-sm: 0px;
   --radius-md: 0px;

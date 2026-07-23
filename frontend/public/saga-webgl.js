@@ -58,7 +58,6 @@ const { UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloo
 
 const DEFAULT_BG_COLOR1 = "#0E115F";
 const DEFAULT_BG_COLOR2 = "#726DD2";
-const SCROLL_ANIMATION_VIEWPORT_LEAD = 0.7;
 
 const DEFAULT_RAMP1 = [
   { stop: 0, color: "#0E115F" },
@@ -1398,7 +1397,7 @@ class ScrollSystem {
     if (pairs.length === 0) return;
 
     const scrollY = window.scrollY;
-    const threshold = window.innerHeight * SCROLL_ANIMATION_VIEWPORT_LEAD;
+    const threshold = window.innerHeight / 2;
 
     const firstFromScroll = this._cachedScrollTop(pairs[0].from) - threshold;
     if (scrollY < firstFromScroll) {
@@ -1518,7 +1517,7 @@ class ReactOwnedScrollSystem {
     if (!this.engine.rig || this.scrollFromEls.length === 0 || this.scrollToEls.length === 0) return;
     const from = this.scrollFromEls[0];
     const to = this.scrollToEls[0];
-    const threshold = window.innerHeight * SCROLL_ANIMATION_VIEWPORT_LEAD;
+    const threshold = window.innerHeight / 2;
     const start = this._scrollTop(from) - threshold;
     const end = this._scrollTop(to) - threshold;
     const fromPos = parseFloat(from.getAttribute("data-webgl-position")) || 0;

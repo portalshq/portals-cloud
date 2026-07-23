@@ -747,14 +747,12 @@ export function VCS() {
               <br/>
               history of your
               <br/>
-              <strong className="t-d1-serif">
-                best creative <span className="max-sm:block">work</span>
-              </strong>
+              <strong className="t-d1-serif">best creative work</strong>
             </h1>
           </div>
           <div className="col-span-full grid grid-cols-subgrid">
-            <div className="col-span-full flex justify-end lg:col-span-full">
-              <div className="max-w-[7.5em] t-m1 lowercase! lg:max-w-[10.85em]">
+            <div className="col-span-8 col-start-5 flex justify-end lg:col-span-full">
+              <div className="max-w-[10.85em] t-m1 lowercase!">
                 <p>THE PRODUCTION REPOSITORY FOR AI-NATIVE CREATIVE ORGANIZATIONS</p>
               </div>
             </div>
