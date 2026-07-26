@@ -69,49 +69,6 @@ pnpm build
 pnpm --filter @nap/sdk run dev -- channel init my-first-channel
 ```
 
-## Local Development with Docker Compose
-
-The `docker-compose.yml` file provides a local development environment that mirrors production infrastructure. It includes:
-
-- **Tier 0 (Stateful foundations)**: postgres, redis, clickhouse, kafka, minio, nats, localstack
-- **Tier 1 (Billing infrastructure)**: openmeter, lago-api, lago-front, lago-worker
-- **Tier 2 (Platform)**: runtime-core, registry, benthos, lore-server, control-plane
-- **Tier 3 (Jobs)**: billing-sync, lago-seed
-- **Tier 4 (Observability)**: prometheus, grafana
-- **Tier 5 (Dev tools)**: stripe-cli
-
-### Lore Server
-
-The `lore-server` service provides the core VCS functionality for the platform. It uses:
-- **MinIO** for S3-compatible object storage (fragment payloads)
-- **LocalStack** for DynamoDB (fragment metadata)
-- **Self-signed TLS certificates** for development (mounted from `infra/lore/certs/`)
-- **Configuration** from `infra/lore/config/dev.toml`
-
-Ports:
-- `41337/tcp` - gRPC API
-- `41337/udp` - QUIC API
-- `41339` - HTTP (health check, admin)
-
-### Control Plane
-
-The `control-plane` service is the Lore Cloud Control Plane - a Rust-based reconciliation engine that manages Repository resources via Postgres state store with transactional outbox. It depends on lore-server for VCS operations.
-
-### Running locally
-
-```bash
-# Copy environment file and configure
-cp .env.compose .env.compose.local
-# Edit .env.compose.local to set ED25519_SIGNING_KEY and other secrets
-
-# Start all services
-docker compose --env-file .env.compose.local up -d
-
-# View logs
-docker compose logs -f lore-server
-docker compose logs -f control-plane
-```
-
 ## Status
 
 Pre-alpha. Contracts and runtime are scaffolds, not yet wired to live infra. Treat this

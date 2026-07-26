@@ -50,17 +50,15 @@ export function VCS() {
           <div className="flex flex-col justify-center">
 
             <div className="text-lg lowercase tracking-widest text-portals-secondary mb-8">
-              Version control for Creative Production Teams
+              THE PRODUCTION REPOSITORY FOR AI-NATIVE CREATIVE ORGANIZATIONS
             </div>
 
             <h1 className="text-5xl lg:text-7xl tracking-[-0.04em] leading-[1.05] mb-8">
-              Stop losing the history behind your best work.
+              Stop losing how your best work was made.
             </h1>
 
             <p className="text-lg text-portals-on-surface-variant max-w-xl mb-12">
-              Your AI work is becoming production IP.
-              <br/>
-              Preserve the decisions behind every asset — what created it, what changed, and which version moved into production — across every asset in your production workflow.
+              Preserve versions, context, models, and creative decisions behind every asset, so your organization can reproduce successful work, deliver within budget, and scale production.
             </p>
 
 

@@ -12,16 +12,15 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "dev:lore": "docker compose up -d lore-server control-plane",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "prepare": "husky",
+    "prepare": "test -d .git && husky || echo 'Skipping Husky (Not a local Git repo)'",
     "local-version-script": "npx changeset version",
     "local-publish-script": "turbo build && npm publish --workspaces --if-needed --provenance"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.0",
     "husky": "^9.1.7",
+    "@changesets/cli": "^2.27.0",
     "turbo": "^2.0.0",
     "typescript": "^5.5.0"
   },

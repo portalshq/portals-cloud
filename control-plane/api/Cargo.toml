@@ -43,8 +43,6 @@ metrics = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }
 tower_governor = { workspace = true }
 redis = { version = "0.27", optional = true }
-aws-config = { workspace = true }
-aws-sdk-sqs = { workspace = true }
 
 [features]
 default = []

@@ -1,0 +1,129 @@
+@font-face {
+  font-family: DieGroteskB;
+  src: url('/_next/static/media/die_grotesk_b_regular-s.p.0jvz~wiks_e7p.woff2') format('woff2');
+  font-display: swap;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: DieGroteskB;
+  src: url('/_next/static/media/die_grotesk_b_medium-s.p.03ry_ngvtd6ht.woff2') format('woff2');
+  font-display: swap;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: DieGroteskC;
+  src: url('/_next/static/media/die_grotesk_c_regular-s.p.0oo9..wv.u_8d.woff2') format('woff2');
+  font-display: swap;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: AeonikFono;
+  src: url('/_next/static/media/aeonikfono_regular-s.p.0na4ujt42eyz5.woff2') format('woff2');
+  font-display: swap;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: StkBureau;
+  src: url('/_next/static/media/STKBureauSerif_Book-s.p.0utj3rrelomuv.woff2') format('woff2');
+  font-display: swap;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: StkBureau;
+  src: url('/_next/static/media/STKBureauSerif_Light-s.p.16iweok_yh9kh.woff2') format('woff2');
+  font-display: swap;
+  font-weight: 300;
+}
+
+:root {
+  --font-die-grotesk-b: 'DieGroteskB', Arial, sans-serif;
+  --font-die-grotesk-c: 'DieGroteskC', Arial, sans-serif;
+  --font-aeonik-fono: 'AeonikFono', Arial, sans-serif;
+  --font-stk-bureau: 'StkBureau', Georgia, serif;
+  --width: minmax(0, 1fr);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background: #010528;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.saga-overview-desktop {
+  display: none;
+}
+
+.saga-overview-mobile {
+  display: block;
+}
+
+.saga-overview-content {
+  transition:
+    opacity 0.4s cubic-bezier(0.33, 1, 0.68, 1),
+    filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+  will-change: opacity, filter;
+}
+
+.saga-ramp-marker {
+  height: 200vh;
+  pointer-events: none;
+}
+
+.bg-white\/12 {
+  background-color: rgb(255 255 255 / 0.12);
+}
+
+.border-white\/10 {
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+.gap-y-fluid-\[30\,52\] {
+  row-gap: clamp(30px, calc(20px + 1.5625vw), 52px);
+}
+
+.gap-y-fluid-\[32\,40\] {
+  row-gap: clamp(32px, calc(29.714px + 0.357vw), 40px);
+}
+
+.py-fluid-\[76\,106\] {
+  padding-block: clamp(76px, calc(67.429px + 1.339vw), 106px);
+}
+
+.space-y-fluid-\[106\,212\] > :not(:last-child) {
+  margin-bottom: clamp(106px, calc(75.714px + 4.732vw), 212px);
+}
+
+@media (min-width: 64rem) {
+  .saga-overview-mobile {
+    display: none;
+  }
+
+  .saga-overview-desktop {
+    display: block;
+    position: relative;
+    min-height: 900vh;
+  }
+
+  .saga-overview-pin {
+    position: sticky;
+    top: 0;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saga-overview-content {
+    transition: none;
+  }
+}

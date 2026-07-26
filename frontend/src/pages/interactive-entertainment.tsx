@@ -8,7 +8,7 @@ const HUD_DATA = [
   { label: "QUEUE", value: "0", status: "ok" },
 ];
 
-export default function Home() {
+export default function InteractiveEntertainment() {
   const [time, setTime] = useState("");
 
   useEffect(() => {

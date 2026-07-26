@@ -29,7 +29,7 @@ pub struct MockTransaction {
 
 #[async_trait]
 impl StoreTransaction for MockTransaction {
-    async fn set_observed(&self, id: &ResourceId, state: &serde_json::Value, version: u64) -> Result<(), StoreError> {
+    async fn set_observed(&mut self, id: &ResourceId, state: &serde_json::Value, version: u64) -> Result<(), StoreError> {
         let mut map = self.store.state.lock().await;
         if let Some((_, current_v)) = map.get(id.as_str()) {
             if *current_v != version {
@@ -40,12 +40,12 @@ impl StoreTransaction for MockTransaction {
         Ok(())
     }
 
-    async fn set_workflow_id(&self, id: &ResourceId, workflow_id: &str, _version: u64) -> Result<(), StoreError> {
+    async fn set_workflow_id(&mut self, id: &ResourceId, workflow_id: &str, _version: u64) -> Result<(), StoreError> {
         self.store.workflows.lock().await.insert(workflow_id.to_string(), id.as_str().to_string());
         Ok(())
     }
 
-    async fn enqueue_outbox_event(&self, event: PlatformEvent) -> Result<(), StoreError> {
+    async fn enqueue_outbox_event(&mut self, event: PlatformEvent) -> Result<(), StoreError> {
         self.store.outbox.lock().await.push(event);
         Ok(())
     }

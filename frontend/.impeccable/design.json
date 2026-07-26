@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-18T00:00:00Z",
+  "title": "Design System: Portals",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Void Black",
+        "canonical": "oklch(0.075 0 0)",
+        "tonalRamp": ["oklch(0.04 0 0)", "oklch(0.075 0 0)", "oklch(0.10 0 0)", "oklch(0.13 0 0)", "oklch(0.16 0 0)", "oklch(0.20 0 0)", "oklch(0.25 0 0)", "oklch(0.30 0 0)"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "oklch(0.13 0 0)",
+        "tonalRamp": ["oklch(0.08 0 0)", "oklch(0.10 0 0)", "oklch(0.13 0 0)", "oklch(0.16 0 0)", "oklch(0.19 0 0)", "oklch(0.22 0 0)", "oklch(0.26 0 0)", "oklch(0.30 0 0)"]
+      },
+      "surface-variant": {
+        "role": "neutral",
+        "displayName": "Surface Variant",
+        "canonical": "oklch(0.18 0 0)",
+        "tonalRamp": ["oklch(0.12 0 0)", "oklch(0.15 0 0)", "oklch(0.18 0 0)", "oklch(0.21 0 0)", "oklch(0.24 0 0)", "oklch(0.28 0 0)", "oklch(0.32 0 0)", "oklch(0.36 0 0)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(0.91 0.008 70)",
+        "tonalRamp": ["oklch(0.30 0.005 70)", "oklch(0.40 0.005 70)", "oklch(0.50 0.005 70)", "oklch(0.60 0.006 70)", "oklch(0.70 0.006 70)", "oklch(0.80 0.007 70)", "oklch(0.87 0.008 70)", "oklch(0.91 0.008 70)"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "oklch(0.56 0.006 70)",
+        "tonalRamp": ["oklch(0.25 0.004 70)", "oklch(0.32 0.004 70)", "oklch(0.40 0.005 70)", "oklch(0.48 0.005 70)", "oklch(0.56 0.006 70)", "oklch(0.64 0.006 70)", "oklch(0.72 0.007 70)", "oklch(0.80 0.007 70)"]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Archive Amber",
+        "canonical": "oklch(0.60 0.130 60)",
+        "tonalRamp": ["oklch(0.25 0.08 60)", "oklch(0.32 0.09 60)", "oklch(0.40 0.10 60)", "oklch(0.48 0.11 60)", "oklch(0.55 0.12 60)", "oklch(0.60 0.130 60)", "oklch(0.68 0.14 60)", "oklch(0.78 0.12 60)"]
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "Archive Slate",
+        "canonical": "oklch(0.62 0.045 240)",
+        "tonalRamp": ["oklch(0.25 0.03 240)", "oklch(0.32 0.035 240)", "oklch(0.40 0.04 240)", "oklch(0.50 0.042 240)", "oklch(0.56 0.044 240)", "oklch(0.62 0.045 240)", "oklch(0.70 0.04 240)", "oklch(0.80 0.035 240)"]
+      },
+      "destructive": {
+        "role": "destructive",
+        "displayName": "Signal Red",
+        "canonical": "oklch(0.55 0.20 25)",
+        "tonalRamp": ["oklch(0.25 0.12 25)", "oklch(0.32 0.14 25)", "oklch(0.40 0.16 25)", "oklch(0.48 0.18 25)", "oklch(0.52 0.19 25)", "oklch(0.55 0.20 25)", "oklch(0.65 0.18 25)", "oklch(0.75 0.14 25)"]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "canonical": "oklch(0.22 0 0)",
+        "tonalRamp": ["oklch(0.12 0 0)", "oklch(0.15 0 0)", "oklch(0.18 0 0)", "oklch(0.20 0 0)", "oklch(0.22 0 0)", "oklch(0.26 0 0)", "oklch(0.30 0 0)", "oklch(0.35 0 0)"]
+      },
+      "ring": {
+        "role": "primary",
+        "displayName": "Ring (Focus)",
+        "canonical": "oklch(0.60 0.130 60)",
+        "tonalRamp": []
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card",
+        "canonical": "oklch(0.10 0 0)",
+        "tonalRamp": []
+      },
+      "card-border": {
+        "role": "neutral",
+        "displayName": "Card Border",
+        "canonical": "oklch(0.22 0 0)",
+        "tonalRamp": []
+      },
+      "popover": {
+        "role": "neutral",
+        "displayName": "Popover",
+        "canonical": "oklch(0.10 0 0)",
+        "tonalRamp": []
+      },
+      "popover-border": {
+        "role": "neutral",
+        "displayName": "Popover Border",
+        "canonical": "oklch(0.22 0 0)",
+        "tonalRamp": []
+      },
+      "input": {
+        "role": "neutral",
+        "displayName": "Input",
+        "canonical": "oklch(0.18 0 0)",
+        "tonalRamp": []
+      },
+      "surface-lowest": {
+        "role": "neutral",
+        "displayName": "Surface Lowest",
+        "canonical": "oklch(0.06 0 0)",
+        "tonalRamp": []
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero headlines. The single largest typographic moment."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings. Clear hierarchy below display."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All running prose. Line length capped at 65–75ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Section headers, eyebrow text, technical labels. JetBrains Mono."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Code references, data points, metrics."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Default easing for state transitions. Ease-out-quart." },
+      { "name": "ease-enter", "value": "cubic-bezier(0, 0, 0.2, 1)", "purpose": "Elements entering the viewport." },
+      { "name": "ease-exit", "value": "cubic-bezier(0.4, 0, 1, 1)", "purpose": "Elements leaving the viewport." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary CTA. Archive Amber fill, white text, zero radius.",
+      "html": "<button class=\"ds-btn-primary\">Request Access</button>",
+      "css": ".ds-btn-primary { background: oklch(0.60 0.130 60); color: #ffffff; padding: 12px 24px; font-family: 'Geist', system-ui, sans-serif; font-weight: 500; font-size: 0.875rem; border: none; border-radius: 0; cursor: pointer; transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: oklch(0.52 0.130 60); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(0.60 0.130 60); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action. Transparent, ink text, zero radius.",
+      "html": "<button class=\"ds-btn-ghost\">Read Docs</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: oklch(0.91 0.008 70); padding: 12px 24px; font-family: 'Geist', system-ui, sans-serif; font-weight: 500; font-size: 0.875rem; border: none; border-radius: 0; cursor: pointer; transition: color 0.15s; } .ds-btn-ghost:hover { color: #ffffff; } .ds-btn-ghost:focus-visible { outline: 2px solid oklch(0.60 0.130 60); outline-offset: 2px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Tertiary action. 1px border, transparent bg, ink text.",
+      "html": "<button class=\"ds-btn-outline\">Read Documentation</button>",
+      "css": ".ds-btn-outline { background: transparent; color: oklch(0.91 0.008 70); padding: 12px 24px; font-family: 'Geist', system-ui, sans-serif; font-weight: 500; font-size: 0.875rem; border: 1px solid oklch(0.22 0 0); border-radius: 0; cursor: pointer; transition: border-color 0.15s, color 0.15s; } .ds-btn-outline:hover { border-color: oklch(0.40 0 0); color: #ffffff; } .ds-btn-outline:focus-visible { outline: 2px solid oklch(0.60 0.130 60); outline-offset: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Standard container. Dark card bg, 1px border, zero radius.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Repository</h3><p class=\"ds-card-text\">A canonical home for every production asset.</p></div>",
+      "css": ".ds-card { background: oklch(0.10 0 0); border: 1px solid oklch(0.22 0 0); border-radius: 0; padding: 40px; } .ds-card-title { font-family: 'Geist', system-ui, sans-serif; font-weight: 500; font-size: 1.5rem; color: #ffffff; margin: 0 0 16px 0; } .ds-card-text { font-family: 'Geist', system-ui, sans-serif; font-weight: 400; font-size: 1rem; line-height: 1.6; color: oklch(0.91 0.008 70); margin: 0; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text input. Dark bg, 1px border, zero radius, amber focus ring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"you@company.com\" />",
+      "css": ".ds-input { background: oklch(0.18 0 0); color: oklch(0.91 0.008 70); padding: 12px 16px; font-family: 'Geist', system-ui, sans-serif; font-size: 0.875rem; border: 1px solid oklch(0.22 0 0); border-radius: 0; outline: none; width: 100%; transition: border-color 0.15s; } .ds-input::placeholder { color: oklch(0.56 0.006 70); } .ds-input:focus { border-color: oklch(0.60 0.130 60); }"
+    },
+    {
+      "name": "Section Header",
+      "kind": "chip",
+      "refersTo": "section-header",
+      "description": "JetBrains Mono uppercase label. Used for section eyebrows.",
+      "html": "<div class=\"ds-section-header\">THE PROBLEM</div>",
+      "css": ".ds-section-header { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 0.875rem; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(0.62 0.045 240); margin-bottom: 32px; }"
+    },
+    {
+      "name": "Grid Separator",
+      "kind": "card",
+      "refersTo": "grid-separator",
+      "description": "Grid pattern using 1px borders as structural separators.",
+      "html": "<div class=\"ds-grid-sep\"><div class=\"ds-grid-cell\">Cell 1</div><div class=\"ds-grid-cell\">Cell 2</div><div class=\"ds-grid-cell\">Cell 3</div></div>",
+      "css": ".ds-grid-sep { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1px; background: oklch(0.22 0 0); border: 1px solid oklch(0.22 0 0); } .ds-grid-cell { background: oklch(0.075 0 0); padding: 40px; font-family: 'Geist', system-ui, sans-serif; color: oklch(0.91 0.008 70); }"
+    },
+    {
+      "name": "Comparison Row",
+      "kind": "card",
+      "refersTo": "comparison-row",
+      "description": "Three-column comparison table row. Metric vs Without vs With.",
+      "html": "<div class=\"ds-compare-row\"><div class=\"ds-compare-metric\">Finding the approved version</div><div class=\"ds-compare-without\">Guessed from filenames</div><div class=\"ds-compare-with\">Known, with certainty</div></div>",
+      "css": ".ds-compare-row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid oklch(0.22 0 0); } .ds-compare-metric { padding: 24px; font-family: 'Geist', system-ui, sans-serif; font-weight: 500; font-size: 0.875rem; color: #ffffff; } .ds-compare-without { padding: 24px; font-size: 0.875rem; color: oklch(0.56 0.006 70); border-left: 1px solid oklch(0.22 0 0); } .ds-compare-with { padding: 24px; font-size: 0.875rem; color: #ffffff; border-left: 1px solid oklch(0.22 0 0); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Production Archive",
+    "overview": "Portals is the memory layer of creative worlds. Its interface should feel like the physical archive of a world-class production studio — calm, precise, and built to outlast the work it preserves. Every surface communicates intentionality: nothing is decorative, nothing is accidental, nothing exists for 'vibe.' The system earns trust through structural honesty.\n\nThis is not a SaaS landing page. Not a DAM. Not a dashboard. The interface sits between Apple's craft precision and Linear's software rigor, with the quiet authority of a Pixar production pipeline. The metaphor is a studio archive — not a filing cabinet, not a command center.",
+    "keyCharacteristics": [
+      "Brutalist structural honesty — zero radius, no shadows, 1px borders",
+      "Warmth through type and accent, not surface — achromatic background, amber brand anchor",
+      "Monospace as technical authority — JetBrains Mono for headers, metrics, data",
+      "Cinematic restraint — motion earns its place through function, not flourish",
+      "Structural hierarchy through borders — grid-gap-px as primary organizational tool"
+    ],
+    "rules": [
+      { "name": "The Archive Amber Rule", "body": "The primary accent is used on ≤15% of any given screen. Its rarity is the point — when amber appears, it means something.", "section": "colors" },
+      { "name": "The Achromatic Foundation Rule", "body": "The background surface carries zero chroma. All brand warmth lives in the amber primary, the slate secondary, and the quality of the typography.", "section": "colors" },
+      { "name": "The Mono Authority Rule", "body": "JetBrains Mono appears only where precision is the message: section headers, metrics, data points, code references. It never carries body prose.", "section": "typography" },
+      { "name": "The Display Ceiling Rule", "body": "Display heading size never exceeds 4.5rem (~72px). Above that the page is shouting, not designing.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at all times. Shadows never appear — not on hover, not on focus, not on elevation. State changes are communicated through color shift, border emphasis, or tonal stepping.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use 1px borders as the primary structural tool",
+      "Do use tonal stepping for depth hierarchy instead of shadows",
+      "Do use JetBrains Mono for section headers, metrics, and technical labels",
+      "Do keep the Archive Amber accent to ≤15% of any screen",
+      "Do use text-wrap: balance on h1–h3 for even line lengths",
+      "Do use clamp() for responsive display typography, never exceeding 4.5rem",
+      "Do maintain ≥4.5:1 contrast for body text and ≥3:1 for large text",
+      "Do use the grid-gap-px pattern for structured comparisons"
+    ],
+    "donts": [
+      "Don't use border-radius greater than 0px on any element (full-pill for tags/badges only)",
+      "Don't use box-shadow on any element",
+      "Don't use gradient text (background-clip: text)",
+      "Don't use side-stripe borders (border-left/right > 1px as colored accent)",
+      "Don't use glassmorphism, backdrop-blur, or translucent surfaces",
+      "Don't use cream, sand, beige, or warm-tinted backgrounds",
+      "Don't use gradient backgrounds",
+      "Don't use the hero-metric template (big number + small label + gradient accent)",
+      "Don't use identical card grids (same-sized cards with icon + heading + text)",
+      "Don't put a tiny uppercase tracked eyebrow above every section",
+      "Don't use numbered section markers (01 / 02 / 03) as default scaffolding",
+      "Don't use hand-drawn / sketchy SVG illustrations",
+      "Don't use repeating-linear-gradient stripe backgrounds",
+      "Don't use decorative grid backgrounds (two-axis CSS grid overlays)",
+      "Don't look like generic SaaS landing pages, traditional DAM tools, playful AI tools, developer tooling, consumer AI companions, enterprise workflow software, stock SaaS aesthetic, NFT/Web3, or sci-fi",
+      "Don't use side-stripe borders greater than 1px as colored accent",
+      "Don't pair border: 1px solid X + box-shadow with blur ≥ 16px",
+      "Don't use border-radius 32px+ on cards/sections/inputs"
+    ]
+  }
+}
