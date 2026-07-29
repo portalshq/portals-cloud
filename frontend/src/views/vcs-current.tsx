@@ -1,3 +1,4 @@
+import { CTAButton } from '@/components/CTAButton';
 import { type CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 
 type OverviewItem = {
@@ -165,32 +166,40 @@ const audiences = [
 
 const pricingTiers = [
   {
-    name: 'Creator',
-    price: '$299',
-    period: '/ month',
-    subtitle: 'Small teams getting started.',
-    features: ['Hosted repositories', 'Version history and rollback', 'Provenance tracking', 'Basic sharing'],
-    cta: 'Request Access',
+    name: 'Production Pilot',
+    price: '$5,000',
+    period: 'once',
+    subtitle: 'For qualified teams proving Portals against one active production workflow.',
+    features: ['1 production team', '1 active workflow', 'Defined onboarding', 'Agreed success criteria', 'Final deployment recommendation', 'Proposed annual terms established before the pilot begins'],
+    cta: 'Scope a pilot',
+  },
+  {
+    name: 'Production Team',
+    price: '$750',
+    period: '/ month, billed annually',
+    subtitle: 'Small teams establishing a trusted system of record for AI production.',
+    features: ['5 production members', '3 active production repositories', 'Unlimited reviewers and guests', 'Version history and rollback', 'Provenance tracking', 'Basic sharing', 'Standard integrations', 'Standard support'],
+    cta: 'Request access',
   },
   {
     name: 'Studio',
-    price: '$2,000',
-    period: '/ month',
-    subtitle: 'Production teams running real client work.',
-    features: ['Everything in Creator', 'Unlimited collaborators', 'Asset lineage and relationships', 'API access and audit history', 'Team permissions'],
-    cta: 'Request Access',
+    price: '$2,500',
+    period: '/ month, billed annually',
+    subtitle: 'Production organizations running recurring client, campaign, episodic, or game-development workflows.',
+    features: ['20 production members', '15 active production repositories', 'Unlimited reviewers and guests', 'Everything in Production Team', 'API access', 'Audit history', 'Role-based team permissions', 'Multiple production workspaces', 'Standard production integrations', 'Guided onboarding', 'Quarterly workflow review'],
+    cta: 'Scope a pilot',
   },
   {
     name: 'Enterprise',
-    price: '$5,000',
-    period: '/ month',
-    subtitle: 'Multi-team organizations requiring governance and scale.',
-    features: ['Everything in Studio', 'SSO / SAML and compliance logs', 'Dedicated infrastructure and SLA', 'Custom integrations', 'Dedicated success and support'],
-    cta: 'Contact Sales',
+    price: 'Custom',
+    period: '',
+    subtitle: 'Multi-team organizations standardizing AI production across business units, clients, productions, or regions.',
+    features: ['Contracted production-member capacity', 'Contracted repository and workspace capacity', 'Everything in Studio', 'Multi-workspace governance', 'SSO/SAML', 'Procurement and security support', 'Contractual SLA', 'Named customer-success owner'],
+    cta: 'Contact sales',
   },
 ];
 
-const requestAccessMailto = `mailto:sales@portals.works?subject=${encodeURIComponent('Request Access to Portals')}&body=${encodeURIComponent(`Hi Portals team,
+const requestAccessMailto = `mailto:sales@portals.works?subject=${encodeURIComponent('Request access to portals')}&body=${encodeURIComponent(`Hi Portals,
 
 I’d like to request access to Portals and learn more about how it can support our creative production workflow.
 
@@ -533,13 +542,6 @@ function ArrowIcon() {
   );
 }
 
-function CTAButton({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 pr-12 pl-18 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:bg-white/30" href={href}>
-      <span>{children}</span>
-    </a>
-  );
-}
 
 function SectionKicker({ children }: { children: string }) {
   return <p className="t-m2 text-white">{children}</p>;
@@ -588,8 +590,8 @@ function SolutionSection() {
     <section data-header-theme="light">
       <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white lg:min-h-screen">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
-          <h2 className="t-d2-sans mx-auto max-w-[13em]">
-            The production repository for AI-native creative organizations.
+          <h2 className="t-d2-sans mx-auto max-w-[13em] lowercase">
+            The production repository for AI-native creative organizations
           </h2>
           <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
             Portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it.
@@ -598,7 +600,7 @@ function SolutionSection() {
             Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.
           </p>
           <div className="flex justify-center">
-            <CTAButton href={requestAccessMailto}><span className="t-p-sans">Request Access</span></CTAButton>
+            <CTAButton href={requestAccessMailto}>Request access</CTAButton>
           </div>
         </div>
       </div>
@@ -623,7 +625,7 @@ function ComparisonSection() {
             <div key={row.metric} className="grid grid-cols-1 border-t border-white/20 lg:grid-cols-3 lowercase">
               <div className="p-16 t-p-sans text-white lg:bg-transparent">{row.metric}</div>
               <div className="border-white/20 p-16 t-p-sans text-white/80 lg:border-t-0 lg:border-l">
-                <span className="mb-8 block t-m2 Your best results become reproducible, explainable lg:hidden !lowercase">without portals</span>
+                <span className="mb-8 block t-m2 lg:hidden !lowercase">without portals</span>
                 {row.without}
               </div>
               <div className="border-white/20 p-16 t-p-sans text-white lg:border-t-0 lg:border-l">
@@ -717,18 +719,16 @@ function PricingSection() {
         {/* <div className="col-span-full lg:col-span-6">
           <SectionKicker>pricing</SectionKicker>
         </div> */}
-        <div className="col-span-full lg:col-start-6 lg:mx-auto">
+        <div className="col-span-full lg:mx-auto">
           <h2 className="t-d2-sans max-w-[12.58em] lg:text-center">A clear path from adoption to enterprise scale.</h2>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
           {pricingTiers.map((tier) => (
             <article key={tier.name} className="flex min-h-194 flex-col p-24">
               <h3 className="t-h3-sans">{tier.name}</h3>
-              <div className="my-20 flex items-baseline gap-x-8">
-                <>
-                  <span className="t-d2-sans">{tier.price}</span>
-                  <span className="t-m2 !lowercase">{tier.period}</span>
-                </>
+              <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
+                <span className="t-d2-sans">{tier.price}</span>
+                <span className="t-m2 !lowercase">{tier.period}</span>
               </div>
               <p className="t-p-sans">{tier.subtitle}</p>
               <ul className="my-24 flex flex-1 flex-col gap-y-8">
@@ -754,7 +754,7 @@ export function VCS() {
       <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollFrom" data-webgl-position="0" data-webgl-easing="easeInOut" />
 
       <header className="pointer-events-none w-full absolute md:!fixed inset-x-0 top-0 z-(--z-header)">
-        <div className="flex h-Header-h items-center px-sms">
+        <div className="flex h-Header-h items-center px-sms !pr-16">
           <div className="pointer-events-auto flex flex-1 items-center justify-between gap-x-sgs">
             <a className="" href="/">
               <span className="t-h3-sans !font-medium">
@@ -762,7 +762,7 @@ export function VCS() {
               </span>
             </a>
 
-            <CTAButton href={requestAccessMailto}>Request Access</CTAButton>
+            <CTAButton href={requestAccessMailto}>Request access</CTAButton>
           </div>
         </div>
       </header>
@@ -812,11 +812,11 @@ export function VCS() {
         <div className="relative flex min-h-screen items-center text-white">
           <div className="ui-grid flex-1 gap-y-sms py-sms">
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
-              <h4 className="t-global-cta_heading max-w-[9.85em]">Stop losing your best AI work. Start building on it.</h4>
+              <h4 className="t-global-cta_heading max-w-[12em]">Stop losing your best AI work. <br /> Start building on it.</h4>
               <p className="t-p-lg-serif max-w-[26em] text-white">
                 Give every asset your team creates a permanent identity, a complete history, and a system of record it can be trusted against from first generation through shipped production.
               </p>
-              <CTAButton href={requestAccessMailto}>Request Access</CTAButton>
+              <CTAButton href={requestAccessMailto}>Request access</CTAButton>
             </div>
           </div>
           <div className="absolute inset-0 z-10" />

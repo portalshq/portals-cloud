@@ -1,6 +1,7 @@
-@import 'saga.css';
-@import 'saga-repro.css';
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@import '../src/saga.css';
+@import '../src/saga-repro.css';
 
 @import 'tailwindcss';
 @import 'tw-animate-css';
@@ -51,22 +52,38 @@
   --font-sans: 'Geist', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  --radius-sm: 0px;
+  --font-die-grotesk-b: var(--font-die-grotesk-b);
+  --font-die-grotesk-c: var(--font-die-grotesk-c);
+  --font-aeonik-fono: var(--font-aeonik-fono);
+  --font-stk-bureau: var(--font-stk-bureau);
+
+  --spacing: .0625rem;
+
+  --color-black-100: #101010;
+  --color-black-500: #878787;
+  --color-black-700: #585858;
+  --color-black-900: #282828;
+
+  --spacing-sgs: var(--fluid-site-gutter);
+  --spacing-sms: var(--fluid-site-margin);
+  --spacing-Header-h: var(--Header-h);
+
+  --radius-sm: 3px;
   --radius-md: 0px;
   --radius-lg: 0px;
   --radius-xl: 0px;
 }
 
 :root, .dark {
-  --background: 0 0% 5%; /* #0c0c0c */
-  --foreground: 0 0% 91%; /* #e8e4df ink */
-  --border: 0 0% 16%; /* #2a2a2a */
-  --input: 0 0% 12%; /* #1e1e1e */
-  --ring: 36 65% 48%; /* Archive Amber */
+  --background: 0 0% 5%;
+  --foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 12%;
+  --ring: 36 65% 48%;
 
-  --surface-variant: 0 0% 12%; /* #1e1e1e */
+  --surface-variant: 0 0% 12%;
 
-  --card: 0 0% 7%; /* #111111 */
+  --card: 0 0% 7%;
   --card-foreground: 0 0% 91%;
   --card-border: 0 0% 16%;
 
@@ -74,11 +91,9 @@
   --popover-foreground: 0 0% 91%;
   --popover-border: 0 0% 16%;
 
-  /* Archive Amber #c4841a */
   --primary: 36 65% 48%;
   --primary-foreground: 0 0% 100%;
 
-  /* Archive Slate #7a9ab5 */
   --secondary: 210 25% 56%;
   --secondary-foreground: 0 0% 100%;
 
@@ -93,16 +108,14 @@
 
   --radius: 0px;
 
-  /* Portals brand tokens */
-  --portals-primary: 36 65% 48%; /* Archive Amber */
-  --portals-secondary: 210 25% 56%; /* Archive Slate */
-  --portals-bg: 0 0% 5%; /* Void Black */
-  --portals-on-surface-variant: 0 0% 54%; /* Muted text */
-  --portals-surface-lowest: 0 0% 4%; /* Deepest layer */
-  --portals-surface-variant: 0 0% 16%; /* Border color */
-  --portals-border: 0 0% 16%; /* #2a2a2a */
+  --portals-primary: 36 65% 48%;
+  --portals-secondary: 210 25% 56%;
+  --portals-bg: 0 0% 5%;
+  --portals-on-surface-variant: 0 0% 54%;
+  --portals-surface-lowest: 0 0% 4%;
+  --portals-surface-variant: 0 0% 16%;
+  --portals-border: 0 0% 16%;
 
-  /* No shadows for brutalism, just borders */
   --shadow-2xs: none;
   --shadow-xs: none;
   --shadow-sm: none;
@@ -111,12 +124,29 @@
   --shadow-lg: none;
   --shadow-xl: none;
   --shadow-2xl: none;
+
+  /* --fluid-site-gutter: clamp(6.74px, calc(1px + 1.79375vw), 46.92px);
+  --fluid-site-margin: clamp(14.74px, calc(9px + 1.79375vw), 54.92px);
+  --Header-h: 78px;
+
+  --font-die-grotesk-b: 'DieGroteskB', Arial, sans-serif;
+  --font-die-grotesk-c: 'DieGroteskC', Arial, sans-serif;
+  --font-aeonik-fono: 'AeonikFono', Arial, sans-serif;
+  --font-stk-bureau: 'StkBureau', Georgia, serif;
+  --width: minmax(0, 1fr);
+
+  --z-header-menu: 6666;
+  --z-header: 7777;
+  --z-flyout-mask: 8888;
+  --z-flyout: 9999;
+  --z-main: 100;
+  --z-footer: 100;
+  --z-webgl: 10; */
 }
 
 @layer base {
   html,
-  body,
-  #root {
+  body {
     min-height: 100%;
     background: #101010;
   }
@@ -127,6 +157,11 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100%;
   }
 }
 
@@ -144,19 +179,4 @@
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.font-mono {
-  font-family: var(--font-mono);
-}
-
-.hairline-grid {
-  display: grid;
-  gap: 1px;
-  background-color: hsl(var(--portals-surface-variant));
-  border: 1px solid hsl(var(--portals-surface-variant));
-}
-
-.hairline-cell {
-  background-color: hsl(var(--portals-bg));
 }

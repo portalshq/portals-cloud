@@ -4,50 +4,47 @@ import { PlatformNetwork } from "./src/components/PlatformNetwork";
 import { PlatformCluster } from "./src/components/PlatformCluster";
 import { PlatformDataStore } from "./src/components/PlatformDataStore";
 import { PlatformStorage } from "./src/components/PlatformStorage";
-import { PlatformEventBus } from "./src/components/PlatformEventBus";
 import { LoadBalancers } from "./src/components/LoadBalancers";
 import { LoreService } from "./src/components/LoreService";
-import { ServerService } from "./src/components/ServerService";
-import { FrontendService } from "./src/components/FrontendService";
 import { ControlPlaneService } from "./src/components/ControlPlaneService";
 
-// Get configuration
+// ── Configuration ────────────────────────────────────────────────────────────
 const config = new pulumi.Config();
 const projectName = config.require("projectName");
 const environment = config.require("environment");
 const awsRegion = config.require("aws:region");
 
+// Network
 const vpcCidr = config.require("vpcCidr");
 const publicSubnetCidrs = config.require("publicSubnetCidrs").split(",");
 const privateSubnetCidrs = config.require("privateSubnetCidrs").split(",");
 
+// RDS (Control Plane)
 const databaseInstanceClass = config.require("databaseInstanceClass");
 const databaseVersion = config.require("databaseVersion");
 const databaseAllocatedStorage = parseInt(config.require("databaseAllocatedStorage"));
 
+// ECS
 const ecsFargateCpu = config.require("ecsFargateCpu");
 const ecsFargateMemory = config.require("ecsFargateMemory");
 
+// Service counts
 const loreServiceDesiredCount = parseInt(config.require("loreServiceDesiredCount"));
-const serverServiceDesiredCount = parseInt(config.require("serverServiceDesiredCount"));
-const frontendServiceDesiredCount = parseInt(config.require("frontendServiceDesiredCount"));
-
-const loreServerDockerPath = config.require("loreServerDockerPath");
-const serverDockerPath = config.require("serverDockerPath");
-const frontendDockerPath = config.require("frontendDockerPath");
-const controlPlaneDockerPath = config.require("controlPlaneDockerPath");
 const controlPlaneDesiredCount = parseInt(config.require("controlPlaneDesiredCount"));
 
-// Control Plane S3 and signing config
-const ed25519SigningKey = config.requireSecret("ed25519SigningKey");
-const s3Endpoint = config.get("s3Endpoint") ?? "";
-const s3AccessKey = config.requireSecret("s3AccessKey");
-const s3SecretKey = config.requireSecret("s3SecretKey");
-const s3BucketChunks = config.get("s3BucketChunks") ?? "lore-chunks";
-const s3Region = config.get("s3Region") ?? "us-east-1";
+// Control Plane Docker build
+const controlPlaneDockerPath = config.require("controlPlaneDockerPath");
 
-// Get availability zones
-const availabilityZones = pulumi.output(aws.getAvailabilityZones({ state: "available" })).then(azs => azs.names.slice(0, 3));
+// Lore Server external image
+const loreServerImageUri = config.require("loreServerImageUri");
+
+// Control Plane secrets
+const ed25519SigningKey = config.requireSecret("ed25519SigningKey");
+
+// Get availability zones (resolve synchronously for PlatformNetwork args)
+const availabilityZones = aws.getAvailabilityZones({ state: "available" }).then(azs => azs.names.slice(0, 3));
+
+// ── Infrastructure ───────────────────────────────────────────────────────────
 
 // Create Platform Network
 const platformNetwork = new PlatformNetwork(`${projectName}-network`, {
@@ -59,7 +56,7 @@ const platformNetwork = new PlatformNetwork(`${projectName}-network`, {
   environment,
 });
 
-// Create Platform Cluster
+// Create Platform Cluster (ECS Fargate + IAM + CloudWatch)
 const platformCluster = new PlatformCluster(`${projectName}-cluster`, {
   vpcId: platformNetwork.vpc.id,
   privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
@@ -68,7 +65,7 @@ const platformCluster = new PlatformCluster(`${projectName}-cluster`, {
   environment,
 });
 
-// Create Platform Data Store
+// Create Platform Data Store (RDS for Control Plane + DynamoDB for Lore)
 const platformDataStore = new PlatformDataStore(`${projectName}-datastore`, {
   vpcId: platformNetwork.vpc.id,
   privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
@@ -80,23 +77,13 @@ const platformDataStore = new PlatformDataStore(`${projectName}-datastore`, {
   databaseUsername: "portals_admin",
 });
 
-// Create Platform Storage (ECR and EFS)
+// Create Platform Storage (S3 for Lore chunks + ECR for Control Plane image)
 const platformStorage = new PlatformStorage(`${projectName}-storage`, {
-  vpcId: platformNetwork.vpc.id,
-  privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
-  availabilityZones,
   projectName,
   environment,
 });
 
-// Create Platform Event Bus (SQS)
-const platformEventBus = new PlatformEventBus(`${projectName}-eventbus`, {
-  vpcId: platformNetwork.vpc.id,
-  projectName,
-  environment,
-});
-
-// Create Load Balancers
+// Create Load Balancers (ALB + NLB)
 const loadBalancers = new LoadBalancers(`${projectName}-loadbalancers`, {
   vpcId: platformNetwork.vpc.id,
   publicSubnetIds: pulumi.all(platformNetwork.publicSubnets.map(s => s.id)),
@@ -104,64 +91,30 @@ const loadBalancers = new LoadBalancers(`${projectName}-loadbalancers`, {
   environment,
 });
 
-// Create Lore Service
+// Create Lore Service (VCS — pulls from external registry)
 const loreService = new LoreService(`${projectName}-lore-service`, {
   clusterArn: platformCluster.cluster.arn,
   clusterName: platformCluster.cluster.name,
   vpcId: platformNetwork.vpc.id,
   privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
   publicSubnetIds: pulumi.all(platformNetwork.publicSubnets.map(s => s.id)),
-  ecrRepositoryUrl: platformStorage.loreEcrRepository.repositoryUrl,
-  efsFileSystemId: platformStorage.efsFileSystem.id,
-  efsMountTargetIds: pulumi.all(platformStorage.efsMountTargets.map(mt => mt.id)),
   albTargetGroupArn: loadBalancers.loreAlbTargetGroup.arn,
   albSecurityGroupId: loadBalancers.albSecurityGroup.id,
   nlbTargetGroupArn: loadBalancers.loreNlbTargetGroup.arn,
   nlbSecurityGroupId: loadBalancers.nlbSecurityGroup.id,
   projectName,
   environment,
-  dockerPath: loreServerDockerPath,
   desiredCount: loreServiceDesiredCount,
   cpu: ecsFargateCpu,
   memory: ecsFargateMemory,
-  databaseUrl: platformDataStore.databaseUrl,
+  loreServerImageUri,
+  s3BucketName: platformStorage.loreChunksBucket.bucket,
+  s3BucketArn: platformStorage.loreChunksBucket.arn,
+  dynamoDbTableName: platformDataStore.loreTable.name,
+  awsRegion,
 });
 
-// Create Server Service
-const serverService = new ServerService(`${projectName}-server-service`, {
-  clusterArn: platformCluster.cluster.arn,
-  clusterName: platformCluster.cluster.name,
-  vpcId: platformNetwork.vpc.id,
-  privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
-  ecrRepositoryUrl: platformStorage.serverEcrRepository.repositoryUrl,
-  albTargetGroupArn: loadBalancers.serverAlbTargetGroup.arn,
-  albSecurityGroupId: loadBalancers.albSecurityGroup.id,
-  projectName,
-  environment,
-  dockerPath: serverDockerPath,
-  desiredCount: serverServiceDesiredCount,
-  cpu: ecsFargateCpu,
-  memory: ecsFargateMemory,
-});
-
-// Create Frontend Service
-const frontendService = new FrontendService(`${projectName}-frontend-service`, {
-  clusterArn: platformCluster.cluster.arn,
-  clusterName: platformCluster.cluster.name,
-  vpcId: platformNetwork.vpc.id,
-  privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
-  ecrRepositoryUrl: platformStorage.frontendEcrRepository.repositoryUrl,
-  albTargetGroupArn: loadBalancers.frontendAlbTargetGroup.arn,
-  albSecurityGroupId: loadBalancers.albSecurityGroup.id,
-  projectName,
-  environment,
-  dockerPath: frontendDockerPath,
-  desiredCount: frontendServiceDesiredCount,
-  cpu: ecsFargateCpu,
-  memory: ecsFargateMemory,
-});
-
-// Create Control Plane Service
+// Create Control Plane Service (built from Dockerfile)
 const controlPlaneService = new ControlPlaneService(`${projectName}-controlplane-service`, {
   clusterArn: platformCluster.cluster.arn,
   clusterName: platformCluster.cluster.name,
@@ -177,28 +130,21 @@ const controlPlaneService = new ControlPlaneService(`${projectName}-controlplane
   cpu: ecsFargateCpu,
   memory: ecsFargateMemory,
   databaseUrl: platformDataStore.databaseUrl,
-  eventQueueUrl: platformEventBus.queueUrl,
-  eventQueueArn: platformEventBus.queueArn,
   ed25519SigningKey,
-  s3Endpoint,
-  s3AccessKey,
-  s3SecretKey,
-  s3BucketChunks,
-  s3Region,
+  s3Region: awsRegion,
 });
 
-// Export critical connection strings
+// ── Exports ──────────────────────────────────────────────────────────────────
+
 export const databaseUrl = pulumi.secret(platformDataStore.databaseUrl);
 export const albDnsName = loadBalancers.alb.dnsName;
 export const nlbDnsName = loadBalancers.nlb.dnsName;
 export const vpcId = platformNetwork.vpc.id;
 export const clusterArn = platformCluster.cluster.arn;
-export const loreEcrRepositoryUrl = platformStorage.loreEcrRepository.repositoryUrl;
-export const serverEcrRepositoryUrl = platformStorage.serverEcrRepository.repositoryUrl;
-export const frontendEcrRepositoryUrl = platformStorage.frontendEcrRepository.repositoryUrl;
 export const controlPlaneEcrRepositoryUrl = platformStorage.controlPlaneEcrRepository.repositoryUrl;
-export const efsFileSystemId = platformStorage.efsFileSystem.id;
-export const eventQueueUrl = platformEventBus.queueUrl;
-export const eventQueueArn = platformEventBus.queueArn;
-export const deadLetterQueueUrl = platformEventBus.deadLetterQueueUrl;
-export const deadLetterQueueArn = platformEventBus.deadLetterQueueArn;
+export const loreChunksBucketName = platformStorage.loreChunksBucket.bucket;
+export const loreChunksBucketArn = platformStorage.loreChunksBucket.arn;
+export const loreDynamoDbTableName = platformDataStore.loreTable.name;
+export const loreDynamoDbTableArn = platformDataStore.loreTable.arn;
+export const loreServiceSecurityGroupArn = loreService.securityGroup.arn;
+export const controlPlaneServiceSecurityGroupArn = controlPlaneService.securityGroup.arn;

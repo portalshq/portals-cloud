@@ -1,41 +1,41 @@
 @font-face {
   font-family: DieGroteskB;
-  src: url('/_next/static/media/die_grotesk_b_regular-s.p.0jvz~wiks_e7p.woff2') format('woff2');
+  src: url('/fonts/die_grotesk_b_regular-s.p.0jvz~wiks_e7p.woff2') format('woff2');
   font-display: swap;
   font-weight: 400;
 }
 
 @font-face {
   font-family: DieGroteskB;
-  src: url('/_next/static/media/die_grotesk_b_medium-s.p.03ry_ngvtd6ht.woff2') format('woff2');
+  src: url('/fonts/die_grotesk_b_medium-s.p.03ry_ngvtd6ht.woff2') format('woff2');
   font-display: swap;
   font-weight: 500;
 }
 
 @font-face {
   font-family: DieGroteskC;
-  src: url('/_next/static/media/die_grotesk_c_regular-s.p.0oo9..wv.u_8d.woff2') format('woff2');
+  src: url('/fonts/die_grotesk_c_regular-s.p.0oo9..wv.u_8d.woff2') format('woff2');
   font-display: swap;
   font-weight: 400;
 }
 
 @font-face {
   font-family: AeonikFono;
-  src: url('/_next/static/media/aeonikfono_regular-s.p.0na4ujt42eyz5.woff2') format('woff2');
+  src: url('/fonts/aeonikfono_regular-s.p.0na4ujt42eyz5.woff2') format('woff2');
   font-display: swap;
   font-weight: 400;
 }
 
 @font-face {
   font-family: StkBureau;
-  src: url('/_next/static/media/STKBureauSerif_Book-s.p.0utj3rrelomuv.woff2') format('woff2');
+  src: url('/fonts/STKBureauSerif_Book-s.p.0utj3rrelomuv.woff2') format('woff2');
   font-display: swap;
   font-weight: 400;
 }
 
 @font-face {
   font-family: StkBureau;
-  src: url('/_next/static/media/STKBureauSerif_Light-s.p.16iweok_yh9kh.woff2') format('woff2');
+  src: url('/fonts/STKBureauSerif_Light-s.p.16iweok_yh9kh.woff2') format('woff2');
   font-display: swap;
   font-weight: 300;
 }
