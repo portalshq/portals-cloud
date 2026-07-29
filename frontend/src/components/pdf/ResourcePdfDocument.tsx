@@ -83,8 +83,6 @@ const styles = StyleSheet.create({
     right: 54,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#D8D8D8',
     paddingBottom: 8,
     fontSize: 7.5,
     color: '#777777',
@@ -96,8 +94,6 @@ const styles = StyleSheet.create({
     right: 54,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderTopWidth: 0.5,
-    borderTopColor: '#D8D8D8',
     paddingTop: 8,
     fontSize: 7.5,
     color: '#777777',
@@ -460,7 +456,7 @@ function PdfPortableText({value}: {value: PortableTextBlock[]}) {
         switch (block._type) {
           case 'calloutBlock':
             return (
-              <View key={block._key} style={styles.callout}>
+              <View key={block._key} style={styles.callout} wrap={false}>
                 {block.title ? (
                   <Text style={styles.calloutTitle}>{block.title}</Text>
                 ) : null}
@@ -474,7 +470,7 @@ function PdfPortableText({value}: {value: PortableTextBlock[]}) {
 
           case 'formulaBlock':
             return (
-              <View key={block._key} style={styles.formula}>
+              <View key={block._key} style={styles.formula} wrap={false}>
                 {block.label ? (
                   <Text style={styles.formulaLabel}>{block.label}</Text>
                 ) : null}
@@ -537,7 +533,7 @@ function PdfPortableText({value}: {value: PortableTextBlock[]}) {
 
           case 'dataTableBlock':
             return (
-              <View key={block._key} style={{marginBottom: 14}}>
+              <View key={block._key} style={{marginBottom: 14}} wrap={false}>
                 {block.title ? (
                   <Text style={styles.checklistTitle}>{block.title}</Text>
                 ) : null}
@@ -630,6 +626,42 @@ function PdfSection({
   )
 }
 
+function PdfHeader({
+  document,
+  pdf,
+}: {
+  document: ResourceDocument
+  pdf: NonNullable<ResourceDocument['pdf']>
+}) {
+  return (
+    <View style={styles.header} fixed>
+      <Text>{pdf.headerText || document.shortTitle || document.title}</Text>
+      <Text>{document.publisher || 'Portals'}</Text>
+    </View>
+  )
+}
+
+function PdfFooter({
+  document,
+  pdf,
+}: {
+  document: ResourceDocument
+  pdf: NonNullable<ResourceDocument['pdf']>
+}) {
+  return (
+    <View style={styles.footer} fixed>
+      <Text>
+        {pdf.footerText || `Published by ${document.publisher || 'Portals'}`}
+      </Text>
+      {pdf.showPageNumbers !== false ? (
+        <Text render={({pageNumber}) => String(pageNumber)} />
+      ) : (
+        <Text />
+      )}
+    </View>
+  )
+}
+
 export function ResourcePdfDocument({
   document,
 }: {
@@ -711,53 +743,36 @@ export function ResourcePdfDocument({
         </Page>
       ) : null}
 
-      <Page size={pageSize} style={styles.page} wrap>
-        <View style={styles.header} fixed>
-          <Text>
-            {pdf.headerText || document.shortTitle || document.title}
-          </Text>
-          <Text>{document.publisher || 'Portals'}</Text>
-        </View>
-
-        {pdf.includeTableOfContents !== false && tocSections.length ? (
+      {pdf.includeTableOfContents !== false && tocSections.length ? (
+        <Page size={pageSize} style={styles.page} wrap>
+          <PdfHeader document={document} pdf={pdf} />
           <View style={styles.toc}>
             <Text style={styles.tocTitle}>Contents</Text>
             {tocSections.map((section) => (
-              <Link
-                key={section._key}
-                src={`#${section.anchor}`}
-                style={styles.tocItem}
-              >
+              <Text key={section._key} style={styles.tocItem}>
                 {section.title}
-              </Link>
+              </Text>
             ))}
           </View>
-        ) : null}
+          <PdfFooter document={document} pdf={pdf} />
+        </Page>
+      ) : null}
 
-        {pdfSections.map((section) => (
-          <PdfSection key={section._key} section={section} accent={accent} />
-        ))}
+      {pdfSections.map((section) => (
+        <Page key={section._key} size={pageSize} style={styles.page} wrap>
+          <PdfHeader document={document} pdf={pdf} />
+          <PdfSection section={section} accent={accent} />
+          <PdfFooter document={document} pdf={pdf} />
+        </Page>
+      ))}
 
-        {pdf.legalNote ? (
+      {pdf.legalNote ? (
+        <Page size={pageSize} style={styles.page} wrap>
+          <PdfHeader document={document} pdf={pdf} />
           <Text style={styles.legalNote}>{pdf.legalNote}</Text>
-        ) : null}
-
-        <View style={styles.footer} fixed>
-          <Text>
-            {pdf.footerText ||
-              `Published by ${document.publisher || 'Portals'}`}
-          </Text>
-          {pdf.showPageNumbers !== false ? (
-            <Text
-              render={({pageNumber, totalPages}) =>
-                `${pageNumber} / ${totalPages}`
-              }
-            />
-          ) : (
-            <Text />
-          )}
-        </View>
-      </Page>
+          <PdfFooter document={document} pdf={pdf} />
+        </Page>
+      ) : null}
     </Document>
   )
 }

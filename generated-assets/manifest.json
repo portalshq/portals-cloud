@@ -1,4 +1,10 @@
 {
-  "ai-production-workflow-risks": "2026-07-28T21:13:05Z",
-  "production-memory-field-guide": "2026-07-28T22:41:04Z"
+  "ai-production-workflow-risks": {
+    "hash": "2269d4e50328274e0db2ad2b3803f589ce467d036a5e761b941ed59b5b4c65d2",
+    "fileName": "ai-production-workflow-risks.pdf"
+  },
+  "production-memory-field-guide": {
+    "hash": "87d9d7f0733258e779d98bd4c14c506709e1be69b3e5ad10613ffb170dacf365",
+    "fileName": "production-memory-field-guide.pdf"
+  }
 }
