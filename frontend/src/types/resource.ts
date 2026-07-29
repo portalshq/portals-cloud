@@ -31,6 +31,7 @@ export type PortableTextBlock = {
   tone?: string
   title?: string
   text?: string
+  body?: PortableTextBlock[]
   label?: string
   expression?: string
   note?: string

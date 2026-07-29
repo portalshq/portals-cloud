@@ -3,4 +3,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "out",
   "installCommand": "npm install",
+<<<<<<< HEAD
+=======
+  "nodeVersion": "24.x"
+>>>>>>> d185fe34c30489af596d187849f478b02fc9bbd3
 }

@@ -1,56 +1,106 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { pdf } from '@react-pdf/renderer';
-import React from 'react';
-import { ResourceTemplate } from '../src/pdf-templates/ResourceTemplate.js';
-import { getResourceSlugs, getPublishedResourceForPdf } from '../src/sanity/lib/resources.js';
+import crypto from 'crypto'
+import fs from 'fs'
+import path from 'path'
+import {fileURLToPath} from 'url'
+import {pdf} from '@react-pdf/renderer'
+import React from 'react'
+import {ResourcePdfDocument} from '../src/components/pdf/ResourcePdfDocument.js'
+import {resolvePdfFileName} from '../src/lib/resource-pdf.js'
+import {
+  getPublishedResourceForPdf,
+  getResourceSlugs,
+} from '../src/sanity/lib/resources.js'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-async function main() {
-  const slugs = await getResourceSlugs();
-  const assetsDir = path.resolve(__dirname, '../../generated-assets');
-  const pdfsDir = path.join(assetsDir, 'pdfs');
-  const manifestPath = path.join(assetsDir, 'manifest.json');
-
-  if (!fs.existsSync(pdfsDir)) {
-    fs.mkdirSync(pdfsDir, { recursive: true });
-  }
-
-  let manifest: Record<string, string> = {};
-  if (fs.existsSync(manifestPath)) {
-    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-  }
-
-  for (const { slug } of slugs) {
-    console.log(`Checking ${slug}...`);
-    const doc = await getPublishedResourceForPdf(slug);
-    if (!doc) continue;
-
-    const contentHash = doc._updatedAt;
-
-    if (manifest[slug] === contentHash) {
-      console.log(`Skipping ${slug}, no changes.`);
-      continue;
+type ManifestEntry =
+  | string
+  | {
+      hash: string
+      fileName: string
     }
 
-    console.log(`Generating ${slug}...`);
-    const docElement = React.createElement(ResourceTemplate, { document: doc });
-    const blob = await pdf(docElement).toBlob();
-    const buffer = Buffer.from(await blob.arrayBuffer());
-    
-    fs.writeFileSync(path.join(pdfsDir, `${slug}.pdf`), buffer);
-    
-    manifest[slug] = contentHash;
+type Manifest = Record<string, ManifestEntry>
+
+const GENERATION_FINGERPRINT_FILES = [
+  __filename,
+  path.resolve(__dirname, '../src/components/pdf/ResourcePdfDocument.tsx'),
+  path.resolve(__dirname, '../src/lib/resource-pdf.ts'),
+]
+
+function hashFiles(filePaths: string[]): string {
+  const hash = crypto.createHash('sha256')
+
+  for (const filePath of filePaths) {
+    hash.update(filePath)
+    hash.update(fs.readFileSync(filePath))
   }
 
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-  console.log('PDF generation complete.');
+  return hash.digest('hex')
+}
+
+function readManifest(manifestPath: string): Manifest {
+  if (!fs.existsSync(manifestPath)) {
+    return {}
+  }
+
+  return JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+}
+
+function getManifestHash(entry: ManifestEntry | undefined): string | undefined {
+  return typeof entry === 'string' ? entry : entry?.hash
+}
+
+async function main() {
+  const slugs = await getResourceSlugs()
+  const assetsDir = path.resolve(__dirname, '../../generated-assets')
+  const pdfsDir = path.join(assetsDir, 'pdfs')
+  const manifestPath = path.join(assetsDir, 'manifest.json')
+  const generationFingerprint = hashFiles(GENERATION_FINGERPRINT_FILES)
+
+  if (!fs.existsSync(pdfsDir)) {
+    fs.mkdirSync(pdfsDir, {recursive: true})
+  }
+
+  const manifest = readManifest(manifestPath)
+
+  for (const {slug} of slugs) {
+    console.log(`Checking ${slug}...`)
+    const doc = await getPublishedResourceForPdf(slug)
+    if (!doc) continue
+
+    if (doc.pdf?.enabled === false) {
+      console.log(`Skipping ${slug}, PDF generation is disabled.`)
+      continue
+    }
+
+    const fileName = resolvePdfFileName(doc)
+    const contentHash = crypto
+      .createHash('sha256')
+      .update(JSON.stringify({updatedAt: doc._updatedAt, generationFingerprint, fileName}))
+      .digest('hex')
+
+    if (getManifestHash(manifest[slug]) === contentHash) {
+      console.log(`Skipping ${slug}, no changes.`)
+      continue
+    }
+
+    console.log(`Generating ${fileName}...`)
+    const docElement = React.createElement(ResourcePdfDocument, {document: doc})
+    const blob = await pdf(docElement).toBlob()
+    const buffer = Buffer.from(await blob.arrayBuffer())
+
+    fs.writeFileSync(path.join(pdfsDir, fileName), buffer)
+
+    manifest[slug] = {hash: contentHash, fileName}
+  }
+
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
+  console.log('PDF generation complete.')
 }
 
 main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+  console.error(err)
+  process.exit(1)
+})

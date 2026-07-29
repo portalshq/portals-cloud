@@ -15,8 +15,9 @@ The system follows a programmatic generation pipeline:
 
 - **Template System**: Located in `frontend/src/pdf-templates/`. Define your PDF structure using `@react-pdf/renderer` primitives (`Document`, `Page`, `View`, `Text`).
 - **Generation Script**: Located in `frontend/scripts/generate-pdfs.ts`.
-  - Performs incremental generation by tracking content hashes in `generated-assets/manifest.json`.
-  - Only regenerates PDFs if the `_updatedAt` timestamp from Sanity has changed.
+  - Performs incremental generation by tracking content and generation-code hashes in `generated-assets/manifest.json`.
+  - Regenerates PDFs if the Sanity `_updatedAt` timestamp, PDF filename, or renderer/generator code changes.
+  - Honors `pdf.enabled === false` and writes custom `pdf.fileName` values when configured.
 - **Pre-commit Hook**: Defined in `.husky/pre-commit`. Automatically triggers the script and stages the generated assets.
 
 ## Workflow
@@ -34,10 +35,12 @@ npm run generate-pdfs
 ```
 
 ### Automation
-The system runs automatically upon committing changes. If you have modified resources in Sanity, the pre-commit hook will:
+The system runs automatically upon committing changes. If you have modified resources in Sanity or PDF generation code, the pre-commit hook will:
 1. Run the build/lint tasks.
 2. Regenerate updated PDFs.
 3. Automatically `git add` the `generated-assets/` directory.
+
+Download CTAs currently point at the generated PDFs in GitHub raw content. Override `NEXT_PUBLIC_PDF_BASE_URL` if the hosting location changes.
 
 ## Troubleshooting
 
