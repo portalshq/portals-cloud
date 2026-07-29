@@ -8,7 +8,7 @@ export interface PlatformNetworkArgs {
   readonly vpcCidr: string;
   readonly publicSubnetCidrs: string[];
   readonly privateSubnetCidrs: string[];
-  readonly availabilityZones: string[];
+  readonly availabilityZones: pulumi.Input<string[]>;
   readonly projectName: string;
   readonly environment: string;
 }
@@ -40,12 +40,10 @@ export interface PlatformDataStoreArgs {
 }
 
 /**
- * Interface for PlatformStorage component arguments (ECR and EFS)
+ * Interface for PlatformStorage component arguments
+ * S3 for Lore chunks + ECR for Control Plane image
  */
 export interface PlatformStorageArgs {
-  readonly vpcId: pulumi.Input<string>;
-  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
-  readonly availabilityZones: string[];
   readonly projectName: string;
   readonly environment: string;
 }
@@ -69,67 +67,25 @@ export interface LoreServiceArgs {
   readonly vpcId: pulumi.Input<string>;
   readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
   readonly publicSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
-  readonly ecrRepositoryUrl: pulumi.Input<string>;
-  readonly efsFileSystemId: pulumi.Input<string>;
-  readonly efsMountTargetIds: pulumi.Input<pulumi.Input<string>[]>;
   readonly albTargetGroupArn: pulumi.Input<string>;
   readonly albSecurityGroupId: pulumi.Input<string>;
   readonly nlbTargetGroupArn: pulumi.Input<string>;
   readonly nlbSecurityGroupId: pulumi.Input<string>;
   readonly projectName: string;
   readonly environment: string;
-  readonly dockerPath: string;
   readonly desiredCount: number;
   readonly cpu: string;
   readonly memory: string;
-  readonly databaseUrl: pulumi.Output<string>;
-}
-
-/**
- * Interface for ServerService component arguments
- */
-export interface ServerServiceArgs {
-  readonly clusterArn: pulumi.Input<string>;
-  readonly clusterName: pulumi.Input<string>;
-  readonly vpcId: pulumi.Input<string>;
-  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
-  readonly ecrRepositoryUrl: pulumi.Input<string>;
-  readonly albTargetGroupArn: pulumi.Input<string>;
-  readonly albSecurityGroupId: pulumi.Input<string>;
-  readonly projectName: string;
-  readonly environment: string;
-  readonly dockerPath: string;
-  readonly desiredCount: number;
-  readonly cpu: string;
-  readonly memory: string;
-}
-
-/**
- * Interface for FrontendService component arguments
- */
-export interface FrontendServiceArgs {
-  readonly clusterArn: pulumi.Input<string>;
-  readonly clusterName: pulumi.Input<string>;
-  readonly vpcId: pulumi.Input<string>;
-  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
-  readonly ecrRepositoryUrl: pulumi.Input<string>;
-  readonly albTargetGroupArn: pulumi.Input<string>;
-  readonly albSecurityGroupId: pulumi.Input<string>;
-  readonly projectName: string;
-  readonly environment: string;
-  readonly dockerPath: string;
-  readonly desiredCount: number;
-  readonly cpu: string;
-  readonly memory: string;
-}
-
-/**
- * Interface for PlatformEventBus component arguments
- */
-export interface PlatformEventBusArgs {
-  readonly vpcId: pulumi.Input<string>;
-  readonly projectName: string;
-  readonly environment: string;
+  /** Full image URI from external registry (e.g. portalshq/lore-server:latest-amd64) */
+  readonly loreServerImageUri: string;
+  /** S3 bucket name for immutable storage (Lore chunks) */
+  readonly s3BucketName: pulumi.Output<string>;
+  /** S3 bucket ARN for IAM policy */
+  readonly s3BucketArn: pulumi.Output<string>;
+  /** DynamoDB table name for mutable/lock store */
+  readonly dynamoDbTableName: pulumi.Output<string>;
+  /** AWS region for plugin configuration */
+  readonly awsRegion: string;
 }
 
 /**
@@ -150,20 +106,8 @@ export interface ControlPlaneServiceArgs {
   readonly cpu: string;
   readonly memory: string;
   readonly databaseUrl: pulumi.Output<string>;
-  readonly eventQueueUrl: pulumi.Output<string>;
-  readonly eventQueueArn: pulumi.Output<string>;
   /** Ed25519 signing key for data plane JWT tokens (base64-encoded) */
   readonly ed25519SigningKey: pulumi.Input<string>;
-  /** S3 endpoint URL (empty string for real AWS S3) */
-  readonly s3Endpoint: string;
-  /** S3 access key for repository chunk storage */
-  readonly s3AccessKey: pulumi.Input<string>;
-  /** S3 secret key for repository chunk storage */
-  readonly s3SecretKey: pulumi.Input<string>;
-  /** S3 bucket name for repository chunks */
-  readonly s3BucketChunks: string;
-  /** AWS region for S3 storage */
-  readonly s3Region: string;
   /** Docker image tag (defaults to "latest") */
   readonly imageTag?: string;
   /** RUST_LOG filter (defaults to "info,lorecloud_control_plane=debug,sqlx=warn") */
@@ -182,4 +126,6 @@ export interface ControlPlaneServiceArgs {
   readonly corsAllowedOrigins?: pulumi.Input<string>;
   /** Provider type: "aws" or "mock" (defaults to "aws") */
   readonly providerType?: pulumi.Input<string>;
+  /** AWS region for S3 storage */
+  readonly s3Region: string;
 }

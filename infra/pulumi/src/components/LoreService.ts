@@ -1,29 +1,29 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import * as docker from "@pulumi/docker";
 import { LoreServiceArgs } from "../interfaces";
 
 /**
  * LoreService Component
- * 
- * Creates an ECS Fargate service for Lore with:
- * - Docker image build and push to ECR
- * - ECS task definition with EFS volume
- * - ECS service with ALB and NLB integration
+ *
+ * Creates an ECS Fargate service for Lore VCS with:
+ * - External Docker image (from portalshq/lore-server registry)
+ * - ECS task definition with S3 + DynamoDB plugin configuration
+ * - ECS service with ALB (HTTP) and NLB (QUIC) integration
  * - Security groups
+ * - IAM task role for S3 and DynamoDB access
  */
 export class LoreService extends pulumi.ComponentResource {
   public readonly taskDefinition: aws.ecs.TaskDefinition;
   public readonly service: aws.ecs.Service;
-  public readonly dockerImage: docker.Image;
   public readonly securityGroup: aws.ec2.SecurityGroup;
+  public readonly taskRole: aws.iam.Role;
 
   constructor(name: string, args: LoreServiceArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:platform:LoreService", name, {}, opts);
 
     const resourcePrefix = `${args.projectName}-${args.environment}`;
 
-    // Create security group for Lore service
+    // ── Security Group ───────────────────────────────────────────────────
     this.securityGroup = new aws.ec2.SecurityGroup(`${resourcePrefix}-lore-sg`, {
       vpcId: args.vpcId,
       description: "Security group for Lore service",
@@ -35,7 +35,7 @@ export class LoreService extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Allow ingress from ALB security group
+    // Allow ingress from ALB (HTTP on port 41339)
     new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-alb-ingress`, {
       type: "ingress",
       fromPort: 41339,
@@ -45,8 +45,18 @@ export class LoreService extends pulumi.ComponentResource {
       sourceSecurityGroupId: args.albSecurityGroupId,
     }, { parent: this });
 
-    // Allow ingress from NLB security group
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-nlb-ingress`, {
+    // Allow ingress from NLB (QUIC/UDP on port 41337)
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-nlb-ingress-udp`, {
+      type: "ingress",
+      fromPort: 41337,
+      toPort: 41337,
+      protocol: "udp",
+      securityGroupId: this.securityGroup.id,
+      sourceSecurityGroupId: args.nlbSecurityGroupId,
+    }, { parent: this });
+
+    // Allow ingress from NLB (gRPC/TCP on port 41337)
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-nlb-ingress-tcp`, {
       type: "ingress",
       fromPort: 41337,
       toPort: 41337,
@@ -65,81 +75,140 @@ export class LoreService extends pulumi.ComponentResource {
       cidrBlocks: ["0.0.0.0/0"],
     }, { parent: this });
 
-    // Get ECR credentials
-    const ecrCredentials = aws.ecr.getCredentials({ registryId: args.ecrRepositoryUrl.apply(url => url.split(".")[0]) });
-    const ecrAuth = ecrCredentials.then(creds => {
-      const decoded = Buffer.from(creds.authorizationToken, "base64").toString("utf-8");
-      const [username, password] = decoded.split(":");
-      return { username, password, server: creds.proxyEndpoint };
-    });
-
-    // Build and push Docker image to ECR
-    this.dockerImage = new docker.Image(`${resourcePrefix}-lore-image`, {
-      build: {
-        context: args.dockerPath,
+    // ── IAM Task Role for S3 + DynamoDB access ───────────────────────────
+    this.taskRole = new aws.iam.Role(`${resourcePrefix}-lore-task-role`, {
+      assumeRolePolicy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: "sts:AssumeRole",
+            Effect: "Allow",
+            Principal: {
+              Service: "ecs-tasks.amazonaws.com",
+            },
+          },
+        ],
+      }),
+      tags: {
+        Name: `${resourcePrefix}-lore-task-role`,
+        Project: args.projectName,
+        Environment: args.environment,
       },
-      imageName: pulumi.interpolate`${args.ecrRepositoryUrl}:latest`,
-      registry: ecrAuth,
     }, { parent: this });
 
-    // Create ECS task definition with EFS volume
+    // S3 access for immutable store (lore chunks)
+    pulumi.all([args.s3BucketArn]).apply(([bucketArn]) => {
+      new aws.iam.RolePolicy(`${resourcePrefix}-lore-s3-policy`, {
+        role: this.taskRole.id,
+        policy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Action: [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+              ],
+              Resource: [
+                bucketArn,
+                `${bucketArn}/*`,
+              ],
+            },
+          ],
+        }),
+      }, { parent: this });
+    });
+
+    // DynamoDB access for mutable store + lock store
+    pulumi.all([args.dynamoDbTableName]).apply(([tableName]) => {
+      new aws.iam.RolePolicy(`${resourcePrefix}-lore-dynamodb-policy`, {
+        role: this.taskRole.id,
+        policy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Action: [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:BatchGetItem",
+                "dynamodb:TransactWriteItems",
+                "dynamodb:TransactGetItems",
+                "dynamodb:DescribeTable",
+              ],
+              Resource: [
+                `arn:aws:dynamodb:*:*:table/${tableName}`,
+                `arn:aws:dynamodb:*:*:table/${tableName}/index/*`,
+              ],
+            },
+          ],
+        }),
+      }, { parent: this });
+    });
+
+    // ── ECS Task Definition ──────────────────────────────────────────────
+    const callerIdentity = aws.getCallerIdentity({});
+    const executionRoleArn = pulumi.interpolate`arn:aws:iam::${callerIdentity.then(i => i.accountId)}:role/${resourcePrefix}-ecs-task-execution-role`;
+
     this.taskDefinition = new aws.ecs.TaskDefinition(`${resourcePrefix}-lore-task`, {
       family: `${resourcePrefix}-lore`,
       networkMode: "awsvpc",
       requiresCompatibilities: ["FARGATE"],
       cpu: args.cpu,
       memory: args.memory,
-      executionRoleArn: pulumi.interpolate`arn:aws:iam::${aws.getCallerIdentity({}).then(identity => identity.accountId)}:role/${args.projectName}-${args.environment}-ecs-task-execution-role`,
-      containerDefinitions: pulumi.interpolate`[
-        {
-          "name": "lore",
-          "image": "${this.dockerImage.imageName}",
-          "cpu": ${args.cpu},
-          "memory": ${args.memory},
-          "essential": true,
-          "portMappings": [
-            {
-              "containerPort": 41339,
-              "protocol": "tcp"
-            },
-            {
-              "containerPort": 41337,
-              "protocol": "tcp"
-            }
-          ],
-          "environment": [
-            {
-              "name": "DATABASE_URL",
-              "value": "${args.databaseUrl}"
-            }
-          ],
-          "logConfiguration": {
-            "logDriver": "awslogs",
-            "options": {
-              "awslogs-group": "/ecs/${resourcePrefix}",
-              "awslogs-region": "${aws.config.region}",
-              "awslogs-stream-prefix": "lore"
-            }
-          },
-          "mountPoints": [
-            {
-              "sourceVolume": "efs-volume",
-              "containerPath": "/data/locks",
-              "readOnly": false
-            }
-          ]
-        }
-      ]`,
-      volumes: [
-        {
-          name: "efs-volume",
-          efsVolumeConfiguration: {
-            fileSystemId: args.efsFileSystemId,
-            rootDirectory: "/",
-            transitEncryption: "ENABLED",
+      executionRoleArn,
+      taskRoleArn: this.taskRole.arn,
+      containerDefinitions: pulumi.all([
+        args.s3BucketName,
+        args.dynamoDbTableName,
+      ]).apply(([s3BucketName, dynamoDbTableName]) => JSON.stringify([{
+        name: "lore",
+        image: args.loreServerImageUri,
+        cpu: parseInt(args.cpu),
+        memory: parseInt(args.memory),
+        essential: true,
+        portMappings: [
+          { containerPort: 41339, protocol: "tcp" },
+          { containerPort: 41337, protocol: "udp" },
+          { containerPort: 41337, protocol: "tcp" },
+        ],
+        environment: [
+          { name: "LORE_ENV", value: "prod" },
+          // Immutable store: S3
+          { name: "LORE__IMMUTABLE_STORE__MODE", value: "aws" },
+          // Mutable store: DynamoDB
+          { name: "LORE__MUTABLE_STORE__MODE", value: "aws" },
+          // Lock store: DynamoDB
+          { name: "LORE__LOCK_STORE__MODE", value: "aws" },
+          // AWS plugin configuration
+          { name: "LORE__PLUGINS__AWS__S3_BUCKET", value: s3BucketName },
+          { name: "LORE__PLUGINS__AWS__DYNAMODB_TABLE", value: dynamoDbTableName },
+          { name: "LORE__PLUGINS__AWS__REGION", value: args.awsRegion },
+        ],
+        healthCheck: {
+          command: ["CMD-SHELL", "curl -f http://localhost:41339/health_check || exit 1"],
+          interval: 30,
+          timeout: 5,
+          retries: 5,
+          startPeriod: 15,
+        },
+        logConfiguration: {
+          logDriver: "awslogs",
+          options: {
+            "awslogs-group": `/ecs/${resourcePrefix}`,
+            "awslogs-region": args.awsRegion,
+            "awslogs-stream-prefix": "lore",
           },
         },
-      ],
+      }])),
       tags: {
         Name: `${resourcePrefix}-lore-task`,
         Project: args.projectName,
@@ -148,12 +217,13 @@ export class LoreService extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Create ECS service
+    // ── ECS Service ──────────────────────────────────────────────────────
     this.service = new aws.ecs.Service(`${resourcePrefix}-lore-service`, {
       cluster: args.clusterArn,
       taskDefinition: this.taskDefinition.arn,
       desiredCount: args.desiredCount,
       launchType: "FARGATE",
+      healthCheckGracePeriodSeconds: 60,
       networkConfiguration: {
         subnets: args.privateSubnetIds,
         securityGroups: [this.securityGroup.id],

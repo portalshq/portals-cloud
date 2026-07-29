@@ -2,53 +2,38 @@ import Link from 'next/link'
 import type {Cta, ResourceDocument} from '@/types/resource'
 import {ResourceBody} from './ResourceBody'
 
-function resolveCtaHref(cta: Cta | undefined, documentSlug: string): string {
-  if (!cta || cta.action === 'downloadPdf') {
-    return `/resources/${documentSlug}/download`
+function resolveCtaHref(cta: Cta): string {
+  if (cta.action === 'downloadPdf') {
+    return '#'
   }
   return cta.href || '#'
 }
 
-function CtaLink({
-  cta,
-  slug,
-  fallbackLabel,
-}: {
-  cta?: Cta
-  slug: string
-  fallbackLabel?: string
-}) {
-  const resolvedCta: Cta =
-    cta ?? {
-      label: fallbackLabel ?? 'Download the PDF',
-      action: 'downloadPdf',
-      style: 'primary',
-    }
-
-  const href = resolveCtaHref(resolvedCta, slug)
+function CtaLink({cta}: {cta: Cta}) {
+  const href = resolveCtaHref(cta)
   const className =
-    resolvedCta.style === 'secondary'
+    cta.style === 'secondary'
       ? 'inline-flex border border-white/25 px-5 py-3 text-sm text-white transition hover:bg-white/8'
-      : resolvedCta.style === 'text'
+      : cta.style === 'text'
         ? 'inline-flex text-sm text-white underline decoration-white/30 underline-offset-4'
         : 'inline-flex bg-white px-5 py-3 text-sm text-black transition hover:bg-white/85'
 
-  if (resolvedCta.action === 'external') {
+  if (cta.action === 'external') {
     return (
       <a
         href={href}
-        target={resolvedCta.openInNewTab ? '_blank' : undefined}
-        rel={resolvedCta.openInNewTab ? 'noreferrer' : undefined}
+        target={cta.openInNewTab ? '_blank' : undefined}
+        rel={cta.openInNewTab ? 'noreferrer' : undefined}
         className={className}
       >
-        {resolvedCta.label}
+        {cta.label}
       </a>
     )
   }
 
   return (
     <Link href={href} className={className}>
-      {resolvedCta.label}
+      {cta.label}
     </Link>
   )
 }
@@ -100,13 +85,11 @@ export function ResourceLandingPage({
             </p>
 
             <div className="mt-10 flex flex-wrap gap-3">
-              <CtaLink
-                cta={landing.primaryCta}
-                slug={document.slug}
-                fallbackLabel="Download the field guide"
-              />
+              {landing.primaryCta ? (
+                <CtaLink cta={landing.primaryCta} />
+              ) : null}
               {landing.secondaryCta ? (
-                <CtaLink cta={landing.secondaryCta} slug={document.slug} />
+                <CtaLink cta={landing.secondaryCta} />
               ) : null}
             </div>
           </div>
@@ -215,7 +198,7 @@ export function ResourceLandingPage({
                         </p>
                         {section.sectionCta ? (
                           <div className="mt-7">
-                            <CtaLink cta={section.sectionCta} slug={document.slug} />
+                            <CtaLink cta={section.sectionCta} />
                           </div>
                         ) : null}
                       </>
@@ -224,7 +207,7 @@ export function ResourceLandingPage({
                         <ResourceBody value={section.body} />
                         {section.sectionCta ? (
                           <div className="mt-8">
-                            <CtaLink cta={section.sectionCta} slug={document.slug} />
+                            <CtaLink cta={section.sectionCta} />
                           </div>
                         ) : null}
                       </div>
@@ -254,10 +237,10 @@ export function ResourceLandingPage({
               ) : null}
               <div className="mt-9 flex flex-wrap gap-3">
                 {document.finalCta.primaryCta ? (
-                  <CtaLink cta={document.finalCta.primaryCta} slug={document.slug} />
+                  <CtaLink cta={document.finalCta.primaryCta} />
                 ) : null}
                 {document.finalCta.secondaryCta ? (
-                  <CtaLink cta={document.finalCta.secondaryCta} slug={document.slug} />
+                  <CtaLink cta={document.finalCta.secondaryCta} />
                 ) : null}
               </div>
             </div>

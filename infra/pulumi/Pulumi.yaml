@@ -1,13 +1,8 @@
 name: portals-platform
 runtime: nodejs
-description: Production-grade Pulumi AWS infrastructure stack for Portals platform
+description: MVP Pulumi AWS infrastructure — Lore VCS + Control Plane
 main: index.ts
 config:
-  aws:region:
-    description: AWS region for deployment
-    default: us-east-1
-  aws:profile:
-    description: AWS profile to use for authentication
   projectName:
     description: Project name for resource naming
     default: portals
@@ -25,7 +20,7 @@ config:
     default: "10.0.10.0/24,10.0.11.0/24,10.0.12.0/24"
   databaseInstanceClass:
     description: Aurora PostgreSQL instance class
-    default: "db.r6g.xlarge"
+    default: "db.t3.micro"
   databaseVersion:
     description: Aurora PostgreSQL version
     default: "15.4"
@@ -34,46 +29,21 @@ config:
     default: "100"
   ecsFargateCpu:
     description: Fargate task CPU units
-    default: "2048"
+    default: "1024"
   ecsFargateMemory:
     description: Fargate task memory (MB)
-    default: "4096"
+    default: "2048"
   loreServiceDesiredCount:
     description: Desired count for Lore service
-    default: "2"
-  serverServiceDesiredCount:
-    description: Desired count for Server service
-    default: "2"
-  frontendServiceDesiredCount:
-    description: Desired count for Frontend service
-    default: "2"
-  loreServerDockerPath:
-    description: Relative path to Lore server Docker context
-    default: "../../apps/lore-server"
-  serverDockerPath:
-    description: Relative path to Server Docker context
-    default: "../../apps/server"
-  frontendDockerPath:
-    description: Relative path to Frontend Docker context
-    default: "../../apps/frontend"
-  controlPlaneDockerPath:
-    description: Relative path to Control Plane Docker context (repo root for multi-stage build)
-    default: "../.."
+    default: "1"
   controlPlaneDesiredCount:
     description: Desired count for Control Plane service
-    default: "2"
+    default: "1"
+  controlPlaneDockerPath:
+    description: Relative path to repo root for Control Plane multi-stage Docker build
+    default: "../.."
+  loreServerImageUri:
+    description: External Docker image URI for Lore server (e.g. portalshq/lore-server:latest-amd64)
+    default: "portalshq/lore-server:latest-amd64"
   ed25519SigningKey:
     description: Ed25519 signing key for data plane JWT tokens (base64-encoded, mark as secret)
-  s3Endpoint:
-    description: S3 endpoint URL (empty string for real AWS S3, http://localhost:9000 for MinIO)
-    default: ""
-  s3AccessKey:
-    description: S3 access key for repository chunk storage
-  s3SecretKey:
-    description: S3 secret key for repository chunk storage
-  s3BucketChunks:
-    description: S3 bucket name for repository chunks
-    default: "lore-chunks"
-  s3Region:
-    description: AWS region for S3 storage
-    default: "us-east-1"
