@@ -3,8 +3,12 @@
 import {useState} from 'react'
 import type {PortableTextBlock, ResourceDocument} from '@/types/resource'
 import {CTAButton} from '@/components/CTAButton'
+import {DEFAULT_GITHUB_PDF_BASE_URL} from '@/lib/resource-pdf'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
+const PDF_BASE_URL =
+  process.env.NEXT_PUBLIC_PDF_BASE_URL || DEFAULT_GITHUB_PDF_BASE_URL
+const FIELD_GUIDE_PDF_URL = `${PDF_BASE_URL.replace(/\/$/, '')}/production-memory-field-guide.pdf`
 
 function StructuredData() {
   const pageUrl = `${SITE_URL}/resources/ai-production-workflow-risks`
@@ -242,15 +246,19 @@ function DownloadBriefForm() {
       <section id="download" data-header-theme="light">
         <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
           <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[80ch] text-center">
-            <h2 className="t-d2-sans">The brief is ready</h2>
-            <p className="t-p-lg-serif text-white">You can download it now.</p>
+            <h2 className="t-d2-sans">The field guide is ready</h2>
+            <p className="t-p-lg-serif text-white">
+              You can download the Production Memory Field Guide now.
+            </p>
             <div className="flex flex-col sm:flex-row gap-16 justify-center">
-              {/* <a
+              <a
                 className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 px-12 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:!bg-white/30"
-                href="#assessment"
+                href={FIELD_GUIDE_PDF_URL}
+                target="_blank"
+                rel="noreferrer"
               >
-                <span className="t-p-sans">Assess Your Workflow</span>
-              </a> */}
+                <span className="t-p-sans">Download the Field Guide</span>
+              </a>
               <a
                 className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 px-12 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:!bg-white/30"
                 href="#pilot"
@@ -269,10 +277,12 @@ function DownloadBriefForm() {
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[80ch]">
           <h2 className="t-d2-sans text-center">
-            Download the AI Production Memory Guide
+            Download the Production Memory Field Guide
           </h2>
           <p className="mb-20 t-p-lg-serif max-w-[40ch] lg:mx-auto text-white">
-            How to understand, diagnose, quantify, and fix your organization's production risks in creative work.
+            This page summarizes the AI production workflow risks brief. The
+            download is the full Production Memory Field Guide for diagnosing
+            and improving creative production memory.
           </p>
           <form onSubmit={handleSubmit} className="space-y-24">
             <div>
@@ -384,7 +394,11 @@ function DownloadBriefForm() {
           <input type="hidden" name="utm_term" />
           <input type="hidden" name="referrer" />
           <input type="hidden" name="landing_page" />
-          <input type="hidden" name="download_asset" value="Portals Use Case Brief" />
+          <input
+            type="hidden"
+            name="download_asset"
+            value="Production Memory Field Guide"
+          />
           <input type="hidden" name="selected_use_case" />
         </div>
       </div>
