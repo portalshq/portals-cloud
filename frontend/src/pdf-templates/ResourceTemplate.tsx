@@ -1,20 +1,19 @@
-import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import { ResourceDocument } from '../types/resource';
+import React from 'react'
+import {
+  ResourcePdfDocument,
+  type ResourcePdfAssets,
+} from '../components/pdf/ResourcePdfDocument'
+import type {ResourceDocument} from '../types/resource'
 
-const styles = StyleSheet.create({
-  page: { padding: 40 },
-  title: { fontSize: 24, marginBottom: 20, fontWeight: 'bold' },
-  subtitle: { fontSize: 18, marginBottom: 10 },
-  text: { fontSize: 12, marginBottom: 5 },
-});
+export type ResourceTemplateProps = {
+  document: ResourceDocument
+  assets?: ResourcePdfAssets
+}
 
-export const ResourceTemplate = ({ document }: { document: ResourceDocument }) => (
-  <Document>
-    <Page style={styles.page}>
-      <Text style={styles.title}>{document.title}</Text>
-      {document.subtitle && <Text style={styles.subtitle}>{document.subtitle}</Text>}
-      <Text style={styles.text}>{document.abstract}</Text>
-    </Page>
-  </Document>
-);
+/**
+ * Broad PDF resource template. Content, cover style, page size, metadata,
+ * sections, tables, figures, legal notes, and running furniture are data-driven.
+ */
+export function ResourceTemplate({document, assets}: ResourceTemplateProps) {
+  return <ResourcePdfDocument document={document} assets={assets} />
+}

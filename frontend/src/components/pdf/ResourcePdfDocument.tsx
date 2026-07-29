@@ -1,6 +1,7 @@
 import React, {type ReactNode} from 'react'
 import {
   Document,
+  Font,
   Image,
   Link,
   Page,
@@ -16,15 +17,60 @@ import type {
   ResourceDocument,
 } from '@/types/resource'
 
+const HEADING_SIZE = 22
+const NORMAL_SIZE = 10.5
+const FONT_ROOT = new URL('../../../public/fonts/', import.meta.url)
+
+Font.register({
+  family: 'DieGroteskC',
+  fonts: [
+    {
+      src: new URL(
+        'pdf/DieGroteskC-Light.ttf',
+        FONT_ROOT,
+      ).pathname,
+      fontWeight: 300,
+    },
+    {
+      src: new URL(
+        'pdf/DieGroteskC-Regular.ttf',
+        FONT_ROOT,
+      ).pathname,
+      fontWeight: 400,
+    },
+  ],
+})
+
+Font.register({
+  family: 'DieGroteskB',
+  fonts: [
+    {
+      src: new URL(
+        'pdf/DieGroteskB-Regular.ttf',
+        FONT_ROOT,
+      ).pathname,
+      fontWeight: 400,
+    },
+    {
+      src: new URL(
+        'pdf/DieGroteskB-Medium.ttf',
+        FONT_ROOT,
+      ).pathname,
+      fontWeight: 500,
+    },
+  ],
+})
+
 const styles = StyleSheet.create({
   page: {
     paddingTop: 62,
     paddingRight: 54,
     paddingBottom: 64,
     paddingLeft: 54,
-    fontFamily: 'Helvetica',
-    fontSize: 10.5,
-    lineHeight: 1.55,
+    fontFamily: 'DieGroteskB',
+    fontSize: NORMAL_SIZE,
+    lineHeight: 1.2,
+    letterSpacing: 0,
     color: '#171717',
   },
   cover: {
@@ -32,40 +78,56 @@ const styles = StyleSheet.create({
     paddingRight: 60,
     paddingBottom: 64,
     paddingLeft: 60,
-    fontFamily: 'Helvetica',
+    fontFamily: 'DieGroteskB',
+    fontSize: NORMAL_SIZE,
+    lineHeight: 1.2,
+    letterSpacing: 0,
     color: '#111111',
+  },
+  heroCover: {
+    position: 'relative',
+    padding: 0,
+    fontFamily: 'DieGroteskB',
+    fontSize: NORMAL_SIZE,
+    color: '#FFFFFF',
+  },
+  heroBackground: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
   },
   coverRule: {
     width: 46,
     height: 3,
     marginBottom: 54,
   },
-  coverKind: {
-    marginBottom: 18,
-    fontSize: 9,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    color: '#666666',
-  },
   coverTitle: {
     maxWidth: 470,
-    fontSize: 34,
-    lineHeight: 1.08,
-    fontWeight: 700,
-    letterSpacing: -0.8,
+    fontFamily: 'DieGroteskC',
+    fontSize: HEADING_SIZE,
+    lineHeight: 1.04,
+    fontWeight: 300,
+    letterSpacing: 0,
   },
   coverSubtitle: {
     maxWidth: 450,
     marginTop: 24,
-    fontSize: 16,
-    lineHeight: 1.45,
+    fontFamily: 'DieGroteskC',
+    fontSize: HEADING_SIZE,
+    lineHeight: 1.04,
+    fontWeight: 300,
     color: '#444444',
   },
   coverAbstract: {
     maxWidth: 430,
     marginTop: 28,
-    fontSize: 11.5,
-    lineHeight: 1.65,
+    fontSize: NORMAL_SIZE,
+    lineHeight: 1.2,
     color: '#555555',
   },
   coverMeta: {
@@ -73,7 +135,7 @@ const styles = StyleSheet.create({
     paddingTop: 36,
     borderTopWidth: 0.75,
     borderTopColor: '#D0D0D0',
-    fontSize: 9,
+    fontSize: NORMAL_SIZE,
     color: '#666666',
   },
   header: {
@@ -84,7 +146,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingBottom: 8,
-    fontSize: 7.5,
+    fontSize: NORMAL_SIZE,
     color: '#777777',
   },
   footer: {
@@ -95,7 +157,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: 8,
-    fontSize: 7.5,
+    fontSize: NORMAL_SIZE,
     color: '#777777',
   },
   toc: {
@@ -103,15 +165,17 @@ const styles = StyleSheet.create({
   },
   tocTitle: {
     marginBottom: 18,
-    fontSize: 19,
-    fontWeight: 700,
+    fontFamily: 'DieGroteskC',
+    fontSize: HEADING_SIZE,
+    fontWeight: 300,
+    lineHeight: 1.04,
   },
   tocItem: {
     paddingTop: 7,
     paddingBottom: 7,
     borderBottomWidth: 0.5,
     borderBottomColor: '#E3E3E3',
-    fontSize: 10,
+    fontSize: NORMAL_SIZE,
     color: '#333333',
     textDecoration: 'none',
   },
@@ -120,21 +184,22 @@ const styles = StyleSheet.create({
   },
   sectionEyebrow: {
     marginBottom: 6,
-    fontSize: 7.5,
-    letterSpacing: 1.2,
+    fontSize: NORMAL_SIZE,
+    letterSpacing: 0,
     textTransform: 'uppercase',
     color: '#777777',
   },
   sectionTitle: {
     marginBottom: 12,
-    fontSize: 20,
-    lineHeight: 1.2,
-    fontWeight: 700,
+    fontFamily: 'DieGroteskC',
+    fontSize: HEADING_SIZE,
+    lineHeight: 1.04,
+    fontWeight: 300,
   },
   sectionSummary: {
     marginBottom: 16,
-    fontSize: 11.5,
-    lineHeight: 1.6,
+    fontSize: NORMAL_SIZE,
+    lineHeight: 1.2,
     color: '#555555',
   },
   paragraph: {
@@ -143,16 +208,18 @@ const styles = StyleSheet.create({
   heading2: {
     marginTop: 19,
     marginBottom: 8,
-    fontSize: 15,
-    lineHeight: 1.25,
-    fontWeight: 700,
+    fontFamily: 'DieGroteskC',
+    fontSize: HEADING_SIZE,
+    lineHeight: 1.04,
+    fontWeight: 300,
   },
   heading3: {
     marginTop: 15,
     marginBottom: 7,
-    fontSize: 12,
-    lineHeight: 1.3,
-    fontWeight: 700,
+    fontFamily: 'DieGroteskC',
+    fontSize: HEADING_SIZE,
+    lineHeight: 1.04,
+    fontWeight: 300,
   },
   blockquote: {
     marginTop: 10,
@@ -160,8 +227,8 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
     borderLeftWidth: 2,
     borderLeftColor: '#999999',
-    fontSize: 12,
-    lineHeight: 1.5,
+    fontSize: NORMAL_SIZE,
+    lineHeight: 1.2,
     color: '#444444',
   },
   listItem: {
@@ -176,14 +243,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bold: {
-    fontWeight: 700,
+    fontWeight: 500,
   },
-  italic: {
-    fontStyle: 'italic',
+  emphasis: {
+    fontWeight: 500,
   },
   code: {
-    fontFamily: 'Courier',
-    fontSize: 9,
+    fontFamily: 'DieGroteskB',
+    fontSize: NORMAL_SIZE,
     backgroundColor: '#F0F0F0',
   },
   link: {
@@ -196,13 +263,14 @@ const styles = StyleSheet.create({
     padding: 13,
     borderWidth: 0.75,
     borderColor: '#CFCFCF',
+    borderRadius: 3,
     backgroundColor: '#F7F7F7',
   },
   calloutTitle: {
     marginBottom: 5,
-    fontSize: 8,
-    fontWeight: 700,
-    letterSpacing: 1,
+    fontSize: NORMAL_SIZE,
+    fontWeight: 500,
+    letterSpacing: 0,
     textTransform: 'uppercase',
   },
   formula: {
@@ -216,23 +284,23 @@ const styles = StyleSheet.create({
   },
   formulaLabel: {
     marginBottom: 7,
-    fontSize: 8,
+    fontSize: NORMAL_SIZE,
     textTransform: 'uppercase',
     color: '#666666',
   },
   formulaText: {
-    fontFamily: 'Courier',
-    fontSize: 9.5,
+    fontFamily: 'DieGroteskB',
+    fontSize: NORMAL_SIZE,
   },
   note: {
     marginTop: 6,
-    fontSize: 8.5,
+    fontSize: NORMAL_SIZE,
     color: '#666666',
   },
   checklistTitle: {
     marginBottom: 8,
-    fontSize: 11,
-    fontWeight: 700,
+    fontSize: NORMAL_SIZE,
+    fontWeight: 500,
   },
   checklistItem: {
     flexDirection: 'row',
@@ -244,13 +312,14 @@ const styles = StyleSheet.create({
   quote: {
     marginTop: 18,
     marginBottom: 18,
-    fontSize: 17,
-    lineHeight: 1.4,
-    fontStyle: 'italic',
+    fontFamily: 'DieGroteskC',
+    fontSize: HEADING_SIZE,
+    lineHeight: 1.04,
+    fontWeight: 300,
   },
   attribution: {
     marginTop: 8,
-    fontSize: 8.5,
+    fontSize: NORMAL_SIZE,
     color: '#666666',
   },
   metric: {
@@ -261,16 +330,18 @@ const styles = StyleSheet.create({
     borderBottomColor: '#DDDDDD',
   },
   metricValue: {
-    fontSize: 17,
-    fontWeight: 700,
+    fontFamily: 'DieGroteskC',
+    fontSize: HEADING_SIZE,
+    fontWeight: 300,
+    lineHeight: 1.04,
   },
   metricLabel: {
     marginTop: 2,
-    fontSize: 9,
+    fontSize: NORMAL_SIZE,
   },
   metricNote: {
     marginTop: 3,
-    fontSize: 8,
+    fontSize: NORMAL_SIZE,
     color: '#666666',
   },
   table: {
@@ -290,15 +361,15 @@ const styles = StyleSheet.create({
     borderRightWidth: 0.75,
     borderBottomWidth: 0.75,
     borderColor: '#CCCCCC',
-    fontSize: 8,
+    fontSize: NORMAL_SIZE,
   },
   tableHeaderCell: {
     backgroundColor: '#EFEFEF',
-    fontWeight: 700,
+    fontWeight: 500,
   },
   caption: {
     marginTop: 6,
-    fontSize: 7.5,
+    fontSize: NORMAL_SIZE,
     color: '#777777',
   },
   image: {
@@ -318,7 +389,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 0.5,
     borderTopColor: '#DDDDDD',
-    fontSize: 7.5,
+    fontSize: NORMAL_SIZE,
     lineHeight: 1.5,
     color: '#777777',
   },
@@ -337,7 +408,7 @@ function renderSpan(
   const textStyles = []
 
   if (marks.includes('strong')) textStyles.push(styles.bold)
-  if (marks.includes('em')) textStyles.push(styles.italic)
+  if (marks.includes('em')) textStyles.push(styles.emphasis)
   if (marks.includes('code')) textStyles.push(styles.code)
 
   const annotation = markDefs.find((definition) =>
@@ -662,14 +733,23 @@ function PdfFooter({
   )
 }
 
+export type ResourcePdfAssets = {
+  coverBackgroundImage?: string
+}
+
 export function ResourcePdfDocument({
   document,
+  assets,
 }: {
   document: ResourceDocument
+  assets?: ResourcePdfAssets
 }) {
   const pdf = document.pdf ?? {}
   const accent = validHexColor(pdf.accentColor)
   const pageSize = pdf.pageSize ?? 'LETTER'
+  const coverStyle = pdf.coverStyle ?? 'standard'
+  const coverBackgroundImage =
+    pdf.coverBackgroundImageUrl || assets?.coverBackgroundImage
 
   const pdfSections = document.sections.filter(
     (section) => section.surfaces?.pdf !== false,
@@ -701,16 +781,22 @@ export function ResourcePdfDocument({
       creator={document.publisher || 'Portals'}
       producer="Portals"
     >
+      {pdf.includeCover !== false &&
+      coverStyle === 'fullPageArtwork' &&
+      coverBackgroundImage ? (
+        <Page size={pageSize} style={styles.heroCover}>
+          <Image src={coverBackgroundImage} style={styles.heroBackground} />
+        </Page>
+      ) : null}
+
       {pdf.includeCover !== false ? (
         <Page size={pageSize} style={styles.cover}>
           <View style={[styles.coverRule, {backgroundColor: accent}]} />
 
-          <Text style={styles.coverKind}>
-            {document.resourceKind.replace(/([A-Z])/g, ' $1')}
-          </Text>
-
           <Text style={styles.coverTitle}>
-            {pdf.titleOverride || document.title}
+            {document.landingPage?.headline ||
+              pdf.titleOverride ||
+              document.title}
           </Text>
 
           {pdf.subtitleOverride || document.subtitle ? (
@@ -721,7 +807,8 @@ export function ResourcePdfDocument({
 
           <Text style={styles.coverAbstract}>{document.abstract}</Text>
 
-          {document.coverImageUrl ? (
+          {pdf.includeDocumentCoverImage !== false &&
+          document.coverImageUrl ? (
             <Image
               src={document.coverImageUrl}
               style={[styles.image, {marginTop: 34, maxHeight: 260}]}

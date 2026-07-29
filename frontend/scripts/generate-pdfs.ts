@@ -23,11 +23,38 @@ type ManifestEntry =
 
 type Manifest = Record<string, ManifestEntry>
 
+const FIELD_GUIDE_COVER_IMAGE = path.resolve(
+  __dirname,
+  '../public/images/pdf/production-memory-cover.png',
+)
+
 const GENERATION_FINGERPRINT_FILES = [
   __filename,
   path.resolve(__dirname, '../src/components/pdf/ResourcePdfDocument.tsx'),
+  path.resolve(__dirname, '../src/pdf-templates/ResourceTemplate.tsx'),
   path.resolve(__dirname, '../src/lib/resource-pdf.ts'),
+  FIELD_GUIDE_COVER_IMAGE,
+  path.resolve(__dirname, '../public/fonts/pdf/DieGroteskC-Light.ttf'),
+  path.resolve(__dirname, '../public/fonts/pdf/DieGroteskC-Regular.ttf'),
+  path.resolve(__dirname, '../public/fonts/pdf/DieGroteskB-Regular.ttf'),
+  path.resolve(__dirname, '../public/fonts/pdf/DieGroteskB-Medium.ttf'),
 ]
+
+const PDF_RESOURCE_PRESETS: Record<
+  string,
+  {
+    pdf: Partial<NonNullable<Awaited<ReturnType<typeof getPublishedResourceForPdf>>['pdf']>>
+    coverBackgroundImagePath?: string
+  }
+> = {
+  'production-memory-field-guide': {
+    pdf: {
+      coverStyle: 'fullPageArtwork',
+      includeDocumentCoverImage: false,
+    },
+    coverBackgroundImagePath: FIELD_GUIDE_COVER_IMAGE,
+  },
+}
 
 function hashFiles(filePaths: string[]): string {
   const hash = crypto.createHash('sha256')
@@ -76,6 +103,16 @@ async function main() {
     }
 
     const fileName = resolvePdfFileName(doc)
+    const preset = PDF_RESOURCE_PRESETS[slug]
+    const pdfDocument = preset
+      ? {
+          ...doc,
+          pdf: {
+            ...doc.pdf,
+            ...preset.pdf,
+          },
+        }
+      : doc
     const contentHash = crypto
       .createHash('sha256')
       .update(JSON.stringify({updatedAt: doc._updatedAt, generationFingerprint, fileName}))
@@ -87,7 +124,12 @@ async function main() {
     }
 
     console.log(`Generating ${fileName}...`)
-    const docElement = React.createElement(ResourcePdfDocument, {document: doc})
+    const docElement = React.createElement(ResourcePdfDocument, {
+      document: pdfDocument,
+      assets: {
+        coverBackgroundImage: preset?.coverBackgroundImagePath,
+      },
+    })
     const blob = await pdf(docElement).toBlob()
     const buffer = Buffer.from(await blob.arrayBuffer())
 

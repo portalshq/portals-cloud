@@ -771,6 +771,32 @@ export const pdfSettings = defineType({
       },
     }),
     defineField({
+      name: 'coverStyle',
+      title: 'Cover style',
+      type: 'string',
+      initialValue: 'standard',
+      options: {
+        list: [
+          {title: 'Standard resource cover', value: 'standard'},
+          {title: 'Full-page cover artwork', value: 'fullPageArtwork'},
+        ],
+        layout: 'radio',
+      },
+    }),
+    defineField({
+      name: 'coverBackgroundImageUrl',
+      title: 'Full-page cover artwork URL',
+      type: 'url',
+      hidden: ({parent}) => parent?.coverStyle !== 'fullPageArtwork',
+    }),
+    defineField({
+      name: 'includeDocumentCoverImage',
+      title: 'Include document cover image on the abstract page',
+      type: 'boolean',
+      initialValue: true,
+      hidden: ({parent}) => parent?.coverStyle === 'fullPageArtwork',
+    }),
+    defineField({
       name: 'includeCover',
       title: 'Include cover',
       type: 'boolean',

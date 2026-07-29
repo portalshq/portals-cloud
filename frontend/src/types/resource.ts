@@ -122,6 +122,9 @@ export type ResourceDocument = {
     titleOverride?: string
     subtitleOverride?: string
     pageSize?: 'LETTER' | 'A4'
+    coverStyle?: 'standard' | 'fullPageArtwork'
+    coverBackgroundImageUrl?: string
+    includeDocumentCoverImage?: boolean
     includeCover?: boolean
     includeTableOfContents?: boolean
     showPageNumbers?: boolean

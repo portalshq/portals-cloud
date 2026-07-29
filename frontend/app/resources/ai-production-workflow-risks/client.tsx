@@ -443,6 +443,11 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
 
 const faqs = [
   {
+    question: 'Who is this brief for?',
+    answer:
+      'AI creative agencies, film and animation studios, game studios, AI-native brand teams, and production leaders responsible for scaling creative output without losing control of approved work.',
+  },
+  {
     question: 'What is Portals?',
     answer:
       'Portals is the production repository for AI-native creative organizations. It preserves the versions, source context, approvals, decisions, and lineage behind important AI-generated assets.',
@@ -451,11 +456,6 @@ const faqs = [
     question: 'Is Portals a DAM?',
     answer:
       'No. Traditional DAM systems primarily organize completed files. Portals preserves the production history behind evolving AI-generated assets.',
-  },
-  {
-    question: 'Who is this brief for?',
-    answer:
-      'AI creative agencies, film and animation studios, game studios, AI-native brand teams, and production leaders responsible for scaling creative output without losing control of approved work.',
   },
   {
     question: 'Does Portals replace creative tools?',
@@ -481,7 +481,7 @@ function ResourceFAQ() {
           </h2>
           <div className="space-y-16">
             {faqs.map((faq, index) => (
-              <div key={index} className="border border-white/20 rounded-sm">
+              <div key={index} className="border border-white/30 rounded-sm">
                 <button
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
                   className="w-full p-24 text-left flex justify-between items-center t-p-sans focus:outline-none"

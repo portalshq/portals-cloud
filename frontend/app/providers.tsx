@@ -29,21 +29,21 @@ function Footer() {
         }}
       />
       <div className="col-span-full relative z-10 flex flex-col gap-y-fluid-[32,40] mb-12">
-        <div className="t-d1-sans tracking-tight mb-4 !font-medium">portals</div>
-        <div className="col-span-full space-y-fluid-[32,40] lg:ui-grid h-full grid-cols-1 grid-rows-8 lg:grid-cols-4 m-0 p-0">
-          <div className='col-span-2'>
+        <div className="t-d1-sans mb-4 !font-medium">portals</div>
+        <div className="col-span-full h-full space-y-fluid-[32,40] ui-grid grid-cols-1 grid-rows-[min-content_1fr] lg:grid-cols-5 m-0 p-0">
+          <div className='col-span-full lg:col-span-3'>
             <p className="lowercase text-white t-p-sans">
               The production repository for AI-native creative organizations
             </p>
           </div>
-          <div className='col-span-full h-full lg:col-span-1'>
+          <div className='col-span-full lg:col-span-1'>
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
               <li><a href="/privacy-policy" className="hover:text-white transition-colors">Privacy</a></li>
               <li><a href="/terms-of-service" className="hover:text-white transition-colors">terms of service</a></li>
             </ul>
           </div>
         </div>
-        <div className="relative z-10 flex flex-col lg:items-center pt-12 text-sm text-white col-span-full row-start-last">
+        <div className="relative z-10 flex flex-col lg:items-center pt-12 t-p-sans text-[1.2em] text-white col-span-full row-start-last">
           <div>© 2026 portals.works</div>
         </div>
       </div>
