@@ -1,16 +1,17 @@
 import Link from 'next/link'
 import type {Cta, ResourceDocument} from '@/types/resource'
+import {resolvePdfDownloadUrl} from '@/lib/resource-pdf'
 import {ResourceBody} from './ResourceBody'
 
-function resolveCtaHref(cta: Cta): string {
+function resolveCtaHref(cta: Cta, document: ResourceDocument): string {
   if (cta.action === 'downloadPdf') {
-    return '#'
+    return resolvePdfDownloadUrl(document) || '#'
   }
   return cta.href || '#'
 }
 
-function CtaLink({cta}: {cta: Cta}) {
-  const href = resolveCtaHref(cta)
+function CtaLink({cta, document}: {cta: Cta; document: ResourceDocument}) {
+  const href = resolveCtaHref(cta, document)
   const className =
     cta.style === 'secondary'
       ? 'inline-flex border border-white/25 px-5 py-3 text-sm text-white transition hover:bg-white/8'
@@ -18,12 +19,18 @@ function CtaLink({cta}: {cta: Cta}) {
         ? 'inline-flex text-sm text-white underline decoration-white/30 underline-offset-4'
         : 'inline-flex bg-white px-5 py-3 text-sm text-black transition hover:bg-white/85'
 
-  if (cta.action === 'external') {
+  if (cta.action === 'external' || cta.action === 'downloadPdf') {
     return (
       <a
         href={href}
-        target={cta.openInNewTab ? '_blank' : undefined}
-        rel={cta.openInNewTab ? 'noreferrer' : undefined}
+        target={
+          cta.action === 'downloadPdf' || cta.openInNewTab ? '_blank' : undefined
+        }
+        rel={
+          cta.action === 'downloadPdf' || cta.openInNewTab
+            ? 'noreferrer'
+            : undefined
+        }
         className={className}
       >
         {cta.label}
@@ -86,10 +93,10 @@ export function ResourceLandingPage({
 
             <div className="mt-10 flex flex-wrap gap-3">
               {landing.primaryCta ? (
-                <CtaLink cta={landing.primaryCta} />
+                <CtaLink cta={landing.primaryCta} document={document} />
               ) : null}
               {landing.secondaryCta ? (
-                <CtaLink cta={landing.secondaryCta} />
+                <CtaLink cta={landing.secondaryCta} document={document} />
               ) : null}
             </div>
           </div>
@@ -198,7 +205,7 @@ export function ResourceLandingPage({
                         </p>
                         {section.sectionCta ? (
                           <div className="mt-7">
-                            <CtaLink cta={section.sectionCta} />
+                            <CtaLink cta={section.sectionCta} document={document} />
                           </div>
                         ) : null}
                       </>
@@ -207,7 +214,7 @@ export function ResourceLandingPage({
                         <ResourceBody value={section.body} />
                         {section.sectionCta ? (
                           <div className="mt-8">
-                            <CtaLink cta={section.sectionCta} />
+                            <CtaLink cta={section.sectionCta} document={document} />
                           </div>
                         ) : null}
                       </div>
@@ -237,10 +244,13 @@ export function ResourceLandingPage({
               ) : null}
               <div className="mt-9 flex flex-wrap gap-3">
                 {document.finalCta.primaryCta ? (
-                  <CtaLink cta={document.finalCta.primaryCta} />
+                  <CtaLink cta={document.finalCta.primaryCta} document={document} />
                 ) : null}
                 {document.finalCta.secondaryCta ? (
-                  <CtaLink cta={document.finalCta.secondaryCta} />
+                  <CtaLink
+                    cta={document.finalCta.secondaryCta}
+                    document={document}
+                  />
                 ) : null}
               </div>
             </div>

@@ -464,7 +464,11 @@ function PdfPortableText({value}: {value: PortableTextBlock[]}) {
                 {block.title ? (
                   <Text style={styles.calloutTitle}>{block.title}</Text>
                 ) : null}
-                <Text>{block.text}</Text>
+                {block.body?.length ? (
+                  <PdfPortableText value={block.body} />
+                ) : (
+                  <Text>{block.text}</Text>
+                )}
               </View>
             )
 
