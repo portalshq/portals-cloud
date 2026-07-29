@@ -4,6 +4,7 @@ import {useState} from 'react'
 import type {PortableTextBlock, ResourceDocument} from '@/types/resource'
 import {CTAButton} from '@/components/CTAButton'
 import {DEFAULT_GITHUB_PDF_BASE_URL} from '@/lib/resource-pdf'
+import { scopeAPilotMailto } from '@/lib/utils'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
 const PDF_BASE_URL =
@@ -257,7 +258,7 @@ function DownloadBriefForm() {
                 className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 px-12 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:!bg-white/30"
                 href="#pilot"
               >
-                <span className="t-p-sans">Scope a Pilot</span>
+                <span className="t-p-sans">Scope a pilot</span>
               </a>
             </div>
           </div>
@@ -269,16 +270,16 @@ function DownloadBriefForm() {
   return (
     <section id="download" data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[80ch]">
+        <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[90ch]">
           <h2 className="t-d2-sans text-center">
             Download the Production Memory Field Guide
           </h2>
-          <p className="mb-20 t-p-lg-serif max-w-[40ch] lg:mx-auto text-white">
+          <form onSubmit={handleSubmit} className="space-y-24 max-w-[80ch] mx-auto">
+          <p className="mb-20 t-p-lg-serif lg:mx-auto text-white">
             This page summarizes the AI production workflow risks brief. The
             download is the full Production Memory Field Guide for diagnosing
             and improving creative production memory.
           </p>
-          <form onSubmit={handleSubmit} className="space-y-24">
             <div>
               <label htmlFor="email" className="block t-p-sans mb-8">
                 Work email *
@@ -405,13 +406,13 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
 
   if (!cta) return null
 
-  const href = cta.primaryCta?.href || '#'
+  const href = scopeAPilotMailto
 
   return (
     <section id="pilot" data-header-theme="light">
-      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[120ch]">
-          <h2 className="t-d2-sans max-w-[12em]">{cta.headline}</h2>
+      <div className="min-h-screen ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white items-center">
+        <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[90ch]">
+          <h2 className="t-d2-sans max-w-[12em] mx-auto">{cta.headline}</h2>
           {cta.description ? (
             <p className="t-p-lg-serif max-w-[50em] text-white">
               {cta.description}
@@ -516,7 +517,7 @@ function FinalCTA() {
             generation through shipped production.
           </p>
           <div className="flex flex-col sm:flex-row gap-16 items-center justify-center">
-            <CTAButton href="#download">Download the Guide</CTAButton>
+            <CTAButton href={scopeAPilotMailto}>Scope a pilot</CTAButton>
           </div>
         </div>
       </div>

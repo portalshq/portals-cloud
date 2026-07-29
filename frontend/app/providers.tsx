@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SagaWebGLEngine } from '@/lib/SagaWebGLEngine'
+import { contactPortalsMailto, scopeAPilotMailto } from '@/lib/utils'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,12 +37,20 @@ function Footer() {
               The production repository for AI-native creative organizations
             </p>
           </div>
-          <div className='col-span-full lg:col-span-1'>
+
+          <div className='col-span-full lg:col-span-1 space-y-fluid-[32,40]'>
+          {/* <h4 className="font-medium mb-4">Product</h4> */}
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
               <li><a href="/privacy-policy" className="hover:text-white transition-colors">Privacy</a></li>
               <li><a href="/terms-of-service" className="hover:text-white transition-colors">terms of service</a></li>
+              <li><a href="/use-cases" className="hover:text-white transition-colors">explore use cases</a></li>
+            </ul>
+            
+            <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
+              <li><a href={contactPortalsMailto} className="hover:text-white transition-colors">contact sales</a></li>
             </ul>
           </div>
+          
         </div>
         <div className="relative z-10 flex flex-col lg:items-center pt-12 t-p-sans text-[1.2em] text-white col-span-full row-start-last">
           <div>© 2026 portals.works</div>

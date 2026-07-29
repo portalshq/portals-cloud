@@ -204,7 +204,7 @@ Mobile is a recomposition of the same narrative, not a miniaturized desktop layo
 The header is `78px` high and overlays the page. It contains only:
 
 - Lowercase `portals` wordmark in the sans heading face
-- A single Request Access control
+- A single Scope a pilot control
 
 Keep navigation minimal. The moving canvas and hero need visual room.
 

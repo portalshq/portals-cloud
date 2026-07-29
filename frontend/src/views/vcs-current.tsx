@@ -1,4 +1,5 @@
 import { CTAButton } from '@/components/CTAButton';
+import { formatNumber, scopeAPilotMailto } from '@/lib/utils';
 import { type CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 
 type OverviewItem = {
@@ -195,29 +196,9 @@ const pricingTiers = [
     period: '',
     subtitle: 'Multi-team organizations standardizing AI production across business units, clients, productions, or regions.',
     features: ['Contracted production-member capacity', 'Contracted repository and workspace capacity', 'Everything in Studio', 'Multi-workspace governance', 'SSO/SAML', 'Procurement and security support', 'Contractual SLA', 'Named customer-success owner'],
-    cta: 'Contact sales',
+    cta: 'Scope a pilot',
   },
 ];
-
-const requestAccessMailto = `mailto:sales@portals.works?subject=${encodeURIComponent('Request access to portals')}&body=${encodeURIComponent(`Hi Portals,
-
-I’d like to request access to Portals and learn more about how it can support our creative production workflow.
-
-A bit about us:
-- Company:
-- Team size:
-- Use case:
-- Current tools/workflow:
-- Timeline:
-
-Please let me know the next steps.
-
-Best,
-[Your Name]`)}`;
-
-function formatNumber(index: number) {
-  return String(index + 1).padStart(3, '0');
-}
 
 const blurEnterTransition = 'opacity 1.25s cubic-bezier(0.16, 1, 0.3, 1), filter 1.25s cubic-bezier(0.16, 1, 0.3, 1)';
 const blurExitTransition = 'opacity 0.4s cubic-bezier(0.55, 0.06, 0.68, 0.19), filter 0.4s cubic-bezier(0.55, 0.06, 0.68, 0.19)';
@@ -600,7 +581,7 @@ function SolutionSection() {
             Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.
           </p>
           <div className="flex justify-center">
-            <CTAButton href={requestAccessMailto}>Request access</CTAButton>
+            <CTAButton href={"/use-cases"}>Explore use cases</CTAButton>
           </div>
         </div>
       </div>
@@ -739,7 +720,7 @@ function PricingSection() {
                   </li>
                 ))}
               </ul>
-              <CTAButton href={requestAccessMailto}>{tier.cta}</CTAButton>
+              <CTAButton href={scopeAPilotMailto}>{tier.cta}</CTAButton>
             </article>
           ))}
         </div>
@@ -762,7 +743,7 @@ export function VCS() {
               </span>
             </a>
 
-            <CTAButton href={requestAccessMailto}>Request access</CTAButton>
+            <CTAButton href={scopeAPilotMailto}>Scope a pilot</CTAButton>
           </div>
         </div>
       </header>
@@ -816,7 +797,7 @@ export function VCS() {
               <p className="t-p-lg-serif max-w-[26em] text-white">
                 Give every asset your team creates a permanent identity, a complete history, and a system of record it can be trusted against from first generation through shipped production.
               </p>
-              <CTAButton href={"/use-cases"}>Explore use cases</CTAButton>
+              <CTAButton href={scopeAPilotMailto}>Scope a pilot</CTAButton>
             </div>
           </div>
           <div className="absolute inset-0 z-10" />
