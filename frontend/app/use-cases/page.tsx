@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   if (!document) return {}
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
-  const canonicalPath = document.seo?.canonicalPath || `/resources/${document.slug}`
+  const canonicalPath = document.seo?.canonicalPath || '/use-cases'
 
   return {
     title: document.seo?.metaTitle || document.title,

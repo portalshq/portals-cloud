@@ -419,7 +419,7 @@ function renderSpan(
     annotation?._type === 'link'
       ? annotation.href
       : annotation?._type === 'internalLink' && annotation.slug
-        ? `/resources/${annotation.slug}`
+        ? `/${annotation.slug}`
         : undefined
 
   if (href) {
@@ -835,11 +835,21 @@ export function ResourcePdfDocument({
           <PdfHeader document={document} pdf={pdf} />
           <View style={styles.toc}>
             <Text style={styles.tocTitle}>Contents</Text>
-            {tocSections.map((section) => (
-              <Text key={section._key} style={styles.tocItem}>
-                {section.title}
-              </Text>
-            ))}
+            {tocSections.map((section) =>
+              section.anchor ? (
+                <Link
+                  key={section._key}
+                  src={`#${section.anchor}`}
+                  style={styles.tocItem}
+                >
+                  {section.title}
+                </Link>
+              ) : (
+                <Text key={section._key} style={styles.tocItem}>
+                  {section.title}
+                </Text>
+              ),
+            )}
           </View>
           <PdfFooter document={document} pdf={pdf} />
         </Page>

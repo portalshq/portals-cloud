@@ -64,7 +64,7 @@ const components: PortableTextComponents = {
     ),
     internalLink: ({children, value}) => (
       <Link
-        href={`/resources/${value?.slug ?? ''}`}
+        href={`/${value?.slug ?? ''}`}
         className="underline decoration-white/35 underline-offset-4"
       >
         {children}

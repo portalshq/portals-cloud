@@ -11,7 +11,7 @@ const PDF_BASE_URL =
 const FIELD_GUIDE_PDF_URL = `${PDF_BASE_URL.replace(/\/$/, '')}/production-memory-field-guide.pdf`
 
 function StructuredData() {
-  const pageUrl = `${SITE_URL}/resources/ai-production-workflow-risks`
+  const pageUrl = `${SITE_URL}/use-cases`
 
   return (
     <script
@@ -41,12 +41,6 @@ function StructuredData() {
                 {
                   '@type': 'ListItem',
                   position: 2,
-                  name: 'Resources',
-                  item: `${SITE_URL}/resources`,
-                },
-                {
-                  '@type': 'ListItem',
-                  position: 3,
                   name: 'AI Production Workflow Risks',
                   item: pageUrl,
                 },

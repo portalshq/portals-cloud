@@ -27,7 +27,7 @@ export async function generateMetadata({
     process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
 
   const canonicalPath =
-    document.seo?.canonicalPath || `/resources/${document.slug}`
+    document.seo?.canonicalPath || `/${document.slug}`
 
   const shareImage = document.seo?.shareImageUrl
     ? [{url: document.seo.shareImageUrl}]

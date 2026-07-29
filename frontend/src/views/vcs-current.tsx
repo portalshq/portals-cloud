@@ -179,7 +179,7 @@ const pricingTiers = [
     period: '/ month, billed annually',
     subtitle: 'Small teams establishing a trusted system of record for AI production.',
     features: ['5 production members', '3 active production repositories', 'Unlimited reviewers and guests', 'Version history and rollback', 'Provenance tracking', 'Basic sharing', 'Standard integrations', 'Standard support'],
-    cta: 'Request access',
+    cta: 'Scope a pilot',
   },
   {
     name: 'Studio',
@@ -816,7 +816,7 @@ export function VCS() {
               <p className="t-p-lg-serif max-w-[26em] text-white">
                 Give every asset your team creates a permanent identity, a complete history, and a system of record it can be trusted against from first generation through shipped production.
               </p>
-              <CTAButton href={requestAccessMailto}>Request access</CTAButton>
+              <CTAButton href={"/use-cases"}>Explore use cases</CTAButton>
             </div>
           </div>
           <div className="absolute inset-0 z-10" />
