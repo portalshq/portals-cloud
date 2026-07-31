@@ -1101,7 +1101,7 @@ function createPostEffects(renderer, scene, camera, width, height) {
 // SECTION 11: SCROLL HIJACK SYSTEM
 // =============================================================================
 //
-// Only the overview section's sub-blocks (001-004) are fixed and blurred.
+// Only the overview section's sub-blocks (01-04) are fixed and blurred.
 // Everything else scrolls normally: hero, lead, CTA, footer.
 //
 // Layout:

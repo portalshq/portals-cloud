@@ -1,6 +1,8 @@
 import type {Metadata} from 'next'
 import {notFound} from 'next/navigation'
+import {PaidPilotLandingPage} from '@/components/resources/PaidPilotLandingPage'
 import {ResourceLandingPage} from '@/components/resources/ResourceLandingPage'
+import {SecurityArchitectureLandingPage} from '@/components/resources/SecurityArchitectureLandingPage'
 import {getResourceDocument, getResourceSlugs} from '@/sanity/lib/resources'
 
 type PageProps = {
@@ -69,6 +71,14 @@ export default async function ResourcePage({params}: PageProps) {
 
   if (!document || document.landingPage?.enabled === false) {
     notFound()
+  }
+
+  if (document.slug === 'security-and-architecture') {
+    return <SecurityArchitectureLandingPage document={document} />
+  }
+
+  if (document.slug === 'paid-pilot') {
+    return <PaidPilotLandingPage document={document} />
   }
 
   return <ResourceLandingPage document={document} />

@@ -142,6 +142,7 @@ Used for supporting copy, headings, branding, controls, tables, and lists.
 - Citations and compact metadata
 
 Utility mono should remain terse. It is not a body or navigation font.
+Number markers use single padding: `01`, `02`, `03`, not `001`, `002`, `003`.
 
 ### Type rules
 
@@ -229,7 +230,7 @@ There is no solid accent button, shadow, lift, or transform.
 Sequence labels pair:
 
 - An `8px × 8px` solid white square
-- A utility-mono number, generally three digits (`001`, `002`, …)
+- A utility-mono number, generally single padded (`01`, `02`, …)
 - A wide `32px` horizontal gap in the overview; tighter variants may use `8px`
 
 This square-plus-number construction is the recurring marker language.

@@ -1,7 +1,11 @@
-'use client'
+import {notFound} from 'next/navigation'
+import {LegalDocumentView} from '@/views/legal-document'
+import {getLegalDocument} from '@/sanity/lib/legal'
 
-import { Privacy } from '@/views/privacy-policy'
+export default async function PrivacyPage() {
+  const document = await getLegalDocument('privacyPolicy')
 
-export default function PrivacyPage() {
-  return <Privacy />
+  if (!document) notFound()
+
+  return <LegalDocumentView document={document} />
 }

@@ -1,0 +1,455 @@
+'use client'
+
+import {useState} from 'react'
+import {
+  ArrowDownToLine,
+  ArrowUpRight,
+  Check,
+  CircleAlert,
+} from 'lucide-react'
+import {CTAButton} from '@/components/CTAButton'
+import type {ResourceDocument} from '@/types/resource'
+import {resolvePdfDownloadUrl} from '@/lib/resource-pdf'
+import {ResourceBody} from './ResourceBody'
+
+const CURRENT_CERTIFICATIONS_ANCHOR = 'current-certifications'
+const PLANNED_CERTIFICATIONS_ANCHOR = 'planned-certifications'
+
+function publicationDate(value?: string): string {
+  if (!value) return 'July 31, 2026'
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value))
+}
+
+function Header() {
+  return (
+    <header className="absolute inset-x-0 top-0 z-(--z-header)">
+      <div className="flex h-Header-h items-center justify-between px-sms">
+        <a href="/" className="t-h3-sans !font-medium text-white">
+          portals
+        </a>
+        <a
+          href="#controls"
+          className="hidden t-p-sm-sans text-white transition-colors hover:text-white sm:block"
+        >
+          security brief / 2026
+        </a>
+      </div>
+    </header>
+  )
+}
+
+function FlowingSecurityBackground() {
+  return (
+    <div
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[rgba(1,5,40,0.62)]"
+      aria-hidden="true"
+    >
+      <div className="security-flow-gradient absolute -inset-[18%] opacity-85" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(91,196,186,0.18),transparent_34%),linear-gradient(120deg,rgba(1,5,40,0.3)_0%,rgba(1,5,40,0.82)_48%,rgba(6,11,54,0.54)_100%)]" />
+    </div>
+  )
+}
+
+function statusLabel(value?: string) {
+  return value ? value.toLowerCase() : 'current'
+}
+
+const bodyTone =
+  '[&_p]:!text-white [&_li]:!text-white [&_figcaption]:!text-white [&_td]:!text-white [&_th]:!text-white [&_blockquote]:!text-white'
+
+const bodyNoDividers =
+  '[&_aside]:!border-transparent [&_blockquote]:!border-transparent [&_figure]:!border-transparent [&_tr]:!border-transparent [&_hr]:hidden'
+
+const securityFaqs = [
+  {
+    question: 'do you claim soc 2 or iso certification today?',
+    answer:
+      'no. the brief states the current security posture without claiming formal soc 2, iso, or other certifications that portals has not earned.',
+  },
+  {
+    question: 'is private customer data used to train models?',
+    answer:
+      'no. private customer data is not used as model-training material without written customer permission.',
+  },
+  {
+    question: 'how is customer data isolated?',
+    answer:
+      'portals uses logical organization boundaries so customer workspaces, assets, metadata, permissions, and production history are scoped to the right organization.',
+  },
+  {
+    question: 'can customers export or delete their data?',
+    answer:
+      'yes. the brief documents the export process and deletion handling, including where retention, backups, and contractual requirements can affect timing.',
+  },
+  {
+    question: 'what happens during a security review?',
+    answer:
+      'portals shares the public brief, confirms deployment-specific details, reviews requested controls, and documents any contractual commitments separately.',
+  },
+]
+
+function SectionLabel({children}: {children: string}) {
+  return <p className="t-p-sans text-white">{children}</p>
+}
+
+function Hero({document}: {document: ResourceDocument}) {
+  const pdfUrl = resolvePdfDownloadUrl(document)
+  const landing = document.landingPage ?? {}
+
+  return (
+    <section
+      data-header-theme="light"
+      className="relative flex min-h-screen items-center overflow-hidden"
+    >
+      <Header />
+      <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[76,106] text-white">
+        <div className="col-span-full lg:col-span-16">
+          {landing.eyebrow ? (
+            <p className="mb-24 t-p-sans text-white">
+              {landing.eyebrow.toLowerCase()}
+            </p>
+          ) : null}
+          <h1 className="t-d2-sans max-w-[12em]">
+            {landing.headline || document.title}
+          </h1>
+          <p className="mt-28 max-w-[38em] t-p-lg-serif text-white">
+            {landing.description || document.abstract}
+          </p>
+          <div className="mt-32 flex flex-col gap-12 sm:flex-row">
+            {pdfUrl ? (
+              <CTAButton
+                href={pdfUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ArrowDownToLine aria-hidden="true" size={18} strokeWidth={1.8} />
+                <span>download the brief</span>
+              </CTAButton>
+            ) : null}
+            <CTAButton
+              href="mailto:sales@portals.works?subject=Portals%20security%20review"
+            >
+              <span>start a security review</span>
+              <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
+            </CTAButton>
+          </div>
+        </div>
+
+        <dl className="col-span-full mt-44 grid grid-cols-2 gap-20 lg:col-span-8 lg:col-start-17 lg:mt-0">
+          {[
+            ['status', 'public brief'],
+            ['version', (document.edition || 'version 1.0').toLowerCase()],
+            ['published', publicationDate(document.publishedAt).toLowerCase()],
+            ['certifications', 'none claimed'],
+          ].map(([label, value]) => (
+            <div key={label} className="min-h-96 rounded-sm bg-white/8 p-16 backdrop-blur-[18px]">
+              <dt className="t-p-sm-sans text-white">
+                {label}
+              </dt>
+              <dd className="mt-14 t-p-sm-sans text-white">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  )
+}
+
+function Principles() {
+  const principles = [
+    'Logical organization isolation',
+    'Explicit access boundaries',
+    'Recoverable production history',
+    'No training without written permission',
+  ]
+
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid gap-y-32 py-fluid-[76,106] text-white">
+        <div className="col-span-full lg:col-span-8">
+          <SectionLabel>security posture</SectionLabel>
+          <h2 className="mt-20 t-d2-sans max-w-[9em]">
+            production context has value. treat it that way.
+          </h2>
+        </div>
+        <div className="col-span-full lg:col-span-12 lg:col-start-13">
+          <p className="max-w-[39em] t-p-lg-serif text-white">
+            Prompts, source media, approved versions, client decisions, model
+            settings, and lineage can carry commercial and intellectual-property
+            value. Portals treats that production memory as sensitive operational
+            data.
+          </p>
+          <ul className="mt-32 grid gap-12">
+            {principles.map((principle) => (
+              <li
+                key={principle}
+                className="flex min-h-64 items-center gap-14 rounded-sm bg-white/8 p-16 t-p-sans text-white backdrop-blur-[18px]"
+              >
+                <Check
+                  aria-hidden="true"
+                  className="shrink-0 text-white"
+                  size={18}
+                  strokeWidth={1.8}
+                />
+                {principle.toLowerCase()}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ControlInventory({document}: {document: ResourceDocument}) {
+  const [openIndex, setOpenIndex] = useState<number | null>(0)
+  const controls = document.sections.filter(
+    (section) =>
+      section.anchor !== CURRENT_CERTIFICATIONS_ANCHOR &&
+      section.anchor !== PLANNED_CERTIFICATIONS_ANCHOR,
+  )
+
+  return (
+    <section
+      id="controls"
+      data-header-theme="light"
+      className="scroll-mt-24"
+    >
+      <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
+        <div className="col-span-full lg:col-span-9">
+          <SectionLabel>control inventory</SectionLabel>
+          <h2 className="mt-20 t-d2-sans">current positions, without inflated claims.</h2>
+        </div>
+        <p className="col-span-full max-w-[38em] t-p-lg-serif text-white lg:col-span-10 lg:col-start-14">
+          Each area states whether it is architecture, policy, operating position,
+          or commitment. Deployment-specific details and contractual controls are
+          confirmed during review.
+        </p>
+
+        <div className="col-span-full mt-20 space-y-16">
+          {controls.map((section, index) => (
+            <div
+              key={section._key}
+              id={section.anchor}
+              className="scroll-mt-24 rounded-sm border border-white/30 bg-white/8 backdrop-blur-[18px]"
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                className="flex min-h-112 w-full items-center justify-between gap-20 p-24 text-left t-p-sans focus:outline-none"
+                aria-expanded={openIndex === index}
+                aria-controls={`${section.anchor}-content`}
+              >
+                <span>
+                  <span className="mb-10 block t-p-sm-sans text-white">
+                    {String(index + 1).padStart(2, '0')} / {statusLabel(section.eyebrow)}
+                  </span>
+                  <span className="block t-p-serif">{section.title.toLowerCase()}</span>
+                  <span className="mt-10 block max-w-[52em] t-p-sm-sans text-white">
+                    {section.summary}
+                  </span>
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={`shrink-0 text-[24px] leading-none transition-transform duration-300 ${openIndex === index ? 'rotate-45' : ''}`}
+                >
+                  +
+                </span>
+              </button>
+              {openIndex === index ? (
+                <div
+                  id={`${section.anchor}-content`}
+                  className={`px-24 pb-24 t-p-sans text-white ${bodyTone} ${bodyNoDividers}`}
+                >
+                  <ResourceBody value={section.body} />
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function AssuranceStatus({document}: {document: ResourceDocument}) {
+  const current = document.sections.find(
+    (section) => section.anchor === CURRENT_CERTIFICATIONS_ANCHOR,
+  )
+  const planned = document.sections.find(
+    (section) => section.anchor === PLANNED_CERTIFICATIONS_ANCHOR,
+  )
+
+  if (!current || !planned) return null
+
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid gap-y-40 py-fluid-[76,106] text-white">
+        <div className="col-span-full lg:col-span-10">
+          <div className="flex items-center gap-12 mt-24">
+            <CircleAlert
+              aria-hidden="true"
+              className="text-white"
+              size={30}
+              strokeWidth={1.4}
+            />
+            <p className="t-p-sans text-white">{statusLabel(current.eyebrow)}</p>
+          </div>
+          <h2 className="mt-24 t-d2-sans max-w-[10em]">
+            no formal certification is claimed.
+          </h2>
+          <p className="mt-24 max-w-[36em] t-p-lg-serif text-white">
+            {current.summary}
+          </p>
+          <div className={`mt-24 max-w-[42em] ${bodyTone} ${bodyNoDividers}`}>
+            <ResourceBody value={current.body} />
+          </div>
+        </div>
+
+        <div className="col-span-full rounded-sm bg-white/8 p-24 backdrop-blur-[18px] lg:col-span-11 lg:col-start-14">
+          <p className="t-p-sans text-[#5bc4ba]">{statusLabel(planned.eyebrow)}</p>
+          <h3 className="mt-24 t-h2-sans">{planned.title.toLowerCase()}</h3>
+          <p className="mt-16 t-p-sans text-white">{planned.summary}</p>
+          <div className={`mt-20 ${bodyTone} ${bodyNoDividers}`}>
+            <ResourceBody value={planned.body} />
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function DownloadSection({document}: {document: ResourceDocument}) {
+  const pdfUrl = resolvePdfDownloadUrl(document)
+
+  if (!pdfUrl) return null
+
+  return (
+    <section id="download" data-header-theme="light">
+      <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
+        <div className="col-span-full lg:col-span-13">
+          <SectionLabel>downloadable brief</SectionLabel>
+          <h2 className="mt-20 t-d2-sans max-w-[10em]">
+            put the security posture in the review packet.
+          </h2>
+        </div>
+        <div className="col-span-full lg:col-span-9 lg:col-start-16">
+          <p className="t-p-lg-serif text-white">
+            The PDF contains the complete control inventory, current certification
+            statement, planned roadmap, legal note, and internal navigation.
+          </p>
+          <dl className="mt-28 grid grid-cols-2 gap-16">
+            <div className="rounded-sm bg-white/8 p-16 backdrop-blur-[18px]">
+              <dt className="t-p-sm-sans text-white">
+                format
+              </dt>
+              <dd className="mt-10 t-p-sm-sans">pdf, us letter</dd>
+            </div>
+            <div className="rounded-sm bg-white/8 p-16 backdrop-blur-[18px]">
+              <dt className="t-p-sm-sans text-white">
+                published
+              </dt>
+              <dd className="mt-10 t-p-sm-sans">
+                {publicationDate(document.publishedAt).toLowerCase()}
+              </dd>
+            </div>
+          </dl>
+          <div className="mt-20 flex flex-col gap-12">
+            <CTAButton
+              href={pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ArrowDownToLine aria-hidden="true" size={18} strokeWidth={1.8} />
+              <span>download security brief</span>
+            </CTAButton>
+            <CTAButton href="mailto:sales@portals.works?subject=Portals%20security%20review">
+              <span>start a security review</span>
+              <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
+            </CTAButton>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function SecurityFAQ() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0)
+
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+        <div className="col-span-full mx-auto max-w-[90%] space-y-36 lg:max-w-[100ch]">
+          <h2 className="t-d2-sans max-w-[12em]">
+            frequently asked questions
+          </h2>
+          <div className="space-y-16">
+            {securityFaqs.map((faq, index) => (
+              <div
+                key={faq.question}
+                className="rounded-sm border border-white/30 bg-white/8 backdrop-blur-[18px]"
+              >
+                <button
+                  onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                  className="flex w-full items-center justify-between p-24 text-left t-p-sans focus:outline-none"
+                  aria-expanded={openIndex === index}
+                >
+                  <span className="t-p-serif">{faq.question}</span>
+                  <span
+                    className={`transform transition-transform duration-300 ${openIndex === index ? 'rotate-45' : ''}`}
+                  >
+                    +
+                  </span>
+                </button>
+                {openIndex === index ? (
+                  <div className="px-24 pb-24 t-p-sans text-white">
+                    {faq.answer}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export function SecurityArchitectureLandingPage({
+  document,
+}: {
+  document: ResourceDocument
+}) {
+  return (
+    <main className="relative z-(--z-main) min-h-screen overflow-hidden text-white lowercase">
+      <div
+        className="pointer-events-none h-px w-full"
+        aria-hidden="true"
+        data-webgl-marker="scrollFrom"
+        data-webgl-position="0"
+        data-webgl-easing="easeInOut"
+      />
+      <FlowingSecurityBackground />
+      <div className="relative z-10">
+        <Hero document={document} />
+        <div
+          className="pointer-events-none h-px w-full"
+          aria-hidden="true"
+          data-webgl-marker="scrollTo"
+          data-webgl-position="0.96"
+        />
+        <Principles />
+        <ControlInventory document={document} />
+        <AssuranceStatus document={document} />
+        <SecurityFAQ />
+        <DownloadSection document={document} />
+      </div>
+    </main>
+  )
+}

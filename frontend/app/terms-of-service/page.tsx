@@ -1,7 +1,11 @@
-'use client'
+import {notFound} from 'next/navigation'
+import {LegalDocumentView} from '@/views/legal-document'
+import {getLegalDocument} from '@/sanity/lib/legal'
 
-import { TermsOfService } from '@/views/terms-of-service'
+export default async function TermsPage() {
+  const document = await getLegalDocument('termsOfService')
 
-export default function TermsPage() {
-  return <TermsOfService />
+  if (!document) notFound()
+
+  return <LegalDocumentView document={document} />
 }

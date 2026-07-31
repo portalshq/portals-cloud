@@ -30,7 +30,7 @@ function Footer() {
         }}
       />
       <div className="col-span-full relative z-10 flex flex-col gap-y-fluid-[32,40] mb-12">
-        <div className="t-d1-sans mb-4 !font-medium">portals</div>
+        <a href="/" className="w-fit t-d1-sans mb-4 !font-medium">portals</a>
         <div className="col-span-full h-full space-y-fluid-[32,40] ui-grid grid-cols-1 grid-rows-[min-content_1fr] lg:grid-cols-5 m-0 p-0">
           <div className='col-span-full lg:col-span-3'>
             <p className="lowercase text-white t-p-sans">
@@ -43,7 +43,8 @@ function Footer() {
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
               <li><a href="/privacy-policy" className="hover:text-white transition-colors">Privacy</a></li>
               <li><a href="/terms-of-service" className="hover:text-white transition-colors">terms of service</a></li>
-              <li><a href="/use-cases" className="hover:text-white transition-colors">explore use cases</a></li>
+              <li><a href="/security-and-architecture" className="hover:text-white transition-colors">security</a></li>
+              <li><a href="/ai-production-workflow-risks" className="hover:text-white transition-colors">use cases</a></li>
             </ul>
             
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">

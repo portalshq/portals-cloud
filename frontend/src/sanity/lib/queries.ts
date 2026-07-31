@@ -95,3 +95,40 @@ export const RESOURCE_SLUGS_QUERY = defineQuery(`
     "slug": slug.current
   }
 `)
+
+export const LEGAL_DOCUMENT_BY_TYPE_QUERY = defineQuery(`
+  *[
+    _type == "legalDocument"
+    && documentType == $documentType
+    && status == "published"
+  ] | order(effectiveDate desc)[0] {
+    _id,
+    _updatedAt,
+    status,
+    documentType,
+    title,
+    "slug": slug.current,
+    summary,
+    effectiveDate,
+    contactEmail,
+
+    sections[] {
+      _key,
+      "anchor": anchor.current,
+      title,
+      body[] {
+        ...,
+        markDefs[] {
+          ...
+        }
+      }
+    },
+
+    seo {
+      metaTitle,
+      metaDescription,
+      canonicalPath,
+      noIndex
+    }
+  }
+`)

@@ -148,3 +148,27 @@ export type ResourceDocument = {
     abstract?: string
   }>
 }
+
+export type LegalDocument = {
+  _id: string
+  _updatedAt: string
+  status: 'draft' | 'published' | 'archived'
+  documentType: 'privacyPolicy' | 'termsOfService'
+  title: string
+  slug: string
+  summary: string
+  effectiveDate: string
+  contactEmail: string
+  sections: Array<{
+    _key: string
+    anchor: string
+    title: string
+    body: PortableTextBlock[]
+  }>
+  seo?: {
+    metaTitle?: string
+    metaDescription?: string
+    canonicalPath?: string
+    noIndex?: boolean
+  }
+}

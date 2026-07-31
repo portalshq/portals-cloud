@@ -276,9 +276,7 @@ function DownloadBriefForm() {
           </h2>
           <form onSubmit={handleSubmit} className="space-y-24 max-w-[80ch] mx-auto">
           <p className="mb-20 t-p-lg-serif lg:mx-auto text-white">
-            This page summarizes the AI production workflow risks brief. The
-            download is the full Production Memory Field Guide for diagnosing
-            and improving creative production memory.
+            Learn how to understand, diagnose, quantify, and address the production-memory risks behind AI-native creative work.
           </p>
             <div>
               <label htmlFor="email" className="block t-p-sans mb-8">
@@ -377,7 +375,7 @@ function DownloadBriefForm() {
                 {isSubmitting ? 'Submitting...' : 'Download the Guide'}
               </span>
             </button>
-            <p className="t-p-sans text-white text-center">
+            <p className="t-p-sans text-white">
               We follow up when your selected workflow appears relevant to a
               Portals production pilot.
             </p>
@@ -438,19 +436,27 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
 
 const faqs = [
   {
-    question: 'Who is this brief for?',
+    question: 'Who is the field guide for?',
     answer:
-      'AI creative agencies, film and animation studios, game studios, AI-native brand teams, and production leaders responsible for scaling creative output without losing control of approved work.',
+      'It is for creative organizations producing high volumes of AI-assisted work across multiple people, tools, clients, projects, or production cycles.',
   },
   {
     question: 'What is Portals?',
     answer:
-      'Portals is the production repository for AI-native creative organizations. It preserves the versions, source context, approvals, decisions, and lineage behind important AI-generated assets.',
+      'Portals is the production repository for AI-native creative organizations. It preserves the history and context behind important AI-generated assets so teams can find, understand, reproduce, and extend their work.',
   },
   {
-    question: 'Is Portals a DAM?',
+    question: 'Is Portals a digital asset management system?',
     answer:
-      'No. Traditional DAM systems primarily organize completed files. Portals preserves the production history behind evolving AI-generated assets.',
+      'Portals is not a traditional DAM. A DAM primarily organizes and distributes files. Portals stores the files and preserves the evolving production identity, history, context, approvals, and lineage behind the asset.',
+  },
+  {
+    question: 'Do I need Portals to use the field guide?',
+    answer: 'No. The guide includes minimum practices that teams can implement using folders, spreadsheets, documentation, approval logs, and handoff procedures.',
+  },
+  {
+    question: 'What is production memory?',
+    answer: 'Production memory is the complete, recoverable organizational record behind an important asset: its approved version, previous versions, creation context, decisions, and recovery information.',
   },
   {
     question: 'Does Portals replace creative tools?',
@@ -458,9 +464,9 @@ const faqs = [
       'No. Portals works beneath the production stack. Teams continue using their preferred generation, editing, review, storage, and delivery tools.',
   },
   {
-    question: 'What does a pilot prove?',
+    question: 'What does a production pilot prove?',
     answer:
-      'A pilot tests whether Portals can preserve and recover the production history of one real workflow, including approved versions, source context, lineage, and handoff knowledge.',
+      'A pilot tests whether preserving production memory creates measurable value on one real workflow through faster retrieval, stronger reproducibility, controlled extension, better knowledge transfer, or reduced production risk.',
   },
 ]
 

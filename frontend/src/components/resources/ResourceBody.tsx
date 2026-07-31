@@ -5,7 +5,7 @@ import type {PortableTextBlock} from '@/types/resource'
 const components: PortableTextComponents = {
   block: {
     normal: ({children}) => (
-      <p className="text-base leading-8 text-white/72">{children}</p>
+      <p className="text-base leading-[1.6] text-white/72">{children}</p>
     ),
     h2: ({children}) => (
       <h3 className="mt-12 text-2xl font-medium tracking-tight text-white">
@@ -18,7 +18,7 @@ const components: PortableTextComponents = {
       </h4>
     ),
     blockquote: ({children}) => (
-      <blockquote className="my-8 border-l border-white/30 pl-6 text-xl leading-8 text-white/88">
+      <blockquote className="my-8 border-l border-white/30 pl-6 text-xl leading-[1.5] text-white/88">
         {children}
       </blockquote>
     ),
@@ -38,8 +38,8 @@ const components: PortableTextComponents = {
   },
 
   listItem: {
-    bullet: ({children}) => <li className="pl-2 leading-7">{children}</li>,
-    number: ({children}) => <li className="pl-2 leading-7">{children}</li>,
+    bullet: ({children}) => <li className="pl-2 leading-[1.55]">{children}</li>,
+    number: ({children}) => <li className="pl-2 leading-[1.55]">{children}</li>,
   },
 
   marks: {
@@ -80,7 +80,7 @@ const components: PortableTextComponents = {
             {value.title}
           </p>
         ) : null}
-        <p className="leading-7 text-white/82">{value.text}</p>
+        <p className="leading-[1.55] text-white/82">{value.text}</p>
       </aside>
     ),
 
@@ -91,11 +91,11 @@ const components: PortableTextComponents = {
             {value.label}
           </figcaption>
         ) : null}
-        <pre className="whitespace-pre-wrap font-mono text-base leading-7 text-white">
+        <pre className="whitespace-pre-wrap font-mono text-base leading-[1.55] text-white">
           {value.expression}
         </pre>
         {value.note ? (
-          <p className="mt-3 text-sm leading-6 text-white/55">{value.note}</p>
+          <p className="mt-3 text-sm leading-[1.5] text-white/55">{value.note}</p>
         ) : null}
       </figure>
     ),
@@ -130,7 +130,7 @@ const components: PortableTextComponents = {
 
     quoteBlock: ({value}) => (
       <figure className="my-12">
-        <blockquote className="text-2xl leading-9 tracking-tight text-white">
+        <blockquote className="text-2xl leading-[1.35] tracking-tight text-white">
           &ldquo;{value.quote}&rdquo;
         </blockquote>
         {value.attribution ? (
@@ -166,7 +166,7 @@ const components: PortableTextComponents = {
                 <p className="text-2xl text-white">{item.value}</p>
                 <p className="mt-1 text-sm text-white/70">{item.label}</p>
                 {item.note ? (
-                  <p className="mt-3 text-sm leading-6 text-white/45">
+                  <p className="mt-3 text-sm leading-[1.5] text-white/45">
                     {item.note}
                   </p>
                 ) : null}
@@ -230,7 +230,7 @@ const components: PortableTextComponents = {
           className="h-auto w-full"
         />
         {value.caption ? (
-          <figcaption className="mt-3 text-sm leading-6 text-white/45">
+          <figcaption className="mt-3 text-sm leading-[1.5] text-white/45">
             {value.caption}
           </figcaption>
         ) : null}

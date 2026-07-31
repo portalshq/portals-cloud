@@ -4,6 +4,7 @@ import path from 'path'
 import {fileURLToPath} from 'url'
 import {pdf} from '@react-pdf/renderer'
 import React from 'react'
+import {PaidPilotPdfDocument} from '../src/components/pdf/PaidPilotPdfDocument.js'
 import {ResourcePdfDocument} from '../src/components/pdf/ResourcePdfDocument.js'
 import {resolvePdfFileName} from '../src/lib/resource-pdf.js'
 import {
@@ -30,6 +31,7 @@ const FIELD_GUIDE_COVER_IMAGE = path.resolve(
 
 const GENERATION_FINGERPRINT_FILES = [
   __filename,
+  path.resolve(__dirname, '../src/components/pdf/PaidPilotPdfDocument.tsx'),
   path.resolve(__dirname, '../src/components/pdf/ResourcePdfDocument.tsx'),
   path.resolve(__dirname, '../src/pdf-templates/ResourceTemplate.tsx'),
   path.resolve(__dirname, '../src/lib/resource-pdf.ts'),
@@ -124,12 +126,17 @@ async function main() {
     }
 
     console.log(`Generating ${fileName}...`)
-    const docElement = React.createElement(ResourcePdfDocument, {
-      document: pdfDocument,
-      assets: {
-        coverBackgroundImage: preset?.coverBackgroundImagePath,
-      },
-    })
+    const docElement =
+      slug === 'paid-pilot'
+        ? React.createElement(PaidPilotPdfDocument, {
+            document: pdfDocument,
+          })
+        : React.createElement(ResourcePdfDocument, {
+            document: pdfDocument,
+            assets: {
+              coverBackgroundImage: preset?.coverBackgroundImagePath,
+            },
+          })
     const blob = await pdf(docElement).toBlob()
     const buffer = Buffer.from(await blob.arrayBuffer())
 

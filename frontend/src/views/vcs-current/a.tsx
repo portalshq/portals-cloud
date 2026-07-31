@@ -1,6 +1,6 @@
 import { CTAButton } from '@/components/CTAButton';
 import { formatNumber, scopeAPilotMailto } from '@/lib/utils';
-import { type CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 
 type OverviewItem = {
   heading: string;
@@ -56,8 +56,8 @@ const overviewItems: OverviewItem[] = [
   {
     heading: 'Provenance',
     iconPath: iconPaths[3],
-    textA: ['The reasoning behind the result, not just the result.'],
-    textB: ['The valuable part of an AI-generated asset is what produced it: the prompt, model version, seed, reference images, parameters, edits, and approvals along the way. Portals captures that chain automatically, attached to the asset itself.'],
+    textA: ['The asset and the reasoning behind it.'],
+    textB: ['Prompts, model version, reference images, parameters, edits, and approvals along the way. Portals captures that chain automatically, attached to the asset itself.'],
     textC: ['Your best results become reproducible, explainable, and reusable.'],
   },
   {
@@ -165,19 +165,20 @@ const audiences = [
   },
 ];
 
-const pricingTiers = [
-  {
+const pilotTier = {
     name: 'Production Pilot',
     price: '$5,000',
     period: 'once',
-    subtitle: 'For qualified teams proving Portals against one active production workflow.',
-    features: ['1 production team', '1 active workflow', 'Defined onboarding', 'Agreed success criteria', 'Final deployment recommendation', 'Proposed annual terms established before the pilot begins'],
+    subtitle: 'For qualified teams proving Portals against one active production workflow. Credited toward annual deployment if converted within the agreed window.',
+    features: ['1 production team', '1 active workflow', 'Defined onboarding', 'Agreed success criteria', 'Final deployment recommendation', 'Annual deployment terms agreed before the pilot begins'],
     cta: 'Scope a pilot',
-  },
+  };
+
+const pricingTiers = [
   {
     name: 'Production Team',
     price: '$750',
-    period: '/ month, billed annually',
+    period: '/month, billed annually',
     subtitle: 'Small teams establishing a trusted system of record for AI production.',
     features: ['5 production members', '3 active production repositories', 'Unlimited reviewers and guests', 'Version history and rollback', 'Provenance tracking', 'Basic sharing', 'Standard integrations', 'Standard support'],
     cta: 'Scope a pilot',
@@ -185,7 +186,7 @@ const pricingTiers = [
   {
     name: 'Studio',
     price: '$2,500',
-    period: '/ month, billed annually',
+    period: '/month, billed annually',
     subtitle: 'Production organizations running recurring client, campaign, episodic, or game-development workflows.',
     features: ['20 production members', '15 active production repositories', 'Unlimited reviewers and guests', 'Everything in Production Team', 'API access', 'Audit history', 'Role-based team permissions', 'Multiple production workspaces', 'Standard production integrations', 'Guided onboarding', 'Quarterly workflow review'],
     cta: 'Scope a pilot',
@@ -197,7 +198,7 @@ const pricingTiers = [
     subtitle: 'Multi-team organizations standardizing AI production across business units, clients, productions, or regions.',
     features: ['Contracted production-member capacity', 'Contracted repository and workspace capacity', 'Everything in Studio', 'Multi-workspace governance', 'SSO/SAML', 'Procurement and security support', 'Contractual SLA', 'Named customer-success owner'],
     cta: 'Scope a pilot',
-  },
+  }
 ];
 
 const blurEnterTransition = 'opacity 1.25s cubic-bezier(0.16, 1, 0.3, 1), filter 1.25s cubic-bezier(0.16, 1, 0.3, 1)';
@@ -537,12 +538,12 @@ function ProblemSection() {
         </div> */}
         <div className="col-span-full space-y-34 lg:col-span-16">
           <h2 className="t-d2-sans max-w-[13.8em]">
-            Your team delivered. You just can’t prove it, find it, or do it again.
+            When a client asks for five more like this, can your team reproduce the approved asset?
           </h2>
-          <p className="t-p-lg-serif text-white">
-            AI production teams generate thousands of images and videos, and iterations daily. The final asset ships. The client approves it. Everyone moves on. 
-            <br /><br />
-            When a client returns and asks for five more like this, can the team that made it tell you how?
+          <p className="t-p-lg-serif max-w-[38em] text-white">
+            AI production teams generate thousands of images and videos, and iterations daily. The final asset ships. The client approves it. Everyone moves on, but your production history is left scattered, incomplete, or lost. 
+            <br/><br/>
+            Your team pays a hidden AI production tax on every project.
           </p>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
@@ -552,12 +553,12 @@ function ProblemSection() {
                 <span className="size-8 bg-white" />
                 <span className="t-m2">{card.label}</span>
               </div>
-              <h3 className="t-h3-sans mb-[0.1em]">{card.title}</h3>
+              <h3 className="t-h3-sans mb-[0.4em]">{card.title}</h3>
               <p className="t-p-sans text-white">{card.text}</p>
             </article>
           ))}
         </div>
-        <blockquote className="col-span-full border-l border-white/30 pl-18 t-p-lg-serif text-white lg:col-span-14">
+        <blockquote className="col-span-full border-l border-white/30 ml-24 pl-18 t-p-serif text-white lg:col-span-14">
           Tencent's video chief named this the main blocker to AI replacing long-form production: visual and continuity drift becomes obvious as productions scale.
           <cite className="mt-16 block t-m2 text-white !normal-case">Variety, 2026</cite>
         </blockquote>
@@ -574,11 +575,16 @@ function SolutionSection() {
           <h2 className="t-d2-sans mx-auto max-w-[13em] lowercase">
             The production repository for AI-native creative organizations
           </h2>
+
           <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
-            Portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it.
+            Portals preserves every version and creative decision behind your production, so your teams can build on previous work, deliver faster, and scale production without losing quality.
+            {/* Portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it. */}
           </p>
           <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
             Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.
+          </p>
+          <p className="t-p-lg-sans max-w-[30em] mx-auto text-white">
+            Built for AI creative agencies, studios, game teams, and brand teams producing high-volume AI media.
           </p>
           <div className="flex justify-center">
             <CTAButton href={"/use-cases"}>Explore use cases</CTAButton>
@@ -598,18 +604,18 @@ function ComparisonSection() {
         </div>
         <div className="col-span-full">
           <div className="hidden grid-cols-3 t-m2 text-white/80 lg:grid">
-            <div className="p-16" />
-            <div className="p-16 lowercase">without portals</div>
+            <div className="p-16 col-span-2" />
+            {/* <div className="p-16 lowercase">without portals</div> */}
             <div className="p-16 text-white lowercase">with portals</div>
           </div>
           {comparisonRows.map((row) => (
             <div key={row.metric} className="grid grid-cols-1 border-t border-white/20 lg:grid-cols-3 lowercase">
-              <div className="p-16 t-p-sans text-white lg:bg-transparent">{row.metric}</div>
-              <div className="border-white/20 p-16 t-p-sans text-white/80 lg:border-t-0 lg:border-l">
+              <div className="p-16 t-p-sans col-span-2 text-white w-[26ch] lg:bg-transparent">{row.metric}</div>
+              {/* <div className="border-white/20 p-16 t-p-sans text-white/80 lg:border-t-0 lg:border-l">
                 <span className="mb-8 block t-m2 lg:hidden !lowercase">without portals</span>
                 {row.without}
-              </div>
-              <div className="border-white/20 p-16 t-p-sans text-white lg:border-t-0 lg:border-l">
+              </div> */}
+              <div className="border-white/20 p-16 col-span-1 t-p-sans text-white lg:border-t-0 lg:border-l">
                 <span className="mb-8 block t-m2 text-white/80 lg:hidden !lowercase">with portals</span>
                 {row.withPortals}
               </div>
@@ -626,7 +632,7 @@ function CapabilitiesSection() {
     <section data-header-theme="light" id="docs">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-9">
-          <h2 className="t-d2-sans">Built for how AI production actually works.</h2>
+          <h2 className="t-d2-sans">Built for AI production workflows.</h2>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-2">
           {capabilities.map((capability) => (
@@ -675,7 +681,7 @@ function AudienceSection() {
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-14">
-          <h2 className="t-d2-sans max-w-[13.8em]">For organizations where AI output becomes intellectual property.</h2>
+          <h2 className="t-d2-sans max-w-[13.8em]">For organizations producing high-volume media with AI.</h2>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-2">
           {audiences.map((audience) => (
@@ -703,6 +709,28 @@ function PricingSection() {
         <div className="col-span-full lg:mx-auto">
           <h2 className="t-d2-sans max-w-[12.58em] lg:text-center">A clear path from adoption to enterprise scale.</h2>
         </div>
+        <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] mx-auto rounded">
+          {[pilotTier].map((tier) => (
+            <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
+              <h3 className="t-h3-sans">{tier.name}</h3>
+              <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
+                <span className="t-d2-sans">{tier.price}</span>
+                <span className="t-m2 !lowercase">{tier.period}</span>
+              </div>
+              <p className="t-p-sans">{tier.subtitle}</p>
+              <ul className="my-24 flex flex-1 flex-col gap-y-8">
+                {tier.features.map((feature) => (
+                  <li key={feature} className="flex gap-x-8 t-p-sans text-white">
+                    <span className="text-white">+</span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <CTAButton href={scopeAPilotMailto}>{tier.cta}</CTAButton>
+            </article>
+          ))}
+        </div>
+
         <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
           {pricingTiers.map((tier) => (
             <article key={tier.name} className="flex min-h-194 flex-col p-24">
@@ -768,24 +796,12 @@ export function VCS() {
         </div>
       </section>
 
-      <section data-header-theme="light" data-slice-type="lead" data-slice-variation="default">
-        <div className="ui-grid items-center text-white py-fluid-[76,106] lg:min-h-screen">
-          <div className="space-y-[0.95em] col-span-full lg:col-span-20 lg:col-start-3">
-            <p className="t-d2-sans">
-              Portals preserves every version and creative decision behind your best assets, so your teams can {' '}
-              <strong className="t-d2-serif">build on previous work, deliver faster, and scale production </strong>
-              without losing quality.
-            </p>
-          </div>
-        </div>
-      </section>
-
       <ProblemSection />
       <SolutionSection />
       <OverviewSection />
       <ComparisonSection />
-      <CapabilitiesSection />
       <WorkflowSection />
+      <CapabilitiesSection />
       <AudienceSection />
       <PricingSection />
 

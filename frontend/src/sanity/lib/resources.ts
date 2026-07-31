@@ -27,14 +27,7 @@ export async function getPublishedResourceForPdf(
 }
 
 export async function getResourceSlugs(): Promise<Array<{slug: string}>> {
-  return sanityClient.fetch<Array<{slug: string}>>(
+  return sanityDocumentClient.fetch<Array<{slug: string}>>(
     RESOURCE_SLUGS_QUERY,
-    {},
-    {
-      next: {
-        revalidate: 3600,
-        tags: ['resources'],
-      },
-    },
   )
 }
