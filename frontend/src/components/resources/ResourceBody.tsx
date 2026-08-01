@@ -1,6 +1,7 @@
 import {PortableText, type PortableTextComponents} from '@portabletext/react'
 import Link from 'next/link'
 import type {PortableTextBlock} from '@/types/resource'
+import {resolvePackageSpecValue} from '@/lib/package-specifications'
 
 const components: PortableTextComponents = {
   block: {
@@ -70,6 +71,18 @@ const components: PortableTextComponents = {
         {children}
       </Link>
     ),
+    packageSpecValue: ({children, value}) => {
+      const resolved = resolvePackageSpecValue(
+        value?.packageSpecification,
+        value?.valuePath,
+      )
+
+      return (
+        <span className="font-medium text-white">
+          {resolved || children}
+        </span>
+      )
+    },
   },
 
   types: {
@@ -176,6 +189,36 @@ const components: PortableTextComponents = {
         </div>
       </section>
     ),
+
+    packageSpecReferenceBlock: ({value}) => {
+      const resolved = resolvePackageSpecValue(
+        value.packageSpecification,
+        value.valuePath,
+      )
+
+      return (
+        <aside className="my-8 border border-white/15 bg-white/[0.04] p-5">
+          {value.title ? (
+            <h3 className="mb-3 text-lg font-medium text-white">
+              {value.title}
+            </h3>
+          ) : null}
+          <dl>
+            <dt className="text-sm uppercase text-white/50">
+              {value.label || value.packageSpecification?.name}
+            </dt>
+            <dd className="mt-2 text-2xl text-white">
+              {resolved || value.packageSpecification?.name}
+            </dd>
+          </dl>
+          {value.note ? (
+            <p className="mt-3 text-sm leading-[1.5] text-white/55">
+              {value.note}
+            </p>
+          ) : null}
+        </aside>
+      )
+    },
 
     dataTableBlock: ({value}) => (
       <figure className="my-8">

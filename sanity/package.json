@@ -9,6 +9,8 @@
     "deploy": "sanity deploy",
     "deploy-graphql": "sanity graphql deploy",
     "dev": "sanity dev",
+    "attach:package-specifications": "sanity exec scripts/attach-package-specifications-to-resources.mjs --with-user-token",
+    "publish:package-specifications": "sanity exec scripts/publish-package-specifications.mjs --with-user-token",
     "start": "sanity start"
   },
   "keywords": [

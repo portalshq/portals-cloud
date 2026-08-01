@@ -8,6 +8,7 @@
     "build": "next build",
     "serve": "npx serve@latest out",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "audit:package-specifications": "tsx scripts/audit-package-specifications.ts",
     "generate-pdfs": "export $(grep -v '^#' .env.local | xargs) && tsx scripts/generate-pdfs.ts"
   },
   "devDependencies": {

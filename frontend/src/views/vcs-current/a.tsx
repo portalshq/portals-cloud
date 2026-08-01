@@ -1,5 +1,13 @@
+'use client'
+
 import { CTAButton } from '@/components/CTAButton';
+import {
+  PACKAGE_SPEC_SLUGS,
+  findPackageSpecification,
+  packagePricingFeatures,
+} from '@/lib/package-specifications';
 import { formatNumber, scopeAPilotMailto } from '@/lib/utils';
+import type {PackageSpecification} from '@/types/resource';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 
 type OverviewItem = {
@@ -165,41 +173,27 @@ const audiences = [
   },
 ];
 
-const pilotTier = {
-    name: 'Production Pilot',
-    price: '$5,000',
-    period: 'once',
-    subtitle: 'For qualified teams proving Portals against one active production workflow. Credited toward annual deployment if converted within the agreed window.',
-    features: ['1 production team', '1 active workflow', 'Defined onboarding', 'Agreed success criteria', 'Final deployment recommendation', 'Annual deployment terms agreed before the pilot begins'],
-    cta: 'Scope a pilot',
-  };
+type PricingTier = {
+  name: string;
+  price: string;
+  period: string;
+  subtitle?: string;
+  features: string[];
+  cta: string;
+  micro?: string;
+};
 
-const pricingTiers = [
-  {
-    name: 'Production Team',
-    price: '$750',
-    period: '/month, billed annually',
-    subtitle: 'Small teams establishing a trusted system of record for AI production.',
-    features: ['5 production members', '3 active production repositories', 'Unlimited reviewers and guests', 'Version history and rollback', 'Provenance tracking', 'Basic sharing', 'Standard integrations', 'Standard support'],
-    cta: 'Scope a pilot',
-  },
-  {
-    name: 'Studio',
-    price: '$2,500',
-    period: '/month, billed annually',
-    subtitle: 'Production organizations running recurring client, campaign, episodic, or game-development workflows.',
-    features: ['20 production members', '15 active production repositories', 'Unlimited reviewers and guests', 'Everything in Production Team', 'API access', 'Audit history', 'Role-based team permissions', 'Multiple production workspaces', 'Standard production integrations', 'Guided onboarding', 'Quarterly workflow review'],
-    cta: 'Scope a pilot',
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    subtitle: 'Multi-team organizations standardizing AI production across business units, clients, productions, or regions.',
-    features: ['Contracted production-member capacity', 'Contracted repository and workspace capacity', 'Everything in Studio', 'Multi-workspace governance', 'SSO/SAML', 'Procurement and security support', 'Contractual SLA', 'Named customer-success owner'],
-    cta: 'Scope a pilot',
-  }
-];
+function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
+  return {
+    name: specification.name,
+    price: specification.price?.displayValue || '',
+    period: specification.price?.periodLabel || '',
+    subtitle: specification.subtitle,
+    features: packagePricingFeatures(specification),
+    cta: specification.ctaLabel || 'Scope a pilot',
+    micro: specification.microcopy,
+  };
+}
 
 const blurEnterTransition = 'opacity 1.25s cubic-bezier(0.16, 1, 0.3, 1), filter 1.25s cubic-bezier(0.16, 1, 0.3, 1)';
 const blurExitTransition = 'opacity 0.4s cubic-bezier(0.55, 0.06, 0.68, 0.19), filter 0.4s cubic-bezier(0.55, 0.06, 0.68, 0.19)';
@@ -699,7 +693,25 @@ function AudienceSection() {
   );
 }
 
-function PricingSection() {
+function PricingSection({
+  packageSpecifications,
+}: {
+  packageSpecifications: PackageSpecification[];
+}) {
+  const pilotSpec = findPackageSpecification(
+    packageSpecifications,
+    PACKAGE_SPEC_SLUGS.paidPilot,
+  );
+  const pilotTier = pilotSpec ? pricingTierFromSpec(pilotSpec) : undefined;
+  const pricingTiers = [
+    PACKAGE_SPEC_SLUGS.productionTeam,
+    PACKAGE_SPEC_SLUGS.studio,
+    PACKAGE_SPEC_SLUGS.enterprise,
+  ]
+    .map((slug) => findPackageSpecification(packageSpecifications, slug))
+    .filter((specification): specification is PackageSpecification => Boolean(specification))
+    .map(pricingTierFromSpec);
+
   return (
     <section data-header-theme="light" id="pricing">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
@@ -710,7 +722,7 @@ function PricingSection() {
           <h2 className="t-d2-sans max-w-[12.58em] lg:text-center">A clear path from adoption to enterprise scale.</h2>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] mx-auto rounded">
-          {[pilotTier].map((tier) => (
+          {pilotTier ? [pilotTier].map((tier) => (
             <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
               <h3 className="t-h3-sans">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
@@ -727,13 +739,14 @@ function PricingSection() {
                 ))}
               </ul>
               <CTAButton href={scopeAPilotMailto}>{tier.cta}</CTAButton>
+              {tier.micro && <p className="mt-24 t-p-sans text-white">{tier.micro}</p>}
             </article>
-          ))}
+          )) : null}
         </div>
 
         <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
           {pricingTiers.map((tier) => (
-            <article key={tier.name} className="flex min-h-194 flex-col p-24">
+            <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
               <h3 className="t-h3-sans">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-d2-sans">{tier.price}</span>
@@ -749,6 +762,7 @@ function PricingSection() {
                 ))}
               </ul>
               <CTAButton href={scopeAPilotMailto}>{tier.cta}</CTAButton>
+              {tier.micro && <p className="relative lg:absolute -bottom-54 mt-24 t-p-sans text-white">{tier.micro}</p>}
             </article>
           ))}
         </div>
@@ -757,7 +771,11 @@ function PricingSection() {
   );
 }
 
-export function VCS() {
+export function VCS({
+  packageSpecifications,
+}: {
+  packageSpecifications: PackageSpecification[];
+}) {
   return (
     <main className="relative z-(--z-main)">
       <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollFrom" data-webgl-position="0" data-webgl-easing="easeInOut" />
@@ -803,7 +821,7 @@ export function VCS() {
       <WorkflowSection />
       <CapabilitiesSection />
       <AudienceSection />
-      <PricingSection />
+      <PricingSection packageSpecifications={packageSpecifications} />
 
       <section data-header-theme="light">
         <div className="relative flex min-h-screen items-center text-white">

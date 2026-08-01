@@ -273,6 +273,55 @@ export const metricGridBlock = defineType({
   ],
 })
 
+export const packageSpecReferenceBlock = defineType({
+  name: 'packageSpecReferenceBlock',
+  title: 'Package specification reference',
+  type: 'object',
+  fields: [
+    defineField({
+      name: 'title',
+      title: 'Title',
+      type: 'string',
+    }),
+    defineField({
+      name: 'packageSpecification',
+      title: 'Package specification',
+      type: 'reference',
+      to: [{type: 'packageSpecification'}],
+      validation: (rule) => rule.required(),
+    }),
+    defineField({
+      name: 'valuePath',
+      title: 'Value path',
+      type: 'string',
+      description:
+        'Optional. Examples: price.displayValue, limits.participants.displayValue, milestones.firstValue.displayValue.',
+    }),
+    defineField({
+      name: 'label',
+      title: 'Label override',
+      type: 'string',
+    }),
+    defineField({
+      name: 'note',
+      title: 'Note',
+      type: 'string',
+    }),
+  ],
+  preview: {
+    select: {
+      title: 'title',
+      subtitle: 'packageSpecification.name',
+    },
+    prepare({title, subtitle}) {
+      return {
+        title: title || 'Package specification reference',
+        subtitle,
+      }
+    },
+  },
+})
+
 export const dataTableBlock = defineType({
   name: 'dataTableBlock',
   title: 'Data table',
@@ -419,6 +468,28 @@ export const resourceBody = defineType({
         ],
         annotations: [
           {
+            name: 'packageSpecValue',
+            title: 'Package specification value',
+            type: 'object',
+            fields: [
+              defineField({
+                name: 'packageSpecification',
+                title: 'Package specification',
+                type: 'reference',
+                to: [{type: 'packageSpecification'}],
+                validation: (rule) => rule.required(),
+              }),
+              defineField({
+                name: 'valuePath',
+                title: 'Value path',
+                type: 'string',
+                description:
+                  'Examples: price.displayValue, limits.participants.displayValue.',
+                validation: (rule) => rule.required(),
+              }),
+            ],
+          },
+          {
             name: 'link',
             title: 'External link',
             type: 'object',
@@ -456,6 +527,7 @@ export const resourceBody = defineType({
     defineArrayMember({type: 'checklistBlock'}),
     defineArrayMember({type: 'quoteBlock'}),
     defineArrayMember({type: 'metricGridBlock'}),
+    defineArrayMember({type: 'packageSpecReferenceBlock'}),
     defineArrayMember({type: 'dataTableBlock'}),
     defineArrayMember({type: 'figureBlock'}),
     defineArrayMember({type: 'dividerBlock'}),
@@ -1050,6 +1122,19 @@ export const resourceDocument = defineType({
       of: [defineArrayMember({type: 'documentSection'})],
     }),
     defineField({
+      name: 'packageSpecifications',
+      title: 'Referenced package specifications',
+      type: 'array',
+      description:
+        'Standalone package specification documents referenced by this resource. Do not duplicate package values in the resource.',
+      of: [
+        defineArrayMember({
+          type: 'reference',
+          to: [{type: 'packageSpecification'}],
+        }),
+      ],
+    }),
+    defineField({
       name: 'finalCta',
       title: 'Final CTA',
       type: 'finalCtaBlock',
@@ -1093,6 +1178,7 @@ export const resourceTypes = [
   checklistBlock,
   quoteBlock,
   metricGridBlock,
+  packageSpecReferenceBlock,
   dataTableBlock,
   figureBlock,
   dividerBlock,

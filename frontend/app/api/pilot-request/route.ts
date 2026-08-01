@@ -1,5 +1,11 @@
 import {NextResponse} from 'next/server'
 import {z} from 'zod'
+import {getPublishedPackageSpecification} from '@/sanity/lib/package-specifications'
+import {
+  PACKAGE_SPEC_SLUGS,
+  packageMilestoneLabel,
+  packagePriceLabel,
+} from '@/lib/package-specifications'
 
 export const runtime = 'nodejs'
 
@@ -230,6 +236,25 @@ export async function POST(request: Request) {
       },
     )
 
+    const paidPilot = await getPublishedPackageSpecification(
+      PACKAGE_SPEC_SLUGS.paidPilot,
+    )
+    if (!paidPilot) {
+      throw new Error('Missing paid pilot package specification.')
+    }
+
+    const pilotPrice = packagePriceLabel(paidPilot)
+    const pilotPeriod = packageMilestoneLabel(paidPilot, 'pilot period')
+    const pilotDealValue = paidPilot.price?.amount
+    if (typeof pilotDealValue !== 'number') {
+      throw new Error('Missing paid pilot package price amount.')
+    }
+    const pilotSummary = [
+      pilotPeriod ? `the proposed pilot is ${pilotPeriod}` : 'the proposed pilot has a defined period',
+      pilotPrice ? `and ${pilotPrice} ${paidPilot?.price?.billingNote || 'upfront'}` : 'with written commercial terms',
+      'scope, annual deployment pricing, credit terms, success criteria, and the final decision date are agreed before kickoff.',
+    ].join(' ')
+
     const deal = await attioRequest<AttioRecordResponse>(
       '/v2/objects/deals/records',
       'POST',
@@ -238,7 +263,7 @@ export async function POST(request: Request) {
           values: {
             name: `paid pilot - ${data.company}`,
             stage: process.env.ATTIO_PILOT_STAGE || 'Pilot Requested',
-            value: 5000,
+            value: pilotDealValue,
             associated_people: [
               {
                 target_object: 'people',
@@ -265,7 +290,7 @@ export async function POST(request: Request) {
       '',
       `we received your request for ${data.company} and will review the workflow, integrations, people, timing, and desired outcome before confirming fit.`,
       '',
-      `the proposed pilot is 21 days and $5,000 upfront. scope, annual deployment pricing, credit terms, success criteria, and the final decision date are agreed before kickoff.`,
+      pilotSummary,
       ...(calendarUrl
         ? ['', `choose a time to discuss the pilot: ${calendarUrl}`]
         : ['', `we'll follow up with next steps.`]),

@@ -1,5 +1,25 @@
 import {defineQuery} from 'next-sanity'
 
+export const PACKAGE_SPECIFICATION_FIELDS = /* groq */ `
+  _id,
+  _updatedAt,
+  status,
+  packageKind,
+  name,
+  shortName,
+  "slug": slug.current,
+  sortOrder,
+  subtitle,
+  price,
+  limits,
+  features,
+  milestones,
+  serviceItems,
+  ctaLabel,
+  microcopy,
+  legalNote
+`
+
 export const RESOURCE_BY_SLUG_QUERY = defineQuery(`
   *[
     _type == "resourceDocument"
@@ -46,6 +66,10 @@ export const RESOURCE_BY_SLUG_QUERY = defineQuery(`
 
     pdf,
 
+    packageSpecifications[]-> {
+      ${PACKAGE_SPECIFICATION_FIELDS}
+    },
+
     sections[] {
       _key,
       sectionType,
@@ -65,12 +89,25 @@ export const RESOURCE_BY_SLUG_QUERY = defineQuery(`
           ...,
           _type == "internalLink" => {
             "slug": reference->slug.current
+          },
+          _type == "packageSpecValue" => {
+            valuePath,
+            packageSpecification-> {
+              ${PACKAGE_SPECIFICATION_FIELDS}
+            }
           }
         },
 
         _type == "figureBlock" => {
           ...,
           "imageUrl": image.asset->url
+        },
+
+        _type == "packageSpecReferenceBlock" => {
+          ...,
+          packageSpecification-> {
+            ${PACKAGE_SPECIFICATION_FIELDS}
+          }
         }
       }
     },
@@ -83,6 +120,26 @@ export const RESOURCE_BY_SLUG_QUERY = defineQuery(`
       "slug": slug.current,
       abstract
     }
+  }
+`)
+
+export const PACKAGE_SPECIFICATIONS_QUERY = defineQuery(`
+  *[
+    _type == "packageSpecification"
+    && status == "published"
+    && defined(slug.current)
+  ] | order(sortOrder asc) {
+    ${PACKAGE_SPECIFICATION_FIELDS}
+  }
+`)
+
+export const PACKAGE_SPECIFICATION_BY_SLUG_QUERY = defineQuery(`
+  *[
+    _type == "packageSpecification"
+    && slug.current == $slug
+    && status == "published"
+  ][0] {
+    ${PACKAGE_SPECIFICATION_FIELDS}
   }
 `)
 

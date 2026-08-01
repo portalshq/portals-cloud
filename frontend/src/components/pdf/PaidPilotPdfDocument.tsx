@@ -9,9 +9,17 @@ import {
 } from '@react-pdf/renderer'
 import type {
   DocumentSection,
+  PackageSpecification,
   PortableTextBlock,
   ResourceDocument,
 } from '@/types/resource'
+import {
+  PACKAGE_SPEC_SLUGS,
+  findPackageSpecification,
+  packageLimitLabel,
+  packageMilestoneLabel,
+  packagePriceLabel,
+} from '@/lib/package-specifications'
 
 const FONT_ROOT = new URL('../../../public/fonts/', import.meta.url)
 
@@ -301,6 +309,13 @@ function PageHeader({
   )
 }
 
+function paidPilotSpec(document: ResourceDocument): PackageSpecification | undefined {
+  return findPackageSpecification(
+    document.packageSpecifications,
+    PACKAGE_SPEC_SLUGS.paidPilot,
+  )
+}
+
 export function PaidPilotPdfDocument({
   document,
 }: {
@@ -321,6 +336,17 @@ export function PaidPilotPdfDocument({
   )
   const finalReview = sectionByAnchor(document, 'final-review')
   const intendedOutcome = sectionByAnchor(document, 'intended-outcome')
+  const specification = paidPilotSpec(document)
+  const metrics = [
+    [packageMilestoneLabel(specification, 'pilot period'), 'pilot period'],
+    [packagePriceLabel(specification), specification?.price?.billingNote || 'price'],
+    [packageMilestoneLabel(specification, 'first value'), 'first value'],
+    [packageLimitLabel(specification, 'participants'), 'participants'],
+  ].filter(([value]) => Boolean(value))
+  const commercialValue = [
+    packagePriceLabel(specification),
+    specification?.price?.billingNote,
+  ].filter(Boolean).join(' ')
 
   return (
     <Document
@@ -342,12 +368,7 @@ export function PaidPilotPdfDocument({
         <Text style={styles.abstract}>{document.abstract}</Text>
 
         <View style={styles.metrics}>
-          {[
-            ['21 days', 'pilot period'],
-            ['$5,000', 'upfront'],
-            ['48 hours', 'first value'],
-            ['10 users', 'up to'],
-          ].map(([value, label]) => (
+          {metrics.map(([value, label]) => (
             <View key={label} style={styles.metric}>
               <Text style={styles.metricValue}>{value}</Text>
               <Text style={styles.metricLabel}>{label}</Text>
@@ -371,7 +392,7 @@ export function PaidPilotPdfDocument({
         <PageHeader document={document} pageNumber={2} />
 
         <View style={styles.commercial}>
-          <Text style={styles.commercialValue}>$5,000 upfront</Text>
+          <Text style={styles.commercialValue}>{commercialValue}</Text>
           <Text style={styles.sectionTitle}>{commercialTerms.title}</Text>
           <Text style={styles.sectionSummary}>{commercialTerms.summary}</Text>
           <SectionContent section={commercialTerms} />

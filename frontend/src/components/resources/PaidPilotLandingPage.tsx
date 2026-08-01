@@ -11,9 +11,18 @@ import {CTAButton} from '@/components/CTAButton'
 import {resolvePdfDownloadUrl} from '@/lib/resource-pdf'
 import type {
   DocumentSection,
+  PackageSpecification,
   PortableTextBlock,
   ResourceDocument,
 } from '@/types/resource'
+import {
+  PACKAGE_SPEC_SLUGS,
+  findPackageSpecification,
+  packageLimitLabel,
+  packageMilestoneLabel,
+  packagePeriodLabel,
+  packagePriceLabel,
+} from '@/lib/package-specifications'
 
 type SubmitState =
   | {status: 'idle'}
@@ -25,38 +34,57 @@ type SubmitState =
     }
   | {status: 'error'; message: string}
 
-const faqs = [
-  {
-    question: 'how is this different from a free trial?',
-    answer:
-      'this is a focused commercial evaluation using real production work, agreed success criteria, named participants, defined integrations, and a final decision date. it is built to prove an operational outcome, not encourage indefinite product exploration.',
-  },
-  {
-    question: 'what should happen in the first 48 hours?',
-    answer:
-      'one fragmented project should become a complete, searchable production record. your team should be able to find the approved asset, understand how it was produced, and see what is required to reproduce or extend it.',
-  },
-  {
-    question: 'what does the $5,000 cover?',
-    answer:
-      'the fee covers workflow alignment, pilot repository configuration, onboarding for up to 10 users, agreed integration setup where applicable, active and historical project structure, support, and the final evaluation.',
-  },
-  {
-    question: 'which projects should we choose?',
-    answer:
-      'choose one active project with current production behavior and one historical project whose decisions, prompts, versions, or source context are valuable enough to recover and reuse.',
-  },
-  {
-    question: 'does the pilot fee apply to an annual agreement?',
-    answer:
-      'yes, when the agreed success criteria and written conversion terms are met. the annual deployment scope, price, credit terms, and decision window are defined before kickoff.',
-  },
-  {
-    question: 'what happens after 21 days?',
-    answer:
-      'the final review produces a clear decision: deploy portals, extend the pilot under a defined scope, or conclude that portals is not the right fit at this time.',
-  },
-]
+function paidPilotSpec(document: ResourceDocument): PackageSpecification | undefined {
+  return findPackageSpecification(
+    document.packageSpecifications,
+    PACKAGE_SPEC_SLUGS.paidPilot,
+  )
+}
+
+function paidPilotFaqs(specification: PackageSpecification | undefined) {
+  const firstValue = packageMilestoneLabel(specification, 'first value')
+  const period = packageMilestoneLabel(specification, 'pilot period')
+  const price = packagePriceLabel(specification)
+  const participants = packageLimitLabel(specification, 'participants')
+
+  return [
+    {
+      question: 'how is this different from a free trial?',
+      answer:
+        'this is a focused commercial evaluation using real production work, agreed success criteria, named participants, and a final decision date. it is built to prove an operational outcome, not encourage indefinite product exploration.',
+    },
+    {
+      question: firstValue
+        ? `what should happen in the first ${firstValue}?`
+        : 'what should happen at first value?',
+      answer:
+        'one active project and one historical project become structured, searchable production records that preserve the available history and reveal what is missing. your team should be able to find the approved asset, understand how it was produced, and see what is required to reproduce or extend it.',
+    },
+    {
+      question: price ? `what does the ${price} cover?` : 'what does the pilot fee cover?',
+      answer: [
+        'the fee covers workflow alignment, pilot repository configuration',
+        participants ? `onboarding for ${participants} participants` : 'participant onboarding',
+        'agreed integration setup where applicable, active and historical project structure, support, and the final evaluation.',
+      ].join(', '),
+    },
+    {
+      question: 'which projects should we choose?',
+      answer:
+        'choose one active project with current production behavior and one historical project whose decisions, prompts, versions, or source context are valuable enough to recover and reuse.',
+    },
+    {
+      question: 'does the pilot fee apply to an annual agreement?',
+      answer:
+        'yes, when the agreed success criteria and written conversion terms are met. the annual deployment scope, price, credit terms, and decision window are defined before kickoff.',
+    },
+    {
+      question: period ? `what happens after ${period}?` : 'what happens after the pilot?',
+      answer:
+        'the final review produces a clear decision: deploy portals, extend the pilot under a defined scope, or conclude that portals is not the right fit at this time.',
+    },
+  ]
+}
 
 function sectionByAnchor(
   document: ResourceDocument,
@@ -119,6 +147,13 @@ function Header() {
 function Hero({document}: {document: ResourceDocument}) {
   const pdfUrl = resolvePdfDownloadUrl(document)
   const landing = document.landingPage ?? {}
+  const specification = paidPilotSpec(document)
+  const metrics = [
+    [packageMilestoneLabel(specification, 'pilot period'), 'pilot period'],
+    [packagePriceLabel(specification), specification?.price?.billingNote || 'price'],
+    [packageMilestoneLabel(specification, 'first value'), 'first value'],
+    [packageLimitLabel(specification, 'participants'), 'participants'],
+  ].filter(([value]) => Boolean(value))
 
   return (
     <section
@@ -153,12 +188,7 @@ function Hero({document}: {document: ResourceDocument}) {
         </div>
 
         <dl className="col-span-full grid grid-cols-2 gap-x-20 gap-y-28 lg:col-span-6 lg:col-start-19">
-          {[
-            ['21 days', 'pilot period'],
-            ['$5,000', 'upfront'],
-            ['48 hours', 'first value'],
-            ['10 users', 'up to'],
-          ].map(([value, label]) => (
+          {metrics.map(([value, label]) => (
             <div key={label}>
               <dd className="t-h1-sans text-white">{value}</dd>
               <dt className="mt-6 t-p-sm-sans text-white">{label}</dt>
@@ -204,6 +234,8 @@ function Objective({document}: {document: ResourceDocument}) {
 function ScopeAndMilestone({document}: {document: ResourceDocument}) {
   const scope = sectionByAnchor(document, 'scope')
   const milestone = sectionByAnchor(document, 'first-value')
+  const specification = paidPilotSpec(document)
+  const firstValue = packageMilestoneLabel(specification, 'first value')
 
   if (!scope || !milestone) return null
 
@@ -234,7 +266,7 @@ function ScopeAndMilestone({document}: {document: ResourceDocument}) {
         </ul>
 
         <div className="col-span-full mt-24 lg:col-span-8">
-          <p className="t-d2-sans text-white">48 hours</p>
+          <p className="t-d2-sans text-white">{firstValue}</p>
           <p className="mt-10 t-p-sans text-white">first-value milestone</p>
         </div>
         <div className="col-span-full lg:col-span-12 lg:col-start-13">
@@ -283,13 +315,18 @@ function SuccessCriteria({document}: {document: ResourceDocument}) {
 
 function CommercialTerms({document}: {document: ResourceDocument}) {
   const section = sectionByAnchor(document, 'commercial-terms')
+  const specification = paidPilotSpec(document)
   if (!section) return null
+  const commercialValue = [
+    packagePriceLabel(specification),
+    specification?.price?.billingNote,
+  ].filter(Boolean).join(' ')
 
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-10">
-          <p className="t-d2-sans text-white">$5,000 upfront</p>
+          <p className="t-d2-sans text-white">{commercialValue}</p>
           <h2 className="mt-12 max-w-[8em] t-d2-sans">commercial terms before kickoff.</h2>
         </div>
         <div className="col-span-full lg:col-span-10 lg:col-start-14">
@@ -372,7 +409,7 @@ function Field({
   )
 }
 
-function PilotForm() {
+function PilotForm({specSummary}: {specSummary: string}) {
   const [submitState, setSubmitState] = useState<SubmitState>({status: 'idle'})
   const submissionId = useMemo(() => crypto.randomUUID(), [])
 
@@ -420,18 +457,17 @@ function PilotForm() {
   return (
     <section id="scope" data-header-theme="light" className="scroll-mt-20">
       <div className="ui-grid gap-y-40 py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-9">
-          <p className="t-p-sans text-white">scope the pilot</p>
-          <h2 className="mt-20 max-w-[9em] t-d2-sans">
-            put one real workflow under test.
+        <div className="col-span-full lg:col-span-10">
+          {/* <p className="t-p-sans text-white">scope the pilot</p> */}
+          <h2 className="mt-20 t-d2-sans">
+            put one production workflow under test
           </h2>
           <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
             tell us which workflow matters, who owns it, what tools it touches,
             and what a commercially meaningful result looks like.
           </p>
-          <p className="mt-24 max-w-[36em] t-p-sans text-white">
-            submitting this form is a qualified buying signal. the commercial
-            conversion point is paid pilot acceptance.
+          <p className="mt-24 max-w-[36em] t-p-lg-sans text-white">
+            We review each request for workflow fit, implementation requirements, and annual deployment potential. Qualified teams receive a proposed pilot scope and commercial terms.
           </p>
         </div>
 
@@ -626,9 +662,9 @@ function PilotForm() {
                     strokeWidth={1.8}
                   />
                 </CTAButton>
-                <p className="t-p-sm-sans text-white">
-                  $5,000 upfront / 21 days
-                </p>
+                {specSummary ? (
+                  <p className="t-p-sm-sans text-white">{specSummary}</p>
+                ) : null}
               </div>
 
               {submitState.status === 'error' ? (
@@ -647,13 +683,14 @@ function PilotForm() {
   )
 }
 
-function PilotFaq() {
+function PilotFaq({document}: {document: ResourceDocument}) {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
+  const faqs = paidPilotFaqs(paidPilotSpec(document))
 
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full mx-auto max-w-[90%] space-y-36 lg:max-w-[100ch]">
+        <div className="col-span-full mx-auto w-full max-w-[700px] space-y-36">
           <h2 className="max-w-[12em] t-d2-sans">
             frequently asked questions
           </h2>
@@ -737,6 +774,15 @@ export function PaidPilotLandingPage({
 }: {
   document: ResourceDocument
 }) {
+  const specification = paidPilotSpec(document)
+  const formSpecSummary = [
+    [
+      packagePriceLabel(specification),
+      specification?.price?.billingNote,
+    ].filter(Boolean).join(' '),
+    packageMilestoneLabel(specification, 'pilot period'),
+  ].filter(Boolean).join(' / ')
+
   return (
     <main className="relative z-(--z-main) min-h-screen overflow-hidden lowercase text-white">
       <div
@@ -760,8 +806,8 @@ export function PaidPilotLandingPage({
         <SuccessCriteria document={document} />
         <CommercialTerms document={document} />
         <Responsibilities document={document} />
-        <PilotForm />
-        <PilotFaq />
+        <PilotForm specSummary={formSpecSummary} />
+        <PilotFaq document={document} />
         <FinalDecision document={document} />
       </div>
     </main>

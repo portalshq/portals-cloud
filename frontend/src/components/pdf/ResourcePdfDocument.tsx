@@ -16,6 +16,7 @@ import type {
   PortableTextBlock,
   ResourceDocument,
 } from '@/types/resource'
+import {resolvePackageSpecValue} from '@/lib/package-specifications'
 
 const HEADING_SIZE = 22
 const NORMAL_SIZE = 10.5
@@ -344,6 +345,14 @@ const styles = StyleSheet.create({
     fontSize: NORMAL_SIZE,
     color: '#666666',
   },
+  packageReference: {
+    marginTop: 12,
+    marginBottom: 14,
+    padding: 12,
+    borderWidth: 0.75,
+    borderColor: '#CFCFCF',
+    backgroundColor: '#F7F7F7',
+  },
   table: {
     marginTop: 12,
     marginBottom: 14,
@@ -431,6 +440,22 @@ function renderSpan(
       >
         {span.text}
       </Link>
+    )
+  }
+
+  if (annotation?._type === 'packageSpecValue') {
+    const resolved = resolvePackageSpecValue(
+      annotation.packageSpecification,
+      annotation.valuePath,
+    )
+
+    return (
+      <Text
+        key={span._key ?? index}
+        style={[styles.bold, ...textStyles]}
+      >
+        {resolved || span.text}
+      </Text>
     )
   }
 
@@ -601,6 +626,30 @@ function PdfPortableText({value}: {value: PortableTextBlock[]}) {
                 ))}
               </View>
             )
+
+          case 'packageSpecReferenceBlock': {
+            const resolved = resolvePackageSpecValue(
+              block.packageSpecification,
+              block.valuePath,
+            )
+
+            return (
+              <View key={block._key} style={styles.packageReference} wrap={false}>
+                {block.title ? (
+                  <Text style={styles.checklistTitle}>{block.title}</Text>
+                ) : null}
+                <Text style={styles.metricLabel}>
+                  {block.label || block.packageSpecification?.name}
+                </Text>
+                <Text style={styles.metricValue}>
+                  {resolved || block.packageSpecification?.name}
+                </Text>
+                {block.note ? (
+                  <Text style={styles.metricNote}>{block.note}</Text>
+                ) : null}
+              </View>
+            )
+          }
 
           case 'dataTableBlock':
             return (

@@ -49,7 +49,6 @@ function FlowingSecurityBackground() {
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[rgba(1,5,40,0.62)]"
       aria-hidden="true"
     >
-      <div className="security-flow-gradient absolute -inset-[18%] opacity-85" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(91,196,186,0.18),transparent_34%),linear-gradient(120deg,rgba(1,5,40,0.3)_0%,rgba(1,5,40,0.82)_48%,rgba(6,11,54,0.54)_100%)]" />
     </div>
   )
@@ -385,7 +384,7 @@ function SecurityFAQ() {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full mx-auto max-w-[90%] space-y-36 lg:max-w-[100ch]">
+        <div className="col-span-full mx-auto w-full max-w-[700px] space-y-36">
           <h2 className="t-d2-sans max-w-[12em]">
             frequently asked questions
           </h2>
@@ -428,22 +427,9 @@ export function SecurityArchitectureLandingPage({
 }) {
   return (
     <main className="relative z-(--z-main) min-h-screen overflow-hidden text-white lowercase">
-      <div
-        className="pointer-events-none h-px w-full"
-        aria-hidden="true"
-        data-webgl-marker="scrollFrom"
-        data-webgl-position="0"
-        data-webgl-easing="easeInOut"
-      />
       <FlowingSecurityBackground />
       <div className="relative z-10">
         <Hero document={document} />
-        <div
-          className="pointer-events-none h-px w-full"
-          aria-hidden="true"
-          data-webgl-marker="scrollTo"
-          data-webgl-position="0.96"
-        />
         <Principles />
         <ControlInventory document={document} />
         <AssuranceStatus document={document} />

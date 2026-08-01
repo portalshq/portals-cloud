@@ -27,12 +27,25 @@ function block(text, {listItem, marks = [], style = 'normal'} = {}) {
   }
 }
 
+function packageSpecReference({title, label, valuePath, note, packageSpec}) {
+  return {
+    _key: key('spec'),
+    _type: 'packageSpecReferenceBlock',
+    title,
+    label,
+    valuePath,
+    note,
+    packageSpecification: packageSpec,
+  }
+}
+
 function section({
   anchor,
   title,
   summary,
   paragraphs = [],
   bullets = [],
+  references = [],
   sectionType = 'offer',
   pdf = true,
 }) {
@@ -54,11 +67,31 @@ function section({
       keepTogether: false,
     },
     body: [
+      ...references,
       ...paragraphs.map((text) => block(text)),
       ...bullets.map((text) => block(text, {listItem: 'bullet'})),
     ],
   }
 }
+
+async function packageReference(slug) {
+  const document = await client.fetch(
+    '*[_type == "packageSpecification" && slug.current == $slug][0]{_id}',
+    {slug},
+  )
+
+  if (!document?._id) {
+    throw new Error(`Missing package specification: ${slug}`)
+  }
+
+  return {
+    _key: slug,
+    _type: 'reference',
+    _ref: document._id,
+  }
+}
+
+const paidPilotPackage = await packageReference('paid-pilot')
 
 const document = {
   _type: 'resourceDocument',
@@ -67,7 +100,7 @@ const document = {
   title: 'portals paid production pilot brief',
   shortTitle: 'paid production pilot',
   slug: {_type: 'slug', current: 'paid-pilot'},
-  subtitle: 'a focused 21-day commercial evaluation using real production work.',
+  subtitle: 'a focused commercial evaluation using real production work.',
   abstract:
     'prove that portals can preserve and recover the complete production history of one active ai workflow, so your team can find, understand, reproduce, and extend valuable work without rediscovery or rework.',
   audience: [
@@ -91,7 +124,7 @@ const document = {
     _type: 'seoSettings',
     metaTitle: 'paid production pilot | portals',
     metaDescription:
-      'scope a 21-day, $5,000 portals pilot to preserve and recover one real ai production workflow.',
+      'scope a portals pilot to preserve and recover one real ai production workflow.',
     keywords: [
       'portals paid pilot',
       'ai production workflow',
@@ -100,7 +133,7 @@ const document = {
     ],
     shareTitle: 'portals paid production pilot',
     shareDescription:
-      'a defined 21-day commercial evaluation with a 48-hour first-value milestone.',
+      'a defined commercial evaluation with a first-value milestone.',
     canonicalPath: '/paid-pilot',
     noIndex: false,
   },
@@ -109,7 +142,7 @@ const document = {
     enabled: true,
     headline: 'prove production memory on real work.',
     description:
-      'in 21 days, turn one active project and one historical project into complete, searchable production records, then decide whether portals deserves a place in your production stack.',
+      'turn selected active and historical work into complete, searchable production records, then decide whether portals deserves a place in your production stack.',
     primaryCta: {
       _type: 'cta',
       label: 'scope a paid pilot',
@@ -132,7 +165,7 @@ const document = {
     enabled: true,
     fileName: 'portals-paid-production-pilot-brief.pdf',
     titleOverride: 'portals paid production pilot brief',
-    subtitleOverride: '21-day production memory pilot',
+    subtitleOverride: 'production memory pilot',
     pageSize: 'LETTER',
     includeCover: true,
     includeTableOfContents: false,
@@ -143,6 +176,7 @@ const document = {
     legalNote:
       'pilot scope, integrations, annual deployment price, credit terms, and final decision date must be agreed in writing before kickoff. this brief is informational and is not a binding order form.',
   },
+  packageSpecifications: [paidPilotPackage],
   sections: [
     section({
       anchor: 'objective',
@@ -158,12 +192,26 @@ const document = {
       anchor: 'scope',
       title: 'pilot scope',
       summary:
-        'one production team, one active project, one historical project, up to 10 users, defined integrations, and 21 days.',
+        'the pilot scope is controlled by the referenced paid-pilot package specification.',
+      references: [
+        packageSpecReference({
+          title: 'paid pilot participant cap',
+          label: 'participants',
+          valuePath: 'limits.participants.displayValue',
+          packageSpec: paidPilotPackage,
+        }),
+        packageSpecReference({
+          title: 'paid pilot period',
+          label: 'pilot period',
+          valuePath: 'milestones.0.displayValue',
+          packageSpec: paidPilotPackage,
+        }),
+      ],
       bullets: [
-        'one production team',
-        'one active project',
-        'one historical project',
-        'up to 10 users',
+        'referenced production-team scope',
+        'referenced active-workflow scope',
+        'referenced historical-project scope',
+        'referenced participant cap',
         'integrations agreed before launch',
         'workflow review, onboarding, and final evaluation',
         'success criteria agreed before kickoff',
@@ -173,7 +221,15 @@ const document = {
       anchor: 'first-value',
       title: 'first-value milestone',
       summary:
-        'within 48 hours, one fragmented production project becomes a complete, searchable production record.',
+        'the first-value milestone is controlled by the referenced paid-pilot package specification.',
+      references: [
+        packageSpecReference({
+          title: 'first-value milestone',
+          label: 'first value',
+          valuePath: 'milestones.1.displayValue',
+          packageSpec: paidPilotPackage,
+        }),
+      ],
       paragraphs: [
         'where available, the record includes the approved asset, prior versions, alternate generations, source prompts, model and tool context, references, production notes, approval state, decisions, lineage, and reusable context.',
         'the team should be able to locate the approved asset, understand how it was produced, and identify what is required to reproduce or extend it.',
@@ -196,10 +252,24 @@ const document = {
       anchor: 'commercial-terms',
       title: 'commercial terms',
       summary:
-        '$5,000 upfront, with the annual deployment scope and price defined before kickoff.',
+        'the pilot price and annual-credit window are controlled by the referenced paid-pilot package specification.',
+      references: [
+        packageSpecReference({
+          title: 'paid pilot price',
+          label: 'price',
+          valuePath: 'price.displayValue',
+          packageSpec: paidPilotPackage,
+        }),
+        packageSpecReference({
+          title: 'annual-credit decision window',
+          label: 'decision window',
+          valuePath: 'milestones.2.displayValue',
+          packageSpec: paidPilotPackage,
+        }),
+      ],
       paragraphs: [
         'before launch, portals and the customer agree on the start date, end date, pilot owner, participating users, included projects, integrations, success criteria, annual deployment scope, annual deployment price, and final decision date.',
-        'if the pilot meets the agreed success criteria and the customer signs an annual agreement within the agreed decision window, the $5,000 pilot fee is credited toward the first annual deployment under the written pilot terms.',
+        'if the pilot meets the agreed success criteria and the customer signs an annual agreement within the agreed decision window, the pilot fee is credited toward the first annual deployment under the written pilot terms.',
       ],
     }),
     section({
@@ -214,7 +284,7 @@ const document = {
         'agreed integration setup where applicable',
         'active and historical project structure',
         'guidance on history, versioning, lineage, and context capture',
-        'support during the 21-day period',
+        'support during the referenced pilot period',
         'final review and annual deployment recommendation',
       ],
     }),

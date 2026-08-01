@@ -1,4 +1,9 @@
 import {resourceTypes} from './resourceTypes'
 import {legalDocumentTypes} from './legalDocumentTypes'
+import {packageSpecificationTypes} from './packageSpecificationTypes'
 
-export const schemaTypes = [...resourceTypes, ...legalDocumentTypes]
+export const schemaTypes = [
+  ...packageSpecificationTypes,
+  ...resourceTypes,
+  ...legalDocumentTypes,
+]

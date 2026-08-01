@@ -1,5 +1,13 @@
+'use client';
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  PACKAGE_SPEC_SLUGS,
+  findPackageSpecification,
+  packagePricingFeatures,
+} from '@/lib/package-specifications';
+import type {PackageSpecification} from '@/types/resource';
 import { ArrowRight, Check } from 'lucide-react';
 
 const comparisonRows = [
@@ -73,49 +81,23 @@ const icps = [
   },
 ];
 
-const pricingTiers = [
-  {
-    name: 'Creator',
-    price: '$299',
-    period: '/month',
-    subtitle: 'Small teams getting started.',
-    features: [
-      'Hosted repositories',
-      'Version history & rollback',
-      'Provenance tracking',
-      'Basic sharing',
-    ],
-    popular: false,
-  },
-  {
-    name: 'Studio',
-    price: '$2,000',
-    period: '/month',
-    subtitle: 'Production teams running real client work.',
-    features: [
-      'Everything in Creator',
-      'Unlimited collaborators',
-      'Asset lineage & relationships',
-      'API access, audit history',
-      'Team permissions',
-    ],
-    popular: true,
-  },
-  {
-    name: 'Enterprise',
-    price: '$5,000+',
-    period: '/month',
-    subtitle: 'Multi-team organizations requiring governance and scale.',
-    features: [
-      'Everything in Studio',
-      'SSO / SAML, compliance logs',
-      'Dedicated infrastructure, SLA',
-      'Custom integrations',
-      'Dedicated success & support',
-    ],
-    popular: false,
-  },
-];
+function pricingTiersFromSpecs(packageSpecifications: PackageSpecification[]) {
+  return [
+    PACKAGE_SPEC_SLUGS.productionTeam,
+    PACKAGE_SPEC_SLUGS.studio,
+    PACKAGE_SPEC_SLUGS.enterprise,
+  ]
+    .map((slug) => findPackageSpecification(packageSpecifications, slug))
+    .filter((specification): specification is PackageSpecification => Boolean(specification))
+    .map((specification) => ({
+      name: specification.name,
+      price: specification.price?.displayValue || '',
+      period: specification.price?.periodLabel || '',
+      subtitle: specification.subtitle,
+      features: packagePricingFeatures(specification),
+      popular: specification.slug === PACKAGE_SPEC_SLUGS.studio,
+    }));
+}
 
 const workflow = [
   'Register every AI-generated asset',
@@ -124,7 +106,13 @@ const workflow = [
   'Search across your entire creative history',
 ];
 
-export function VCS() {
+export function VCS({
+  packageSpecifications,
+}: {
+  packageSpecifications: PackageSpecification[];
+}) {
+  const pricingTiers = pricingTiersFromSpecs(packageSpecifications);
+
   return (
     <div className="min-h-screen bg-portals-bg text-white font-sans">
 

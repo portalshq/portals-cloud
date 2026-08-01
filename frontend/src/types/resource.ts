@@ -6,11 +6,58 @@ export type Cta = {
   openInNewTab?: boolean
 }
 
+export type SpecificationValue = {
+  _key?: string
+  label: string
+  displayValue: string
+  numericValue?: number
+  unit?: string
+  qualifier?: string
+  note?: string
+}
+
+export type PackageSpecification = {
+  _id: string
+  _updatedAt?: string
+  status: 'draft' | 'published' | 'archived'
+  packageKind: 'paidPilot' | 'subscription' | 'enterprise'
+  name: string
+  shortName?: string
+  slug: string
+  sortOrder: number
+  subtitle?: string
+  price?: {
+    displayValue: string
+    amount?: number
+    currency?: string
+    periodLabel?: string
+    billingNote?: string
+  }
+  limits?: {
+    productionTeams?: SpecificationValue
+    activeWorkflows?: SpecificationValue
+    historicalProjects?: SpecificationValue
+    participants?: SpecificationValue
+    productionMembers?: SpecificationValue
+    activeRepositories?: SpecificationValue
+    workspaces?: SpecificationValue
+    reviewersGuests?: SpecificationValue
+  }
+  features?: string[]
+  milestones?: SpecificationValue[]
+  serviceItems?: string[]
+  ctaLabel?: string
+  microcopy?: string
+  legalNote?: string
+}
+
 export type MarkDefinition = {
   _key: string
-  _type: 'link' | 'internalLink'
+  _type: 'link' | 'internalLink' | 'packageSpecValue'
   href?: string
   slug?: string
+  valuePath?: string
+  packageSpecification?: PackageSpecification
 }
 
 export type PortableSpan = {
@@ -53,6 +100,8 @@ export type PortableTextBlock = {
   caption?: string
   alt?: string
   imageUrl?: string
+  packageSpecification?: PackageSpecification
+  valuePath?: string
 }
 
 export type DocumentSection = {
@@ -141,6 +190,7 @@ export type ResourceDocument = {
     primaryCta?: Cta
     secondaryCta?: Cta
   }
+  packageSpecifications?: PackageSpecification[]
   relatedResources?: Array<{
     _id: string
     title: string

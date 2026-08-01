@@ -34,6 +34,7 @@ const GENERATION_FINGERPRINT_FILES = [
   path.resolve(__dirname, '../src/components/pdf/PaidPilotPdfDocument.tsx'),
   path.resolve(__dirname, '../src/components/pdf/ResourcePdfDocument.tsx'),
   path.resolve(__dirname, '../src/pdf-templates/ResourceTemplate.tsx'),
+  path.resolve(__dirname, '../src/lib/package-specifications.ts'),
   path.resolve(__dirname, '../src/lib/resource-pdf.ts'),
   FIELD_GUIDE_COVER_IMAGE,
   path.resolve(__dirname, '../public/fonts/pdf/DieGroteskC-Light.ttf'),
@@ -117,7 +118,7 @@ async function main() {
       : doc
     const contentHash = crypto
       .createHash('sha256')
-      .update(JSON.stringify({updatedAt: doc._updatedAt, generationFingerprint, fileName}))
+      .update(JSON.stringify({document: doc, generationFingerprint, fileName}))
       .digest('hex')
 
     if (getManifestHash(manifest[slug]) === contentHash) {
