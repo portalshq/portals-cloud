@@ -13,7 +13,8 @@
     "incremental": true,
     "types": ["node"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/config/*": ["./config/*"]
     }
   },
   "references": [

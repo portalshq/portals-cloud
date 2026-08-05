@@ -1,0 +1,63 @@
+{
+  "version": "2026-08-01.v1",
+  "lists": [
+    {"name": "Inbound Leads", "apiSlug": "inbound-leads", "parentObject": "people", "history": true},
+    {"name": "Guide Downloads", "apiSlug": "guide-downloads", "parentObject": "people", "history": true},
+    {"name": "Production Assessments", "apiSlug": "production-assessments", "parentObject": "people", "history": true},
+    {"name": "Pilot Requests", "apiSlug": "pilot-requests", "parentObject": "companies", "operationalRank": 2},
+    {"name": "Qualified Opportunities", "apiSlug": "qualified-opportunities", "parentObject": "companies", "operationalRank": 1},
+    {"name": "Paid Pilots", "apiSlug": "paid-pilots", "parentObject": "companies", "operationalRank": 3, "manual": true},
+    {"name": "Customers", "apiSlug": "customers", "parentObject": "companies", "operationalRank": 4, "manual": true},
+    {"name": "Nurture", "apiSlug": "nurture", "parentObject": "companies", "operationalRank": 0}
+  ],
+  "attributes": [
+    {"title": "Lead intent", "apiSlug": "lead_intent", "type": "select", "object": "people"},
+    {"title": "CTA label", "apiSlug": "cta_label", "type": "text", "object": "people"},
+    {"title": "Source page", "apiSlug": "source_page", "type": "text", "object": "people"},
+    {"title": "Use case interest", "apiSlug": "use_case_interest", "type": "multi-select", "object": "people"},
+    {"title": "Qualification score", "apiSlug": "qualification_score", "type": "number", "object": "people"},
+    {"title": "Qualification tier", "apiSlug": "qualification_tier", "type": "select", "object": "people,companies"},
+    {"title": "Qualifying submission ID", "apiSlug": "qualifying_submission_id", "type": "text", "object": "companies"},
+    {"title": "Production role", "apiSlug": "production_role", "type": "text", "object": "people"},
+    {"title": "Company type", "apiSlug": "company_type", "type": "select", "object": "people"},
+    {"title": "Team size", "apiSlug": "team_size", "type": "select", "object": "people"},
+    {"title": "Tools used", "apiSlug": "tools_used", "type": "multi-select", "object": "people"},
+    {"title": "Approved-version method", "apiSlug": "approved_version_method", "type": "select", "object": "people"},
+    {"title": "Production-context method", "apiSlug": "production_context_method", "type": "select", "object": "people"},
+    {"title": "Recreation frequency", "apiSlug": "recreation_frequency", "type": "select", "object": "people"},
+    {"title": "Active workflow", "apiSlug": "active_workflow", "type": "checkbox", "object": "people"},
+    {"title": "Timeline", "apiSlug": "timeline", "type": "select", "object": "people"},
+    {"title": "Message", "apiSlug": "message", "type": "text", "object": "people", "multiline": true},
+    {"title": "UTM source", "apiSlug": "utm_source", "type": "text", "object": "people"},
+    {"title": "UTM campaign", "apiSlug": "utm_campaign", "type": "text", "object": "people"},
+    {"title": "First touch page", "apiSlug": "first_touch_page", "type": "text", "object": "people,companies"},
+    {"title": "Last touch page", "apiSlug": "last_touch_page", "type": "text", "object": "people,companies"},
+    {"title": "Last CTA clicked", "apiSlug": "last_cta_clicked", "type": "text", "object": "people"},
+    {"title": "Lifecycle stage", "apiSlug": "lifecycle_stage", "type": "select", "object": "people,companies"},
+    {"title": "Recommended next action", "apiSlug": "recommended_next_action", "type": "select", "object": "people,companies"},
+    {"title": "Fit score", "apiSlug": "fit_score", "type": "number", "object": "companies"},
+    {"title": "Pain score", "apiSlug": "pain_score", "type": "number", "object": "companies"},
+    {"title": "Intent score", "apiSlug": "intent_score", "type": "number", "object": "companies"},
+    {"title": "Marketing consent", "apiSlug": "marketing_consent", "type": "checkbox", "object": "people"},
+    {"title": "Analytics consent", "apiSlug": "analytics_consent", "type": "checkbox", "object": "people"},
+    {"title": "Pilot submission ID", "apiSlug": "portals_submission_id", "type": "text", "object": "deals", "unique": true}
+  ],
+  "lifecycleStages": [
+    "Anonymous Visitor",
+    "Captured Lead",
+    "Engaged Lead",
+    "Assessed",
+    "Qualified",
+    "Pilot Requested",
+    "Pilot Scoped",
+    "Paid Pilot",
+    "Annual Proposal",
+    "Customer",
+    "Nurture",
+    "Disqualified"
+  ],
+  "automationBoundary": {
+    "mayPromoteThrough": "Qualified",
+    "manualStages": ["Pilot Scoped", "Paid Pilot", "Annual Proposal", "Customer", "Nurture", "Disqualified"]
+  }
+}

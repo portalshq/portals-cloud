@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
-    "serve": "npx serve@latest out",
+    "start": "next start",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "audit:package-specifications": "tsx scripts/audit-package-specifications.ts",
-    "generate-pdfs": "export $(grep -v '^#' .env.local | xargs) && tsx scripts/generate-pdfs.ts"
+    "generate-pdfs": "export $(grep -v '^#' .env.local | xargs) && tsx scripts/generate-pdfs.ts",
+    "migrate:leads": "tsx scripts/migrate-leads.ts",
+    "test:leads": "tsx --test src/lib/leads/*.test.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -44,6 +46,7 @@
     "@tailwindcss/typography": "^0.5.15",
     "@tanstack/react-query": "^5.101.2",
     "@types/node": "^26.1.1",
+    "@types/pg": "^8.20.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@workspace/api-client-react": "^0.0.0",
@@ -77,6 +80,9 @@
     "@react-pdf/renderer": "^4.5.1",
     "@sanity/image-url": "^2.1.1",
     "dotenv": "^17.4.2",
-    "next-sanity": "^13.2.2"
+    "fflate": "^0.8.2",
+    "next-sanity": "^13.2.2",
+    "pg": "^8.22.0",
+    "stripe": "^22.4.0"
   }
 }

@@ -19,8 +19,10 @@ import type {
   PilotHistoryEntry,
   PilotRoute,
   PilotState,
+  Reviewer,
   UnresolvedItem,
 } from './pilot'
+import {recommendedReviewers} from './pilot'
 import {
   BillingCustomer,
   BillingSubscription,
@@ -148,6 +150,8 @@ export type StoredPilot = {
   proposal: CommercialSnapshot | null
   successCriteria: SuccessCriterion[]
   securityDecisions: SecurityDecision[]
+  reviewers: Reviewer[]
+  version: number
   history: PilotHistoryEntry[]
   signing: Record<string, unknown>
   payment: Record<string, unknown>
@@ -179,6 +183,8 @@ export type PilotPatch = {
   proposal?: CommercialSnapshot | null
   successCriteria?: SuccessCriterion[]
   securityDecisions?: SecurityDecision[]
+  reviewers?: Reviewer[]
+  version?: number
   signing?: Record<string, unknown>
   payment?: Record<string, unknown>
   kickoff?: Record<string, unknown>
@@ -199,6 +205,8 @@ type PilotRow = {
   proposal: CommercialSnapshot | null
   success_criteria: SuccessCriterion[]
   security_decisions: SecurityDecision[]
+  reviewers: Reviewer[]
+  version: number
   history: PilotHistoryEntry[]
   signing: Record<string, unknown>
   payment: Record<string, unknown>
@@ -221,6 +229,8 @@ function pilotFromRow(row: PilotRow): StoredPilot {
     proposal: row.proposal,
     successCriteria: row.success_criteria,
     securityDecisions: row.security_decisions,
+    reviewers: row.reviewers,
+    version: row.version,
     history: row.history,
     signing: row.signing,
     payment: row.payment,
@@ -233,6 +243,17 @@ function pilotFromRow(row: PilotRow): StoredPilot {
 
 export async function createPilotRecord(input: CreatePilotInput): Promise<StoredPilot> {
   const now = new Date().toISOString()
+  const reviewers: Reviewer[] = recommendedReviewers(
+    input.answers as Parameters<typeof recommendedReviewers>[0],
+  ).map((row) => ({
+    id: randomUUID(),
+    role: row.role,
+    name: row.name,
+    email: row.email,
+    status: 'proposed',
+    versionSeen: 1,
+    notes: [],
+  }))
   const pilot: StoredPilot = {
     id: randomUUID(),
     profileId: input.profileId,
@@ -245,6 +266,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     proposal: null,
     successCriteria: input.successCriteria,
     securityDecisions: input.securityDecisions,
+    reviewers,
+    version: 1,
     history: [{at: now, action: 'created', state: input.state}],
     signing: {},
     payment: {},
@@ -261,8 +284,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
   await pool().query(
     `INSERT INTO lead_pilots(
       id, profile_id, initial_submission_id, state, route, answers_ciphertext,
-      exceptions, unresolved, success_criteria, security_decisions, history
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      exceptions, unresolved, success_criteria, security_decisions, reviewers, version, history
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
     [
       pilot.id,
       pilot.profileId,
@@ -274,6 +297,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
       JSON.stringify(pilot.unresolved),
       JSON.stringify(pilot.successCriteria),
       JSON.stringify(pilot.securityDecisions),
+      JSON.stringify(pilot.reviewers),
+      pilot.version,
       JSON.stringify(pilot.history),
     ],
   )
@@ -368,6 +393,8 @@ export async function updatePilot(id: string, patch: PilotPatch): Promise<Stored
     proposal: patch.proposal !== undefined ? patch.proposal : existing.proposal,
     successCriteria: patch.successCriteria || existing.successCriteria,
     securityDecisions: patch.securityDecisions || existing.securityDecisions,
+    reviewers: patch.reviewers || existing.reviewers,
+    version: patch.version !== undefined ? patch.version : existing.version,
     signing: patch.signing || existing.signing,
     payment: patch.payment || existing.payment,
     kickoff: patch.kickoff || existing.kickoff,
@@ -386,9 +413,9 @@ export async function updatePilot(id: string, patch: PilotPatch): Promise<Stored
     `UPDATE lead_pilots
         SET state = $2, route = $3, answers_ciphertext = $4, exceptions = $5,
             unresolved = $6, proposal = $7, success_criteria = $8,
-            security_decisions = $9, signing = $10, payment = $11,
-            kickoff = $12, resolved_start_date = $13, history = $14,
-            updated_at = now()
+            security_decisions = $9, reviewers = $10, version = $11,
+            signing = $12, payment = $13, kickoff = $14, resolved_start_date = $15,
+            history = $16, updated_at = now()
       WHERE id = $1`,
     [
       updated.id,
@@ -400,6 +427,8 @@ export async function updatePilot(id: string, patch: PilotPatch): Promise<Stored
       JSON.stringify(updated.proposal),
       JSON.stringify(updated.successCriteria),
       JSON.stringify(updated.securityDecisions),
+      JSON.stringify(updated.reviewers),
+      updated.version,
       JSON.stringify(updated.signing),
       JSON.stringify(updated.payment),
       JSON.stringify(updated.kickoff),
@@ -427,6 +456,7 @@ export async function latestSubmissionIdForPilot(pilotId: string): Promise<strin
 export async function enqueuePilotEmail(
   pilotId: string,
   variant: string,
+  recipient?: string,
 ): Promise<void> {
   const submissionId = await latestSubmissionIdForPilot(pilotId)
   if (!submissionId) throw new Error('Pilot has no submission to attach the email to.')
@@ -434,7 +464,7 @@ export async function enqueuePilotEmail(
   await pool().query(
     `INSERT INTO lead_outbox(submission_id, action_type, action_key)
      VALUES ($1,'pilot_email',$2) ON CONFLICT(action_key) DO NOTHING`,
-    [submissionId, `${pilotId}:pilot_email:${variant}`],
+    [submissionId, `${pilotId}:pilot_email:${variant}:${(recipient || '').toLowerCase()}`],
   )
 }
 

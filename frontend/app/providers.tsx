@@ -1,10 +1,11 @@
 'use client'
 
+import { Suspense } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { AnalyticsProvider } from '@/components/leads/AnalyticsProvider'
 import { SagaWebGLEngine } from '@/lib/SagaWebGLEngine'
-import { contactPortalsMailto, scopeAPilotMailto } from '@/lib/utils'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,7 +49,7 @@ function Footer() {
             </ul>
             
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
-              <li><a href={contactPortalsMailto} className="hover:text-white transition-colors">contact sales</a></li>
+              <li><a href="/contact" className="hover:text-white transition-colors">contact portals</a></li>
             </ul>
           </div>
           
@@ -66,6 +67,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <SagaWebGLEngine />
+        <Suspense fallback={null}>
+          <AnalyticsProvider />
+        </Suspense>
         <div className="min-h-[100dvh] flex flex-col text-foreground font-sans">
           <div className="flex-1 z-(--z-main) flex flex-col">
             {children}
