@@ -31,7 +31,7 @@ type ButtonProps = SharedProps & {
 type CTAButtonProps = LinkProps | ButtonProps
 
 const defaultClasses =
-  't-button inline-flex justify-center items-center rounded h-48 gap-x-9 px-12 t-p-sans text-white transition-all duration-500 cursor-pointer'
+  't-button inline-flex justify-center items-center rounded h-48 gap-x-9 px-12 text-white transition-all duration-500 cursor-pointer'
 
 const appearanceClasses = {
   default: `min-w-220 w-fit border border-white/10 bg-white/8 backdrop-blur-[32px] hover:bg-white/16`,
@@ -48,9 +48,9 @@ export function CTAButton(props: CTAButtonProps) {
     className = '',
     ...elementProps
   } = props
-  const classes = `${defaultClasses} ${appearance === 'plain' ? appearanceClasses[appearance] : appearanceClasses['default']} ${className}`.trim()
+  const classes = [defaultClasses, appearance === 'plain' ? appearanceClasses[appearance] : appearanceClasses['default'], className].join(' ')
   const content = (
-    <span className="inline-flex items-center gap-x-9">
+    <span className="t-p-sans inline-flex items-center gap-x-9">
       {children}
     </span>
   )
@@ -80,7 +80,7 @@ export function CTAButton(props: CTAButtonProps) {
   return (
     <button
       {...buttonProps}
-      className={classes}
+      className={cn(classes)}
       onClick={(event) => {
         if (analyticsLabel) {
           void trackEvent('cta_clicked', {
