@@ -9,17 +9,9 @@ import {
 } from '@react-pdf/renderer'
 import type {
   DocumentSection,
-  PackageSpecification,
   PortableTextBlock,
   ResourceDocument,
 } from '@/types/resource'
-import {
-  PACKAGE_SPEC_SLUGS,
-  findPackageSpecification,
-  packageLimitLabel,
-  packageMilestoneLabel,
-  packagePriceLabel,
-} from '@/lib/package-specifications'
 
 const FONT_ROOT = new URL('../../../public/fonts/', import.meta.url)
 
@@ -309,21 +301,12 @@ function PageHeader({
   )
 }
 
-function paidPilotSpec(document: ResourceDocument): PackageSpecification | undefined {
-  return findPackageSpecification(
-    document.packageSpecifications,
-    PACKAGE_SPEC_SLUGS.paidPilot,
-  )
-}
-
 export function PaidPilotPdfDocument({
   document,
 }: {
   document: ResourceDocument
 }): ReactNode {
-  const objective = sectionByAnchor(document, 'objective')
   const scope = sectionByAnchor(document, 'scope')
-  const firstValue = sectionByAnchor(document, 'first-value')
   const successCriteria = sectionByAnchor(document, 'success-criteria')
   const commercialTerms = sectionByAnchor(document, 'commercial-terms')
   const portalsResponsibilities = sectionByAnchor(
@@ -335,18 +318,6 @@ export function PaidPilotPdfDocument({
     'customer-responsibilities',
   )
   const finalReview = sectionByAnchor(document, 'final-review')
-  const intendedOutcome = sectionByAnchor(document, 'intended-outcome')
-  const specification = paidPilotSpec(document)
-  const metrics = [
-    [packageMilestoneLabel(specification, 'pilot period'), 'pilot period'],
-    [packagePriceLabel(specification), specification?.price?.billingNote || 'price'],
-    [packageMilestoneLabel(specification, 'first value'), 'first value'],
-    [packageLimitLabel(specification, 'participants'), 'participants'],
-  ].filter(([value]) => Boolean(value))
-  const commercialValue = [
-    packagePriceLabel(specification),
-    specification?.price?.billingNote,
-  ].filter(Boolean).join(' ')
 
   return (
     <Document
@@ -367,23 +338,14 @@ export function PaidPilotPdfDocument({
         </Text>
         <Text style={styles.abstract}>{document.abstract}</Text>
 
-        <View style={styles.metrics}>
-          {metrics.map(([value, label]) => (
-            <View key={label} style={styles.metric}>
-              <Text style={styles.metricValue}>{value}</Text>
-              <Text style={styles.metricLabel}>{label}</Text>
-            </View>
-          ))}
-        </View>
-
         <View style={styles.coverGrid}>
           <View style={styles.coverColumn}>
-            <Section section={objective} compact />
             <Section section={scope} compact />
+            <Section section={commercialTerms} compact />
           </View>
           <View style={styles.coverColumn}>
-            <Section section={firstValue} compact />
             <Section section={successCriteria} compact />
+            <Section section={finalReview} compact />
           </View>
         </View>
       </Page>
@@ -392,32 +354,10 @@ export function PaidPilotPdfDocument({
         <PageHeader document={document} pageNumber={2} />
 
         <View style={styles.commercial}>
-          <Text style={styles.commercialValue}>{commercialValue}</Text>
-          <Text style={styles.sectionTitle}>{commercialTerms.title}</Text>
-          <Text style={styles.sectionSummary}>{commercialTerms.summary}</Text>
-          <SectionContent section={commercialTerms} />
+          <Text style={styles.sectionTitle}>security posture</Text>
+          <SectionContent section={portalsResponsibilities} />
+          <SectionContent section={customerResponsibilities} />
         </View>
-
-        <View style={styles.pageTwoGrid}>
-          <View style={styles.pageTwoColumn}>
-            <Section section={portalsResponsibilities} compact />
-            <Section section={finalReview} compact />
-          </View>
-          <View style={styles.pageTwoColumn}>
-            <Section section={customerResponsibilities} compact />
-            <View style={styles.outcome}>
-              <Text style={styles.outcomeTitle}>{intendedOutcome.title}</Text>
-              <Text style={styles.sectionSummary}>
-                {intendedOutcome.summary}
-              </Text>
-              <SectionContent section={intendedOutcome} />
-            </View>
-          </View>
-        </View>
-
-        {document.pdf?.legalNote ? (
-          <Text style={styles.legal}>{document.pdf.legalNote}</Text>
-        ) : null}
       </Page>
     </Document>
   )
