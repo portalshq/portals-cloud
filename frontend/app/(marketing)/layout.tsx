@@ -64,35 +64,17 @@ function Footer() {
   )
 }
 
-export default function RootLayout({
+export default function MarketingLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
-        <script
-          type="importmap"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              imports: {
-                three: 'https://unpkg.com/three@0.184.0/build/three.module.js',
-                'three/addons/': 'https://unpkg.com/three@0.184.0/examples/jsm/',
-              },
-            }),
-          }}
-        />
-      </head>
-      <body>
-        <div className="min-h-[100dvh] flex flex-col text-foreground font-sans">
-          <div className="flex-1 z-(--z-main) flex flex-col">
-            {children}
-          </div>
-          <Footer />
-        </div>
-      </body>
-    </html>
+    <div className="min-h-[100dvh] flex flex-col text-foreground font-sans">
+      <div className="flex-1 z-(--z-main) flex flex-col">
+        {children}
+      </div>
+      <Footer />
+    </div>
   )
 }

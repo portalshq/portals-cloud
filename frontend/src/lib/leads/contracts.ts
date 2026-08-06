@@ -21,6 +21,7 @@ const optionalText = (maximum: number) =>
 
 export const identitySchema = z.object({
   email: z.string().trim().email().max(254).optional(),
+  name: z.string().trim().min(1).max(160).optional(),
   company: z.string().trim().min(1).max(160).optional(),
   role: z.string().trim().min(1).max(120).optional(),
   website: optionalText(300),
@@ -346,7 +347,7 @@ export type LeadResponse = {
 
 export type KnownLeadContext = {
   known: boolean
-  knownFields: Array<'email' | 'company' | 'role' | 'website'>
+  knownFields: Array<'email' | 'name' | 'company' | 'role' | 'website'>
   knownAnswerFields: string[]
   answerValues?: Record<string, string>
   requiresWebsite?: boolean

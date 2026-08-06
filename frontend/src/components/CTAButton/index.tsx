@@ -6,6 +6,7 @@ import type {
   ReactNode,
 } from 'react'
 import {trackEvent} from '@/lib/leads/analytics-client'
+import { cn } from '@/lib/utils'
 
 type SharedProps = {
   children: ReactNode
@@ -30,7 +31,7 @@ type ButtonProps = SharedProps & {
 type CTAButtonProps = LinkProps | ButtonProps
 
 const defaultClasses =
-  't-button inline-flex justify-center items-center rounded h-48 gap-x-9 px-12 text-white transition-all duration-500 cursor-pointer'
+  't-button inline-flex justify-center items-center rounded h-48 gap-x-9 px-12 t-p-sans text-white transition-all duration-500 cursor-pointer'
 
 const appearanceClasses = {
   default: `min-w-220 w-fit border border-white/10 bg-white/8 backdrop-blur-[32px] hover:bg-white/16`,
@@ -49,7 +50,7 @@ export function CTAButton(props: CTAButtonProps) {
   } = props
   const classes = `${defaultClasses} ${appearance === 'plain' ? appearanceClasses[appearance] : appearanceClasses['default']} ${className}`.trim()
   const content = (
-    <span className="t-p-sans inline-flex items-center gap-x-9">
+    <span className="inline-flex items-center gap-x-9">
       {children}
     </span>
   )
@@ -59,7 +60,7 @@ export function CTAButton(props: CTAButtonProps) {
     return (
       <a
         {...anchorProps}
-        className={classes}
+        className={cn(classes)}
         onClick={(event) => {
           void trackEvent('cta_clicked', {
             cta_label: analyticsLabel || String(elementProps.href),

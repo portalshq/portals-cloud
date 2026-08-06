@@ -47,7 +47,7 @@ export async function POST(
     )
   }
 
-  const roomUrl = `${siteUrl()}/pilot/${id}?t=${encodeURIComponent(body.token)}`
+  const roomUrl = `${siteUrl()}/paid-pilot/room/${id}?t=${encodeURIComponent(body.token)}`
   const secretKey = process.env.STRIPE_SECRET_KEY
 
   if (leadsDryRun() || !secretKey) {

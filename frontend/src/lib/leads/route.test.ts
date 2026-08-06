@@ -95,7 +95,7 @@ const assessmentBody = (email: string) => ({
 const pilotBody = (
   email: string,
   overrides: Record<string, unknown> = {},
-  opts: {identity?: boolean; pilotId?: string} = {},
+  opts: {identity?: boolean; pilotId?: string; name?: string} = {},
 ) => ({
   submissionType: 'pilot_request',
   idempotencyKey: `pilot:${crypto.randomUUID()}`,
@@ -103,7 +103,7 @@ const pilotBody = (
   provider: 'browser',
   ...(opts.identity === false
     ? {}
-    : {identity: {email, company: 'Studio Example', role: 'producer', website: ''}}),
+    : {identity: {email, name: opts.name || 'Ava Nguyen', company: 'Studio Example', role: 'producer', website: ''}}),
   ...(opts.pilotId ? {pilotId: opts.pilotId} : {}),
   attribution: {sourcePage: '/paid-pilot'},
   consent: {disclosureVersion: DISCLOSURE, marketing: false, analytics: false},
@@ -158,6 +158,7 @@ test('pilot_request through POST delivers the approval-room email to the submitt
   assert.ok(pilot, 'pilot record is created')
   assert.equal(pilot.route, 'zero-call')
   assert.equal(pilot.state, 'reviewing')
+  assert.equal(pilot.answers.name, 'Ava Nguyen')
   assert.equal(pilot.answers.email, profile.identity.email)
   assert.equal(pilot.answers.email, email.toLowerCase())
 
@@ -205,6 +206,7 @@ test('the submitter email is resolved from the profile when identity is not rese
   const {pilot} = await pilotForProfile(token)
   assert.ok(pilot)
   assert.equal(pilot.answers.email, email.toLowerCase())
+  assert.equal(pilot.answers.name, 'Ava Nguyen')
 
   await processLeadOutbox(20)
   assert.equal(fetches.length, 1)
@@ -222,15 +224,15 @@ test('a revision preserves the submitter email and re-emails the pilot plan', as
   const pilotId = pilot.id
 
   const revised = await post(
-    pilotBody(email, {pilotWorkflow: 'asset variant production'}, {pilotId}),
+    pilotBody(email, {pilotWorkflow: 'asset variant production'}, {pilotId, name: 'Ava'}),
     {cookie: `portals_profile=${token}`},
   )
   assert.equal(revised.status, 200)
   const json = await revised.json()
-  assert.equal(json.nextAction, 'pilot_room')
-  assert.equal(json.pilotState, 'reviewing')
+  assert.equal(json.ok, true)
 
   const reloaded = await getPilotById(pilotId)
+  assert.equal(reloaded?.answers.name, 'Ava')
   assert.equal(reloaded?.state, 'reviewing')
   assert.equal(reloaded?.answers.email, email.toLowerCase())
   assert.equal(

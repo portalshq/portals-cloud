@@ -426,7 +426,7 @@ function PilotFaq({document}: {document: ResourceDocument}) {
             {faqs.map((faq, index) => (
               <div
                 key={faq.question}
-                className="rounded-sm border border-white/30"
+                className="rounded-sm border border-white/70"
               >
                 <CTAButton
                   appearance="plain"
@@ -434,13 +434,13 @@ function PilotFaq({document}: {document: ResourceDocument}) {
                   onClick={() =>
                     setOpenIndex(openIndex === index ? null : index)
                   }
-                  className="flex w-full items-center justify-between p-24 text-left text-white focus:outline-none [&>span]:w-full [&>span]:justify-between"
+                  className="flex w-full items-center justify-between !p-24 h-auto text-left text-white focus:outline-none [&>span]:w-full [&>span]:justify-between"
                   aria-expanded={openIndex === index}
                 >
                   <span className="t-p-serif">{faq.question}</span>
                   <span
                     aria-hidden="true"
-                    className={`transform text-[24px] leading-none transition-transform duration-300 ${openIndex === index ? 'rotate-45' : ''}`}
+                    className={`transform transition-transform duration-300 ${openIndex === index ? 'rotate-45' : ''}`}
                   >
                     +
                   </span>

@@ -195,7 +195,7 @@ export function TallyAssessment({context}: {context: KnownLeadContext}) {
   const progressiveContext = useMemo<KnownLeadContext>(() => {
     if (!lastRequest) return context
     const knownFields = new Set(context.knownFields)
-    for (const key of ['email', 'company', 'role', 'website'] as const) {
+    for (const key of ['email', 'name', 'company', 'role', 'website'] as const) {
       const value = lastRequest.identity?.[key]
       if (typeof value === 'string' && value.trim()) knownFields.add(key)
     }

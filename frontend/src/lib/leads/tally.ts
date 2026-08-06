@@ -39,6 +39,10 @@ type TallyPayload = {
 const identityFields: Record<string, keyof LeadIdentity> = {
   work_email: 'email',
   email: 'email',
+  full_name: 'name',
+  name: 'name',
+  your_name: 'name',
+  contact_name: 'name',
   company: 'company',
   role: 'role',
   company_website: 'website',
