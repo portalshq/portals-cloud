@@ -42,6 +42,7 @@ export async function getKnownLeadContext(
     }
     const knownFields: KnownLeadContext['knownFields'] = []
     if (profile.identity.email) knownFields.push('email')
+    if (profile.identity.name) knownFields.push('name')
     if (profile.identity.company) knownFields.push('company')
     if (profile.identity.role) knownFields.push('role')
     if (profile.identity.website) knownFields.push('website')

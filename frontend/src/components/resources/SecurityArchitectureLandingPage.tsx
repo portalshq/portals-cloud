@@ -377,11 +377,11 @@ function SecurityFAQ() {
             {securityFaqs.map((faq, index) => (
               <div
                 key={faq.question}
-                className="rounded-sm border border-white/30 bg-white/8 backdrop-blur-[18px]"
+                className="rounded-sm border border-white/70 bg-white/8 backdrop-blur-[18px]"
               >
                 <button
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="flex w-full items-center justify-between p-24 text-left t-p-sans focus:outline-none"
+                  className="cursor-pointer flex w-full items-center justify-between p-24 text-left t-p-sans focus:outline-none"
                   aria-expanded={openIndex === index}
                 >
                   <span className="t-p-serif">{faq.question}</span>

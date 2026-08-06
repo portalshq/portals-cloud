@@ -202,9 +202,11 @@ async function syncPilotRecord(
   const securityDecisions = buildSecurityDecisions(answers)
   const unresolved = computeUnresolved(answers, {route: classification.route})
   const submitterEmail = leadRequest.identity?.email
+  const submitterName = leadRequest.identity?.name
   const pilotAnswers = {
     ...answers,
     ...(submitterEmail ? {email: submitterEmail} : {}),
+    ...(submitterName ? {name: submitterName} : {}),
   }
 
   if (leadRequest.pilotId) {
@@ -228,6 +230,7 @@ async function syncPilotRecord(
         ...(pilot.answers as Record<string, unknown>),
         ...answers,
         ...(!pilot.answers.email && submitterEmail ? {email: submitterEmail} : {}),
+        ...(!pilot.answers.name && submitterName ? {name: submitterName} : {}),
       },
       exceptions: classification.exceptions,
       unresolved,
@@ -263,7 +266,7 @@ async function syncPilotRecord(
     return {
       ...response,
       nextAction: 'pilot_room',
-      pilotUrl: `/pilot/${updated.id}`,
+      pilotUrl: `/paid-pilot/room/${updated.id}`,
       pilotState: updated.state,
       pilotRoute: updated.route,
       message: 'Your revised pilot plan is back under review in your approval room.',
@@ -293,7 +296,7 @@ async function syncPilotRecord(
   return {
     ...response,
     nextAction: 'pilot_room',
-    pilotUrl: `/pilot/${pilot.id}`,
+    pilotUrl: `/paid-pilot/room/${pilot.id}`,
     pilotState: pilot.state,
     pilotRoute: pilot.route,
     message:

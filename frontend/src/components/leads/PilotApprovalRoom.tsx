@@ -220,7 +220,8 @@ export function PilotApprovalRoom({
 
   async function onStartTeamReview() {
     if (await patch({action: 'start_team_review'})) {
-      setNotice('the draft is ready for team review — invitations are unlocked')
+      await onInviteAllRequired()
+      setNotice('invitations are unlocked. reviewers see this exact version until a material change is submitted — any change after this point flags their confirmations for re-review.')
     }
   }
 
@@ -523,24 +524,33 @@ export function PilotApprovalRoom({
   return (
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-16 gap-y-8">
-        <div>
-          <p className="t-p-sans text-[#52617D]">pilot approval room</p>
-          <h1 className="mt-8 t-d2-sans">{stateLabel(pilot.state)}</h1>
+        <div className='w-full md:w-auto'>
+          <p className="t-p-sm-sans">pilot approval room {pilot.answers?.company ? `· ${pilot.answers.company}` : ''}</p>
+          <h1 className="mt-8 t-h3-sans">{stateLabel(pilot.state)}</h1>
         </div>
-        <div className="text-right">
-          <p className="t-p-sans">{routeBadge}</p>
+        <div className="md:text-right w-full md:w-auto">
+          <p className="t-p-sm-sans">{routeBadge}</p>
           <p className="mt-4 t-p-sm-sans text-[#52617D]">
             {token.role} · {token.email}
+          </p>
+          <p className="mt-16">
+            <a
+              className={primaryButtonClasses}
+              href={`/api/leads/documents/pilot-packet?t=${encodeURIComponent(accessToken)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              download a pdf copy
+            </a>
           </p>
         </div>
       </div>
 
       {pilot.state === 'not_eligible' ? (
         <div className="mt-24 rounded border border-[#E5C7A8] bg-[#FBF3E9] px-20 py-16">
-          <p className="t-p-sans font-medium">the standard pilot cannot proceed as drafted.</p>
-          <p className="mt-8 t-p-sans text-[#52617D]">
-            the notes below explain why, and a few clarified answers may change
-            the outcome. revise the plan to continue.
+          <p className="t-p-sm-sans font-medium">the standard pilot cannot proceed as drafted.</p>
+          <p className="mt-8 t-p-sm-sans text-[#52617D]">
+            revise the plan to continue.
           </p>
           <CTAButton href={revisePath} className="mt-16 border-[#07112C]/20 !bg-[#07112C]">
             <span>revise the plan</span>
@@ -552,29 +562,28 @@ export function PilotApprovalRoom({
       {(pilot.state === 'reviewing' || pilot.state === 'revision') &&
       token.role === 'submitter' ? (
         <div className="mt-24 rounded border border-[#C9D6EA] bg-[#F3F7FC] px-20 py-16">
-          <p className="t-p-sans font-medium">
-            your pilot plan is ready. review it for accuracy before inviting your team.
+          <p className="t-p-sm-sans font-medium">
+            your pilot plan is ready. review it for accuracy before inviting your team for review.
           </p>
-          <p className="mt-8 max-w-[46em] t-p-sans text-[#52617D]">
-            check the workflow, people, integrations, security requirements,
-            and annual terms in the plan below. you can still correct anything
-            here. once you confirm, the plan version is frozen for team review
-            and invitations unlock.
+          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
+            workflows, people, integrations, security requirements,
+            and annual terms are outlined below. 
           </p>
-          <button
+          <CTAButton
+            appearance="plain"
             onClick={onStartTeamReview}
             disabled={busy}
             className={`${accentButtonClasses} mt-16`}
           >
             I have reviewed this draft and it is ready to share internally
-          </button>
+          </CTAButton>
         </div>
       ) : null}
 
       {pilot.state === 'team_review' ? (
         <div className="mt-24 rounded border border-[#C9D6EA] bg-[#F3F7FC] px-20 py-16">
-          <p className="t-p-sans font-medium">ready for team review.</p>
-          <p className="mt-8 max-w-[46em] t-p-sans text-[#52617D]">
+          <p className="t-p-sm-sans font-medium">ready for team review.</p>
+          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
             invitations are unlocked. reviewers see this exact version until a
             material change is submitted — any change after this point flags
             their confirmations for re-review.
@@ -584,12 +593,12 @@ export function PilotApprovalRoom({
 
       {pilot.unresolved.length > 0 ? (
         <div className="mt-24 rounded border border-[#E5C7A8] bg-[#FBF3E9] px-20 py-16">
-          <p className="t-p-sans font-medium">
+          <p className="t-p-sm-sans font-medium">
             {pilot.unresolved.length} item{pilot.unresolved.length === 1 ? '' : 's'} to resolve
           </p>
-          <ul className="mt-12 grid gap-10">
+          <ul className="mt-12 grid gap-20">
             {pilot.unresolved.map((item) => (
-              <li key={item.key} className="t-p-sans text-[#52617D]">
+              <li key={item.key} className="t-p-sm-sans text-[#52617D]">
                 <span className="text-[#07112C]">{item.label}.</span>{' '}
                 {item.resolution}
               </li>
@@ -600,10 +609,10 @@ export function PilotApprovalRoom({
 
       {pilot.exceptions.length > 0 ? (
         <div className="mt-24 rounded border border-[#C9D6EA] bg-[#F3F7FC] px-20 py-16">
-          <p className="t-p-sans font-medium">terms outside the standard scope</p>
-          <ul className="mt-12 grid gap-10">
+          <p className="t-p-sm-sans font-medium">terms outside the standard scope</p>
+          <ul className="mt-12 grid gap-20">
             {pilot.exceptions.map((item, index) => (
-              <li key={item.kind + index} className="t-p-sans text-[#52617D]">
+              <li key={item.kind + index} className="t-p-sm-sans text-[#52617D]">
                 <span className="text-[#07112C]">{item.summary}.</span>{' '}
                 {item.amendment}
                 {item.resolvedAt ? <span className="text-[#2F66B5]"> resolved</span> : null}
@@ -620,10 +629,10 @@ export function PilotApprovalRoom({
         </div>
       ) : null}
 
-      <section className="mt-32 grid gap-10 md:grid-cols-2">
+      <section className="mt-32 grid gap-20 md:grid-cols-2">
         <div className="rounded border border-[#D9E1EC] p-20">
-          <h2 className="t-h1-sans">scope</h2>
-          <dl className="mt-12 grid gap-10 t-p-sans">
+          <h2 className="t-h3-sans">scope</h2>
+          <dl className="mt-12 grid gap-20 t-p-sm-sans">
             <div><dt className="text-[#52617D]">pilot workflow</dt><dd className="mt-2">{String(answers.pilotWorkflow || answers.activeWorkflow || '—')}</dd></div>
             <div><dt className="text-[#52617D]">production owner</dt><dd className="mt-2">{String(answers.productionOwner || '—')}</dd></div>
             <div><dt className="text-[#52617D]">economic buyer</dt><dd className="mt-2">{String(answers.economicBuyer || '—')}</dd></div>
@@ -650,9 +659,9 @@ export function PilotApprovalRoom({
         </div>
 
         <div className="rounded border border-[#D9E1EC] p-20">
-          <h2 className="t-h1-sans">commercial terms</h2>
+          <h2 className="t-h3-sans">commercial terms</h2>
           {pilot.proposal ? (
-            <dl className="mt-12 grid gap-10 t-p-sans">
+            <dl className="mt-12 grid gap-20 t-p-sm-sans">
               <div><dt className="text-[#52617D]">pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature</dd></div>
               <div><dt className="text-[#52617D]">term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? ` · ${pilot.proposal.termStart} → ${pilot.proposal.termEnd}` : ''}</dd></div>
               {pilot.proposal.decisionDate ? <div><dt className="text-[#52617D]">final decision date</dt><dd className="mt-2">{pilot.proposal.decisionDate}</dd></div> : null}
@@ -676,7 +685,7 @@ export function PilotApprovalRoom({
                         checked={valueConfirmed}
                         onChange={(event) => setValueConfirmed(event.target.checked)}
                       />
-                      <span className="t-p-sans">confirm this estimate as reasonable</span>
+                      <span className="t-p-sm-sans">confirm this estimate as reasonable</span>
                     </label>
                   ) : value.confirmed ? (
                     <p className="mt-10 t-p-sm-sans text-[#2F66B5]">estimate confirmed by the customer</p>
@@ -685,22 +694,22 @@ export function PilotApprovalRoom({
               ) : null}
             </dl>
           ) : (
-            <p className="mt-12 t-p-sans text-[#52617D]">commercial terms are being prepared.</p>
+            <p className="mt-12 t-p-sm-sans text-[#52617D]">commercial terms are being prepared.</p>
           )}
         </div>
       </section>
 
       <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-        <h2 className="t-h1-sans">success criteria</h2>
-        <p className="mt-8 max-w-[46em] t-p-sans text-[#52617D]">
+        <h2 className="t-h3-sans">success criteria</h2>
+        <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
           each criterion is judged by a named participant against a baseline and
           a measurable target, with evidence recorded in the final evaluation.
         </p>
-        <div className="mt-16 grid gap-16">
+        <div className="mt-16 grid gap-20">
           {criteria.map((criterion, index) => (
-            <div key={criterion.key} className="grid gap-10 rounded border border-[#E5EBF4] p-14 md:grid-cols-[240px_1fr]">
+            <div key={criterion.key} className="grid gap-20 rounded border border-[#E5EBF4] p-14 md:grid-cols-[240px_1fr]">
               <div>
-                <p className="t-p-sans font-medium">{criterion.label}</p>
+                <p className="t-p-sm-sans font-medium">{criterion.label}</p>
                 {editable ? (
                   <RoomSelectField
                     className="mt-8"
@@ -737,7 +746,7 @@ export function PilotApprovalRoom({
                       }}
                     />
                   ) : (
-                    <span className="mt-4 block t-p-sans text-[#07112C]">{criterion.target || '—'}</span>
+                    <span className="mt-4 block t-p-sm-sans text-[#07112C]">{criterion.target || '—'}</span>
                   )}
                 </label>
                 <label className="t-p-sm-sans text-[#52617D]">
@@ -753,7 +762,7 @@ export function PilotApprovalRoom({
                       }}
                     />
                   ) : (
-                    <span className="mt-4 block t-p-sans text-[#07112C]">{criterion.participant || '—'}</span>
+                    <span className="mt-4 block t-p-sm-sans text-[#07112C]">{criterion.participant || '—'}</span>
                   )}
                 </label>
                 <label className="t-p-sm-sans text-[#52617D]">
@@ -769,7 +778,7 @@ export function PilotApprovalRoom({
                       }}
                     />
                   ) : (
-                    <span className="mt-4 block t-p-sans text-[#07112C]">{criterion.evidence || '—'}</span>
+                    <span className="mt-4 block t-p-sm-sans text-[#07112C]">{criterion.evidence || '—'}</span>
                   )}
                 </label>
               </div>
@@ -779,12 +788,12 @@ export function PilotApprovalRoom({
       </section>
 
       <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-        <h2 className="t-h1-sans">security posture</h2>
+        <h2 className="t-h3-sans">security posture</h2>
         <div className="mt-16 grid gap-8">
           {pilot.securityDecisions.map((decision) => (
             <div key={decision.key} className="grid gap-4 border-b border-[#E5EBF4] pb-10 md:grid-cols-[220px_1fr_auto] md:items-baseline">
-              <p className="t-p-sans font-medium">{decision.label}</p>
-              <p className="t-p-sans text-[#52617D]">{decision.note || ''}</p>
+              <p className="t-p-sm-sans font-medium">{decision.label}</p>
+              <p className="t-p-sm-sans text-[#52617D]">{decision.note || ''}</p>
               <p className="t-p-sm-sans capitalize text-[#2F66B5]">{decision.decision.replace('-', ' ')}</p>
             </div>
           ))}
@@ -792,8 +801,8 @@ export function PilotApprovalRoom({
       </section>
 
       <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-        <h2 className="t-h1-sans">review status</h2>
-        <dl className="mt-12 grid gap-10 md:grid-cols-2 t-p-sans">
+        <h2 className="t-h3-sans">review status</h2>
+        <dl className="mt-12 grid gap-20 md:grid-cols-2 t-p-sm-sans">
           {consolidatedRows.map((row) => (
             <div key={row.section} className="grid grid-cols-[1fr_auto] gap-12 items-baseline border-b border-[#E5EBF4] pb-10">
               <dt className="text-[#52617D]">{row.section}</dt>
@@ -815,16 +824,17 @@ export function PilotApprovalRoom({
 
       {token.role === 'submitter' ? (
         <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-          <h2 className="t-h1-sans">reviewers</h2>
-          <p className="mt-8 max-w-[46em] t-p-sans text-[#52617D]">
-            who is likely to review or approve this pilot? confirm the people
-            and invite them here. each reviewer opens the plan through a
+          <h2 className="t-h3-sans">reviewers</h2>
+          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
+            who will review or approve this pilot? confirm the people
+            and send invites here. 
+            <br />
+            each reviewer opens the plan through a
             personalized link — no account needed.
           </p>
           {!invitationsUnlocked ? (
             <p className="mt-12 t-p-sm-sans text-[#52617D]">
-              invitations unlock after you confirm the draft is ready for team
-              review above.
+              invitations can be sent after confirming the draft is ready for review above.
             </p>
           ) : null}
           <div className="mt-16 grid gap-12">
@@ -834,9 +844,9 @@ export function PilotApprovalRoom({
                 reviewer.status === 'reviewed' &&
                 reviewer.versionSeen < pilot.version
               return (
-                <div key={reviewer.id} className="grid gap-10 rounded border border-[#E5EBF4] p-14 md:grid-cols-[240px_1fr_auto] md:items-center">
+                <div key={reviewer.id} className="grid gap-20 rounded border border-[#E5EBF4] p-14 md:grid-cols-[240px_1fr_auto] md:items-center">
                   <div>
-                    <p className="t-p-sans font-medium">{reviewerRoleLabel(reviewer.role)}</p>
+                    <p className="t-p-sm-sans font-medium">{reviewerRoleLabel(reviewer.role)}</p>
                     <p className="t-p-sm-sans text-[#52617D]">
                       {reviewer.name || reviewer.email || 'no one named yet'}
                     </p>
@@ -849,7 +859,7 @@ export function PilotApprovalRoom({
                     {reviewer.status === 'proposed' && !reviewer.email.trim() && invitationsUnlocked ? (
                       <div className="flex flex-wrap items-center gap-8">
                         <RoomTextField
-                          className="max-w-56"
+                          className="max-w-56 border"
                           type="email"
                           placeholder="email address"
                           value={draftEmail}
@@ -926,7 +936,7 @@ export function PilotApprovalRoom({
           </div>
           {invitationsUnlocked ? (
             <>
-              <div className="mt-16 flex flex-wrap gap-10">
+              <div className="mt-16 flex flex-wrap gap-20">
                 <button
                   onClick={() => void onInviteAllRequired()}
                   disabled={busy}
@@ -935,7 +945,7 @@ export function PilotApprovalRoom({
                   invite all required reviews
                 </button>
               </div>
-              <div className="mt-16 grid gap-10 border-t border-[#E5EBF4] pt-16 md:grid-cols-[220px_1fr_1fr_auto] md:items-end">
+              <div className="mt-16 grid gap-20 border-t border-[#E5EBF4] pt-16 lg:grid-cols-[180px_1fr_2fr_auto] lg:items-end">
                 <label className="t-p-sm-sans text-[#52617D]">
                   role
                   <RoomSelectField
@@ -967,34 +977,24 @@ export function PilotApprovalRoom({
                     placeholder="name@company.com"
                   />
                 </label>
-                <button onClick={() => void onAddReviewer()} disabled={busy} className={primaryButtonClasses}>
+                <button onClick={() => void onAddReviewer()} disabled={busy} className={`${primaryButtonClasses} w-full lg:w-auto`}>
                   invite reviewer
                 </button>
               </div>
             </>
           ) : null}
-          <p className="mt-16">
-            <a
-              className={primaryButtonClasses}
-              href={`/api/leads/documents/pilot-packet?t=${encodeURIComponent(accessToken)}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              download a pdf copy
-            </a>
-          </p>
         </section>
       ) : myReviewer ? (
         <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-          <h2 className="t-h1-sans">your review</h2>
-          <p className="mt-8 max-w-[46em] t-p-sans text-[#52617D]">
+          <h2 className="t-h3-sans">your review</h2>
+          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
             you are the {reviewerRoleLabel(myReviewer.role).toLowerCase()} for
             this pilot. review the plan above, then record your decision.
             {pilot.version > 1 && myReviewer.versionSeen < pilot.version ? (
               <span className="text-[#B3261E]"> the plan changed after your last review — please re-review.</span>
             ) : null}
           </p>
-          <div className="mt-16 grid gap-10">
+          <div className="mt-16 grid gap-20">
             <label className="t-p-sm-sans text-[#52617D]">
               questions or requested changes
               <RoomTextareaField
@@ -1004,7 +1004,7 @@ export function PilotApprovalRoom({
                 placeholder="e.g. please add the security addendum before I can confirm"
               />
             </label>
-            <div className="flex flex-wrap items-center gap-10">
+            <div className="flex flex-wrap items-center gap-20">
               <button onClick={() => void onReviewerDecision('confirm')} disabled={busy} className={accentButtonClasses}>
                 confirm my section
               </button>
@@ -1021,8 +1021,8 @@ export function PilotApprovalRoom({
 
       {pilot.state === 'ready_sign' ? (
         <section className="mt-24 rounded border-2 border-[#07112C] p-20">
-          <h2 className="t-h1-sans">sign and fund the pilot</h2>
-          <p className="mt-8 max-w-[46em] t-p-sans text-[#52617D]">
+          <h2 className="t-h3-sans">sign and fund the pilot</h2>
+          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
             by signing, {String(answers.company || 'the customer')} agrees to
             the confirmed scope, the {pilot.proposal?.priceLabel || '$5,000'} pilot
             fee due on signature, and the {pilot.proposal?.termDays || 21}-day
@@ -1044,7 +1044,7 @@ export function PilotApprovalRoom({
               checked={signerConsent}
               onChange={(event) => setSignerConsent(event.target.checked)}
             />
-            <span className="t-p-sans text-[#52617D]">
+            <span className="t-p-sm-sans text-[#52617D]">
               I confirm the information in this plan is accurate, that I am
               authorized to bind the customer, and that I understand the pilot
               fee becomes due on signature.
@@ -1070,13 +1070,13 @@ export function PilotApprovalRoom({
 
       {pilot.state === 'active' ? (
         <div className="mt-24 rounded bg-[#07112C] px-20 py-16 text-white">
-          <p className="t-p-sans">the pilot is live. the final evaluation will be assessed against the agreed criteria.</p>
+          <p className="t-p-sm-sans">the pilot is live. the final evaluation will be assessed against the agreed criteria.</p>
         </div>
       ) : null}
 
       {sessionId && pilot.state !== 'paid' ? (
         <div className="mt-24 rounded border border-[#C9D6EA] bg-[#F3F7FC] px-20 py-16">
-          <p className="t-p-sans font-medium">payment received — finalizing your pilot record.</p>
+          <p className="t-p-sm-sans font-medium">payment received — finalizing your pilot record.</p>
           <p className="mt-8 t-p-sm-sans text-[#52617D]">
             this page refreshes automatically when the confirmation lands.
           </p>
@@ -1084,19 +1084,19 @@ export function PilotApprovalRoom({
       ) : null}
 
       {error ? (
-        <p className="mt-16 t-p-sans text-[#B3261E]" role="alert">
+        <p className="mt-16 t-p-sm-sans text-[#B3261E]" role="alert">
           {error}
         </p>
       ) : null}
       {notice ? (
-        <p className="mt-16 t-p-sans text-[#2F66B5]" role="status">
+        <p className="mt-16 t-p-sm-sans text-[#2F66B5]" role="status">
           {notice}
         </p>
       ) : null}
 
       {pilot.history.length > 1 ? (
         <section className="mt-24 border-t border-[#D9E1EC] pt-16">
-          <h2 className="t-h1-sans">activity</h2>
+          <h2 className="t-h3-sans">activity</h2>
           <ul className="mt-12 grid gap-8">
             {[...pilot.history].reverse().map((entry, index) => (
               <li key={entry.at + index} className="t-p-sm-sans text-[#52617D]">
@@ -1113,8 +1113,8 @@ export function PilotApprovalRoom({
 }
 
 const primaryButtonClasses =
-  'inline-flex h-48 items-center justify-center rounded border border-[#07112C]/20 px-16 t-p-sans text-[#07112C] transition-colors hover:bg-[#F3F7FC] disabled:opacity-40'
+  'inline-flex h-48 items-center justify-center rounded border border-[#07112C]/20 px-16 t-p-sm-sans text-[#07112C] transition-colors hover:bg-[#F3F7FC] disabled:opacity-40 cursor-pointer'
 const accentButtonClasses =
-  'inline-flex h-48 items-center justify-center rounded bg-[#07112C] px-16 t-p-sans text-white transition-colors hover:bg-[#2F66B5] disabled:opacity-40'
+  'inline-flex h-48 items-center justify-center rounded bg-[#07112C] px-16 t-p-sm-sans text-white transition-colors hover:bg-[#2F66B5] disabled:opacity-40 cursor-pointer'
 const plainButtonClasses =
-  'inline-flex h-48 items-center justify-center rounded px-16 t-p-sans text-[#52617D] transition-colors hover:text-[#07112C] disabled:opacity-40'
+  'inline-flex h-48 items-center justify-center rounded px-16 t-p-sm-sans text-[#52617D] transition-colors hover:text-[#07112C] disabled:opacity-40 cursor-pointer'

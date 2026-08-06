@@ -360,13 +360,14 @@ export function PilotScopeForm({
         identity: Object.fromEntries(
           Object.entries({
             email: String(values.email || ''),
+            name: String(values.name || ''),
             company: String(values.company || ''),
             role: String(values.role || ''),
             website: String(values.website || ''),
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
-          sourcePage: isRevision ? `/pilot/${pilotId}/revise` : '/paid-pilot',
+          sourcePage: isRevision ? `/paid-pilot/room/${pilotId}/revise` : '/paid-pilot',
           ctaLabel: isRevision ? 'Submit Revision' : 'Build my pilot plan',
           intent: isRevision ? 'pilot_revision' : 'pilot_scope',
         }),
@@ -412,7 +413,7 @@ export function PilotScopeForm({
 
   if (submitState.status === 'success') {
     return (
-      <div className='!m-auto max-w-[42em]'>
+      <div className='max-w-[42em]'>
       <div role="status" className="py-24 ml-52">
         <div className='inline-flex items-baseline gap-10'>
           <Check
@@ -963,7 +964,7 @@ export function PilotScopeForm({
         )}
       </div>
 
-      <div className='col-span-full relative'>
+      <div className='col-span-full relative h-40 mb-20'>
         {classification.route === 'disqualified' ? (
           <p className="t-p-sm-sans text-white/80 sm:col-span-2 absolute" role="note">
             Your answers include items outside the standard pilot scope —{' '}

@@ -226,14 +226,14 @@ const STATE_LABELS: Record<PilotState, string> = {
   reviewing: 'Scope draft — under review',
   revision: 'Revision requested',
   team_review: 'Ready for team review',
-  exception_review: 'Exception review required',
+  exception_review: 'Ready for team review',
   scope_confirmed: 'Scope confirmed',
   ready_sign: 'Ready for signature',
   signed: 'Signed',
   paid: 'Paid',
-  kickoff: 'Kickoff scheduled',
+  kickoff: 'Scheduled',
   active: 'Active pilot',
-  not_eligible: 'Not eligible',
+  not_eligible: 'Scope draft — under review',
 }
 
 export function stateLabel(state: PilotState): string {

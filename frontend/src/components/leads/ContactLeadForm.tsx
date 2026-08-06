@@ -54,6 +54,7 @@ export function ContactLeadForm({
         identity: Object.fromEntries(
           Object.entries({
             email: String(values.email || ''),
+            name: String(values.name || ''),
             company: String(values.company || ''),
             role: String(values.role || ''),
             website: String(values.website || ''),

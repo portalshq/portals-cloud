@@ -23,21 +23,21 @@ export default async function PilotRoomPage({
 
   return (
     <main className="relative z-(--z-main) min-h-screen bg-white lowercase text-[#07112C]">
-      <section className="mx-auto my-auto w-full max-w-4xl px-24 py-24 md:py-40">
+      <section className="w-full max-w-5xl mx-auto px-24 py-24 md:py-40">
         {!pilot ? (
-          <div className="max-w-[34em]">
-            <h1 className="t-h1-sans">this pilot room could not be found.</h1>
-            <p className="mt-16 t-p-lg-sans">
-              the record may have been removed. if you expected it to exist,
+          <div className="max-w-[34em] mx-auto">
+            <h1 className="t-h1-sans">this content could not be found.</h1>
+            <p className="mt-16 t-p-sans">
+              if you expected it to exist,
               reply to the email that brought you here.
             </p>
           </div>
         ) : !access ? (
-          <div className="max-w-[34em]">
-            <h1 className="t-h1-sans">this link needs verification.</h1>
-            <p className="mt-16 t-p-lg-serif">
-              open the link from your pilot email to continue. each room link is
-              tied to a single recipient.
+          <div className="max-w-[34em] mx-auto">
+            <h1 className="t-h1-sans">this content could not be found.</h1>
+            <p className="mt-16 t-p-sans">
+              if you expected it to exist,
+              reply to the email that brought you here.
             </p>
           </div>
         ) : (
@@ -46,7 +46,7 @@ export default async function PilotRoomPage({
             token={access.token}
             accessToken={access.accessToken}
             sessionId={query.session_id}
-            revisePath={`/pilot/${id}/revise?t=${encodeURIComponent(access.accessToken)}`}
+            revisePath={`/paid-pilot/room/${id}/revise?t=${encodeURIComponent(access.accessToken)}`}
           />
         )}
       </section>

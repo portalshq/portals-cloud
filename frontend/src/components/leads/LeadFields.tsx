@@ -68,6 +68,18 @@ export function IdentityFields({
   return (
     <>
       <KnownProfileNotice context={context} />
+      {!known.has('name') ? (
+        <LeadField label="name *" name="name">
+          <LeadTextField
+            id="name"
+            name="name"
+            autoComplete="name"
+            required
+            onChange={onStarted}
+            placeholder="your name"
+          />
+        </LeadField>
+      ) : null}
       {!known.has('email') ? (
         <LeadField label="work email *" name="email">
           <LeadTextField

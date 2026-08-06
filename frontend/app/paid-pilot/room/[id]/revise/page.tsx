@@ -26,7 +26,11 @@ export default async function PilotRevisePage({
     return (
       <main className="relative z-(--z-main) min-h-screen bg-[#343434] text-white">
         <div className="mx-auto max-w-3xl px-24 py-40">
-          <h1 className="t-h1-sans">this pilot record could not be found.</h1>
+          <h1 className="t-h1-sans">this content could not be found.</h1>
+            <p className="mt-16 t-p-sans">
+              if you expected it to exist,
+              reply to the email that brought you here.
+            </p>
         </div>
       </main>
     )
@@ -35,10 +39,11 @@ export default async function PilotRevisePage({
     return (
       <main className="relative z-(--z-main) min-h-screen bg-[#343434] text-white">
         <div className="mx-auto max-w-3xl px-24 py-40">
-          <h1 className="t-h1-sans">this link needs verification.</h1>
-          <p className="mt-16 t-p-lg-serif text-white">
-            open the revise link from your pilot email to continue.
-          </p>
+          <h1 className="t-h1-sans">this content could not be found.</h1>
+            <p className="mt-16 t-p-sans">
+              if you expected it to exist,
+              reply to the email that brought you here.
+            </p>
         </div>
       </main>
     )
@@ -47,15 +52,11 @@ export default async function PilotRevisePage({
 
   return (
     <main className="relative z-(--z-main) min-h-screen bg-[#343434] text-white">
-      <section className="mx-auto w-full max-w-3xl px-24 py-24 md:py-40">
-        <p className="t-p-sans text-white">revise your pilot plan</p>
-        <h1 className="mt-16 t-d2-sans">
-          update the scope, then resubmit for review
+      <section className="mx-auto w-full max-w-3xl py-24 md:py-40">
+        <h1 className="t-h3-sans px-52">
+          revise your pilot plan
         </h1>
-        <p className="mt-24 max-w-[36em] t-p-lg-serif text-white">
-          your previous answers are loaded below. change what changed, then
-          submit. the plan re-classifies against the standard package boundary.
-        </p>
+        <p className="mt-24 px-52 t-p-sm-sans text-white">update the scope, submit for review</p>
         <div className="mt-32">
           <PilotScopeForm
             specSummary=""

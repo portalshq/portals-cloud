@@ -54,7 +54,7 @@ function pilotRoomLink(
   email: string,
 ): string {
   const token = roomToken(pilot.id, role, email)
-  return `${siteUrl()}/pilot/${pilot.id}?t=${encodeURIComponent(token)}`
+  return `${siteUrl()}/paid-pilot/room/${pilot.id}?t=${encodeURIComponent(token)}`
 }
 
 function pilotDocuments(
@@ -66,13 +66,13 @@ function pilotDocuments(
   securityUrl: string
 } {
   const submitterEmail = String(pilot.answers.email || submitterEmailOverride || '').trim()
-  let roomUrl = `${siteUrl()}/pilot/${pilot.id}`
+  let roomUrl = `${siteUrl()}/paid-pilot/room/${pilot.id}`
   if (submitterEmail) {
     try {
       const token = roomToken(pilot.id, 'submitter', submitterEmail)
-      roomUrl = `${siteUrl()}/pilot/${pilot.id}?t=${encodeURIComponent(token)}`
+      roomUrl = `${siteUrl()}/paid-pilot/room/${pilot.id}?t=${encodeURIComponent(token)}`
     } catch {
-      roomUrl = `${siteUrl()}/pilot/${pilot.id}`
+      roomUrl = `${siteUrl()}/paid-pilot/room/${pilot.id}`
     }
   }
   return {
@@ -82,6 +82,18 @@ function pilotDocuments(
   }
 }
 
+export function submitterGreeting(pilot: StoredPilot): string | null {
+  const name = String(pilot.answers.name || '').trim()
+  if (name) {
+    const first = name.split(/\s+/)[0]
+    return `hi ${first.toLowerCase()},`
+  }
+  const email = String(pilot.answers.email || '').trim()
+  const local = email.split('@')[0].replace(/[._-]+/g, ' ').trim()
+  if (local && local.length >= 2) return `hi ${local.toLowerCase()},`
+  return null
+}
+
 export function pilotCopy(
   pilot: StoredPilot,
   variant: string,
@@ -89,11 +101,13 @@ export function pilotCopy(
 ): {subject: string; text: string} {
   const {roomUrl, packetUrl, securityUrl} = pilotDocuments(pilot, submitterEmail)
   const calendar = process.env.PILOT_CALENDAR_URL
+  const greeting = submitterGreeting(pilot)
   const base = [
+    ...(greeting ? [greeting, ''] : []),
     `route: ${pilot.route}`,
     `status: ${stateLabel(pilot.state)}`,
     '',
-    'review your personalized pilot approval room:',
+    'review your personalized pilot approval room',
     roomUrl,
     'open the link in the same browser used to complete the form.',
   ]
@@ -107,9 +121,6 @@ export function pilotCopy(
           '',
           ...base,
           '',
-          'the plan is ready to confirm as drafted, request changes, or schedule a review:',
-          roomUrl,
-          '',
           'portals',
         ].join('\n'),
       }
@@ -119,7 +130,7 @@ export function pilotCopy(
         .map((item) => `- ${item.summary}`)
         .join('\n')
       return {
-        subject: 'your pilot needs a pilot terms review',
+        subject: 'review your pilot terms',
         text: [
           'your pilot request includes items outside the standard scope, so a single pilot terms review is required.',
           '',
@@ -254,7 +265,7 @@ export function pilotCopy(
     default: {
       const oneCall = pilot.route === 'one-call'
       return {
-        subject: 'your personalized pilot approval room is ready',
+        subject: 'review pilot terms, share, revise, and confirm',
         text: [
           'thanks for scoping a paid production pilot with portals.',
           '',
@@ -392,7 +403,7 @@ export async function sendPilotShareEmail(
       `you have been invited as ${role} on a portals production pilot.`,
       '',
       `status: ${stateLabel(pilot.state)}`,
-      summarizeProposal(pilot.proposal),
+      // summarizeProposal(pilot.proposal),
       '',
       'open the pilot approval room:',
       link,
@@ -456,13 +467,12 @@ export async function sendDeadLetterNotification({
     to: recipient,
     subject: `lead operation needs attention: ${actionType}`,
     text: [
-      'a lead operation exhausted its automatic retries.',
-      '',
       `submission: ${submissionId}`,
       `outbox action: ${outboxId}`,
       `action type: ${actionType}`,
       `last error: ${String(error).slice(0, 1000)}`,
       '',
+      'a lead operation exhausted its automatic retries.',
       'review the lead_outbox record and replay it after correcting the integration.',
     ].join('\n'),
   })

@@ -339,9 +339,9 @@ function ResourceFAQ() {
           <h2 className="t-d2-sans max-w-[12em]">
             Frequently asked questions
           </h2>
-          <div className="space-y-16">
+          <div className="space-y-16 max-w-3xl lg:w-3xl">
             {faqs.map((faq, index) => (
-              <div key={index} className="border border-white/30 rounded-sm">
+              <div key={index} className="border border-white/70 rounded-sm">
                 <button
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
                   className="w-full p-24 text-left flex justify-between items-center t-p-sans focus:outline-none"

@@ -598,7 +598,7 @@ export function PilotPlanPdfDocument({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>decision path</Text>
           <Text>deploy portals, extend the pilot under a defined scope, or conclude that portals is not the right fit at this time. the final decision date is {pilot.proposal?.decisionDate || 'stated in the room'}.</Text>
-          <Text style={styles.muted}>signature and payment are completed in the pilot approval room: portals.app/pilot/{pilot.id}</Text>
+          <Text style={styles.muted}>signature and payment are completed in the pilot approval room: portals.works/paid-pilot/room/{pilot.id}</Text>
         </View>
 
         <View style={styles.section}>
