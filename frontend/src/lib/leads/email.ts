@@ -4,7 +4,7 @@ import {roomToken, type RoomToken} from './pilot-tokens'
 import type {StoredPilot, StoredSubmission} from './store'
 import {getPilotBySubmissionId, getPilotById} from './store'
 
-async function sendEmail({
+export async function sendEmail({
   idempotencyKey,
   to,
   subject,
@@ -57,12 +57,15 @@ function pilotRoomLink(
   return `${siteUrl()}/pilot/${pilot.id}?t=${encodeURIComponent(token)}`
 }
 
-function pilotDocuments(pilot: StoredPilot): {
+function pilotDocuments(
+  pilot: StoredPilot,
+  submitterEmailOverride?: string,
+): {
   roomUrl: string
   packetUrl: string
   securityUrl: string
 } {
-  const submitterEmail = String(pilot.answers.email || '')
+  const submitterEmail = String(pilot.answers.email || submitterEmailOverride || '').trim()
   let roomUrl = `${siteUrl()}/pilot/${pilot.id}`
   if (submitterEmail) {
     try {
@@ -79,11 +82,12 @@ function pilotDocuments(pilot: StoredPilot): {
   }
 }
 
-function pilotCopy(
+export function pilotCopy(
   pilot: StoredPilot,
   variant: string,
+  submitterEmail?: string,
 ): {subject: string; text: string} {
-  const {roomUrl, packetUrl, securityUrl} = pilotDocuments(pilot)
+  const {roomUrl, packetUrl, securityUrl} = pilotDocuments(pilot, submitterEmail)
   const calendar = process.env.PILOT_CALENDAR_URL
   const base = [
     `route: ${pilot.route}`,
@@ -304,7 +308,7 @@ async function confirmationCopy(
       const revised = pilot.history.some(
         (entry) => entry.action === 'revised' || entry.note === 'revision submitted',
       )
-      return pilotCopy(pilot, revised ? 'revised' : 'reviewing')
+      return pilotCopy(pilot, revised ? 'revised' : 'reviewing', submission.identity.email)
     }
     const calendar = process.env.PILOT_CALENDAR_URL
     const packetUrl = `${siteUrl()}/api/leads/documents/pilot-packet`
@@ -360,7 +364,7 @@ export async function sendPilotStatusEmail(
     ? String(recipient).trim()
     : String(pilot.answers.email || '')
   if (!target) throw new Error('Pilot recipient email is missing.')
-  const copy = pilotCopy(pilot, variant)
+  const copy = pilotCopy(pilot, variant, target)
   await sendEmail({
     idempotencyKey: `${pilot.id}-status-${variant}-${target}`,
     to: target,

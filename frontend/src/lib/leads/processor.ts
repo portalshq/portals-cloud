@@ -28,7 +28,7 @@ export async function processLeadOutbox(limit = 20): Promise<void> {
         await sendFounderNotification(submission)
       } else if (row.action_type === 'pilot_email') {
         const [pilotId, , variant, ...rest] = row.action_key.split(':')
-        const recipient = rest.join(':') || undefined
+        const recipient = rest.join(':') || submission.identity.email
         await sendPilotStatusEmail(pilotId, variant, recipient)
       } else if (row.action_type === 'analytics') {
         await trackSubmissionEvents(submission)

@@ -201,6 +201,11 @@ async function syncPilotRecord(
   const successCriteria = buildSuccessCriteria(answers)
   const securityDecisions = buildSecurityDecisions(answers)
   const unresolved = computeUnresolved(answers, {route: classification.route})
+  const submitterEmail = leadRequest.identity?.email
+  const pilotAnswers = {
+    ...answers,
+    ...(submitterEmail ? {email: submitterEmail} : {}),
+  }
 
   if (leadRequest.pilotId) {
     const pilot = await getPilotById(leadRequest.pilotId)
@@ -222,6 +227,7 @@ async function syncPilotRecord(
       answers: {
         ...(pilot.answers as Record<string, unknown>),
         ...answers,
+        ...(!pilot.answers.email && submitterEmail ? {email: submitterEmail} : {}),
       },
       exceptions: classification.exceptions,
       unresolved,
@@ -267,7 +273,7 @@ async function syncPilotRecord(
   const pilot = await createPilotRecord({
     profileId,
     initialSubmissionId: submissionId,
-    answers,
+    answers: pilotAnswers,
     route: classification.route,
     state: classification.route === 'disqualified' ? 'not_eligible' : 'reviewing',
     exceptions: classification.exceptions,
@@ -372,6 +378,7 @@ async function handleLeadRequest(
     leadRequest.submissionType === 'pilot_request'
       ? {
           ...leadRequest,
+          identity,
           answers: pilotRequestAnswersSchema.parse({
             ...leadRequest.answers,
             ...Object.fromEntries(

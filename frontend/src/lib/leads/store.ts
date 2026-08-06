@@ -95,6 +95,12 @@ type OutboxRow = {
   attempts: number
 }
 
+type MemoryOutboxRow = OutboxRow & {
+  status: 'pending' | 'retry' | 'processing' | 'complete' | 'dead'
+  last_error: string | null
+  due_at: number
+}
+
 const globalForLeads = globalThis as typeof globalThis & {
   portalsLeadPool?: Pool
   portalsLeadMemory?: {
@@ -103,6 +109,7 @@ const globalForLeads = globalThis as typeof globalThis & {
     submissions: Map<string, StoredSubmission>
     pilots: Map<string, StoredPilot>
     submissionPilots: Map<string, string>
+    outbox: Map<string, MemoryOutboxRow>
   }
 }
 
@@ -134,6 +141,7 @@ function memory() {
     submissions: new Map(),
     pilots: new Map(),
     submissionPilots: new Map(),
+    outbox: new Map(),
   }
   return globalForLeads.portalsLeadMemory
 }
@@ -460,11 +468,25 @@ export async function enqueuePilotEmail(
 ): Promise<void> {
   const submissionId = await latestSubmissionIdForPilot(pilotId)
   if (!submissionId) throw new Error('Pilot has no submission to attach the email to.')
-  if (leadsDryRun()) return
+  const actionKey = `${pilotId}:pilot_email:${variant}:${(recipient || '').toLowerCase()}`
+  if (leadsDryRun()) {
+    if (memory().outbox.has(actionKey)) return
+    memory().outbox.set(actionKey, {
+      id: actionKey,
+      submission_id: submissionId,
+      action_type: 'pilot_email',
+      action_key: actionKey,
+      attempts: 0,
+      status: 'pending',
+      last_error: null,
+      due_at: Date.now(),
+    })
+    return
+  }
   await pool().query(
     `INSERT INTO lead_outbox(submission_id, action_type, action_key)
      VALUES ($1,'pilot_email',$2) ON CONFLICT(action_key) DO NOTHING`,
-    [submissionId, `${pilotId}:pilot_email:${variant}:${(recipient || '').toLowerCase()}`],
+    [submissionId, actionKey],
   )
 }
 
@@ -1213,7 +1235,23 @@ export async function getQualificationSnapshot(
 }
 
 export async function takeDueOutbox(limit = 20): Promise<OutboxRow[]> {
-  if (leadsDryRun()) return []
+  if (leadsDryRun()) {
+    const now = Date.now()
+    return [...memory().outbox.values()]
+      .filter(
+        (row) =>
+          row.status === 'pending' ||
+          (row.status === 'retry' && row.due_at <= now),
+      )
+      .slice(0, limit)
+      .map(({id, submission_id, action_type, action_key, attempts}) => ({
+        id,
+        submission_id,
+        action_type,
+        action_key,
+        attempts,
+      }))
+  }
   const result = await pool().query<OutboxRow>(
     `UPDATE lead_outbox
         SET status = 'processing', updated_at = now()
@@ -1229,7 +1267,7 @@ export async function takeDueOutbox(limit = 20): Promise<OutboxRow[]> {
            created_at ASC
          FOR UPDATE SKIP LOCKED LIMIT $1
       )
-      RETURNING id::text, submission_id, action_type, attempts`,
+      RETURNING id::text, submission_id, action_type, action_key, attempts`,
     [limit],
   )
   return result.rows
@@ -1334,7 +1372,11 @@ export async function markSubmissionSynced(id: string): Promise<void> {
 }
 
 export async function completeOutbox(id: string): Promise<void> {
-  if (leadsDryRun()) return
+  if (leadsDryRun()) {
+    const row = memory().outbox.get(id)
+    if (row) row.status = 'complete'
+    return
+  }
   await pool().query(
     `UPDATE lead_outbox SET status = 'complete', completed_at = now(),
       updated_at = now() WHERE id = $1`,
@@ -1347,7 +1389,17 @@ export async function retryOutbox(
   attempts: number,
   error: unknown,
 ): Promise<void> {
-  if (leadsDryRun()) return
+  if (leadsDryRun()) {
+    const row = memory().outbox.get(id)
+    if (!row) return
+    const nextAttempts = attempts + 1
+    row.attempts = nextAttempts
+    row.last_error = String(error).slice(0, 2000)
+    row.status = nextAttempts >= 6 ? 'dead' : 'retry'
+    const delayMinutes = Math.min(24 * 60, 5 * 6 ** Math.max(0, attempts))
+    row.due_at = Date.now() + delayMinutes * 60_000
+    return
+  }
   const nextAttempts = attempts + 1
   const dead = nextAttempts >= 6
   const delayMinutes = Math.min(24 * 60, 5 * 6 ** Math.max(0, attempts))

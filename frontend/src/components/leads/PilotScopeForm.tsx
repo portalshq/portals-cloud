@@ -412,28 +412,31 @@ export function PilotScopeForm({
 
   if (submitState.status === 'success') {
     return (
-      <div role="status" className="max-w-[42em] py-24">
-        <Check
-          aria-hidden="true"
-          className="text-white shrink-0"
-          size={32}
-          strokeWidth={1.6}
-        />
-        <h3 className="mt-24 t-h1-sans">
-          {/* {submitState.pilotRoute === 'disqualified'
-            ? 'we need a few clarifications.'
-            : submitState.pilotRoute === 'one-call'
-            ? 'your pilot approval room is ready.'
-            : 'your pilot approval room is ready.'} */}
-          your pilot approval room is ready.
-        </h3>
+      <div className='!m-auto max-w-[42em]'>
+      <div role="status" className="py-24 ml-52">
+        <div className='inline-flex items-baseline gap-10'>
+          <Check
+            aria-hidden="true"
+            className="text-white -ml-48 shrink-0"
+            size={32}
+            strokeWidth={1.6}
+            />
+          <h3 className="t-h1-sans">
+            {/* {submitState.pilotRoute === 'disqualified'
+              ? 'we need a few clarifications.'
+              : submitState.pilotRoute === 'one-call'
+              ? 'your pilot approval room is ready.'
+              : 'your pilot approval room is ready.'} */}
+            your pilot approval room is ready.
+          </h3>
+        </div>
         <p className="mt-16 t-p-lg-sans text-white">
           {/* {submitState.pilotRoute === 'disqualified'
             ? 'Your request cannot proceed as a standard pilot yet. Review the notes in your room, revise the scope, and resubmit.'
             : submitState.pilotRoute === 'one-call'
               ? 'The plan is assembled and ready for review. A single pilot terms review is required before signing.'
               : 'The plan is assembled — no call required. Review the scope, confirm it as drafted, and sign when ready.'} */}
-          review the notes in your room, share, revise, and confirm.
+          review pilot terms, share, revise, and confirm.
         </p>
         {submitState.preview ? (
           <p className="mt-14 t-p-sans text-white">
@@ -483,7 +486,7 @@ export function PilotScopeForm({
             </CTAButton>
           </div>
         ) : null}
-        {submitState.calendarUrl ? (
+        {/* {submitState.calendarUrl ? (
           <p className="mt-16 t-p-sans text-white">
             need a pilot terms review?{' '}
             <a
@@ -495,7 +498,8 @@ export function PilotScopeForm({
               choose a time
             </a>.
           </p>
-        ) : null}
+        ) : null} */}
+      </div>
       </div>
     )
   }
