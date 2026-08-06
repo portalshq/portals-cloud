@@ -74,16 +74,13 @@ export function LegalDocumentView({document}: {document: LegalDocument}) {
       <div className="relative z-10">
         <section className="relative flex min-h-screen items-center overflow-hidden">
           <div className="ui-grid relative z-10 w-full gap-y-fluid-[30,52] py-fluid-[76,106] pt-[max(var(--spacing-Header-h),24svh)] text-white">
-            <div className="col-span-full lg:col-span-3">
-              <NumberLabel index={1} />
-            </div>
             <div className="col-span-full lg:col-span-14">
-              <p className="t-p-sans text-white">
-                effective {formatDate(document.effectiveDate).toLowerCase()}
-              </p>
-              <h1 className="mt-20 max-w-[10em] t-d2-sans">
+              <h1 className="max-w-[10em] t-d2-sans">
                 {document.title.toLowerCase()}
               </h1>
+              <p className="mt-20 t-p-sans text-white">
+                effective {formatDate(document.effectiveDate).toLowerCase()}
+              </p>
               <p className="mt-28 max-w-[38em] t-p-lg-serif text-white">
                 {document.summary}
               </p>
@@ -100,7 +97,7 @@ export function LegalDocumentView({document}: {document: LegalDocument}) {
                       href={`#${section.anchor}`}
                       className="grid grid-cols-[2.9em_1fr] gap-x-12 text-white transition-colors hover:text-white/80"
                     >
-                      <span className="t-m2 text-white/80">{formatNumber(index + 2)}</span>
+                      <span className="t-m2 text-white/80">{formatNumber(index + 1)}</span>
                       <span className="t-p-sm-sans">{section.title.toLowerCase()}</span>
                     </a>
                   </li>
@@ -117,7 +114,7 @@ export function LegalDocumentView({document}: {document: LegalDocument}) {
           {document.sections.map((section, index) => (
             <div key={section._key} className="ui-grid gap-y-fluid-[30,52] border-t border-white/20 py-fluid-[76,106] text-white">
               <div className="col-span-full lg:col-span-4">
-                <NumberLabel index={index + 2} />
+                <NumberLabel index={index + 1} />
                 <p className="mt-18 max-w-[12em] t-p-sm-sans text-white/80">
                   {section.title.toLowerCase()}
                 </p>
@@ -142,7 +139,7 @@ export function LegalDocumentView({document}: {document: LegalDocument}) {
         <footer className="border-t border-white/20">
           <div className="ui-grid min-h-screen content-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
             <div className="col-span-full lg:col-span-3">
-              <NumberLabel index={document.sections.length + 2} />
+              <NumberLabel index={document.sections.length + 1} />
             </div>
             <div className="col-span-full lg:col-span-13">
               <p className="t-p-sans text-white/80">contact</p>
@@ -150,11 +147,11 @@ export function LegalDocumentView({document}: {document: LegalDocument}) {
                 questions about {document.title.toLowerCase()}.
               </h2>
               <p className="mt-24 max-w-[34em] t-p-lg-serif text-white">
-                Reach Portals for privacy, legal, or document questions at the address below.
+                contact us for privacy, legal, or document questions.
               </p>
               <div className="mt-32">
-                <CTAButton href={`mailto:${document.contactEmail}`}>
-                  <span>{document.contactEmail}</span>
+                <CTAButton href="/contact?intent=legal-review" analyticsLabel="Contact Portals" analyticsIntent="legal_review">
+                  <span>Contact us</span>
                   <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
                 </CTAButton>
               </div>

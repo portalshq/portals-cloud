@@ -1,8 +1,8 @@
 import type {Metadata} from 'next'
 import {PilotScopeForm} from '@/components/leads/PilotScopeForm'
 import {getKnownLeadContext} from '@/lib/leads/profile'
+import {resolveRoomAccess} from '@/lib/leads/room-access'
 import {getPilotById} from '@/lib/leads/store'
-import {verifyRoomToken} from '@/lib/leads/pilot-tokens'
 
 export const metadata: Metadata = {
   title: 'Revise Your Pilot Plan',
@@ -20,7 +20,7 @@ export default async function PilotRevisePage({
 }) {
   const [{id}, query] = await Promise.all([params, searchParams])
   const pilot = await getPilotById(id)
-  const token = query.t ? verifyRoomToken(query.t) : null
+  const access = await resolveRoomAccess(pilot, query.t)
 
   if (!pilot) {
     return (
@@ -31,7 +31,7 @@ export default async function PilotRevisePage({
       </main>
     )
   }
-  if (!token || token.pilotId !== id) {
+  if (!access) {
     return (
       <main className="relative z-(--z-main) min-h-screen bg-[#343434] text-white">
         <div className="mx-auto max-w-3xl px-24 py-40">

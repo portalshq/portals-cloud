@@ -150,6 +150,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
 
     // ── Control Plane ALB Target Group (port 8083) ──────────────────────
     this.controlPlaneAlbTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-controlplane-alb-tg`, {
+      name: `${resourcePrefix}-cp-tg`,
       port: 8083,
       protocol: "HTTP",
       targetType: "ip",

@@ -249,6 +249,11 @@ async function syncPilotRecord(
         }
       }
     }
+    try {
+      await enqueuePilotEmail(updated.id, 'revised')
+    } catch (cause) {
+      console.error('revised email failed', cause)
+    }
     return {
       ...response,
       nextAction: 'pilot_room',
@@ -274,6 +279,11 @@ async function syncPilotRecord(
     proposal: buildCommercialSnapshot(answers, [], {}),
   })
   await attachSubmissionToPilot(submissionId, pilot.id)
+  try {
+    await enqueuePilotEmail(pilot.id, 'reviewing')
+  } catch (cause) {
+    console.error('pilot email failed', cause)
+  }
   return {
     ...response,
     nextAction: 'pilot_room',

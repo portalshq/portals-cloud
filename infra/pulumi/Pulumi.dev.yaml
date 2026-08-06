@@ -1,4 +1,5 @@
 config:
   aws:region: us-east-1
   portals-platform:ed25519SigningKey:
-    secure: AAABAN+lLnaO4jYIq352TYXtqwLBsGG2inRfE+P/cEX60tdeG3WmDPoklDdJLYGMOKp5bbjkdkzDnKrK4F9/K5zDX0Ht3CwCrqgz/Q98Qzs=
+    secure: AAABADhSXCBOavnp39ayIuqlyOrQpq6fO3C/3SOasOZZTgNybvo/rnsNAZZ/0IHmSG3Ynt+gNEKvn0XI2nJRHxOlRilvGSoPC5+S+A==
+  docker:host: unix:///Users/vibrantceo/.orbstack/run/docker.sock

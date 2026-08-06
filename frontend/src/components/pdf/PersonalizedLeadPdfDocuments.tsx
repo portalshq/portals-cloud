@@ -400,10 +400,6 @@ export function PersonalizedPilotPdfDocument({
               <Text>{briefAnswer(data, 'securityRequirements', 140)}</Text>
               <Text style={styles.body}>the accompanying security brief states the current architecture, policies, subprocessors, and certification status. planned certifications are unearned. </Text>
             </View>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>annual path</Text>
-              <Text>{briefAnswer(data, 'annualExpectations', 110)}</Text>
-            </View>
             <View style={styles.darkPanel}>
               <Text style={styles.sectionTitle}>value to validate</Text>
               <Text>{valueStatement}</Text>
@@ -520,7 +516,7 @@ export function PilotPlanPdfDocument({
                   {criterion.target ? ` · target: ${clipped(criterion.target, 90)}` : ''}
                 </Text>
                 <Text style={styles.muted}>
-                  participant: {criterion.participant || 'named in the room'} · evidence: {criterion.evidence || 'recorded in the final evaluation'}
+                  participant: {criterion.participant || 'assigned in the approval room'} · evidence: {criterion.evidence || 'reported in the final evaluation'}
                 </Text>
               </View>
             ))

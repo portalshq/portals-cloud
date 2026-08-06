@@ -1,6 +1,11 @@
 {
-  "framework": null,
+  "framework": "nextjs",
   "buildCommand": "npm run build",
-  "outputDirectory": "out",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/internal/leads/retry",
+      "schedule": "*/10 * * * *"
+    }
+  ]
 }

@@ -148,13 +148,13 @@ export function recommendedReviewers(
     {
       role: 'economic_buyer',
       name: name('economicBuyer'),
-      email: '',
+      email: email('economicBuyerEmail'),
       required: true,
     },
     {
       role: 'technical_evaluator',
       name: name('technicalEvaluator'),
-      email: '',
+      email: email('technicalEvaluatorEmail'),
       required: true,
     },
   ]
@@ -364,7 +364,7 @@ export function classifyPilot(
       amendment: 'Procurement process run in parallel; funding must precede kickoff.',
     })
   }
-  const securityText = (answers.securityRequirements || '') + ' ' + (answers.annualExpectations || '')
+  const securityText = (answers.securityRequirements || '')
   for (const [pattern, kind] of SECURITY_KEYWORDS) {
     if (pattern.test(securityText) && !exceptions.some((item) => item.kind === kind)) {
       exceptions.push({

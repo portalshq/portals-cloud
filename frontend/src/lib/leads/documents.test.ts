@@ -35,7 +35,6 @@ const answers = {
   targetStartPeriod: 'within-30-days',
   successCriteria: 'recover and reproduce one approved campaign asset',
   securityRequirements: 'review data isolation and export controls',
-  annualExpectations: 'one production team and two repositories',
   budgetReadiness: 'pilot-approved',
   budgetOwner: 'production',
 }
@@ -87,7 +86,6 @@ test('maximum-length pilot answers remain a two-page brief', async () => {
       requiredIntegrations: 'integration requirement '.repeat(60),
       successCriteria: 'measurable success criterion '.repeat(80),
       securityRequirements: 'security requirement '.repeat(100),
-      annualExpectations: 'annual deployment expectation '.repeat(60),
     },
   }
   const pilot = await renderToBuffer(

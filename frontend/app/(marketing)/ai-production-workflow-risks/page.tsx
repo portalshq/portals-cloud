@@ -1,16 +1,19 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getResourceDocument } from '@/sanity/lib/resources'
+import {getKnownLeadContext} from '@/lib/leads/profile'
 import { ResourceBriefClient } from './client'
 
 const SLUG = 'ai-production-workflow-risks'
+
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(): Promise<Metadata> {
   const document = await getResourceDocument(SLUG)
   if (!document) return {}
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
-  const canonicalPath = document.seo?.canonicalPath || '/use-cases'
+  const canonicalPath = '/ai-production-workflow-risks'
 
   return {
     title: document.seo?.metaTitle || document.title,
@@ -27,8 +30,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ResourceBriefPage() {
-  const document = await getResourceDocument(SLUG)
+  const [document, context] = await Promise.all([
+    getResourceDocument(SLUG),
+    getKnownLeadContext(),
+  ])
   if (!document) notFound()
 
-  return <ResourceBriefClient document={document} />
+  return <ResourceBriefClient document={document} context={context} />
 }

@@ -182,6 +182,7 @@ const sections = [
       'Portals uses service providers only as operationally necessary; the current provider list is supplied during security review, and a public list is planned.',
     paragraphs: [
       'Subprocessor categories may include cloud infrastructure, databases, object storage, authentication, email, billing, observability, support, analytics, integrations, and optional AI-processing providers.',
+      'Website lead operations use a managed marketing-intake PostgreSQL database, Tally for workflow-assessment collection, Attio for customer-relationship records, Resend for requested email delivery and notifications, and Mixpanel for consented website analytics. Free-text form answers are not sent to Mixpanel.',
       'The exact list depends on the deployed service and enabled features. Portals will not identify a provider as active unless it is actually used. Customers may request the current list, purpose, data categories, region information where available, and status during vendor review.',
     ],
   }),
@@ -358,8 +359,8 @@ const document = {
     primaryCta: {
       _type: 'cta',
       label: 'Start a security review',
-      action: 'external',
-      href: 'mailto:sales@portals.works?subject=Portals%20security%20review',
+      action: 'internal',
+      href: '/contact?intent=security-review',
       style: 'primary',
     },
   },

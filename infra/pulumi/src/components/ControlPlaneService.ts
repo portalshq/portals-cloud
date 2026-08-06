@@ -76,7 +76,8 @@ export class ControlPlaneService extends pulumi.ComponentResource {
     this.dockerImage = new docker.Image(`${resourcePrefix}-controlplane-image`, {
       build: {
         context: args.dockerPath,
-        dockerfile: "docker/control-plane/Dockerfile",
+        dockerfile: "../../docker/control-plane/Dockerfile",
+        platform: "linux/amd64",
       },
       imageName: pulumi.interpolate`${args.ecrRepositoryUrl}:${args.imageTag ?? "latest"}`,
       registry: ecrAuth,

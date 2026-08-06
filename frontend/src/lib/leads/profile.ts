@@ -58,11 +58,17 @@ export async function getKnownLeadContext(
         typeof value === 'string' ? value.trim().length > 0 : value != null,
       )
       .map(([key]) => key)
+    const answerValues = Object.fromEntries(
+      Object.entries(fallbackAnswers).filter(([, value]) =>
+        typeof value === 'string' ? value.trim().length > 0 : value != null,
+      ),
+    ) as Record<string, string>
     const recreationFrequency = fallbackAnswers.recreationFrequency
     return {
       known: true,
       knownFields,
       knownAnswerFields,
+      answerValues,
       requiresWebsite:
         Boolean(profile.identity.email) &&
         !profile.identity.website &&

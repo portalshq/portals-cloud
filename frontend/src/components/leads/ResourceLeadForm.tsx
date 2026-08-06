@@ -12,7 +12,8 @@ import {
   type LeadSubmissionType,
 } from '@/lib/leads/contracts'
 import {newSubmissionId, publicEmailNeedsWebsite, submitLead} from '@/lib/leads/client'
-import {ConsentFields, IdentityFields, KnownProfileNotice, LeadField, leadInputClasses, NoScriptLeadFallback} from './LeadFields'
+import {ConsentFields, IdentityFields, KnownProfileNotice, LeadField, NoScriptLeadFallback} from './LeadFields'
+import {LeadSelectField} from '@/components/mui/fields'
 import {useFormDraft} from './useFormDraft'
 import {usePreservedSwap} from './usePreservedSwap'
 
@@ -184,8 +185,7 @@ export function ResourceLeadForm({
             onStarted={onStarted}
           />
           <LeadField label={`${interestLabel} *`} name="interest">
-            <select
-              className={leadInputClasses}
+            <LeadSelectField
               id="interest"
               name="interest"
               required
@@ -196,7 +196,7 @@ export function ResourceLeadForm({
               {options.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
-            </select>
+            </LeadSelectField>
           </LeadField>
           <ConsentFields onStarted={onStarted} />
         </>

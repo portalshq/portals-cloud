@@ -168,10 +168,10 @@ export const pilotControlledFields = {
   approverName: optionalText(160),
   approverRole: optionalText(160),
   approverEmail: optionalText(254),
+  economicBuyerEmail: optionalText(254),
+  technicalEvaluatorEmail: optionalText(254),
   procurementPoRequired: z.boolean().optional(),
-  procurementVendorSetup: z.boolean().optional(),
   procurementReviewTime: optionalText(120),
-  procurementDocuments: optionalText(600),
   annualDeploymentOption: controlledChoice(pilotControlledOptionLists.annualDeploymentOption),
   annualPriceAcknowledged: z.boolean().optional(),
   signerName: optionalText(160),
@@ -223,7 +223,6 @@ export const pilotRequestAnswersSchema = assessmentAnswersSchema.extend({
   targetStartPeriod: optionalText(120),
   successCriteria: optionalText(2000),
   securityRequirements: optionalText(2000),
-  annualExpectations: optionalText(1600),
   budgetReadiness: optionalText(120),
   budgetOwner: optionalText(160),
   message: optionalText(3000),
@@ -239,7 +238,6 @@ export const pilotRequiredAnswerFields = [
   'targetStartPeriod',
   'successCriteria',
   'securityRequirements',
-  'annualExpectations',
   'budgetReadiness',
   'budgetOwner',
 ] as const
@@ -350,6 +348,7 @@ export type KnownLeadContext = {
   known: boolean
   knownFields: Array<'email' | 'company' | 'role' | 'website'>
   knownAnswerFields: string[]
+  answerValues?: Record<string, string>
   requiresWebsite?: boolean
   scores?: QualificationScores
   qualificationTier?: QualificationTier

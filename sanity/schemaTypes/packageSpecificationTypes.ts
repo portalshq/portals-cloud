@@ -206,6 +206,27 @@ export const packageSpecification = defineType({
       of: [defineArrayMember({type: 'string'})],
     }),
     defineField({
+      name: 'includedItems',
+      title: 'Included in the package (standard scope boundary)',
+      description: 'Exactly what the price covers. Rendered in the pilot agreement.',
+      type: 'array',
+      of: [defineArrayMember({type: 'string'})],
+    }),
+    defineField({
+      name: 'excludedItems',
+      title: 'Not included without an amendment',
+      description: 'What the price does not cover. Rendered in the pilot agreement.',
+      type: 'array',
+      of: [defineArrayMember({type: 'string'})],
+    }),
+    defineField({
+      name: 'standardIntegrationPaths',
+      title: 'Standard integration paths',
+      description: 'Import/integration paths included at no extra cost.',
+      type: 'array',
+      of: [defineArrayMember({type: 'string'})],
+    }),
+    defineField({
       name: 'ctaLabel',
       title: 'CTA label',
       type: 'string',

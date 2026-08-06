@@ -11,7 +11,8 @@ import {
   type LeadIdentity,
   type LeadResponse,
 } from '@/lib/leads/contracts'
-import {ConsentFields, IdentityFields, LeadField, leadInputClasses, NoScriptLeadFallback} from './LeadFields'
+import {ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback} from './LeadFields'
+import {LeadSelectField, LeadTextareaField} from '@/components/mui/fields'
 import {useFormDraft} from './useFormDraft'
 import {usePreservedSwap} from './usePreservedSwap'
 
@@ -152,37 +153,37 @@ export function WorkflowReviewForm({
       />
       {!known.has('activeWorkflow') ? (
         <LeadField label="active workflow *" name="activeWorkflow">
-          <textarea className={leadInputClasses} id="activeWorkflow" name="activeWorkflow" rows={4} required />
+          <LeadTextareaField id="activeWorkflow" name="activeWorkflow" minRows={4} resizable={false} required />
         </LeadField>
       ) : null}
       {!known.has('timeline') ? <LeadField label="desired timing *" name="timeline">
-        <select className={leadInputClasses} id="timeline" name="timeline" required defaultValue="">
+        <LeadSelectField id="timeline" name="timeline" required defaultValue="">
           <option value="" disabled>select timing</option>
           <option value="within-30-days">within 30 days</option>
           <option value="1-3-months">one to three months</option>
           <option value="3-plus-months">more than three months</option>
           <option value="not-planned">not currently planned</option>
-        </select>
+        </LeadSelectField>
       </LeadField> : null}
       {!known.has('currentSystems') ? <LeadField label="current systems *" name="currentSystems">
-        <textarea className={leadInputClasses} id="currentSystems" name="currentSystems" rows={3} required />
+        <LeadTextareaField id="currentSystems" name="currentSystems" minRows={3} resizable={false} required />
       </LeadField> : null}
       {!known.has('unresolvedQuestion') ? <LeadField label="main unresolved question *" name="unresolvedQuestion">
-        <textarea className={leadInputClasses} id="unresolvedQuestion" name="unresolvedQuestion" rows={3} required />
+        <LeadTextareaField id="unresolvedQuestion" name="unresolvedQuestion" minRows={3} resizable={false} required />
       </LeadField> : null}
       {!known.has('stakeholderInvolved') ? <LeadField label="is another stakeholder involved? *" name="stakeholderInvolved">
-        <select className={leadInputClasses} id="stakeholderInvolved" name="stakeholderInvolved" required defaultValue="">
+        <LeadSelectField id="stakeholderInvolved" name="stakeholderInvolved" required defaultValue="">
           <option value="" disabled>select one</option>
           <option value="yes">yes</option>
           <option value="no">not yet</option>
-        </select>
+        </LeadSelectField>
       </LeadField> : null}
       {!known.has('securityDiligence') ? <LeadField label="are security or integration requirements part of the review? *" name="securityDiligence">
-        <select className={leadInputClasses} id="securityDiligence" name="securityDiligence" required defaultValue="">
+        <LeadSelectField id="securityDiligence" name="securityDiligence" required defaultValue="">
           <option value="" disabled>select one</option>
           <option value="yes">yes</option>
           <option value="no">not yet</option>
-        </select>
+        </LeadSelectField>
       </LeadField> : null}
       <ConsentFields onStarted={onStarted} showMarketing={!context.known} />
       <NoScriptLeadFallback />

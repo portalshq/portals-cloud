@@ -1,14 +1,13 @@
 'use client'
 
-import {useMemo, useState} from 'react'
-import type {FormEvent, ReactNode} from 'react'
+import {useState} from 'react'
 import {
-  ArrowDownToLine,
   ArrowRight,
   Check,
 } from 'lucide-react'
 import {CTAButton} from '@/components/CTAButton'
-import {resolvePdfDownloadUrl} from '@/lib/resource-pdf'
+import {PilotScopeForm} from '@/components/leads/PilotScopeForm'
+import type {KnownLeadContext} from '@/lib/leads/contracts'
 import type {
   DocumentSection,
   PackageSpecification,
@@ -20,7 +19,6 @@ import {
   findPackageSpecification,
   packageLimitLabel,
   packageMilestoneLabel,
-  packagePeriodLabel,
   packagePriceLabel,
 } from '@/lib/package-specifications'
 
@@ -30,6 +28,7 @@ type SubmitState =
   | {
       status: 'success'
       calendarUrl?: string
+      downloadUrl?: string
       preview?: boolean
     }
   | {status: 'error'; message: string}
@@ -65,7 +64,7 @@ function paidPilotFaqs(specification: PackageSpecification | undefined) {
       answer: [
         'the fee covers workflow alignment, pilot repository configuration',
         participants ? `onboarding for ${participants} participants` : 'participant onboarding',
-        'agreed integration setup where applicable, active and historical project structure, support, and the final evaluation.',
+        'agreed integration setup where applicable, active and historical project structure, support, and the final evaluation. One agreed standard integration or export path is included. Custom integration development is separately scoped.',
       ].join(', '),
     },
     {
@@ -136,7 +135,7 @@ function Header() {
           portals
         </a>
         <CTAButton href="#scope" className="!min-w-0">
-          <span>scope a pilot</span>
+          <span>Scope a pilot</span>
           <ArrowRight aria-hidden="true" size={17} strokeWidth={1.8} />
         </CTAButton>
       </div>
@@ -145,7 +144,6 @@ function Header() {
 }
 
 function Hero({document}: {document: ResourceDocument}) {
-  const pdfUrl = resolvePdfDownloadUrl(document)
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
   const metrics = [
@@ -162,7 +160,7 @@ function Hero({document}: {document: ResourceDocument}) {
     >
       <Header />
       <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[96,126] text-white">
-        <div className="col-span-full lg:col-span-17">
+        <div className="col-span-full lg:col-span-14">
           <h1 className="t-d2-sans max-w-[11em]">
             {landing.headline || document.title}
           </h1>
@@ -171,23 +169,13 @@ function Hero({document}: {document: ResourceDocument}) {
           </p>
           <div className="mt-32 flex flex-col gap-12 sm:flex-row">
             <CTAButton href="#scope">
-              <span>scope a paid pilot</span>
+              <span>Scope a pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
-            {pdfUrl ? (
-              <CTAButton href={pdfUrl} target="_blank" rel="noreferrer">
-                <ArrowDownToLine
-                  aria-hidden="true"
-                  size={18}
-                  strokeWidth={1.8}
-                />
-                <span>download the brief</span>
-              </CTAButton>
-            ) : null}
           </div>
         </div>
 
-        <dl className="col-span-full grid grid-cols-2 gap-x-20 gap-y-28 lg:col-span-6 lg:col-start-19">
+        <dl className="col-span-full grid grid-cols-2 gap-x-20 gap-y-28 lg:col-span-8 lg:col-start-18">
           {metrics.map(([value, label]) => (
             <div key={label}>
               <dd className="t-h1-sans text-white">{value}</dd>
@@ -265,12 +253,12 @@ function ScopeAndMilestone({document}: {document: ResourceDocument}) {
           ))}
         </ul>
 
-        <div className="col-span-full mt-24 lg:col-span-8">
-          <p className="t-d2-sans text-white">{firstValue}</p>
-          <p className="mt-10 t-p-sans text-white">first-value milestone</p>
+        <div className="col-span-full mt-24 lg:mt-0 lg:col-span-8">
+          <p className="t-p-sans text-white">first-value milestone</p>
+          <p className="mt-20 t-d2-sans text-white">{firstValue}</p>
         </div>
-        <div className="col-span-full lg:col-span-12 lg:col-start-13">
-          <h3 className="t-h1-sans">{milestone.summary}</h3>
+        <div className="col-span-full lg:mt-24 lg:col-span-12 lg:col-start-13">
+          <h3 className="t-p-lg-serif">{milestone.summary}</h3>
           <div className="mt-20 space-y-16 t-p-sans text-white">
             {sectionParagraphs(milestone).map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
@@ -290,9 +278,8 @@ function SuccessCriteria({document}: {document: ResourceDocument}) {
     <section data-header-theme="light">
       <div className="ui-grid gap-y-40 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-10">
-          <p className="t-p-sans text-white">success criteria</p>
           <h2 className="mt-20 max-w-[9em] t-d2-sans">
-            the result must be observable.
+            success criteria
           </h2>
           <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
             {section.summary}
@@ -326,8 +313,8 @@ function CommercialTerms({document}: {document: ResourceDocument}) {
     <section data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-10">
-          <p className="t-d2-sans text-white">{commercialValue}</p>
-          <h2 className="mt-12 max-w-[8em] t-d2-sans">commercial terms before kickoff.</h2>
+          <h2 className="max-w-[8em] t-d2-sans">commercial terms before launch.</h2>
+          {/* <p className="mt-12 t-d2-sans text-white">{commercialValue}</p> */}
         </div>
         <div className="col-span-full lg:col-span-10 lg:col-start-14">
           <p className="t-p-lg-serif text-white">{section.summary}</p>
@@ -351,8 +338,8 @@ function Responsibilities({document}: {document: ResourceDocument}) {
     <section data-header-theme="light">
       <div className="ui-grid gap-y-40 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-10">
-          <p className="t-p-sans text-white">responsibilities</p>
-          <h2 className="mt-20 max-w-[10em] t-d2-sans">
+          <p className="t-d2-sans text-white">responsibilities</p>
+          <h2 className="mt-20 max-w-[10em] t-p-lg-serif">
             both sides know what they are bringing.
           </h2>
         </div>
@@ -389,294 +376,35 @@ function Responsibilities({document}: {document: ResourceDocument}) {
   )
 }
 
-const inputClasses =
-  'mt-9 min-h-48 w-full rounded-sm bg-white/10 px-14 py-12 t-p-sans text-white outline-none placeholder:text-white focus:ring-2 focus:ring-[#9cdeee]'
-
-function Field({
-  label,
-  name,
-  children,
+function PilotForm({
+  specSummary,
+  context,
 }: {
-  label: string
-  name: string
-  children: ReactNode
+  specSummary: string
+  context: KnownLeadContext
 }) {
   return (
-    <label className="block t-p-sm-sans text-white" htmlFor={name}>
-      {label}
-      {children}
-    </label>
-  )
-}
-
-function PilotForm({specSummary}: {specSummary: string}) {
-  const [submitState, setSubmitState] = useState<SubmitState>({status: 'idle'})
-  const submissionId = useMemo(() => crypto.randomUUID(), [])
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSubmitState({status: 'submitting'})
-
-    const form = event.currentTarget
-    const payload = Object.fromEntries(new FormData(form).entries())
-
-    try {
-      const response = await fetch('/api/pilot-request', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({...payload, submissionId}),
-      })
-      const result = (await response.json()) as {
-        ok?: boolean
-        error?: string
-        calendarUrl?: string | null
-        preview?: boolean
-      }
-
-      if (!response.ok || !result.ok) {
-        throw new Error(result.error || 'we could not submit the request')
-      }
-
-      setSubmitState({
-        status: 'success',
-        calendarUrl: result.calendarUrl || undefined,
-        preview: result.preview,
-      })
-      form.reset()
-    } catch (error) {
-      setSubmitState({
-        status: 'error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'we could not submit the request',
-      })
-    }
-  }
-
-  return (
     <section id="scope" data-header-theme="light" className="scroll-mt-20">
-      <div className="ui-grid gap-y-40 py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-10">
-          {/* <p className="t-p-sans text-white">scope the pilot</p> */}
+      <div className="ui-grid gap-y-80 py-fluid-[76,106] text-white">
+        <div className="col-span-full xl:col-span-10">
+          <p className="t-p-sans text-white">build your pilot plan</p>
           <h2 className="mt-20 t-d2-sans">
             put one production workflow under test
           </h2>
           <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
-            tell us which workflow matters, who owns it, what tools it touches,
-            and what a commercially meaningful result looks like.
+            five short stages: eligibility, scope, success, purchase, and
+            confirmation. your answers produce a personalized pilot plan and
+            approval room — no call required.
           </p>
           <p className="mt-24 max-w-[36em] t-p-lg-sans text-white">
-            We review each request for workflow fit, implementation requirements, and annual deployment potential. Qualified teams receive a proposed pilot scope and commercial terms.
+            the plan covers objectives, scope, milestones, success criteria,
+            commercial terms, and security information. once confirmed, the
+            standard pilot agreement is generated for signature and funding.
           </p>
         </div>
 
-        <div className="col-span-full lg:col-span-13 lg:col-start-12">
-          {submitState.status === 'success' ? (
-            <div role="status" className="max-w-[42em] py-24">
-              <Check
-                aria-hidden="true"
-                className="text-white"
-                size={32}
-                strokeWidth={1.6}
-              />
-              <h3 className="mt-24 t-h1-sans">pilot request received.</h3>
-              <p className="mt-16 t-p-lg-serif text-white">
-                we’ll review the workflow, people, integrations, timing, and
-                desired outcome before confirming fit.
-              </p>
-              {submitState.preview ? (
-                <p className="mt-14 t-p-sans text-white">
-                  local preview mode was used, so no external systems were
-                  contacted.
-                </p>
-              ) : null}
-              {submitState.calendarUrl ? (
-                <div className="mt-24">
-                  <CTAButton
-                    href={submitState.calendarUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <span>choose a time</span>
-                    <ArrowRight
-                      aria-hidden="true"
-                      size={18}
-                      strokeWidth={1.8}
-                    />
-                  </CTAButton>
-                </div>
-              ) : (
-                <p className="mt-14 t-p-sans text-white">
-                  we’ll follow up with next steps.
-                </p>
-              )}
-            </div>
-          ) : (
-            <form className="grid gap-20 sm:grid-cols-2" onSubmit={handleSubmit}>
-              <input
-                aria-hidden="true"
-                autoComplete="off"
-                className="absolute -left-[10000px]"
-                name="companyFax"
-                tabIndex={-1}
-              />
-              <Field label="work email" name="email">
-                <input
-                  className={inputClasses}
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                />
-              </Field>
-              <Field label="company" name="company">
-                <input
-                  className={inputClasses}
-                  id="company"
-                  name="company"
-                  type="text"
-                  autoComplete="organization"
-                  required
-                />
-              </Field>
-              <Field label="role" name="role">
-                <input
-                  className={inputClasses}
-                  id="role"
-                  name="role"
-                  type="text"
-                  autoComplete="organization-title"
-                  required
-                />
-              </Field>
-              <Field label="website" name="website">
-                <input
-                  className={inputClasses}
-                  id="website"
-                  name="website"
-                  type="text"
-                  inputMode="url"
-                  autoComplete="url"
-                  placeholder="company.com"
-                  required
-                />
-              </Field>
-              <div className="sm:col-span-2">
-                <Field
-                  label="what workflow should portals test?"
-                  name="workflow"
-                >
-                  <textarea
-                    className={`${inputClasses} min-h-128 resize-y`}
-                    id="workflow"
-                    name="workflow"
-                    required
-                  />
-                </Field>
-              </div>
-              <Field label="is this active now?" name="activeNow">
-                <select
-                  className={inputClasses}
-                  defaultValue=""
-                  id="activeNow"
-                  name="activeNow"
-                  required
-                >
-                  <option value="" disabled>
-                    select one
-                  </option>
-                  <option value="yes">yes</option>
-                  <option value="no">no</option>
-                  <option value="starting soon">starting soon</option>
-                </select>
-              </Field>
-              <Field label="who else would be involved?" name="stakeholders">
-                <input
-                  className={inputClasses}
-                  id="stakeholders"
-                  name="stakeholders"
-                  type="text"
-                  required
-                />
-              </Field>
-              <div className="sm:col-span-2">
-                <Field label="current tools" name="currentTools">
-                  <textarea
-                    className={`${inputClasses} min-h-96 resize-y`}
-                    id="currentTools"
-                    name="currentTools"
-                    required
-                  />
-                </Field>
-              </div>
-              <div className="sm:col-span-2">
-                <Field label="desired outcome" name="desiredOutcome">
-                  <textarea
-                    className={`${inputClasses} min-h-112 resize-y`}
-                    id="desiredOutcome"
-                    name="desiredOutcome"
-                    required
-                  />
-                </Field>
-              </div>
-              <Field label="timeline" name="timeline">
-                <select
-                  className={inputClasses}
-                  defaultValue=""
-                  id="timeline"
-                  name="timeline"
-                  required
-                >
-                  <option value="" disabled>
-                    select one
-                  </option>
-                  <option value="within 30 days">within 30 days</option>
-                  <option value="within 60 days">within 60 days</option>
-                  <option value="this quarter">this quarter</option>
-                  <option value="exploring">exploring</option>
-                </select>
-              </Field>
-              <Field label="message, optional" name="message">
-                <textarea
-                  className={`${inputClasses} min-h-96 resize-y`}
-                  id="message"
-                  name="message"
-                />
-              </Field>
-
-              <div className="flex items-center gap-16 sm:col-span-2">
-                <CTAButton
-                  type="submit"
-                  disabled={submitState.status === 'submitting'}
-                >
-                  <span>
-                    {submitState.status === 'submitting'
-                      ? 'submitting'
-                      : 'request the paid pilot'}
-                  </span>
-                  <ArrowRight
-                    aria-hidden="true"
-                    size={18}
-                    strokeWidth={1.8}
-                  />
-                </CTAButton>
-                {specSummary ? (
-                  <p className="t-p-sm-sans text-white">{specSummary}</p>
-                ) : null}
-              </div>
-
-              {submitState.status === 'error' ? (
-                <p
-                  className="t-p-sans text-white sm:col-span-2"
-                  role="alert"
-                >
-                  {submitState.message}
-                </p>
-              ) : null}
-            </form>
-          )}
+        <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
+          <PilotScopeForm specSummary={specSummary} context={context} />
         </div>
       </div>
     </section>
@@ -690,11 +418,11 @@ function PilotFaq({document}: {document: ResourceDocument}) {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full mx-auto w-full max-w-[700px] space-y-36">
-          <h2 className="max-w-[12em] t-d2-sans">
-            frequently asked questions
+        <div className="col-span-full mx-auto flex flex-col lg:items-center w-full space-y-36">
+          <h2 className="max-w-[18em] t-d2-sans">
+            Frequently asked questions
           </h2>
-          <div className="space-y-16">
+          <div className="space-y-16 max-w-3xl lg:w-3xl">
             {faqs.map((faq, index) => (
               <div
                 key={faq.question}
@@ -733,7 +461,6 @@ function PilotFaq({document}: {document: ResourceDocument}) {
 
 function FinalDecision({document}: {document: ResourceDocument}) {
   const review = sectionByAnchor(document, 'final-review')
-  const pdfUrl = resolvePdfDownloadUrl(document)
   if (!review) return null
 
   return (
@@ -749,19 +476,9 @@ function FinalDecision({document}: {document: ResourceDocument}) {
           <p className="t-p-lg-serif text-white">{review.summary}</p>
           <div className="mt-28 flex flex-col gap-12">
             <CTAButton href="#scope">
-              <span>scope a paid pilot</span>
+              <span>Scope a paid pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
-            {pdfUrl ? (
-              <CTAButton href={pdfUrl} target="_blank" rel="noreferrer">
-                <ArrowDownToLine
-                  aria-hidden="true"
-                  size={18}
-                  strokeWidth={1.8}
-                />
-                <span>download the two-page brief</span>
-              </CTAButton>
-            ) : null}
           </div>
         </div>
       </div>
@@ -771,8 +488,10 @@ function FinalDecision({document}: {document: ResourceDocument}) {
 
 export function PaidPilotLandingPage({
   document,
+  context,
 }: {
   document: ResourceDocument
+  context: KnownLeadContext
 }) {
   const specification = paidPilotSpec(document)
   const formSpecSummary = [
@@ -784,7 +503,7 @@ export function PaidPilotLandingPage({
   ].filter(Boolean).join(' / ')
 
   return (
-    <main className="relative z-(--z-main) min-h-screen overflow-hidden lowercase text-white">
+    <main className="relative z-(--z-main) min-h-screen overflow-hidden text-white">
       <div
         aria-hidden="true"
         className="pointer-events-none h-px w-full"
@@ -806,7 +525,7 @@ export function PaidPilotLandingPage({
         <SuccessCriteria document={document} />
         <CommercialTerms document={document} />
         <Responsibilities document={document} />
-        <PilotForm specSummary={formSpecSummary} />
+        <PilotForm specSummary={formSpecSummary} context={context} />
         <PilotFaq document={document} />
         <FinalDecision document={document} />
       </div>

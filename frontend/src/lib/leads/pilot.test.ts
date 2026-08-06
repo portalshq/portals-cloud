@@ -18,6 +18,10 @@ import {roomToken, verifyRoomToken} from './pilot-tokens'
 const eligible = {
   pilotWorkflow: 'campaign variant production',
   productionOwner: 'Ava Nguyen, Senior Producer',
+  economicBuyer: 'Jordan Lee, Managing Director',
+  economicBuyerEmail: 'jordan@studio.example',
+  technicalEvaluator: 'Sam Rivera, Workflow Lead',
+  technicalEvaluatorEmail: 'sam@studio.example',
   approvalPath: 'self',
   annualDeploymentOption: 'studio',
   annualPriceAcknowledged: true,
@@ -229,6 +233,8 @@ test('recommended reviewers adapt to the answers', () => {
   )
   assert.equal(plain.find((row) => row.role === 'signer')?.email, 'ava@studio.example')
   assert.equal(plain.find((row) => row.role === 'production_owner')?.name, 'Ava Nguyen, Senior Producer')
+  assert.equal(plain.find((row) => row.role === 'economic_buyer')?.email, 'jordan@studio.example')
+  assert.equal(plain.find((row) => row.role === 'technical_evaluator')?.email, 'sam@studio.example')
 
   const procurement = recommendedReviewers({
     ...eligible,

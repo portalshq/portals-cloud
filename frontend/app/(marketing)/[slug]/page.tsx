@@ -3,6 +3,7 @@ import {notFound} from 'next/navigation'
 import {PaidPilotLandingPage} from '@/components/resources/PaidPilotLandingPage'
 import {ResourceLandingPage} from '@/components/resources/ResourceLandingPage'
 import {SecurityArchitectureLandingPage} from '@/components/resources/SecurityArchitectureLandingPage'
+import {getKnownLeadContext} from '@/lib/leads/profile'
 import {getResourceDocument, getResourceSlugs} from '@/sanity/lib/resources'
 
 type PageProps = {
@@ -10,6 +11,8 @@ type PageProps = {
     slug: string
   }>
 }
+
+export const dynamic = 'force-dynamic'
 
 export async function generateStaticParams() {
   return getResourceSlugs()
@@ -67,19 +70,22 @@ export async function generateMetadata({
 
 export default async function ResourcePage({params}: PageProps) {
   const {slug} = await params
-  const document = await getResourceDocument(slug)
+  const [document, context] = await Promise.all([
+    getResourceDocument(slug),
+    getKnownLeadContext(),
+  ])
 
   if (!document || document.landingPage?.enabled === false) {
     notFound()
   }
 
   if (document.slug === 'security-and-architecture') {
-    return <SecurityArchitectureLandingPage document={document} />
+    return <SecurityArchitectureLandingPage document={document} context={context} />
   }
 
   if (document.slug === 'paid-pilot') {
-    return <PaidPilotLandingPage document={document} />
+    return <PaidPilotLandingPage document={document} context={context} />
   }
 
-  return <ResourceLandingPage document={document} />
+  return <ResourceLandingPage document={document} context={context} />
 }

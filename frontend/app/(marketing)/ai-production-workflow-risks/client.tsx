@@ -3,16 +3,14 @@
 import {useState} from 'react'
 import type {PortableTextBlock, ResourceDocument} from '@/types/resource'
 import {CTAButton} from '@/components/CTAButton'
-import {DEFAULT_GITHUB_PDF_BASE_URL} from '@/lib/resource-pdf'
-import { scopeAPilotMailto } from '@/lib/utils'
+import {ResourceLeadForm} from '@/components/leads/ResourceLeadForm'
+import type {KnownLeadContext} from '@/lib/leads/contracts'
+import {productionWorkflows} from '@/lib/production-workflows'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
-const PDF_BASE_URL =
-  process.env.NEXT_PUBLIC_PDF_BASE_URL || DEFAULT_GITHUB_PDF_BASE_URL
-const FIELD_GUIDE_PDF_URL = `${PDF_BASE_URL.replace(/\/$/, '')}/production-memory-field-guide.pdf`
 
 function StructuredData() {
-  const pageUrl = `${SITE_URL}/use-cases`
+  const pageUrl = `${SITE_URL}/ai-production-workflow-risks`
 
   return (
     <script
@@ -88,7 +86,7 @@ function ResourceHero({
           </p>
           <div className="flex flex-col sm:flex-row mx-auto gap-16 items-center justify-center">
             <CTAButton href="#download">
-              {'Download the Guide'}
+              {'Download the guide'}
             </CTAButton>
           </div>
         </div>
@@ -146,6 +144,36 @@ function WorkflowRiskGrid({
   )
 }
 
+function ProductionWorkflows() {
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+        <div className="col-span-full space-y-36">
+          <h2 className="t-d2-sans max-w-[12em]">
+            Production memory for the moments that matter
+          </h2>
+          <div className="grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-2">
+            {productionWorkflows.map((workflow, index) => (
+              <article
+                id={workflow.id}
+                key={workflow.id}
+                className="scroll-mt-Header-h p-24 text-white"
+              >
+                <p className="t-p-sm-sans text-white">
+                  {String(index + 1).padStart(2, '0')}
+                </p>
+                <h3 className="mt-12 t-h3-sans">{workflow.title}</h3>
+                <p className="mt-16 t-p-sans text-white">{workflow.problem}</p>
+                <p className="mt-12 t-p-sans text-white">{workflow.outcome}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function WhatsInside({
   sections,
 }: {
@@ -193,7 +221,7 @@ function WhatsInside({
           })}
           </div>
           <div className="flex justify-center">
-            <CTAButton href="#download">Download the Guide</CTAButton>
+            <CTAButton href="#download">Download the guide</CTAButton>
           </div>
         </div>
       </div>
@@ -201,198 +229,29 @@ function WhatsInside({
   )
 }
 
-function DownloadBriefForm() {
-  const [formData, setFormData] = useState({
-    email: '',
-    company: '',
-    role: '',
-    workflowRisk: '',
-    workflowDescription: '',
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    if (!formData.email || !formData.company || !formData.role || !formData.workflowRisk) {
-      setError('Please fill in all required fields.')
-      return
-    }
-
-    if (!formData.email.includes('@')) {
-      setError('Please enter a valid email address.')
-      return
-    }
-
-    setIsSubmitting(true)
-
-    // TODO: Integrate with backend/CRM (Attio)
-    setTimeout(() => {
-      setIsSubmitting(false)
-      setIsSuccess(true)
-    }, 1000)
-  }
-
-  if (isSuccess) {
-    return (
-      <section id="download" data-header-theme="light">
-        <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-          <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[80ch] text-center">
-            <h2 className="t-d2-sans">The field guide is ready</h2>
-            <p className="t-p-lg-serif text-white">
-              You can download the Production Memory Field Guide now.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-16 justify-center">
-              <a
-                className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 px-12 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:!bg-white/30"
-                href={FIELD_GUIDE_PDF_URL}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className="t-p-sans">Download the Field Guide</span>
-              </a>
-              <a
-                className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 px-12 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:!bg-white/30"
-                href="#pilot"
-              >
-                <span className="t-p-sans">Scope a pilot</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-    )
-  }
-
+function DownloadBriefForm({context}: {context: KnownLeadContext}) {
   return (
     <section id="download" data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[90ch]">
-          <h2 className="t-d2-sans text-center">
-            Download the Production Memory Field Guide
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-24 max-w-[80ch] mx-auto">
-          <p className="mb-20 t-p-lg-serif lg:mx-auto text-white">
-            Learn how to understand, diagnose, quantify, and address the production-memory risks behind AI-native creative work.
-          </p>
-            <div>
-              <label htmlFor="email" className="block t-p-sans mb-8">
-                Work email *
-              </label>
-              <input
-                type="email"
-                id="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full p-16 rounded-sm border border-white/20 bg-white/5 text-white placeholder-white/40 t-p-sans focus:outline-none focus:border-white/40"
-                placeholder="name@company.com"
-              />
-            </div>
-            <div>
-              <label htmlFor="company" className="block t-p-sans mb-8">
-                Company *
-              </label>
-              <input
-                type="text"
-                id="company"
-                required
-                value={formData.company}
-                onChange={(e) => setFormData({...formData, company: e.target.value})}
-                className="w-full p-16 rounded-sm border border-white/20 bg-white/5 text-white placeholder-white/40 t-p-sans focus:outline-none focus:border-white/40"
-                placeholder="Company name"
-              />
-            </div>
-            <div>
-              <label htmlFor="role" className="block t-p-sans mb-8">
-                Your role *
-              </label>
-              <select
-                id="role"
-                required
-                value={formData.role}
-                onChange={(e) => setFormData({...formData, role: e.target.value})}
-                className="w-full p-16 rounded-sm border border-white/20 bg-white/5 text-white t-p-sans focus:outline-none focus:border-white/40"
-              >
-                <option value="">Select your role</option>
-                <option value="founder-executive">Founder or executive</option>
-                <option value="production-operations">Production or operations</option>
-                <option value="creative-leadership">Creative leadership</option>
-                <option value="technical-leadership">Technical leadership</option>
-                <option value="producer-project-manager">Producer or project manager</option>
-                <option value="artist-creator">Artist or creator</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="workflowRisk" className="block t-p-sans mb-8">
-                Which workflow risk is most relevant? *
-              </label>
-              <select
-                id="workflowRisk"
-                required
-                value={formData.workflowRisk}
-                onChange={(e) => setFormData({...formData, workflowRisk: e.target.value})}
-                className="w-full p-16 rounded-sm border border-white/20 bg-white/5 text-white t-p-sans focus:outline-none focus:border-white/40"
-              >
-                <option value="">Select a workflow risk</option>
-                <option value="approved-version">Approved version confusion</option>
-                <option value="reproducibility">Failed asset reproduction</option>
-                <option value="variants">&quot;Five more like this&quot; becomes a rebuild</option>
-                <option value="continuity">Character or visual continuity drift</option>
-                <option value="handoff">Production knowledge leaves with the creator</option>
-                <option value="variant-control">Variant families become hard to control</option>
-                <option value="not-sure">Not sure yet</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="workflowDescription" className="block t-p-sans mb-8">
-                Describe the workflow you are trying to preserve (optional)
-              </label>
-              <textarea
-                id="workflowDescription"
-                value={formData.workflowDescription}
-                onChange={(e) => setFormData({...formData, workflowDescription: e.target.value})}
-                rows={4}
-                className="w-full p-16 rounded-sm border border-white/20 bg-white/5 text-white placeholder-white/40 t-p-sans focus:outline-none focus:border-white/40"
-                placeholder="Tell us about your production workflow..."
-              />
-            </div>
-            {error ? (
-              <p className="t-p-sans text-red-400" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="t-button min-w-220 w-full inline-flex justify-center items-center rounded-sm h-48 gap-x-9 px-12 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:!bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="t-p-sans">
-                {isSubmitting ? 'Submitting...' : 'Download the Guide'}
-              </span>
-            </button>
-            <p className="t-p-sans text-white">
-              We follow up when your selected workflow appears relevant to a
-              Portals production pilot.
-            </p>
-          </form>
-          <input type="hidden" name="utm_source" />
-          <input type="hidden" name="utm_medium" />
-          <input type="hidden" name="utm_campaign" />
-          <input type="hidden" name="utm_content" />
-          <input type="hidden" name="utm_term" />
-          <input type="hidden" name="referrer" />
-          <input type="hidden" name="landing_page" />
-          <input
-            type="hidden"
-            name="download_asset"
-            value="Production Memory Field Guide"
+        <div className="col-span-full mx-auto max-w-[90%] lg:max-w-[80ch]">
+          <ResourceLeadForm
+            context={context}
+            submissionType="guide_download"
+            title="Download the production memory field guide"
+            description="learn how to diagnose and address the production-memory risks behind ai-native creative work."
+            interestLabel="which workflow risk is most relevant?"
+            options={[
+              {value: 'approved-version-retrieval', label: 'approved version confusion'},
+              {value: 'asset-reproduction', label: 'failed asset reproduction'},
+              {value: 'five-more-like-this', label: 'five more like this becomes a rebuild'},
+              {value: 'character-continuity', label: 'character or visual continuity drift'},
+              {value: 'production-handoff', label: 'production knowledge leaves with the creator'},
+              {value: 'campaign-variant-control', label: 'variant families become hard to control'},
+              {value: 'not-sure', label: 'not sure yet'},
+            ]}
+            downloadLabel="Download the field guide"
+            sourcePage="/ai-production-workflow-risks"
           />
-          <input type="hidden" name="selected_use_case" />
         </div>
       </div>
     </section>
@@ -404,7 +263,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
 
   if (!cta) return null
 
-  const href = scopeAPilotMailto
+  const href = '/paid-pilot#scope'
 
   return (
     <section id="pilot" data-header-theme="light">
@@ -478,7 +337,7 @@ function ResourceFAQ() {
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[100ch]">
           <h2 className="t-d2-sans max-w-[12em]">
-            Frequently Asked Questions
+            Frequently asked questions
           </h2>
           <div className="space-y-16">
             {faqs.map((faq, index) => (
@@ -523,7 +382,7 @@ function FinalCTA() {
             generation through shipped production.
           </p>
           <div className="flex flex-col sm:flex-row gap-16 items-center justify-center">
-            <CTAButton href={scopeAPilotMailto}>Scope a pilot</CTAButton>
+            <CTAButton href="/paid-pilot#scope">Scope a pilot</CTAButton>
           </div>
         </div>
       </div>
@@ -533,16 +392,19 @@ function FinalCTA() {
 
 export function ResourceBriefClient({
   document,
+  context,
 }: {
   document: ResourceDocument
+  context: KnownLeadContext
 }) {
   return (
     <>
       <StructuredData />
       <ResourceHero document={document} />
       <WorkflowRiskGrid sections={document.sections} />
+      <ProductionWorkflows />
       <WhatsInside sections={document.sections} />
-      <DownloadBriefForm />
+      <DownloadBriefForm context={context} />
       <PilotCTASection document={document} />
       <ResourceFAQ />
       <FinalCTA />

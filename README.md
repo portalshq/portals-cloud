@@ -61,14 +61,6 @@ materially cheaper for the video egress that dominates platform unit economics, 
 Linode Object Storage is S3-API-compatible so nothing here is locked to a proprietary
 storage API.
 
-## Getting started
-
-```bash
-pnpm install
-pnpm build
-pnpm --filter @nap/sdk run dev -- channel init my-first-channel
-```
-
 ## Status
 
 Pre-alpha. Contracts and runtime are scaffolds, not yet wired to live infra. Treat this

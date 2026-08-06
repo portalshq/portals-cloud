@@ -12,7 +12,7 @@ import { ControlPlaneService } from "./src/components/ControlPlaneService";
 const config = new pulumi.Config();
 const projectName = config.require("projectName");
 const environment = config.require("environment");
-const awsRegion = config.require("aws:region");
+const awsRegion = new pulumi.Config("aws").require("region");
 
 // Network
 const vpcCidr = config.require("vpcCidr");

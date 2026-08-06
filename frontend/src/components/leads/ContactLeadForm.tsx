@@ -10,7 +10,8 @@ import {
   type KnownLeadContext,
   type LeadIdentity,
 } from '@/lib/leads/contracts'
-import {ConsentFields, IdentityFields, LeadField, leadInputClasses, NoScriptLeadFallback} from './LeadFields'
+import {ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback} from './LeadFields'
+import {LeadSelectField, LeadTextareaField} from '@/components/mui/fields'
 import {useFormDraft} from './useFormDraft'
 import {usePreservedSwap} from './usePreservedSwap'
 
@@ -120,8 +121,7 @@ export function ContactLeadForm({
         onStarted={onStarted}
       />
       <LeadField label="what can portals help with? *" name="interest">
-        <select
-          className={leadInputClasses}
+        <LeadSelectField
           id="interest"
           name="interest"
           required
@@ -134,14 +134,14 @@ export function ContactLeadForm({
           <option value="integration">integration or implementation</option>
           <option value="commercial">commercial terms</option>
           <option value="other">something else</option>
-        </select>
+        </LeadSelectField>
       </LeadField>
       <LeadField label="your question *" name="question">
-        <textarea
-          className={`${leadInputClasses} min-h-144 resize-y`}
+        <LeadTextareaField
           id="question"
           name="question"
           required
+          minRows={7}
           onChange={onStarted}
           placeholder="share the workflow, diligence question, or decision you are working through"
         />

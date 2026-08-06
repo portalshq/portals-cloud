@@ -8,8 +8,9 @@ import {
   CircleAlert,
 } from 'lucide-react'
 import {CTAButton} from '@/components/CTAButton'
+import {ResourceLeadForm} from '@/components/leads/ResourceLeadForm'
+import type {KnownLeadContext} from '@/lib/leads/contracts'
 import type {ResourceDocument} from '@/types/resource'
-import {resolvePdfDownloadUrl} from '@/lib/resource-pdf'
 import {ResourceBody} from './ResourceBody'
 
 const CURRENT_CERTIFICATIONS_ANCHOR = 'current-certifications'
@@ -97,7 +98,6 @@ function SectionLabel({children}: {children: string}) {
 }
 
 function Hero({document}: {document: ResourceDocument}) {
-  const pdfUrl = resolvePdfDownloadUrl(document)
   const landing = document.landingPage ?? {}
 
   return (
@@ -120,20 +120,16 @@ function Hero({document}: {document: ResourceDocument}) {
             {landing.description || document.abstract}
           </p>
           <div className="mt-32 flex flex-col gap-12 sm:flex-row">
-            {pdfUrl ? (
-              <CTAButton
-                href={pdfUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <ArrowDownToLine aria-hidden="true" size={18} strokeWidth={1.8} />
-                <span>download the brief</span>
-              </CTAButton>
-            ) : null}
+            <CTAButton href="#download" analyticsLabel="Download the Security Brief" analyticsIntent="security_download">
+              <ArrowDownToLine aria-hidden="true" size={18} strokeWidth={1.8} />
+              <span>Download the brief</span>
+            </CTAButton>
             <CTAButton
-              href="mailto:sales@portals.works?subject=Portals%20security%20review"
+              href="/paid-pilot#scope"
+              analyticsLabel="Scope a Paid Pilot"
+              analyticsIntent="pilot_scope"
             >
-              <span>start a security review</span>
+              <span>Scope a paid pilot</span>
               <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           </div>
@@ -323,11 +319,13 @@ function AssuranceStatus({document}: {document: ResourceDocument}) {
   )
 }
 
-function DownloadSection({document}: {document: ResourceDocument}) {
-  const pdfUrl = resolvePdfDownloadUrl(document)
-
-  if (!pdfUrl) return null
-
+function DownloadSection({
+  document,
+  context,
+}: {
+  document: ResourceDocument
+  context: KnownLeadContext
+}) {
   return (
     <section id="download" data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
@@ -338,40 +336,27 @@ function DownloadSection({document}: {document: ResourceDocument}) {
           </h2>
         </div>
         <div className="col-span-full lg:col-span-9 lg:col-start-16">
-          <p className="t-p-lg-serif text-white">
-            The PDF contains the complete control inventory, current certification
-            statement, planned roadmap, legal note, and internal navigation.
-          </p>
-          <dl className="mt-28 grid grid-cols-2 gap-16">
-            <div className="rounded-sm bg-white/8 p-16 backdrop-blur-[18px]">
-              <dt className="t-p-sm-sans text-white">
-                format
-              </dt>
-              <dd className="mt-10 t-p-sm-sans">pdf, us letter</dd>
-            </div>
-            <div className="rounded-sm bg-white/8 p-16 backdrop-blur-[18px]">
-              <dt className="t-p-sm-sans text-white">
-                published
-              </dt>
-              <dd className="mt-10 t-p-sm-sans">
-                {publicationDate(document.publishedAt).toLowerCase()}
-              </dd>
-            </div>
-          </dl>
-          <div className="mt-20 flex flex-col gap-12">
-            <CTAButton
-              href={pdfUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <ArrowDownToLine aria-hidden="true" size={18} strokeWidth={1.8} />
-              <span>download security brief</span>
-            </CTAButton>
-            <CTAButton href="mailto:sales@portals.works?subject=Portals%20security%20review">
-              <span>start a security review</span>
-              <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
-            </CTAButton>
-          </div>
+          <ResourceLeadForm
+            context={context}
+            submissionType="security_download"
+            title="Download the security brief"
+            description="the pdf contains the control inventory, current certification statement, planned roadmap, legal note, and internal navigation."
+            interestLabel="which diligence area matters most?"
+            options={[
+              {value: 'data-protection', label: 'data storage, isolation, and encryption'},
+              {value: 'access-controls', label: 'authentication, permissions, and audit logging'},
+              {value: 'resilience', label: 'backup, recovery, availability, and incident response'},
+              {value: 'data-lifecycle', label: 'retention, deletion, and export'},
+              {value: 'vendors', label: 'model policy and subprocessors'},
+              {value: 'assurance', label: 'current and planned certifications'},
+            ]}
+            downloadLabel="Download security brief"
+            sourcePage="/security-and-architecture"
+          />
+          <CTAButton className="mt-20" href="/paid-pilot#scope" analyticsLabel="Scope a Paid Pilot" analyticsIntent="pilot_scope">
+            <span>Scope a paid pilot</span>
+            <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
+          </CTAButton>
         </div>
       </div>
     </section>
@@ -386,7 +371,7 @@ function SecurityFAQ() {
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full mx-auto w-full max-w-[700px] space-y-36">
           <h2 className="t-d2-sans max-w-[12em]">
-            frequently asked questions
+            Frequently asked questions
           </h2>
           <div className="space-y-16">
             {securityFaqs.map((faq, index) => (
@@ -422,11 +407,13 @@ function SecurityFAQ() {
 
 export function SecurityArchitectureLandingPage({
   document,
+  context,
 }: {
   document: ResourceDocument
+  context: KnownLeadContext
 }) {
   return (
-    <main className="relative z-(--z-main) min-h-screen overflow-hidden text-white lowercase">
+    <main className="relative z-(--z-main) min-h-screen overflow-hidden text-white">
       <FlowingSecurityBackground />
       <div className="relative z-10">
         <Hero document={document} />
@@ -434,7 +421,7 @@ export function SecurityArchitectureLandingPage({
         <ControlInventory document={document} />
         <AssuranceStatus document={document} />
         <SecurityFAQ />
-        <DownloadSection document={document} />
+        <DownloadSection document={document} context={context} />
       </div>
     </main>
   )

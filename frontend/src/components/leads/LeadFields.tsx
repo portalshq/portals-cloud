@@ -2,12 +2,10 @@
 
 import type {ChangeEvent, ReactNode} from 'react'
 import {CTAButton} from '@/components/CTAButton'
+import {LeadCheckbox, LeadSelectField, LeadTextField} from '@/components/mui/fields'
 import type {KnownLeadContext} from '@/lib/leads/contracts'
 import {clearAllFormDrafts} from '@/lib/leads/form-draft'
 import {ConditionalReveal} from './ConditionalReveal'
-
-export const leadInputClasses =
-  'mt-9 min-h-48 w-full rounded-sm bg-white/10 px-14 py-12 t-p-sans text-white outline-none placeholder:text-white focus:ring-2 focus:ring-[#9cdeee]'
 
 export function LeadField({
   label,
@@ -72,8 +70,7 @@ export function IdentityFields({
       <KnownProfileNotice context={context} />
       {!known.has('email') ? (
         <LeadField label="work email *" name="email">
-          <input
-            className={leadInputClasses}
+          <LeadTextField
             id="email"
             name="email"
             type="email"
@@ -82,7 +79,7 @@ export function IdentityFields({
             value={email}
             onChange={(event) => {
               onStarted()
-              onEmailChange(event)
+              onEmailChange(event as ChangeEvent<HTMLInputElement>)
             }}
             placeholder="name@company.com"
           />
@@ -90,8 +87,7 @@ export function IdentityFields({
       ) : null}
       {!known.has('company') ? (
         <LeadField label="company *" name="company">
-          <input
-            className={leadInputClasses}
+          <LeadTextField
             id="company"
             name="company"
             autoComplete="organization"
@@ -103,8 +99,7 @@ export function IdentityFields({
       ) : null}
       {!known.has('role') ? (
         <LeadField label="role *" name="role">
-          <select
-            className={leadInputClasses}
+          <LeadSelectField
             id="role"
             name="role"
             required
@@ -119,14 +114,13 @@ export function IdentityFields({
             <option value="producer-project-manager">producer or project manager</option>
             <option value="artist-creator">artist or creator</option>
             <option value="other">other</option>
-          </select>
+          </LeadSelectField>
         </LeadField>
       ) : null}
       {!known.has('website') ? (
         <ConditionalReveal active={Boolean(requireWebsite || context.requiresWebsite)}>
           <LeadField label="company website *" name="website">
-            <input
-              className={leadInputClasses}
+            <LeadTextField
               id="website"
               name="website"
               type="url"
@@ -159,9 +153,7 @@ export function ConsentFields({
       </p>
       {showMarketing ? (
         <label className="flex items-start gap-10 t-p-sm-sans text-white">
-          <input
-            className="mt-3 size-16 accent-[#5bc4ba]"
-            type="checkbox"
+          <LeadCheckbox
             name="marketingConsent"
             onChange={onStarted}
           />

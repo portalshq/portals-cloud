@@ -46,6 +46,9 @@ export type PackageSpecification = {
   features?: string[]
   milestones?: SpecificationValue[]
   serviceItems?: string[]
+  includedItems?: string[]
+  excludedItems?: string[]
+  standardIntegrationPaths?: string[]
   ctaLabel?: string
   microcopy?: string
   legalNote?: string

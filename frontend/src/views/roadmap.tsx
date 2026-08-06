@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { getListCapabilitiesQueryKey, getGetCatalogSummaryQueryKey } from "@workspace/api-client-react";
 import type { Capability } from "@workspace/api-client-react";
+import { ConsoleTextareaField, ConsoleTextField } from "@/components/mui/fields";
 
 export default function Roadmap() {
   const [filterStatus, setFilterStatus] = useState<CapabilityStatus | "all">("all");
@@ -300,20 +301,18 @@ function CommentPanel({ capabilityId, capabilities }: { capabilityId: number, ca
 
       <div className="p-4 border-t border-border bg-card">
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <input
+          <ConsoleTextField
             type="text"
             placeholder="NAME (OPTIONAL)"
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
-            className="w-full bg-background border border-border px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-secondary transition-colors"
           />
-          <textarea
+          <ConsoleTextareaField
             placeholder="ENTER FEEDBACK..."
             value={body}
             onChange={(e) => setBody(e.target.value)}
             required
-            rows={3}
-            className="w-full bg-background border border-border px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-secondary transition-colors resize-none"
+            minRows={3}
           />
           <button
             type="submit"

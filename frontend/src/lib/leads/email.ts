@@ -64,20 +64,17 @@ function pilotDocuments(pilot: StoredPilot): {
 } {
   const submitterEmail = String(pilot.answers.email || '')
   let roomUrl = `${siteUrl()}/pilot/${pilot.id}`
-  let packetUrl = `${siteUrl()}/api/leads/documents/pilot-packet`
   if (submitterEmail) {
     try {
       const token = roomToken(pilot.id, 'submitter', submitterEmail)
-      const encoded = encodeURIComponent(token)
-      roomUrl = `${siteUrl()}/pilot/${pilot.id}?t=${encoded}`
-      packetUrl = `${siteUrl()}/api/leads/documents/pilot-packet?t=${encoded}`
+      roomUrl = `${siteUrl()}/pilot/${pilot.id}?t=${encodeURIComponent(token)}`
     } catch {
       roomUrl = `${siteUrl()}/pilot/${pilot.id}`
     }
   }
   return {
     roomUrl,
-    packetUrl,
+    packetUrl: `${siteUrl()}/api/leads/documents/pilot-packet`,
     securityUrl: leadDownloadUrl('security_download') || '',
   }
 }

@@ -1,56 +1,43 @@
-import Link from 'next/link'
 import type {Cta, ResourceDocument} from '@/types/resource'
 import {resolvePdfDownloadUrl} from '@/lib/resource-pdf'
+import {CTAButton} from '@/components/CTAButton'
+import {ResourceLeadForm} from '@/components/leads/ResourceLeadForm'
+import type {KnownLeadContext} from '@/lib/leads/contracts'
 import {ResourceBody} from './ResourceBody'
 
 function resolveCtaHref(cta: Cta, document: ResourceDocument): string {
   if (cta.action === 'downloadPdf') {
-    return resolvePdfDownloadUrl(document) || '#'
+    return '#resource-download'
   }
   return cta.href || '#'
 }
 
 function CtaLink({cta, document}: {cta: Cta; document: ResourceDocument}) {
   const href = resolveCtaHref(cta, document)
-  const className =
-    cta.style === 'secondary'
-      ? 'inline-flex border border-white/25 px-5 py-3 text-sm text-white transition hover:bg-white/8'
-      : cta.style === 'text'
-        ? 'inline-flex text-sm text-white underline decoration-white/30 underline-offset-4'
-        : 'inline-flex bg-white px-5 py-3 text-sm text-black transition hover:bg-white/85'
-
-  if (cta.action === 'external' || cta.action === 'downloadPdf') {
-    return (
-      <a
-        href={href}
-        target={
-          cta.action === 'downloadPdf' || cta.openInNewTab ? '_blank' : undefined
-        }
-        rel={
-          cta.action === 'downloadPdf' || cta.openInNewTab
-            ? 'noreferrer'
-            : undefined
-        }
-        className={className}
-      >
-        {cta.label}
-      </a>
-    )
-  }
-
   return (
-    <Link href={href} className={className}>
+    <CTAButton
+      href={href}
+      appearance={cta.style === 'text' ? 'plain' : 'default'}
+      className={cta.style === 'text' ? 'underline underline-offset-4' : ''}
+      target={cta.action === 'external' && cta.openInNewTab ? '_blank' : undefined}
+      rel={cta.action === 'external' && cta.openInNewTab ? 'noreferrer' : undefined}
+      analyticsLabel={cta.label}
+      analyticsIntent={cta.action === 'downloadPdf' ? 'resource_download' : cta.action}
+    >
       {cta.label}
-    </Link>
+    </CTAButton>
   )
 }
 
 export function ResourceLandingPage({
   document,
+  context,
 }: {
   document: ResourceDocument
+  context: KnownLeadContext
 }) {
   const landing = document.landingPage ?? {}
+  const pdfUrl = resolvePdfDownloadUrl(document)
 
   const visibleSections = document.sections.filter(
     (section) =>
@@ -225,6 +212,26 @@ export function ResourceLandingPage({
             })}
           </div>
         </div>
+
+        {pdfUrl ? (
+          <section id="resource-download" className="mx-auto max-w-3xl scroll-mt-12 px-6 py-24 lg:px-10">
+            <ResourceLeadForm
+              context={context}
+              submissionType="guide_download"
+              title={`download ${document.title.toLowerCase()}`}
+              description={document.abstract}
+              interestLabel="which workflow is most relevant?"
+              options={[
+                {value: 'approved-version-retrieval', label: 'approved-version retrieval'},
+                {value: 'asset-reproduction', label: 'asset reproduction'},
+                {value: 'production-handoff', label: 'production handoff'},
+                {value: 'other', label: 'another workflow'},
+              ]}
+              downloadLabel="Download the document"
+              sourcePage={`/${document.slug}`}
+            />
+          </section>
+        ) : null}
 
         {document.finalCta ? (
           <footer className="border-t border-white/12">

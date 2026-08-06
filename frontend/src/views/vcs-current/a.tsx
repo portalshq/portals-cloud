@@ -174,6 +174,7 @@ const audiences = [
 ];
 
 type PricingTier = {
+  slug: string;
   name: string;
   price: string;
   period: string;
@@ -185,6 +186,7 @@ type PricingTier = {
 
 function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
   return {
+    slug: specification.slug,
     name: specification.name,
     price: specification.price?.displayValue || '',
     period: specification.price?.periodLabel || '',
@@ -193,6 +195,12 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
     cta: specification.ctaLabel || 'Scope a pilot',
     micro: specification.microcopy,
   };
+}
+
+function pricingTierHref(tier: PricingTier): string {
+  return tier.slug === PACKAGE_SPEC_SLUGS.productionTeam
+    ? '/workflow-assessment'
+    : scopeAPilotMailto;
 }
 
 const blurEnterTransition = 'opacity 1.25s cubic-bezier(0.16, 1, 0.3, 1), filter 1.25s cubic-bezier(0.16, 1, 0.3, 1)';
@@ -581,7 +589,10 @@ function SolutionSection() {
             Built for AI creative agencies, studios, game teams, and brand teams producing high-volume AI media.
           </p>
           <div className="flex justify-center">
-            <CTAButton href={"/use-cases"}>Explore use cases</CTAButton>
+            {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
+            <CTAButton href="/workflow-assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+              Assess your workflow
+            </CTAButton>
           </div>
         </div>
       </div>
@@ -635,7 +646,13 @@ function CapabilitiesSection() {
               <p className="t-p-sans text-white">{capability.text}</p>
             </article>
           ))}
+          <div className="p-24 col-span-full flex md:justify-center">
+            <CTAButton href="/workflow-assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+              Assess your workflow
+            </CTAButton>
+          </div>
         </div>
+        
         {/* <div className="col-span-full grid gap-y-30 border border-white/20 bg-white/10 p-24 lg:grid-cols-[var(--width)_1fr_1fr]">
           <h3 className="t-h3-sans lg:col-span-1">An open core, honestly</h3>
           <p className="t-p-lg-serif text-white lg:col-span-2">
@@ -721,7 +738,7 @@ function PricingSection({
         <div className="col-span-full lg:mx-auto">
           <h2 className="t-d2-sans max-w-[12.58em] lg:text-center">A clear path from adoption to enterprise scale.</h2>
         </div>
-        <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] mx-auto rounded">
+        <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] lg:mx-auto rounded">
           {pilotTier ? [pilotTier].map((tier) => (
             <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
               <h3 className="t-h3-sans">{tier.name}</h3>
@@ -738,7 +755,7 @@ function PricingSection({
                   </li>
                 ))}
               </ul>
-              <CTAButton href={scopeAPilotMailto}>{tier.cta}</CTAButton>
+              <CTAButton href={pricingTierHref(tier)}>{tier.cta}</CTAButton>
               {tier.micro && <p className="mt-24 t-p-sans text-white">{tier.micro}</p>}
             </article>
           )) : null}
@@ -761,7 +778,7 @@ function PricingSection({
                   </li>
                 ))}
               </ul>
-              <CTAButton href={scopeAPilotMailto}>{tier.cta}</CTAButton>
+              <CTAButton href={pricingTierHref(tier)}>{tier.cta}</CTAButton>
               {tier.micro && <p className="relative lg:absolute -bottom-54 mt-24 t-p-sans text-white">{tier.micro}</p>}
             </article>
           ))}
@@ -789,7 +806,7 @@ export function VCS({
               </span>
             </a>
 
-            <CTAButton href={scopeAPilotMailto}>Scope a pilot</CTAButton>
+            <CTAButton href={scopeAPilotMailto} analyticsLabel="Scope a Pilot" analyticsIntent="pilot_scope">Scope a pilot</CTAButton>
           </div>
         </div>
       </header>
@@ -803,6 +820,14 @@ export function VCS({
               <br/>
               <strong className="t-d1-serif">best creative work</strong>
             </h1>
+            <div className="flex flex-col gap-12 pt-12 sm:flex-row">
+              <CTAButton href="/workflow-assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+                Assess your workflow
+              </CTAButton>
+              <CTAButton className="!hidden" href="/ai-production-workflow-risks" analyticsLabel="Explore Use Cases" analyticsIntent="education">
+                Explore use cases
+              </CTAButton>
+            </div>
           </div>
           <div className="col-span-full grid grid-cols-subgrid">
             <div className="col-span-8 col-start-5 flex justify-end lg:col-span-full">
@@ -831,7 +856,10 @@ export function VCS({
               <p className="t-p-lg-serif max-w-[26em] text-white">
                 Give every asset your team creates a permanent identity, a complete history, and a system of record it can be trusted against from first generation through shipped production.
               </p>
-              <CTAButton href={scopeAPilotMailto}>Scope a pilot</CTAButton>
+              <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton>
+              {/* <CTAButton href="/workflow-assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+                Assess your workflow
+              </CTAButton> */}
             </div>
           </div>
           <div className="absolute inset-0 z-10" />

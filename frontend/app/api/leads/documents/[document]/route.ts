@@ -143,7 +143,6 @@ export async function GET(
     'targetStartPeriod',
     'successCriteria',
     'securityRequirements',
-    'annualExpectations',
     'budgetReadiness',
     'budgetOwner',
   ]

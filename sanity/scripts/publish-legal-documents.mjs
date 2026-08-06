@@ -78,11 +78,14 @@ const privacyPolicy = {
     ]),
     section('AI processing and third-party providers', 'ai-processing-and-third-party-providers', [
       'Some features may send customer-selected content, prompts, files, metadata, or instructions to AI providers, cloud infrastructure, object storage, databases, authentication providers, email services, billing providers, observability tools, support tools, analytics tools, or integration providers as needed to deliver the service.',
+      'Website lead operations use a managed marketing-intake database, Tally for the embedded workflow assessment, Attio for customer-relationship records, Resend for requested delivery and follow-up email, and Mixpanel for consented website analytics. Each system receives only the data needed for its stated purpose.',
       'Provider use depends on the deployed service, enabled integrations, customer configuration, and plan. Portals will not identify a provider as active unless it is actually used.',
       'Where available and applicable, Portals seeks provider settings that limit provider use of customer data for training. Deployment-specific provider lists, data categories, and region details may be supplied during vendor or security review.',
     ]),
     section('Cookies and similar technologies', 'cookies-and-similar-technologies', [
       'The website and application may use cookies, local storage, session storage, and similar technologies for authentication, security, preferences, analytics, performance, and product operation.',
+      'When you submit a website form, Portals may set an opaque, HTTP-only browser cookie for up to 90 days so later forms can omit contact details already supplied in that browser. The cookie contains no readable personal information or CRM identifier, does not identify you across devices, and can be reset using the visible “not you?” control.',
+      'Mixpanel analytics is initialized only after analytics consent. Portals does not send form messages, workflow descriptions, names, or email addresses to Mixpanel.',
       'You may control cookies through browser settings. Some service features may not work correctly if required authentication or security cookies are blocked.',
     ]),
     section('Security', 'security', [

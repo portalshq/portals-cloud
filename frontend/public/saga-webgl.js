@@ -731,7 +731,6 @@ class SagaEngine {
       uniforms: this.meshUniforms,
       vertexShader: MESH_VS,
       fragmentShader: MESH_FS,
-      morphTargets: true,
     });
 
     this.postEffects = null;

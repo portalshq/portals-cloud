@@ -10,10 +10,16 @@ import {
   Check,
 } from 'lucide-react'
 import {CTAButton} from '@/components/CTAButton'
-import {ConsentFields, IdentityFields, LeadField, leadInputClasses, NoScriptLeadFallback} from '@/components/leads/LeadFields'
+import {LeadCheckbox, LeadSelectField, LeadTextField, LeadTextareaField} from '@/components/mui/fields'
+import {ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback} from '@/components/leads/LeadFields'
 import {ProgressiveAssessmentFields} from '@/components/leads/ProgressiveAssessmentFields'
 import {useFormDraft} from '@/components/leads/useFormDraft'
 import {usePreservedSwap} from '@/components/leads/usePreservedSwap'
+import {
+  clearPilotConfirmation,
+  readPilotConfirmation,
+  writePilotConfirmation,
+} from '@/lib/leads/pilot-confirmation'
 import {analyticsConsent, buildAttribution, trackEvent} from '@/lib/leads/analytics-client'
 import {newSubmissionId, submitLead} from '@/lib/leads/client'
 import {
@@ -76,9 +82,12 @@ export function PilotScopeForm({
     () => Object.fromEntries(Object.entries(initialAnswers || {})) as Record<string, string | boolean>,
   )
   const [stageError, setStageError] = useState('')
-  const submissionId = useMemo(() => newSubmissionId('pilot-request'), [])
+  const [submissionId, setSubmissionId] = useState(() =>
+    newSubmissionId('pilot-request'),
+  )
   const started = useRef(false)
   const stepNav = useRef<'forward' | 'back' | null>(null)
+  const submittedByClickRef = useRef(false)
   const formRef = useRef<HTMLFormElement>(null)
   const {ref: swapRef, reservedHeight, reserve} = usePreservedSwap()
   const {ref: draftRef, restored, flush, clear} = useFormDraft('pilot_request')
@@ -93,6 +102,20 @@ export function PilotScopeForm({
   useEffect(() => {
     if (restored.email) setEmail(restored.email)
   }, [restored.email])
+
+  useEffect(() => {
+    if (pilotId) return
+    const stored = readPilotConfirmation()
+    if (!stored) return
+    setSubmitState({
+      status: 'success',
+      pilotUrl: stored.pilotUrl,
+      calendarUrl: stored.calendarUrl,
+      downloadUrl: stored.downloadUrl,
+      pilotRoute: stored.pilotRoute,
+      preview: stored.preview,
+    })
+  }, [pilotId])
 
   useEffect(() => {
     const direction = stepNav.current
@@ -202,6 +225,34 @@ export function PilotScopeForm({
     setLiveAnswers(collectValues())
   }
 
+  const knownAnswerValues = {
+    ...(context.answerValues || {}),
+    ...(initialAnswers || {}),
+  }
+
+  function summaryAnswer(name: string): string {
+    const live = String(liveAnswers[name] ?? '')
+    if (live.trim()) return live
+    const known = knownAnswerValues[name]
+    if (typeof known === 'string') return known
+    if (typeof known === 'number' || typeof known === 'boolean') {
+      return String(known)
+    }
+    return ''
+  }
+
+  function startNewPilotForm() {
+    clearPilotConfirmation()
+    clear()
+    setSubmissionId(newSubmissionId('pilot-request'))
+    formRef.current?.reset()
+    setLiveAnswers({})
+    setEmail('')
+    setStageError('')
+    setStage(0)
+    setSubmitState({status: 'idle'})
+  }
+
   function pilotAnswersFrom(
     form: HTMLFormElement,
   ): z.infer<typeof pilotRequestAnswersSchema> {
@@ -234,12 +285,13 @@ export function PilotScopeForm({
       pilotWorkflow: string('pilotWorkflow'),
       productionOwner: string('productionOwner'),
       economicBuyer: string('economicBuyer'),
+      economicBuyerEmail: string('economicBuyerEmail'),
       technicalEvaluator: string('technicalEvaluator'),
+      technicalEvaluatorEmail: string('technicalEvaluatorEmail'),
       requiredIntegrations: string('requiredIntegrations'),
       targetStartPeriod: string('targetStartPeriod'),
       successCriteria: string('successCriteria'),
       securityRequirements: string('securityRequirements'),
-      annualExpectations: string('annualExpectations'),
       budgetReadiness: string('budgetReadiness'),
       budgetOwner: string('budgetOwner'),
       message: string('message'),
@@ -269,9 +321,7 @@ export function PilotScopeForm({
       approverRole: string('approverRole'),
       approverEmail: string('approverEmail'),
       procurementPoRequired: checked('procurementPoRequired'),
-      procurementVendorSetup: checked('procurementVendorSetup'),
       procurementReviewTime: string('procurementReviewTime'),
-      procurementDocuments: string('procurementDocuments'),
       annualDeploymentOption: choice(
         'annualDeploymentOption',
         optionLists.annualDeploymentOption,
@@ -286,6 +336,12 @@ export function PilotScopeForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (stage < STAGES.length - 1) {
+      onContinue()
+      return
+    }
+    if (!submittedByClickRef.current) return
+    submittedByClickRef.current = false
     if (!stageFieldsValid(4)) return
     setSubmitState({status: 'submitting'})
     flush()
@@ -325,6 +381,15 @@ export function PilotScopeForm({
 
       reserve()
       clear()
+      if (!isRevision) {
+        writePilotConfirmation({
+          pilotUrl: result.pilotUrl,
+          calendarUrl: result.calendarUrl,
+          downloadUrl: result.downloadUrl,
+          pilotRoute: result.pilotRoute,
+          preview: result.dryRun,
+        })
+      }
       setSubmitState({
         status: 'success',
         pilotUrl: result.pilotUrl,
@@ -350,23 +415,25 @@ export function PilotScopeForm({
       <div role="status" className="max-w-[42em] py-24">
         <Check
           aria-hidden="true"
-          className="text-white"
+          className="text-white shrink-0"
           size={32}
           strokeWidth={1.6}
         />
         <h3 className="mt-24 t-h1-sans">
-          {submitState.pilotRoute === 'disqualified'
+          {/* {submitState.pilotRoute === 'disqualified'
             ? 'we need a few clarifications.'
             : submitState.pilotRoute === 'one-call'
-              ? 'your pilot approval room is ready.'
-              : 'your pilot approval room is ready.'}
+            ? 'your pilot approval room is ready.'
+            : 'your pilot approval room is ready.'} */}
+          your pilot approval room is ready.
         </h3>
-        <p className="mt-16 t-p-lg-serif text-white">
-          {submitState.pilotRoute === 'disqualified'
+        <p className="mt-16 t-p-lg-sans text-white">
+          {/* {submitState.pilotRoute === 'disqualified'
             ? 'Your request cannot proceed as a standard pilot yet. Review the notes in your room, revise the scope, and resubmit.'
             : submitState.pilotRoute === 'one-call'
               ? 'The plan is assembled and ready for review. A single pilot terms review is required before signing.'
-              : 'The plan is assembled — no call required. Review the scope, confirm it as drafted, and sign when ready.'}
+              : 'The plan is assembled — no call required. Review the scope, confirm it as drafted, and sign when ready.'} */}
+          review the notes in your room, share, revise, and confirm.
         </p>
         {submitState.preview ? (
           <p className="mt-14 t-p-sans text-white">
@@ -389,7 +456,7 @@ export function PilotScopeForm({
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           ) : null}
-          {submitState.downloadUrl ? (
+          {/* {submitState.downloadUrl ? (
             <CTAButton
               href={submitState.downloadUrl}
               target="_blank"
@@ -398,10 +465,24 @@ export function PilotScopeForm({
               analyticsIntent="pilot_packet_download"
             >
               <ArrowDownToLine aria-hidden="true" size={18} strokeWidth={1.8} />
-              <span>download a pdf copy</span>
+              <span>download pdf</span>
             </CTAButton>
-          ) : null}
+          ) : null} */}
         </div>
+        {!isRevision ? (
+          <div className="mt-24">
+            <CTAButton
+              type="button"
+              appearance="plain"
+              className="!min-w-0 underline underline-offset-4"
+              onClick={startNewPilotForm}
+              analyticsLabel="Submit a New Pilot Form"
+              analyticsIntent="pilot_scope"
+            >
+              <span>submit a new pilot form</span>
+            </CTAButton>
+          </div>
+        ) : null}
         {submitState.calendarUrl ? (
           <p className="mt-16 t-p-sans text-white">
             need a pilot terms review?{' '}
@@ -472,19 +553,18 @@ export function PilotScopeForm({
         </div>
         <div className="sm:col-span-2">
           <LeadField label="which production workflow would the pilot cover? *" name="pilotWorkflow">
-            <textarea
-              className={`${leadInputClasses} min-h-128 resize-y`}
+            <LeadTextareaField
               id="pilotWorkflow"
               name="pilotWorkflow"
               required
+              minRows={6}
               defaultValue={String(initialAnswers?.pilotWorkflow || '')}
               placeholder="one active workflow with current production behavior, e.g. approved campaign variants for the flagship account"
             />
           </LeadField>
         </div>
         <LeadField label="historical project *" name="historicalProject">
-          <select
-            className={leadInputClasses}
+          <LeadSelectField
             id="historicalProject"
             name="historicalProject"
             required
@@ -494,11 +574,10 @@ export function PilotScopeForm({
             <option value="one-completed">one completed project</option>
             <option value="none">none yet</option>
             <option value="more-than-one">more than one project</option>
-          </select>
+          </LeadSelectField>
         </LeadField>
         <LeadField label="target start period *" name="targetStartPeriod">
-          <select
-            className={leadInputClasses}
+          <LeadSelectField
             id="targetStartPeriod"
             name="targetStartPeriod"
             required
@@ -509,11 +588,10 @@ export function PilotScopeForm({
             <option value="within-60-days">within 60 days</option>
             <option value="this-quarter">this quarter</option>
             <option value="later">later</option>
-          </select>
+          </LeadSelectField>
         </LeadField>
         <LeadField label="can your organization approve the $5,000 pilot? *" name="approvalPath">
-          <select
-            className={leadInputClasses}
+          <LeadSelectField
             id="approvalPath"
             name="approvalPath"
             required
@@ -525,11 +603,10 @@ export function PilotScopeForm({
             <option value="procurement">procurement review is required</option>
             <option value="not-established">approval path is not established</option>
             <option value="no">it cannot be approved</option>
-          </select>
+          </LeadSelectField>
         </LeadField>
         <LeadField label="how should your production data be classified? *" name="dataClassification">
-          <select
-            className={leadInputClasses}
+          <LeadSelectField
             id="dataClassification"
             name="dataClassification"
             required
@@ -542,12 +619,10 @@ export function PilotScopeForm({
             <option value="personal">personal data</option>
             <option value="regulated">regulated data</option>
             <option value="not-sure">not sure</option>
-          </select>
+          </LeadSelectField>
         </LeadField>
         <label className="flex items-start gap-10 t-p-sm-sans text-white sm:col-span-2">
-          <input
-            className="mt-3 size-16 accent-[#5bc4ba]"
-            type="checkbox"
+          <LeadCheckbox
             name="exactReproductionRequired"
             defaultChecked={Boolean(initialAnswers?.exactReproductionRequired)}
           />
@@ -565,8 +640,7 @@ export function PilotScopeForm({
         </div>
         {missing('productionOwner') ? (
           <LeadField label="production-team owner *" name="productionOwner">
-            <input
-              className={leadInputClasses}
+            <LeadTextField
               id="productionOwner"
               name="productionOwner"
               required
@@ -576,8 +650,7 @@ export function PilotScopeForm({
           </LeadField>
         ) : null}
         <LeadField label="pilot participants *" name="participantsRange">
-          <select
-            className={leadInputClasses}
+          <LeadSelectField
             id="participantsRange"
             name="participantsRange"
             required
@@ -589,11 +662,10 @@ export function PilotScopeForm({
             <option value="5">5</option>
             <option value="6-10">6-10</option>
             <option value="11-plus">11+</option>
-          </select>
+          </LeadSelectField>
         </LeadField>
         <LeadField label="import or integration method *" name="integrationMethod">
-          <select
-            className={leadInputClasses}
+          <LeadSelectField
             id="integrationMethod"
             name="integrationMethod"
             required
@@ -605,15 +677,15 @@ export function PilotScopeForm({
             <option value="api-based">API-based import</option>
             <option value="custom-integration">custom integration required</option>
             <option value="not-yet-known">not yet known</option>
-          </select>
+          </LeadSelectField>
         </LeadField>
         <div className="sm:col-span-2">
           <LeadField label="required integrations or export paths *" name="requiredIntegrations">
-            <textarea
-              className={`${leadInputClasses} min-h-96 resize-y`}
+            <LeadTextareaField
               id="requiredIntegrations"
               name="requiredIntegrations"
               required
+              minRows={4}
               defaultValue={String(initialAnswers?.requiredIntegrations || '')}
               placeholder="systems, what is imported, what is exported"
             />
@@ -640,9 +712,7 @@ export function PilotScopeForm({
                 key={option.key}
                 className="flex items-start gap-10 t-p-sm-sans text-white"
               >
-                <input
-                  className="mt-3 size-16 accent-[#5bc4ba]"
-                  type="checkbox"
+                <LeadCheckbox
                   name="successCriterionKeysJson"
                   value={option.key}
                   defaultChecked={
@@ -657,13 +727,25 @@ export function PilotScopeForm({
         </fieldset>
         <div className="sm:col-span-2">
           <LeadField label="measurable targets for the criteria above *" name="successCriteria">
-            <textarea
-              className={`${leadInputClasses} min-h-112 resize-y`}
+            <LeadTextareaField
               id="successCriteria"
               name="successCriteria"
               required
+              minRows={5}
               defaultValue={String(initialAnswers?.successCriteria || '')}
               placeholder="e.g. an approved asset is retrievable in under one minute; a variant can be reproduced or meaningfully extended from its stored context"
+            />
+          </LeadField>
+        </div>
+        <div className="sm:col-span-2">
+          <LeadField label="security requirements *" name="securityRequirements">
+            <LeadTextareaField
+              id="securityRequirements"
+              name="securityRequirements"
+              required
+              minRows={4}
+              defaultValue={String(initialAnswers?.securityRequirements || '')}
+              placeholder="e.g. SSO/SAML, SOC 2 report, data residency, dedicated infrastructure"
             />
           </LeadField>
         </div>
@@ -671,21 +753,31 @@ export function PilotScopeForm({
 
       <div data-pilot-stage={3} hidden={stage !== 3} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <p className="t-p-sm-sans text-white/70">who is likely to review or approve this pilot? you can confirm and invite them after your pilot plan is generated.</p>
+          <p className="t-p-sm-sans text-white/70">who is likely to review or approve this pilot? you can confirm and invite them for review after your pilot plan is generated.</p>
         </div>
         {missing('economicBuyer') ? (
-          <LeadField label="economic buyer *" name="economicBuyer">
-            <input className={leadInputClasses} id="economicBuyer" name="economicBuyer" required defaultValue={String(initialAnswers?.economicBuyer || '')} placeholder="name and title" />
-          </LeadField>
+          <div className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
+            <LeadField label="economic buyer *" name="economicBuyer">
+              <LeadTextField id="economicBuyer" name="economicBuyer" required defaultValue={String(initialAnswers?.economicBuyer || '')} placeholder="name and title" />
+            </LeadField>
+            <LeadField label="economic buyer email *" name="economicBuyerEmail">
+              <LeadTextField id="economicBuyerEmail" name="economicBuyerEmail" type="email" required defaultValue={String(initialAnswers?.economicBuyerEmail || '')} placeholder="name@company.com" />
+            </LeadField>
+          </div>
         ) : null}
         {missing('technicalEvaluator') ? (
-          <LeadField label="technical evaluator *" name="technicalEvaluator">
-            <input className={leadInputClasses} id="technicalEvaluator" name="technicalEvaluator" required defaultValue={String(initialAnswers?.technicalEvaluator || '')} placeholder="name and title" />
-          </LeadField>
+          <div className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
+            <LeadField label="technical evaluator *" name="technicalEvaluator">
+              <LeadTextField id="technicalEvaluator" name="technicalEvaluator" required defaultValue={String(initialAnswers?.technicalEvaluator || '')} placeholder="name and title" />
+            </LeadField>
+            <LeadField label="technical evaluator email *" name="technicalEvaluatorEmail">
+              <LeadTextField id="technicalEvaluatorEmail" name="technicalEvaluatorEmail" type="email" required defaultValue={String(initialAnswers?.technicalEvaluatorEmail || '')} placeholder="name@company.com" />
+            </LeadField>
+          </div>
         ) : null}
         {missing('budgetOwner') ? (
           <LeadField label="budget-owning function *" name="budgetOwner">
-            <select className={leadInputClasses} id="budgetOwner" name="budgetOwner" required defaultValue={String(initialAnswers?.budgetOwner || '')}>
+            <LeadSelectField id="budgetOwner" name="budgetOwner" required defaultValue={String(initialAnswers?.budgetOwner || '')}>
               <option value="" disabled>select one</option>
               <option value="executive">executive leadership</option>
               <option value="creative">creative leadership</option>
@@ -693,13 +785,12 @@ export function PilotScopeForm({
               <option value="technology">technology</option>
               <option value="procurement">procurement</option>
               <option value="unknown">not yet known</option>
-            </select>
+            </LeadSelectField>
           </LeadField>
         ) : null}
         {missing('budgetReadiness') ? (
           <LeadField label="budget readiness *" name="budgetReadiness">
-            <select
-              className={leadInputClasses}
+            <LeadSelectField
               id="budgetReadiness"
               name="budgetReadiness"
               required
@@ -711,12 +802,11 @@ export function PilotScopeForm({
               <option value="next-cycle">planned for the next purchasing cycle</option>
               <option value="proposal-required">needs a proposal or amendment</option>
               <option value="not-budgeted">not yet budgeted</option>
-            </select>
+            </LeadSelectField>
           </LeadField>
         ) : null}
         <LeadField label="annual deployment you are evaluating *" name="annualDeploymentOption">
-          <select
-            className={leadInputClasses}
+          <LeadSelectField
             id="annualDeploymentOption"
             name="annualDeploymentOption"
             required
@@ -727,27 +817,10 @@ export function PilotScopeForm({
             <option value="studio">studio - $30,000 annually</option>
             <option value="enterprise">enterprise</option>
             <option value="not-known">not yet known</option>
-          </select>
+          </LeadSelectField>
         </LeadField>
-        {missing('annualExpectations') ? (
-          <div className="sm:col-span-2">
-            <LeadField label="expected annual deployment scope *" name="annualExpectations">
-              <textarea
-                className={`${leadInputClasses} min-h-96 resize-y`}
-                id="annualExpectations"
-                name="annualExpectations"
-                required
-                maxLength={1600}
-                defaultValue={String(initialAnswers?.annualExpectations || '')}
-                placeholder="what the annual deployment should cover — production teams, repositories, expected users and monthly volume, and any operating or security needs"
-              />
-            </LeadField>
-          </div>
-        ) : null}
         <label className="flex items-start gap-10 t-p-sm-sans text-white sm:col-span-2">
-          <input
-            className="mt-3 size-16 accent-[#5bc4ba]"
-            type="checkbox"
+          <LeadCheckbox
             name="annualPriceAcknowledged"
             defaultChecked={Boolean(initialAnswers?.annualPriceAcknowledged)}
           />
@@ -764,59 +837,40 @@ export function PilotScopeForm({
         {liveAnswers.approvalPath === 'other' || liveAnswers.approvalPath === 'procurement' ? (
           <div className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
             <LeadField label="approver name *" name="approverName">
-              <input className={leadInputClasses} id="approverName" name="approverName" required defaultValue={String(initialAnswers?.approverName || '')} />
+              <LeadTextField id="approverName" name="approverName" required defaultValue={String(initialAnswers?.approverName || '')} />
             </LeadField>
             <LeadField label="approver email *" name="approverEmail">
-              <input className={leadInputClasses} id="approverEmail" name="approverEmail" type="email" required defaultValue={String(initialAnswers?.approverEmail || '')} />
+              <LeadTextField id="approverEmail" name="approverEmail" type="email" required defaultValue={String(initialAnswers?.approverEmail || '')} />
             </LeadField>
           </div>
         ) : null}
         {liveAnswers.approvalPath === 'procurement' ? (
           <div className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
             <label className="flex items-start gap-10 t-p-sm-sans text-white">
-              <input className="mt-3 size-16 accent-[#5bc4ba]" type="checkbox" name="procurementPoRequired" defaultChecked={Boolean(initialAnswers?.procurementPoRequired)} />
+              <LeadCheckbox name="procurementPoRequired" defaultChecked={Boolean(initialAnswers?.procurementPoRequired)} />
               <span>purchase order required</span>
             </label>
-            <label className="flex items-start gap-10 t-p-sm-sans text-white">
-              <input className="mt-3 size-16 accent-[#5bc4ba]" type="checkbox" name="procurementVendorSetup" defaultChecked={Boolean(initialAnswers?.procurementVendorSetup)} />
-              <span>vendor setup required</span>
-            </label>
             <LeadField label="expected review time" name="procurementReviewTime">
-              <input className={leadInputClasses} id="procurementReviewTime" name="procurementReviewTime" defaultValue={String(initialAnswers?.procurementReviewTime || '')} placeholder="e.g. 2-3 weeks" />
-            </LeadField>
-            <LeadField label="required procurement documents" name="procurementDocuments">
-              <input className={leadInputClasses} id="procurementDocuments" name="procurementDocuments" defaultValue={String(initialAnswers?.procurementDocuments || '')} placeholder="e.g. W-9, insurance certificate" />
+              <LeadTextField id="procurementReviewTime" name="procurementReviewTime" defaultValue={String(initialAnswers?.procurementReviewTime || '')} placeholder="e.g. 2-3 weeks" />
             </LeadField>
           </div>
         ) : null}
+        <LeadField label="authorized signer *" name="signerName">
+          <LeadTextField id="signerName" name="signerName" required defaultValue={String(initialAnswers?.signerName || '')} placeholder="full legal name" />
+        </LeadField>
+        <LeadField label="signer email *" name="signerEmail">
+          <LeadTextField id="signerEmail" name="signerEmail" type="email" required defaultValue={String(initialAnswers?.signerEmail || '')} placeholder="name@company.com" />
+        </LeadField>
         <div className="sm:col-span-2">
-          <LeadField label="security requirements *" name="securityRequirements">
-            <textarea
-              className={`${leadInputClasses} min-h-96 resize-y`}
-              id="securityRequirements"
-              name="securityRequirements"
-              required
-              defaultValue={String(initialAnswers?.securityRequirements || '')}
-              placeholder="e.g. SSO/SAML, SOC 2 report, data residency, dedicated infrastructure"
+          <LeadField label="anything that would block the pilot, optional" name="pilotBlocker">
+            <LeadTextareaField
+              id="pilotBlocker"
+              name="pilotBlocker"
+              minRows={2}
+              defaultValue={String(initialAnswers?.pilotBlocker || '')}
             />
           </LeadField>
         </div>
-        <LeadField label="authorized signer *" name="signerName">
-          <input className={leadInputClasses} id="signerName" name="signerName" required defaultValue={String(initialAnswers?.signerName || '')} placeholder="full legal name" />
-        </LeadField>
-            <LeadField label="signer email *" name="signerEmail">
-              <input className={leadInputClasses} id="signerEmail" name="signerEmail" type="email" required defaultValue={String(initialAnswers?.signerEmail || '')} placeholder="name@company.com" />
-            </LeadField>
-            <div className="sm:col-span-2">
-              <LeadField label="anything that would block the pilot, optional" name="pilotBlocker">
-                <textarea
-                  className={`${leadInputClasses} min-h-64 resize-y`}
-                  id="pilotBlocker"
-                  name="pilotBlocker"
-                  defaultValue={String(initialAnswers?.pilotBlocker || '')}
-                />
-              </LeadField>
-            </div>
       </div>
 
       <div data-pilot-stage={4} hidden={stage !== 4} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
@@ -824,22 +878,22 @@ export function PilotScopeForm({
           <p className="t-p-sm-sans text-white/70">review the summary before submitting.</p>
         </div>
         <dl className="sm:col-span-2 grid gap-12 rounded-sm bg-white/8 px-14 py-16 t-p-sm-sans text-white">
-          <SummaryRow label="workflow" value={String(valuesFrom(0).pilotWorkflow || '—')} />
-          <SummaryRow label="start period" value={String(valuesFrom(0).targetStartPeriod || '—').replaceAll('-', ' ')} />
-          <SummaryRow label="participants" value={String(valuesFrom(1).participantsRange || '—')} />
-          <SummaryRow label="integration" value={optionLists.integrationMethodLabel[String(valuesFrom(1).integrationMethod) as keyof typeof optionLists.integrationMethodLabel] || '—'} />
-          <SummaryRow label="data classification" value={optionLists.dataClassificationLabel[String(valuesFrom(0).dataClassification) as keyof typeof optionLists.dataClassificationLabel] || '—'} />
-          <SummaryRow label="approval path" value={String(valuesFrom(0).approvalPath || '—').replaceAll('-', ' ')} />
-          <SummaryRow label="production owner" value={String(valuesFrom(0).productionOwner || '—')} />
-          <SummaryRow label="economic buyer" value={String(valuesFrom(3).economicBuyer || '—')} />
-          <SummaryRow label="technical evaluator" value={String(valuesFrom(3).technicalEvaluator || '—')} />
-          {String(valuesFrom(3).approverName || '') ? <SummaryRow label="approver" value={String(valuesFrom(3).approverName)} /> : null}
-          <SummaryRow label="annual option" value={String(valuesFrom(3).annualDeploymentOption || '—').replaceAll('-', ' ')} />
-          <SummaryRow label="annual deployment scope" value={String(valuesFrom(3).annualExpectations || '—')} />
-          <SummaryRow label="budget readiness" value={String(valuesFrom(3).budgetReadiness || '—').replaceAll('-', ' ')} />
-          <SummaryRow label="security requirements" value={String(valuesFrom(3).securityRequirements || '—')} />
-          <SummaryRow label="authorized signer" value={String(liveAnswers.signerName || '—')} />
-          <SummaryRow label="signer email" value={String(liveAnswers.signerEmail || '—')} />
+          <SummaryRow label="workflow" value={summaryAnswer('pilotWorkflow') || '—'} />
+          <SummaryRow label="start period" value={summaryAnswer('targetStartPeriod').replaceAll('-', ' ') || '—'} />
+          <SummaryRow label="participants" value={summaryAnswer('participantsRange') || '—'} />
+          <SummaryRow label="integration" value={optionLists.integrationMethodLabel[summaryAnswer('integrationMethod') as keyof typeof optionLists.integrationMethodLabel] || '—'} />
+          <SummaryRow label="data classification" value={optionLists.dataClassificationLabel[summaryAnswer('dataClassification') as keyof typeof optionLists.dataClassificationLabel] || '—'} />
+          <SummaryRow label="approval path" value={summaryAnswer('approvalPath').replaceAll('-', ' ') || '—'} />
+          <SummaryRow label="production owner" value={summaryAnswer('productionOwner') || '—'} />
+          <SummaryRow label="economic buyer" value={[summaryAnswer('economicBuyer'), summaryAnswer('economicBuyerEmail')].filter(Boolean).join(' · ') || '—'} />
+          <SummaryRow label="technical evaluator" value={[summaryAnswer('technicalEvaluator'), summaryAnswer('technicalEvaluatorEmail')].filter(Boolean).join(' · ') || '—'} />
+          {summaryAnswer('approverName') ? <SummaryRow label="approver" value={[summaryAnswer('approverName'), summaryAnswer('approverEmail')].filter(Boolean).join(' · ')} /> : null}
+          <SummaryRow label="annual option" value={summaryAnswer('annualDeploymentOption').replaceAll('-', ' ') || '—'} />
+          <SummaryRow label="budget-owning function" value={summaryAnswer('budgetOwner').replaceAll('-', ' ') || '—'} />
+          <SummaryRow label="budget readiness" value={summaryAnswer('budgetReadiness').replaceAll('-', ' ') || '—'} />
+          <SummaryRow label="security requirements" value={summaryAnswer('securityRequirements') || '—'} />
+          <SummaryRow label="authorized signer" value={summaryAnswer('signerName') || '—'} />
+          <SummaryRow label="signer email" value={summaryAnswer('signerEmail') || '—'} />
         </dl>
         {classification.route === 'one-call' ? (
           <p className="t-p-sm-sans text-white/80 sm:col-span-2" role="note">
@@ -888,6 +942,9 @@ export function PilotScopeForm({
           <CTAButton
             type="submit"
             className="js-lead-submit"
+            onClick={() => {
+              submittedByClickRef.current = true
+            }}
             disabled={submitState.status === 'submitting'}
           >
             <span>
@@ -902,9 +959,9 @@ export function PilotScopeForm({
         )}
       </div>
 
-      <div className='col-span-full'>
+      <div className='col-span-full relative'>
         {classification.route === 'disqualified' ? (
-          <p className="t-p-sm-sans text-white/80 sm:col-span-2" role="note">
+          <p className="t-p-sm-sans text-white/80 sm:col-span-2 absolute" role="note">
             Your answers include items outside the standard pilot scope —{' '}
             {classification.reasons.join('; ')}. We will still review your pilot submission and advise on the best path.
           </p>

@@ -881,7 +881,9 @@ function outboxActions(request: LeadRequest): string[] {
   }
   const actions = ['crm_sync']
   if (request.consent.analytics) actions.push('analytics')
-  if (request.submissionType !== 'assessment') actions.push('confirmation_email')
+  if (!['assessment', 'pilot_request'].includes(request.submissionType)) {
+    actions.push('confirmation_email')
+  }
   if (
     [
       'pilot_request',
@@ -1222,7 +1224,9 @@ export async function takeDueOutbox(limit = 20): Promise<OutboxRow[]> {
          ) OR (
            status = 'processing' AND updated_at <= now() - interval '10 minutes'
          )
-         ORDER BY created_at ASC
+         ORDER BY
+           CASE WHEN action_type IN ('confirmation_email', 'pilot_email', 'founder_notification') THEN 0 ELSE 1 END,
+           created_at ASC
          FOR UPDATE SKIP LOCKED LIMIT $1
       )
       RETURNING id::text, submission_id, action_type, attempts`,

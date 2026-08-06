@@ -3,6 +3,7 @@
 import {useEffect, useMemo, useState} from 'react'
 import {ArrowRight} from 'lucide-react'
 import {CTAButton} from '@/components/CTAButton'
+import {RoomCheckbox, RoomSelectField, RoomTextField, RoomTextareaField} from '@/components/mui/fields'
 import {
   reviewerRoleLabel,
   stateLabel,
@@ -44,9 +45,6 @@ function FieldLabel({children}: {children: string}) {
     <p className="mt-16 mb-6 t-p-sm-sans text-[#52617D]">{children}</p>
   )
 }
-
-const inputClasses =
-  'w-full rounded border border-[#D9E1EC] bg-white px-10 py-8 t-p-sans text-[#07112C] focus:border-[#2F66B5] focus:outline-none'
 
 type ReviewerStatusView = {
   label: string
@@ -638,9 +636,8 @@ export function PilotApprovalRoom({
               <dt className="text-[#52617D]">pilot start date</dt>
               <dd className="mt-2">
                 {editable ? (
-                  <input
+                  <RoomTextField
                     type="date"
-                    className={inputClasses}
                     value={startDate}
                     onChange={(event) => setStartDate(event.target.value)}
                   />
@@ -675,11 +672,9 @@ export function PilotApprovalRoom({
                   <dd className="mt-2 text-[#52617D]">{value.frequency.label} · {value.hoursLoss.label} lost · {value.people.label} affected</dd>
                   {editable ? (
                     <label className="mt-10 flex items-center gap-8">
-                      <input
-                        type="checkbox"
+                      <RoomCheckbox
                         checked={valueConfirmed}
                         onChange={(event) => setValueConfirmed(event.target.checked)}
-                        className="h-16 w-16 accent-[#2F66B5]"
                       />
                       <span className="t-p-sans">confirm this estimate as reasonable</span>
                     </label>
@@ -707,8 +702,8 @@ export function PilotApprovalRoom({
               <div>
                 <p className="t-p-sans font-medium">{criterion.label}</p>
                 {editable ? (
-                  <select
-                    className={`${inputClasses} mt-8`}
+                  <RoomSelectField
+                    className="mt-8"
                     value={criterion.status}
                     onChange={(event) => {
                       const next = [...criteria]
@@ -722,7 +717,7 @@ export function PilotApprovalRoom({
                     {CRITERION_STATUS_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
-                  </select>
+                  </RoomSelectField>
                 ) : (
                   <p className="mt-8 t-p-sm-sans text-[#52617D] capitalize">{criterion.status.replace('-', ' ')}</p>
                 )}
@@ -731,8 +726,8 @@ export function PilotApprovalRoom({
                 <label className="t-p-sm-sans text-[#52617D]">
                   measurable target
                   {editable ? (
-                    <input
-                      className={`${inputClasses} mt-4`}
+                    <RoomTextField
+                      className="mt-4"
                       value={criterion.target || ''}
                       placeholder="e.g. under one minute to retrieve the approved asset"
                       onChange={(event) => {
@@ -748,8 +743,8 @@ export function PilotApprovalRoom({
                 <label className="t-p-sm-sans text-[#52617D]">
                   participant
                   {editable ? (
-                    <input
-                      className={`${inputClasses} mt-4`}
+                    <RoomTextField
+                      className="mt-4"
                       value={criterion.participant || ''}
                       onChange={(event) => {
                         const next = [...criteria]
@@ -764,8 +759,8 @@ export function PilotApprovalRoom({
                 <label className="t-p-sm-sans text-[#52617D]">
                   evidence
                   {editable ? (
-                    <input
-                      className={`${inputClasses} mt-4`}
+                    <RoomTextField
+                      className="mt-4"
                       value={criterion.evidence || ''}
                       onChange={(event) => {
                         const next = [...criteria]
@@ -853,8 +848,8 @@ export function PilotApprovalRoom({
                     </p>
                     {reviewer.status === 'proposed' && !reviewer.email.trim() && invitationsUnlocked ? (
                       <div className="flex flex-wrap items-center gap-8">
-                        <input
-                          className={`${inputClasses} max-w-56`}
+                        <RoomTextField
+                          className="max-w-56"
                           type="email"
                           placeholder="email address"
                           value={draftEmail}
@@ -897,8 +892,8 @@ export function PilotApprovalRoom({
                   </div>
                   {invitationsUnlocked ? (
                     <div className="grid gap-8 md:justify-items-end">
-                      <select
-                        className={`${inputClasses} max-w-52`}
+                      <RoomSelectField
+                        className="max-w-52"
                         value={reviewer.role}
                         onChange={(event) =>
                           void onChangeRole(reviewer, event.target.value as ReviewerRole)
@@ -907,7 +902,7 @@ export function PilotApprovalRoom({
                         {REVIEWER_ROLES.map((role) => (
                           <option key={role} value={role}>{reviewerRoleLabel(role)}</option>
                         ))}
-                      </select>
+                      </RoomSelectField>
                       <div className="flex flex-wrap gap-8">
                         <button onClick={() => void onClaim(reviewer)} disabled={busy} className={plainButtonClasses}>
                           I hold this role
@@ -943,20 +938,20 @@ export function PilotApprovalRoom({
               <div className="mt-16 grid gap-10 border-t border-[#E5EBF4] pt-16 md:grid-cols-[220px_1fr_1fr_auto] md:items-end">
                 <label className="t-p-sm-sans text-[#52617D]">
                   role
-                  <select
-                    className={`${inputClasses} mt-4`}
+                  <RoomSelectField
+                    className="mt-4"
                     value={draftRole}
                     onChange={(event) => setDraftRole(event.target.value as ReviewerRole)}
                   >
                     {REVIEWER_ROLES.map((role) => (
                       <option key={role} value={role}>{reviewerRoleLabel(role)}</option>
                     ))}
-                  </select>
+                  </RoomSelectField>
                 </label>
                 <label className="t-p-sm-sans text-[#52617D]">
                   name
-                  <input
-                    className={`${inputClasses} mt-4`}
+                  <RoomTextField
+                    className="mt-4"
                     value={draftName}
                     onChange={(event) => setDraftName(event.target.value)}
                     placeholder="name and title"
@@ -964,8 +959,8 @@ export function PilotApprovalRoom({
                 </label>
                 <label className="t-p-sm-sans text-[#52617D]">
                   email
-                  <input
-                    className={`${inputClasses} mt-4`}
+                  <RoomTextField
+                    className="mt-4"
                     type="email"
                     value={draftEmail}
                     onChange={(event) => setDraftEmail(event.target.value)}
@@ -1002,8 +997,8 @@ export function PilotApprovalRoom({
           <div className="mt-16 grid gap-10">
             <label className="t-p-sm-sans text-[#52617D]">
               questions or requested changes
-              <textarea
-                className={`${inputClasses} mt-4 min-h-96 resize-y`}
+              <RoomTextareaField
+                className="mt-4"
                 value={myNote}
                 onChange={(event) => setMyNote(event.target.value)}
                 placeholder="e.g. please add the security addendum before I can confirm"
@@ -1034,24 +1029,20 @@ export function PilotApprovalRoom({
             pilot term.
           </p>
           <FieldLabel>authorized signer name</FieldLabel>
-          <input
-            className={inputClasses}
+          <RoomTextField
             value={signerName}
             onChange={(event) => setSignerName(event.target.value)}
           />
           <FieldLabel>signer email</FieldLabel>
-          <input
-            className={inputClasses}
+          <RoomTextField
             type="email"
             value={signerEmail}
             onChange={(event) => setSignerEmail(event.target.value)}
           />
           <label className="mt-16 flex items-start gap-8">
-            <input
-              type="checkbox"
+            <RoomCheckbox
               checked={signerConsent}
               onChange={(event) => setSignerConsent(event.target.checked)}
-              className="mt-4 h-16 w-16 shrink-0 accent-[#2F66B5]"
             />
             <span className="t-p-sans text-[#52617D]">
               I confirm the information in this plan is accurate, that I am

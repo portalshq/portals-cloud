@@ -1,7 +1,7 @@
 import type {Metadata} from 'next'
 import {PilotApprovalRoom} from '@/components/leads/PilotApprovalRoom'
+import {resolveRoomAccess} from '@/lib/leads/room-access'
 import {getPilotById} from '@/lib/leads/store'
-import {verifyRoomToken} from '@/lib/leads/pilot-tokens'
 
 export const metadata: Metadata = {
   title: 'Pilot Approval Room',
@@ -19,20 +19,20 @@ export default async function PilotRoomPage({
 }) {
   const [{id}, query] = await Promise.all([params, searchParams])
   const pilot = await getPilotById(id)
-  const token = query.t ? verifyRoomToken(query.t) : null
+  const access = await resolveRoomAccess(pilot, query.t)
 
   return (
     <main className="relative z-(--z-main) min-h-screen bg-white lowercase text-[#07112C]">
-      <section className="mx-auto w-full max-w-4xl px-24 py-24 md:py-40">
+      <section className="mx-auto my-auto w-full max-w-4xl px-24 py-24 md:py-40">
         {!pilot ? (
           <div className="max-w-[34em]">
             <h1 className="t-h1-sans">this pilot room could not be found.</h1>
-            <p className="mt-16 t-p-lg-serif">
+            <p className="mt-16 t-p-lg-sans">
               the record may have been removed. if you expected it to exist,
               reply to the email that brought you here.
             </p>
           </div>
-        ) : !token || token.pilotId !== id ? (
+        ) : !access ? (
           <div className="max-w-[34em]">
             <h1 className="t-h1-sans">this link needs verification.</h1>
             <p className="mt-16 t-p-lg-serif">
@@ -43,10 +43,10 @@ export default async function PilotRoomPage({
         ) : (
           <PilotApprovalRoom
             pilot={pilot}
-            token={token}
-            accessToken={query.t || ''}
+            token={access.token}
+            accessToken={access.accessToken}
             sessionId={query.session_id}
-            revisePath={`/pilot/${id}/revise?t=${encodeURIComponent(query.t || '')}`}
+            revisePath={`/pilot/${id}/revise?t=${encodeURIComponent(access.accessToken)}`}
           />
         )}
       </section>
