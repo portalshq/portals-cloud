@@ -41,8 +41,8 @@ const overviewItems: OverviewItem[] = [
     heading: 'Identity',
     iconPath: iconPaths[1],
     textA: [
-      'Every asset gets a permanent, stable address.',
       'A character is not a folder of PNGs. A campaign is not a stack of final files.',
+      'Every asset gets a permanent, stable address.',
     ],
     list: [
       'Stable identity independent of filename, location, or export format',
@@ -203,41 +203,50 @@ function pricingTierHref(tier: PricingTier): string {
     : scopeAPilotMailto;
 }
 
-const blurEnterTransition = 'opacity 1.25s cubic-bezier(0.16, 1, 0.3, 1), filter 1.25s cubic-bezier(0.16, 1, 0.3, 1)';
-const blurExitTransition = 'opacity 0.4s cubic-bezier(0.55, 0.06, 0.68, 0.19), filter 0.4s cubic-bezier(0.55, 0.06, 0.68, 0.19)';
-const overviewBlurStaggerMs = 150;
+const blurEnterTransition = 'opacity 1.3s cubic-bezier(0.16, 1, 0.3, 1), filter 1.3s cubic-bezier(0.16, 1, 0.3, 1), transform 1.3s cubic-bezier(0.16, 1, 0.3, 1)';
+const blurExitTransition = 'opacity 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19), filter 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19), transform 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19)';
+const overviewBlurStaggerMs = 330;
 const overviewLayerCount = 4;
-const overviewExitTotalMs = 400 + overviewBlurStaggerMs * (overviewLayerCount - 1);
-const overviewEnterTotalMs = 1250 + overviewBlurStaggerMs * (overviewLayerCount - 1);
+const overviewExitTotalMs = 200 + overviewBlurStaggerMs * (overviewLayerCount - 1);
+const overviewEnterTotalMs = 1300 + overviewBlurStaggerMs * (overviewLayerCount - 1);
 
-function overviewMotionStyle(visibleIndex: number, index: number, stage: OverviewTransitionStage, staggerIndex = 0): CSSProperties {
+function overviewMotionStyle(visibleIndex: number, index: number, stage: OverviewTransitionStage, scrollDirection: 'up' | 'down', staggerIndex = 0): CSSProperties {
   const isVisibleLayer = visibleIndex === index;
   const isEnteringOrResting = stage !== 'hidden' && stage !== 'exiting';
   const active = isVisibleLayer && isEnteringOrResting;
 
+  let transform = 'translateX(0px)';
+
+  if (stage === 'entering') {
+    transform = scrollDirection === 'up' ? 'translateX(-1px)' : 'translateX(1px)';
+  } else if (stage === 'exiting' && isVisibleLayer) {
+    transform = scrollDirection === 'up' ? 'translateX(1px)' : 'translateX(-1px)';
+  }
+
   return {
     opacity: active ? 1 : 0,
     filter: active ? 'blur(0px)' : 'blur(10px)',
+    transform: active ? 'translateX(0px)' : transform,
     pointerEvents: active ? 'auto' : 'none',
     transition: active ? blurEnterTransition : blurExitTransition,
     transitionDelay: isVisibleLayer ? `${staggerIndex * overviewBlurStaggerMs}ms` : '0ms',
   };
 }
 
-function NumberLabel({ index }: { index: number }) {
+function NumberLabel({ index, className = "" }: { index: number; className?: string }) {
   return (
-    <div className="flex items-center gap-x-8">
+    <div className={`flex items-center gap-x-8 ${className}`}>
       <span className="size-8 bg-white" />
       <span className="t-m2">{formatNumber(index)}</span>
     </div>
   );
 }
 
-function Icon({ item }: { item: OverviewItem }) {
+function Icon({ item, className = "w-fluid-[44,86] fill-current" }: { item: OverviewItem; className?: string }) {
   const viewBox = item.iconPath === iconPaths[1] ? '0 0 86 86.04' : item.iconPath === iconPaths[2] ? '0 0 78.13 79.35' : item.iconPath === iconPaths[3] ? '0 0 72.11 76.96' : '0 0 82 82';
 
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox} className="w-fluid-[44,86] fill-current" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox} className={className} aria-hidden="true">
       <path d={item.iconPath} />
     </svg>
   );
@@ -259,7 +268,7 @@ function ListColumn({ item }: { item: OverviewItem }) {
   if (!item.list) return <Paragraphs lines={item.textB} className="t-p-lg-serif" />;
 
   return (
-    <ul className="space-y-16">
+    <ul className="space-y-8">
       {item.list.map((text) => (
         <li key={text} className="rounded-[10px] border bg-white/10 px-16 py-8 backdrop-blur-[20px]">
           <div className="flex items-start gap-x-16 t-p-sans leading-[1.2em]">
@@ -274,12 +283,12 @@ function ListColumn({ item }: { item: OverviewItem }) {
   );
 }
 
-function OverviewContent({ item, index, visibleIndex, transitionStage }: { item: OverviewItem; index: number; visibleIndex: number; transitionStage: OverviewTransitionStage }) {
+function OverviewContent({ item, index, visibleIndex, transitionStage, scrollDirection, staggerIndex = 0 }: { item: OverviewItem; index: number; visibleIndex: number; transitionStage: OverviewTransitionStage, scrollDirection: 'up' | 'down', staggerIndex?: number }) {
   return (
     <div
       data-content-index={index}
       className="saga-overview-content col-start-1 row-start-1"
-      style={overviewMotionStyle(visibleIndex, index, transitionStage)}
+      style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, staggerIndex)}
     >
       <div className="ui-grid px-0">
         <div className="col-span-3 row-start-1 flex items-start justify-end">
@@ -345,6 +354,8 @@ function OverviewSection() {
   const [transitionStage, setTransitionStage] = useState<OverviewTransitionStage>('hidden');
   const [scrollPhase, setScrollPhase] = useState<OverviewScrollPhase>('before');
   const [progress, setProgress] = useState(0);
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('down');
+  const lastProgressRef = useRef(0);
   const itemCount = overviewItems.length;
 
   useEffect(() => {
@@ -363,6 +374,12 @@ function OverviewSection() {
       const nextScrollPhase: OverviewScrollPhase = unclampedProgress < 0 ? 'before' : unclampedProgress > 1 ? 'after' : 'viewing';
 
       setProgress(rawProgress);
+      if (rawProgress > lastProgressRef.current) {
+        setScrollDirection('down');
+      } else if (rawProgress < lastProgressRef.current) {
+        setScrollDirection('up');
+      }
+      lastProgressRef.current = rawProgress;
       setScrollPhase(nextScrollPhase);
       requestedIndexRef.current = nextIndex;
       setScrollIndex(nextIndex);
@@ -422,6 +439,12 @@ function OverviewSection() {
   useEffect(() => {
     if (scrollPhase !== 'viewing') return undefined;
 
+    if (scrollIndex !== visibleIndex) {
+      setVisibleIndex(scrollIndex);
+      setTransitionStage('entering');
+      return undefined;
+    }
+
     if (transitionStage === 'exiting') {
       const timeoutId = window.setTimeout(() => {
         setVisibleIndex(requestedIndexRef.current);
@@ -440,7 +463,7 @@ function OverviewSection() {
     }
 
     return undefined;
-  }, [scrollPhase, transitionStage]);
+  }, [scrollPhase, transitionStage, scrollIndex]);
 
   const progressScale = useMemo(() => ({ transform: `scaleX(${progress})` }), [progress]);
 
@@ -453,7 +476,7 @@ function OverviewSection() {
               <div className="col-span-full grid grid-cols-subgrid gap-y-fluid-[30,52]">
                 <div className="col-span-full grid">
                   {overviewItems.map((item, index) => (
-                    <OverviewContent key={item.heading} item={item} index={index} visibleIndex={visibleIndex} transitionStage={transitionStage} />
+                    <OverviewContent key={item.heading} item={item} index={index} visibleIndex={visibleIndex} transitionStage={transitionStage} scrollDirection={scrollDirection} staggerIndex={1} />
                   ))}
                 </div>
 
@@ -468,7 +491,7 @@ function OverviewSection() {
                   <div className="col-span-7">
                     <div className="grid">
                       {overviewItems.map((item, index) => (
-                        <div key={`${item.heading}-a`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, 1)}>
+                        <div key={`${item.heading}-a`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 2)}>
                           <Paragraphs lines={item.textA} className="t-p-lg-serif" />
                         </div>
                       ))}
@@ -477,7 +500,7 @@ function OverviewSection() {
                   <div className="col-span-7">
                     <div className="grid">
                       {overviewItems.map((item, index) => (
-                        <div key={`${item.heading}-b`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, 2)}>
+                        <div key={`${item.heading}-b`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 3)}>
                           <ListColumn item={item} />
                         </div>
                       ))}
@@ -486,7 +509,7 @@ function OverviewSection() {
                   <div className="col-span-7">
                     <div className="grid">
                       {overviewItems.map((item, index) => (
-                        <div key={`${item.heading}-c`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, 3)}>
+                        <div key={`${item.heading}-c`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 4)}>
                           <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={false} />
                         </div>
                       ))}

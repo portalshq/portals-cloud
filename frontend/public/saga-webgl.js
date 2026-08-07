@@ -280,7 +280,7 @@ class Timer {
     this._start = performance.now();
     this._delta = 0;
     this._elapsed = 0;
-    this._timescale = 1;
+    this._timescale = 0.95;
     this._onVis = this._onVis.bind(this);
   }
 

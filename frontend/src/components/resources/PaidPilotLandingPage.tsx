@@ -134,10 +134,10 @@ function Header() {
         <a href="/" className="t-h3-sans !font-medium text-white">
           portals
         </a>
-        <CTAButton href="#scope" className="!min-w-0">
+        {/* <CTAButton href="#scope" className="!min-w-0">
           <span>Scope a pilot</span>
           <ArrowRight aria-hidden="true" size={17} strokeWidth={1.8} />
-        </CTAButton>
+        </CTAButton> */}
       </div>
     </header>
   )

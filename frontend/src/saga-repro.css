@@ -60,69 +60,41 @@ body {
 }
 
 .saga-overview-desktop {
-  display: none;
+  display: block;
+  position: relative;
+  min-height: 900vh;
 }
 
 .saga-overview-mobile {
-  display: block;
+  display: none;
 }
 
-.saga-overview-content {
-  transition:
-    opacity 0.4s cubic-bezier(0.33, 1, 0.68, 1),
-    filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
-  will-change: opacity, filter;
+.saga-overview-pin {
+  position: sticky;
+  top: 0;
+  min-height: 100vh;
+  overflow: hidden;
 }
 
-.saga-ramp-marker {
-  height: 200vh;
-  pointer-events: none;
-}
-
-.bg-white\/12 {
-  background-color: rgb(255 255 255 / 0.12);
-}
-
-.border-white\/10 {
-  border-color: rgb(255 255 255 / 0.1);
-}
-
-.gap-y-fluid-\[30\,52\] {
-  row-gap: clamp(30px, calc(20px + 1.5625vw), 52px);
-}
-
-.gap-y-fluid-\[32\,40\] {
-  row-gap: clamp(32px, calc(29.714px + 0.357vw), 40px);
-}
-
-.py-fluid-\[76\,106\] {
-  padding-block: clamp(76px, calc(67.429px + 1.339vw), 106px);
-}
-
-.space-y-fluid-\[106\,212\] > :not(:last-child) {
-  margin-bottom: clamp(106px, calc(75.714px + 4.732vw), 212px);
-}
-
-@media (min-width: 64rem) {
-  .saga-overview-mobile {
-    display: none;
-  }
-
-  .saga-overview-desktop {
-    display: block;
-    position: relative;
-    min-height: 900vh;
-  }
-
+@supports (height: 100svh) {
   .saga-overview-pin {
-    position: sticky;
-    top: 0;
-    min-height: 100vh;
-    overflow: hidden;
+    min-height: 100svh;
+  }
+}
+
+@media (max-width: 63.99rem) {
+  .saga-overview-content {
+    will-change: auto;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .saga-overview-desktop {
+    display: none;
+  }
+  .saga-overview-mobile {
+    display: block;
+  }
   .saga-overview-content {
     transition: none;
   }

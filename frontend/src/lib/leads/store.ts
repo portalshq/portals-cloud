@@ -84,7 +84,6 @@ type PersistResult = {
   submission: StoredSubmission
   profileToken?: string
   created: boolean
-  upgradedToVerified: boolean
 }
 
 type OutboxRow = {
@@ -540,17 +539,6 @@ function identitiesCanShareProfile(
   return normalizeEmail(current.email) === normalizeEmail(incoming.email)
 }
 
-function identitiesMatchByEmail(
-  current: LeadIdentity | undefined,
-  incoming: LeadIdentity | undefined,
-): boolean {
-  return Boolean(
-    current?.email &&
-      incoming?.email &&
-      normalizeEmail(current.email) === normalizeEmail(incoming.email),
-  )
-}
-
 function nonDirectAttribution(
   current: LeadAttribution,
   incoming: LeadAttribution,
@@ -924,32 +912,10 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
   if (leadsDryRun()) {
     const existing = memory().submissions.get(input.request.idempotencyKey)
     if (existing) {
-      const upgradedToVerified = !existing.verified && input.verified
-      if (upgradedToVerified) {
-        const {profile} = await upsertProfile(input)
-        await persistQualification(profile, input)
-        Object.assign(existing, {
-          request: input.request,
-          identity: profile.identity,
-          profile,
-          scores: input.scores,
-          tier: input.tier,
-          response: input.response,
-          verified: true,
-        })
-      }
-      const currentProfile = await profileFromToken(input.currentProfileToken)
-      const shouldIssueBrowserToken =
-        input.request.provider === 'tally_client' &&
-        currentProfile?.id !== existing.profile.id &&
-        identitiesMatchByEmail(existing.identity, input.identity)
       return {
         submission: existing,
-        profileToken: shouldIssueBrowserToken
-          ? await issueProfileToken(existing.profile.id)
-          : undefined,
+        profileToken: undefined,
         created: false,
-        upgradedToVerified,
       }
     }
     const {profile, token} = await upsertProfile(input)
@@ -965,7 +931,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
       verified: input.verified,
     }
     memory().submissions.set(input.request.idempotencyKey, submission)
-    return {submission, profileToken: token, created: true, upgradedToVerified: false}
+    return {submission, profileToken: token, created: true}
   }
 
   const client = await pool().connect()
@@ -986,90 +952,11 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
 
     if (existing.rows[0]) {
       const row = existing.rows[0]
-      const upgradedToVerified = !row.verified && input.verified
-      let upgradedProfileId = row.profile_id
-      if (upgradedToVerified) {
-        const {profile: verifiedProfile} = await upsertProfile(input, client)
-        await persistQualification(verifiedProfile, input, client)
-        upgradedProfileId = verifiedProfile.id
-        await client.query(
-          `UPDATE lead_submissions
-              SET verified = true, verified_at = now(), payload_ciphertext = $2,
-                  profile_id = $3, company_domain = $4, provider = $5,
-                  form_version = $6, scores = $7, qualification_tier = $8,
-                  recommended_workflow = $9, qualifying_submission_id = $10,
-                  result = $11,
-                  process_status = 'pending', updated_at = now()
-            WHERE id = $1`,
-          [
-            row.id,
-            encryptJson({request: input.request, identity: verifiedProfile.identity}),
-            verifiedProfile.id,
-            verifiedProfile.companyDomain || null,
-            input.request.provider,
-            input.request.formVersion,
-            input.scores ? JSON.stringify(input.scores) : null,
-            input.tier || null,
-            input.response.recommendedWorkflow || null,
-            input.tier === 'high' ? row.id : null,
-            JSON.stringify(input.response),
-          ],
-        )
-        const actions = outboxActions(input.request)
-        for (const action of actions) {
-          await client.query(
-            `INSERT INTO lead_outbox(submission_id, action_type, action_key)
-             VALUES ($1,$2,$3) ON CONFLICT(action_key) DO NOTHING`,
-            [row.id, action, `${input.request.idempotencyKey}:${action}`],
-          )
-        }
-        if (actions.length === 0) {
-          await client.query(
-            `UPDATE lead_submissions SET process_status = 'complete',
-              synced_at = now(), updated_at = now() WHERE id = $1`,
-            [row.id],
-          )
-        }
-      }
-      let browserProfileToken: string | undefined
-      if (!upgradedToVerified && input.request.provider === 'tally_client') {
-        const storedIdentity = decryptJson<{
-          request: LeadRequest
-          identity: LeadIdentity
-        }>(row.payload_ciphertext).identity
-        const currentProfile = await profileFromToken(
-          input.currentProfileToken,
-          client,
-        )
-        if (
-          currentProfile?.id !== row.profile_id &&
-          identitiesMatchByEmail(storedIdentity, input.identity)
-        ) {
-          browserProfileToken = await issueProfileToken(row.profile_id, client)
-        }
-      }
-      await client.query('COMMIT')
-      if (upgradedToVerified) {
-        const profile = await getProfileById(upgradedProfileId)
-        return {
-          submission: {
-            id: row.id,
-            request: input.request,
-            identity: profile.identity,
-            profile,
-            scores: input.scores,
-            tier: input.tier,
-            response: input.response,
-            verified: true,
-          },
-          created: false,
-          upgradedToVerified: true,
-        }
-      }
       const stored = decryptJson<{request: LeadRequest; identity: LeadIdentity}>(
         row.payload_ciphertext,
       )
       const profile = await getProfileById(row.profile_id)
+      await client.query('COMMIT')
       return {
         submission: {
           id: row.id,
@@ -1079,11 +966,9 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
           scores: row.scores || undefined,
           tier: row.qualification_tier || undefined,
           response: row.result,
-          verified: row.verified || upgradedToVerified,
+          verified: row.verified,
         },
         created: false,
-        upgradedToVerified,
-        profileToken: browserProfileToken,
       }
     }
 
@@ -1149,7 +1034,6 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
       },
       profileToken: token,
       created: true,
-      upgradedToVerified: false,
     }
   } catch (error) {
     await client.query('ROLLBACK')

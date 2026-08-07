@@ -115,7 +115,7 @@ function WorkflowRiskCard({
   )
 }
 
-function WorkflowRiskGrid({
+function ProductionWorkflows({
   sections,
 }: {
   sections: ResourceDocument['sections']
@@ -131,33 +131,19 @@ function WorkflowRiskGrid({
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full space-y-36">
           <h2 className="t-d2-sans max-w-[12em]">
-            Six workflow risks that scale with production
+            The six production workflow risks
           </h2>
-          <div className="grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-2">
+          {/* <div className="grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-2">
             {riskSections.map((risk, i) => (
               <WorkflowRiskCard key={risk._key} risk={risk} index={i} />
             ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function ProductionWorkflows() {
-  return (
-    <section data-header-theme="light">
-      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full space-y-36">
-          <h2 className="t-d2-sans max-w-[12em]">
-            Production memory for the moments that matter
-          </h2>
-          <div className="grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-2">
+          </div> */}
+          <div className="grid grid-cols-1 gap-[2px] lg:grid-cols-2">
             {productionWorkflows.map((workflow, index) => (
               <article
                 id={workflow.id}
                 key={workflow.id}
-                className="scroll-mt-Header-h p-24 text-white"
+                className="scroll-mt-Header-h p-24 text-white bg-white/20 rounded-sm backdrop-blur-[12px]"
               >
                 <p className="t-p-sm-sans text-white">
                   {String(index + 1).padStart(2, '0')}
@@ -335,11 +321,11 @@ function ResourceFAQ() {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[100ch]">
+        <div className="col-span-full space-y-40 mx-auto max-w-[90%]">
           <h2 className="t-d2-sans max-w-[12em]">
             Frequently asked questions
           </h2>
-          <div className="space-y-16 max-w-3xl lg:w-3xl">
+          <div className="space-y-16 max-w-3xl lg:w-3xl mx-auto">
             {faqs.map((faq, index) => (
               <div key={index} className="border border-white/70 rounded-sm">
                 <button
@@ -401,8 +387,7 @@ export function ResourceBriefClient({
     <>
       <StructuredData />
       <ResourceHero document={document} />
-      <WorkflowRiskGrid sections={document.sections} />
-      <ProductionWorkflows />
+      <ProductionWorkflows sections={document.sections} />
       <WhatsInside sections={document.sections} />
       <DownloadBriefForm context={context} />
       <PilotCTASection document={document} />

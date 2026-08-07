@@ -6,12 +6,13 @@ import {getProfileById, getProfileByToken, persistSubmission} from './store'
 
 process.env.LEADS_DRY_RUN = 'true'
 
-test('signed delivery promotes an idempotent provisional Tally submission', async () => {
-  const idempotencyKey = `tally:test:${crypto.randomUUID()}`
-  const base = {
-    submissionType: 'assessment' as const,
+test('an idempotent repeat submission returns the stored submission', async () => {
+  const idempotencyKey = `assessment:${crypto.randomUUID()}`
+  const request = leadRequestSchema.parse({
+    submissionType: 'assessment',
     idempotencyKey,
     formVersion: 'assessment.v1',
+    provider: 'browser',
     identity: {
       email: 'lead@studio.example',
       company: 'Studio',
@@ -20,7 +21,7 @@ test('signed delivery promotes an idempotent provisional Tally submission', asyn
     },
     attribution: {sourcePage: '/workflow-assessment'},
     consent: {
-      disclosureVersion: '2026-08-01' as const,
+      disclosureVersion: '2026-08-01',
       marketing: false,
       analytics: true,
     },
@@ -41,68 +42,50 @@ test('signed delivery promotes an idempotent provisional Tally submission', asyn
       assetVolume: '500-plus',
       activeWorkflow: 'live campaign',
     },
-  }
-  const provisionalRequest = leadRequestSchema.parse({
-    ...base,
-    provider: 'tally_client',
   })
-  const provisionalScores = calculateQualification(provisionalRequest.answers)
-  const provisionalResponse: LeadResponse = {
-    ok: true,
-    nextAction: 'assessment_review',
-    provisional: true,
-  }
-  const provisional = await persistSubmission({
-    request: provisionalRequest,
-    identity: provisionalRequest.identity!,
-    scores: provisionalScores,
-    tier: qualificationTier(provisionalScores),
-    response: provisionalResponse,
-    verified: false,
-  })
-
-  const verifiedRequest = leadRequestSchema.parse({
-    ...base,
-    provider: 'tally_webhook',
-  })
-  const verifiedScores = calculateQualification({
-    ...verifiedRequest.answers,
+  const scores = calculateQualification({
+    ...request.answers,
     timeline: 'within-30-days',
     workflowReviewRequested: true,
     stakeholderInvolved: true,
   })
-  const verifiedResponse: LeadResponse = {
+  const response: LeadResponse = {
     ok: true,
     nextAction: 'pilot_scope',
     qualificationTier: 'high',
   }
-  const verified = await persistSubmission({
-    request: verifiedRequest,
-    identity: verifiedRequest.identity!,
-    scores: verifiedScores,
+  const first = await persistSubmission({
+    request,
+    identity: request.identity!,
+    scores,
     tier: 'high',
-    response: verifiedResponse,
+    response,
     verified: true,
-    qualificationAnswers: {
-      ...verifiedRequest.answers,
-      timeline: 'within-30-days',
-      workflowReviewRequested: true,
-      stakeholderInvolved: true,
-    },
+    qualificationAnswers: request.answers,
+  })
+  const second = await persistSubmission({
+    request,
+    identity: request.identity!,
+    scores,
+    tier: 'high',
+    response,
+    verified: true,
+    qualificationAnswers: request.answers,
   })
 
-  assert.equal(verified.created, false)
-  assert.equal(verified.upgradedToVerified, true)
-  assert.equal(verified.submission.id, provisional.submission.id)
-  assert.equal(verified.submission.request.provider, 'tally_webhook')
-  assert.equal(verified.submission.profile.identityVerified, true)
-  assert.equal(verified.submission.response.nextAction, 'pilot_scope')
+  assert.equal(first.created, true)
+  assert.equal(second.created, false)
+  assert.equal(second.submission.id, first.submission.id)
+  assert.equal(second.submission.request.provider, 'browser')
+  assert.equal(second.submission.profile.id, first.submission.profile.id)
+  assert.equal(second.submission.profile.identityVerified, true)
+  assert.equal(second.submission.response.nextAction, 'pilot_scope')
   assert.equal(
-    (await getProfileById(verified.submission.profile.id)).identityVerified,
+    (await getProfileById(second.submission.profile.id)).identityVerified,
     true,
   )
   assert.equal(
-    (await getProfileById(verified.submission.profile.id)).qualification?.answers
+    (await getProfileById(second.submission.profile.id)).qualification?.answers
       .teamType,
     'creative-studio',
   )
@@ -199,42 +182,43 @@ test('a different email cannot overwrite the cookie-bound profile', async () => 
   )
 })
 
-test('webhook-first Tally delivery can establish the browser profile', async () => {
-  const email = `webhook-first-${crypto.randomUUID()}@studio.example`
-  const base = {
-    submissionType: 'assessment' as const,
-    idempotencyKey: `tally:test:${crypto.randomUUID()}`,
+test('a repeat submission reuses the stored profile without re-issuing a token', async () => {
+  const email = `repeat-${crypto.randomUUID()}@studio.example`
+  const request = leadRequestSchema.parse({
+    submissionType: 'assessment',
+    idempotencyKey: `assessment:${crypto.randomUUID()}`,
     formVersion: 'assessment.v1',
-    identity: {email, company: 'Webhook Studio', role: 'producer', website: ''},
+    provider: 'browser',
+    identity: {email, company: 'Repeat Studio', role: 'producer', website: ''},
     attribution: {sourcePage: '/workflow-assessment'},
-    consent: {disclosureVersion: '2026-08-01' as const, marketing: false, analytics: false},
+    consent: {disclosureVersion: '2026-08-01', marketing: false, analytics: false},
     answers: {teamType: 'creative-studio', teamSize: '5-9'},
-  }
-  const webhookRequest = leadRequestSchema.parse({...base, provider: 'tally_webhook'})
-  const scores = calculateQualification(webhookRequest.answers)
-  const webhook = await persistSubmission({
-    request: webhookRequest,
-    identity: webhookRequest.identity!,
+  })
+  const scores = calculateQualification(request.answers)
+  const first = await persistSubmission({
+    request,
+    identity: request.identity!,
     scores,
     tier: qualificationTier(scores),
     response: {ok: true, nextAction: 'assessment_review'},
     verified: true,
-    qualificationAnswers: webhookRequest.answers,
+    qualificationAnswers: request.answers,
   })
-  const browserRequest = leadRequestSchema.parse({...base, provider: 'tally_client'})
-  const browser = await persistSubmission({
-    request: browserRequest,
-    identity: browserRequest.identity!,
+  const second = await persistSubmission({
+    request,
+    identity: request.identity!,
     scores,
     tier: qualificationTier(scores),
-    response: {ok: true, nextAction: 'assessment_review', provisional: true},
-    verified: false,
+    response: {ok: true, nextAction: 'assessment_review'},
+    verified: true,
+    qualificationAnswers: request.answers,
   })
 
-  assert.equal(browser.submission.id, webhook.submission.id)
-  assert.ok(browser.profileToken)
+  assert.equal(second.submission.id, first.submission.id)
+  assert.equal(second.submission.profile.id, first.submission.profile.id)
+  assert.equal(second.profileToken, undefined)
   assert.equal(
-    (await getProfileByToken(browser.profileToken))?.id,
-    webhook.submission.profile.id,
+    (await getProfileByToken(first.profileToken))?.id,
+    first.submission.profile.id,
   )
 })

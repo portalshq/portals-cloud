@@ -20,7 +20,6 @@ import {
   classifyPilot,
   computeUnresolved,
 } from '@/lib/leads/pilot'
-import {verifyTallyContext} from '@/lib/leads/profile'
 import {processLeadOutbox} from '@/lib/leads/processor'
 import {
   attachSubmissionToPilot,
@@ -44,7 +43,6 @@ import {
   qualificationTier,
   recommendedWorkflow,
 } from '@/lib/leads/scoring'
-import {tallyContextFromPayload, tallyLeadRequest} from '@/lib/leads/tally'
 
 export const runtime = 'nodejs'
 
@@ -57,26 +55,23 @@ function productionConfigurationError(request: LeadRequest): string | null {
     'LEADS_HASH_KEY',
     'LEADS_ENCRYPTION_KEY',
   ]
-  const verifiedProvider = request.provider !== 'tally_client'
-  if (verifiedProvider && request.provider !== 'attio') {
+  if (request.provider !== 'attio') {
     required.push('ATTIO_API_KEY')
   }
   if (
-    verifiedProvider &&
     request.submissionType !== 'assessment' &&
     request.submissionType !== 'commercial_event'
   ) {
     required.push('RESEND_API_KEY', 'LEADS_EMAIL_FROM')
   }
   if (
-    verifiedProvider &&
     ['pilot_request', 'pilot_brief_download', 'workflow_review', 'contact', 'security_download'].includes(
       request.submissionType,
     )
   ) {
     required.push('LEADS_NOTIFICATION_EMAIL')
   }
-  if (verifiedProvider && request.consent.analytics) {
+  if (request.consent.analytics) {
     required.push('MIXPANEL_PROJECT_TOKEN')
   }
   const missing = required.filter((name) => !process.env[name])
@@ -312,7 +307,7 @@ async function handleLeadRequest(
   request: Request,
   leadRequest: LeadRequest,
   verified: boolean,
-  tallyProfileId?: string,
+  boundProfileId?: string,
 ): Promise<NextResponse> {
   const configurationError = productionConfigurationError(leadRequest)
   if (configurationError) {
@@ -331,8 +326,8 @@ async function handleLeadRequest(
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${PROFILE_COOKIE}=`))
     ?.slice(PROFILE_COOKIE.length + 1)
-  let profile = tallyProfileId
-    ? await getProfileById(tallyProfileId).catch(() => null)
+  let profile = boundProfileId
+    ? await getProfileById(boundProfileId).catch(() => null)
     : await getProfileByToken(profileToken)
   const incomingIdentity: Partial<LeadIdentity> = leadRequest.identity || {}
   if (
@@ -464,30 +459,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ok: false, error: 'request is too large'}, {status: 413})
   }
 
-  const tallySignature = request.headers.get('tally-signature')
-  if (tallySignature) {
-    if (!process.env.TALLY_WEBHOOK_SECRET) {
-      return NextResponse.json({ok: false, error: 'webhook unavailable'}, {status: 503})
-    }
-    if (!verifySignature(rawBody, tallySignature, 'TALLY_WEBHOOK_SECRET', 'base64')) {
-      return NextResponse.json({ok: false, error: 'invalid signature'}, {status: 401})
-    }
-    try {
-      const payload = JSON.parse(rawBody) as Record<string, unknown>
-      const tallyContext = tallyContextFromPayload(payload)
-      const context = tallyContext ? verifyTallyContext(tallyContext) : null
-      return handleLeadRequest(
-        request,
-        tallyLeadRequest(payload, 'tally_webhook'),
-        true,
-        context?.profileId,
-      )
-    } catch (error) {
-      console.error('Invalid Tally webhook:', error)
-      return NextResponse.json({ok: false, error: 'invalid webhook'}, {status: 400})
-    }
-  }
-
   const providerSignature = request.headers.get('x-portals-signature')
   if (providerSignature) {
     if (!process.env.ATTIO_CALLBACK_SECRET) {
@@ -572,12 +543,8 @@ export async function POST(request: Request) {
       {status: 400},
     )
   }
-  if (!['browser', 'tally_client'].includes(parsed.data.provider)) {
+  if (!['browser', 'attio'].includes(parsed.data.provider)) {
     return NextResponse.json({ok: false, error: 'invalid provider'}, {status: 400})
   }
-  return handleLeadRequest(
-    request,
-    parsed.data,
-    parsed.data.provider !== 'tally_client',
-  )
+  return handleLeadRequest(request, parsed.data, true)
 }

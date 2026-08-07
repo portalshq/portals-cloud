@@ -275,6 +275,7 @@ export function PilotScopeForm({
       productionContextMethod: string('productionContextMethod'),
       recreationFrequency: string('recreationFrequency'),
       incidentType: string('incidentType'),
+      incidentDescription: string('incidentDescription'),
       peopleAffected: string('peopleAffected'),
       hoursLost: string('hoursLost'),
       deliveryImpact: string('deliveryImpact'),

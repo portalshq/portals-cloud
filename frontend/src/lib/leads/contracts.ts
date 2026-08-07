@@ -54,7 +54,7 @@ const commonSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(180),
   formVersion: z.string().trim().min(1).max(80),
   provider: z
-    .enum(['browser', 'tally_client', 'tally_webhook', 'attio'])
+    .enum(['browser', 'attio'])
     .default('browser'),
   identity: identitySchema.optional(),
   attribution: attributionSchema,
@@ -76,6 +76,7 @@ export const assessmentAnswersSchema = z.object({
   productionContextMethod: optionalText(80),
   recreationFrequency: optionalText(40),
   incidentType: optionalText(80),
+  incidentDescription: optionalText(2000),
   peopleAffected: optionalText(40),
   hoursLost: optionalText(40),
   deliveryImpact: optionalText(80),
@@ -316,6 +317,7 @@ export type QualificationScores = {
   fit: ScoreDimension
   pain: ScoreDimension
   intent: ScoreDimension
+  assessmentScore: number
 }
 
 export type QualificationTier = 'high' | 'medium' | 'low' | 'incomplete'
@@ -355,5 +357,4 @@ export type KnownLeadContext = {
   qualificationTier?: QualificationTier
   recommendedWorkflow?: string
   incidentFollowUpEligible?: boolean
-  tallyContext?: string
 }

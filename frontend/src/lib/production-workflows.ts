@@ -3,7 +3,7 @@ export const productionWorkflows = [
     id: 'five-more-like-this',
     title: 'five more like this',
     problem:
-      'an approved asset performs, but the prompt, references, settings, and production decisions behind it are scattered or gone.',
+      'an approved asset performs, but the prompt, references, settings, and production decisions behind it are scattered or gone. "five more like this" demands a rebuild.',
     outcome:
       'recover the complete production record and create new branches without reverse-engineering the original work.',
   },
@@ -11,17 +11,17 @@ export const productionWorkflows = [
     id: 'approved-version-retrieval',
     title: 'approved-version retrieval',
     problem:
-      'teams search across drives, chats, exports, and filenames to determine which version actually shipped.',
+      'teams search across drives, chats, exports, and filenames to determine what actually shipped.',
     outcome:
-      'locate the canonical approved asset and its approval history in under a minute.',
+      'easily locate the canonical approved asset and its full approval and version history.',
   },
   {
     id: 'character-continuity',
     title: 'character continuity',
     problem:
-      'a recurring character drifts as references, model choices, prompts, and successful generation context change between projects.',
+      'characters, products, environments, props, and visual rules change across tools, creators, and production cycles.',
     outcome:
-      'preserve the lineage and reusable context needed to extend a character consistently.',
+      'preserve the references, variations, and production history needed to extend a character consistently.',
   },
   {
     id: 'campaign-variant-control',
@@ -45,7 +45,7 @@ export const productionWorkflows = [
     problem:
       'the final file survives, but the source inputs and decisions required to reproduce it do not.',
     outcome:
-      'recover the production recipe and validate whether the asset can be reproduced or meaningfully extended.',
+      'keep every asset connected to the context required to reproduce or extend it.',
   },
 ] as const
 

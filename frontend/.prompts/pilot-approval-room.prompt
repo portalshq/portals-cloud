@@ -725,7 +725,7 @@ leverage the existing form?
 Yes. Keep it as the initial source of truth.
 Your existing form already collects most of the required information. Replacing it would add development work without fixing the real problem.
 The gap occurs after submission.
-Tally supports prefilled fields and API-based form and submission automation, which can be used to create a separate revision flow tied to the original pilot record.
+The revision flow should reuse the existing pilot record and be prefilled from the original submission, driven by the approval room itself rather than a separate form provider.
 Confirm or Revise Your Pilot Plan
 It should be prefilled from the original submission and show only information relevant to revision:
 	•	Objective

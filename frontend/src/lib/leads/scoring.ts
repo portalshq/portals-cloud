@@ -7,6 +7,27 @@ import {
 
 export type QualificationAnswers = Record<string, unknown>
 
+export const ASSESSMENT_SCORE_MAXIMUM = 24
+
+export const assessmentWeights = {
+  fit: 40,
+  pain: 35,
+  intent: 25,
+} as const
+
+export function assessmentScore(
+  scores: Pick<QualificationScores, 'fit' | 'pain' | 'intent'>,
+): number {
+  const composite =
+    (scores.fit.normalized * assessmentWeights.fit +
+      scores.pain.normalized * assessmentWeights.pain +
+      scores.intent.normalized * assessmentWeights.intent) /
+    100
+  return Math.round(
+    Math.min(ASSESSMENT_SCORE_MAXIMUM, (composite / 100) * ASSESSMENT_SCORE_MAXIMUM),
+  )
+}
+
 function hasAnswer(value: unknown): boolean {
   if (typeof value === 'string') return value.trim().length > 0
   if (Array.isArray(value)) return value.length > 0
@@ -253,7 +274,7 @@ export function calculateQualification(
     {maximum: 2, value: bool(answers, 'securityDiligence') === undefined ? undefined : bool(answers, 'securityDiligence') ? 2 : 0},
   ])
 
-  return {version: SCORE_VERSION, fit, pain, intent}
+  return {version: SCORE_VERSION, fit, pain, intent, assessmentScore: assessmentScore({fit, pain, intent})}
 }
 
 export function qualificationTier(

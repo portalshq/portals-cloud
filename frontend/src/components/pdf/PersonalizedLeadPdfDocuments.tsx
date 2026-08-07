@@ -254,6 +254,9 @@ export function AssessmentResultPdfDocument({
         <Text style={styles.coverMuted}>
           {data.identity.company} / {readable(data.identity.role || '')} / {new Date(data.generatedAt).toLocaleDateString('en-US')}
         </Text>
+        <Text style={styles.coverMuted}>
+          production-memory risk {data.scores.assessmentScore}/24 · {readable(data.tier)}
+        </Text>
         <Text style={styles.body}>
           this result summarizes reported production conditions and routes the most useful next step. it is not a benchmark or guaranteed savings forecast.
         </Text>

@@ -1,3 +1,4 @@
+import {assessmentScore} from './scoring'
 import {companyScoreContext, type StoredSubmission} from './store'
 
 type AttioRecordResponse = {
@@ -157,14 +158,7 @@ function companyLifecycleTarget(
 function customPersonValues(submission: StoredSubmission): Record<string, unknown> {
   const {request, scores, tier, response} = submission
   const answers = request.answers as Record<string, unknown>
-  const qualificationScore = scores
-    ? Math.round(
-        (scores.fit.normalized * 40 +
-          scores.pain.normalized * 35 +
-          scores.intent.normalized * 25) /
-          100,
-      )
-    : undefined
+  const qualificationScore = scores ? assessmentScore(scores) : undefined
 
   return compactValues({
     lead_intent: request.attribution.intent || request.submissionType,
@@ -178,11 +172,14 @@ function customPersonValues(submission: StoredSubmission): Record<string, unknow
     production_role: submission.identity.role,
     company_type: answers.teamType,
     team_size: answers.teamSize,
-    tools_used: answers.toolsUsed ? [answers.toolsUsed] : undefined,
+    tools_used: answers.toolsUsed ? String(answers.toolsUsed) : undefined,
     approved_version_method: answers.approvedVersionMethod,
     production_context_method: answers.productionContextMethod,
     recreation_frequency: answers.recreationFrequency,
-    active_workflow: Boolean(answers.activeWorkflow || answers.pilotWorkflow),
+    active_workflow:
+      answers.activeWorkflow || answers.pilotWorkflow
+        ? String(answers.activeWorkflow || answers.pilotWorkflow)
+        : undefined,
     timeline: answers.timeline || answers.targetStartPeriod,
     message: answers.message || answers.question,
     utm_source: request.attribution.utmSource,

@@ -1,6 +1,6 @@
 # Pilot room — testing and deployment configuration
 
-This file covers the paid-pilot approval room, the Stripe Checkout payment path, and the configuration needed to test and deploy them. The general intake stack (database, Attio, Resend, Mixpanel, Tally, outbox) is documented in `LEAD_OPERATIONS.md`.
+This file covers the paid-pilot approval room, the Stripe Checkout payment path, and the configuration needed to test and deploy them. The general intake stack (database, Attio, Resend, Mixpanel, outbox) is documented in `LEAD_OPERATIONS.md`.
 
 The pilot flow is: pilot form → `/paid-pilot/room/[id]` approval room → confirm scope → finalize → sign → Stripe Checkout → webhook marks `paid` → kickoff → activate. The one-call route requires a pilot terms review (`exception_review` → `resolve_exceptions`) before `finalize` is allowed.
 

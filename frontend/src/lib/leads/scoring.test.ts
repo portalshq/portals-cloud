@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  ASSESSMENT_SCORE_MAXIMUM,
+  assessmentScore,
   calculateQualification,
   mergeQualificationAnswers,
   qualificationTier,
@@ -81,4 +83,29 @@ test('unknown values reduce coverage instead of lowering the normalized score', 
   assert.equal(scores.fit.normalized, 100)
   assert.equal(scores.fit.coverage, 20)
   assert.equal(qualificationTier(scores), 'incomplete')
+})
+
+test('assessment score is a bounded composite of the three dimensions', () => {
+  const scores = calculateQualification({
+    teamType: 'creative-studio',
+    teamSize: '5-9',
+    workflowCollaborators: '5-9',
+    toolsUsed: '5-plus',
+    recurringWorkflow: 'weekly',
+    assetVolume: '500-plus',
+    approvedVersionMethod: 'creator-memory',
+    productionContextMethod: 'memory-inconsistent',
+    recreationFrequency: 'weekly',
+    incidentType: 'failed-reproduction',
+    peopleAffected: '10-24',
+    hoursLost: '2-5-days',
+    deliveryImpact: 'client-affected',
+    activeWorkflow: 'a live campaign workflow',
+    timeline: 'within-30-days',
+  })
+
+  assert.equal(scores.assessmentScore, assessmentScore(scores))
+  assert.ok(scores.assessmentScore >= 0)
+  assert.ok(scores.assessmentScore <= ASSESSMENT_SCORE_MAXIMUM)
+  assert.ok(scores.assessmentScore > 0, 'high-risk answers should raise the composite')
 })

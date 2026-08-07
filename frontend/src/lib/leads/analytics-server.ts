@@ -1,3 +1,4 @@
+import {assessmentScore} from './scoring'
 import type {StoredSubmission} from './store'
 
 type Event = {event: string; properties: Record<string, unknown>}
@@ -18,12 +19,7 @@ export async function trackSubmissionEvents(
     cta_label: submission.request.attribution.ctaLabel,
     use_case: submission.request.attribution.useCase,
     qualification_score: submission.scores
-      ? Math.round(
-          (submission.scores.fit.normalized * 40 +
-            submission.scores.pain.normalized * 35 +
-            submission.scores.intent.normalized * 25) /
-            100,
-        )
+      ? assessmentScore(submission.scores)
       : undefined,
     qualification_tier: submission.tier,
     utm_source: submission.request.attribution.utmSource,
