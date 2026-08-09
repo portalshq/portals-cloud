@@ -97,62 +97,62 @@ export class LoreService extends pulumi.ComponentResource {
     }, { parent: this });
 
     // S3 access for immutable store (lore chunks)
-    pulumi.all([args.s3BucketArn]).apply(([bucketArn]) => {
-      new aws.iam.RolePolicy(`${resourcePrefix}-lore-s3-policy`, {
-        role: this.taskRole.id,
-        policy: JSON.stringify({
-          Version: "2012-10-17",
-          Statement: [
-            {
-              Effect: "Allow",
-              Action: [
-                "s3:GetObject",
-                "s3:PutObject",
-                "s3:DeleteObject",
-                "s3:ListBucket",
-                "s3:GetBucketLocation",
-              ],
-              Resource: [
-                bucketArn,
-                `${bucketArn}/*`,
-              ],
-            },
+    const s3Policy = pulumi.all([args.s3BucketArn]).apply(([bucketArn]) => JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Action: [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket",
+            "s3:GetBucketLocation",
           ],
-        }),
-      }, { parent: this });
-    });
+          Resource: [
+            bucketArn,
+            `${bucketArn}/*`,
+          ],
+        },
+      ],
+    }));
+
+    new aws.iam.RolePolicy(`${resourcePrefix}-lore-s3-policy`, {
+      role: this.taskRole.id,
+      policy: s3Policy,
+    }, { parent: this });
 
     // DynamoDB access for mutable store + lock store
-    pulumi.all([args.dynamoDbTableName]).apply(([tableName]) => {
-      new aws.iam.RolePolicy(`${resourcePrefix}-lore-dynamodb-policy`, {
-        role: this.taskRole.id,
-        policy: JSON.stringify({
-          Version: "2012-10-17",
-          Statement: [
-            {
-              Effect: "Allow",
-              Action: [
-                "dynamodb:GetItem",
-                "dynamodb:PutItem",
-                "dynamodb:UpdateItem",
-                "dynamodb:DeleteItem",
-                "dynamodb:Query",
-                "dynamodb:Scan",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:BatchGetItem",
-                "dynamodb:TransactWriteItems",
-                "dynamodb:TransactGetItems",
-                "dynamodb:DescribeTable",
-              ],
-              Resource: [
-                `arn:aws:dynamodb:*:*:table/${tableName}`,
-                `arn:aws:dynamodb:*:*:table/${tableName}/index/*`,
-              ],
-            },
+    const dynamoDbPolicy = pulumi.all([args.dynamoDbTableName]).apply(([tableName]) => JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Action: [
+            "dynamodb:GetItem",
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:DeleteItem",
+            "dynamodb:Query",
+            "dynamodb:Scan",
+            "dynamodb:BatchWriteItem",
+            "dynamodb:BatchGetItem",
+            "dynamodb:TransactWriteItems",
+            "dynamodb:TransactGetItems",
+            "dynamodb:DescribeTable",
           ],
-        }),
-      }, { parent: this });
-    });
+          Resource: [
+            `arn:aws:dynamodb:*:*:table/${tableName}`,
+            `arn:aws:dynamodb:*:*:table/${tableName}/index/*`,
+          ],
+        },
+      ],
+    }));
+
+    new aws.iam.RolePolicy(`${resourcePrefix}-lore-dynamodb-policy`, {
+      role: this.taskRole.id,
+      policy: dynamoDbPolicy,
+    }, { parent: this });
 
     // ── ECS Task Definition ──────────────────────────────────────────────
     const callerIdentity = aws.getCallerIdentity({});
@@ -193,13 +193,6 @@ export class LoreService extends pulumi.ComponentResource {
           { name: "LORE__PLUGINS__AWS__DYNAMODB_TABLE", value: dynamoDbTableName },
           { name: "LORE__PLUGINS__AWS__REGION", value: args.awsRegion },
         ],
-        healthCheck: {
-          command: ["CMD-SHELL", "curl -f http://localhost:41339/health_check || exit 1"],
-          interval: 30,
-          timeout: 5,
-          retries: 5,
-          startPeriod: 15,
-        },
         logConfiguration: {
           logDriver: "awslogs",
           options: {

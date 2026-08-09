@@ -1,13 +1,13 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import * as docker from "@pulumi/docker";
 import { ControlPlaneServiceArgs } from "../interfaces";
 
 /**
  * ControlPlaneService Component
  *
  * Creates an ECS Fargate service for the Lore Cloud Control Plane with:
- * - Docker image build and push to ECR (multi-stage Rust build)
+ * - Pre-built Docker image (built/pushed by control-plane/scripts/publish-image.sh,
+ *   pinned in infra/lore/versions.yaml — Pulumi does NOT build images)
  * - ECS task definition with health check
  * - ECS service with ALB integration on port 8083
  * - Security groups (ingress from ALB only)
@@ -21,7 +21,6 @@ import { ControlPlaneServiceArgs } from "../interfaces";
 export class ControlPlaneService extends pulumi.ComponentResource {
   public readonly taskDefinition: aws.ecs.TaskDefinition;
   public readonly service: aws.ecs.Service;
-  public readonly dockerImage: docker.Image;
   public readonly securityGroup: aws.ec2.SecurityGroup;
 
   constructor(name: string, args: ControlPlaneServiceArgs, opts?: pulumi.ComponentResourceOptions) {
@@ -61,28 +60,6 @@ export class ControlPlaneService extends pulumi.ComponentResource {
       cidrBlocks: ["0.0.0.0/0"],
     }, { parent: this });
 
-    // ── Docker Image ─────────────────────────────────────────────────────
-    // Build the multi-stage Rust Dockerfile and push to ECR
-    const ecrRepositoryUrlOutput = pulumi.output(args.ecrRepositoryUrl);
-    const ecrCredentials = aws.ecr.getCredentialsOutput({
-      registryId: ecrRepositoryUrlOutput.apply(url => url.split(".")[0]),
-    });
-    const ecrAuth = ecrCredentials.apply(creds => {
-      const decoded = Buffer.from(creds.authorizationToken, "base64").toString("utf-8");
-      const [username, password] = decoded.split(":");
-      return { username, password, server: creds.proxyEndpoint };
-    });
-
-    this.dockerImage = new docker.Image(`${resourcePrefix}-controlplane-image`, {
-      build: {
-        context: args.dockerPath,
-        dockerfile: "../../docker/control-plane/Dockerfile",
-        platform: "linux/amd64",
-      },
-      imageName: pulumi.interpolate`${args.ecrRepositoryUrl}:${args.imageTag ?? "latest"}`,
-      registry: ecrAuth,
-    }, { parent: this });
-
     // ── ECS Task Definition ──────────────────────────────────────────────
     const callerIdentity = aws.getCallerIdentity({});
     const executionRoleArn = pulumi.interpolate`arn:aws:iam::${callerIdentity.then(i => i.accountId)}:role/${args.projectName}-${args.environment}-ecs-task-execution-role`;
@@ -95,7 +72,7 @@ export class ControlPlaneService extends pulumi.ComponentResource {
       memory: args.memory,
       executionRoleArn,
       containerDefinitions: pulumi.all([
-        this.dockerImage.imageName,
+        args.controlPlaneImageUri,
         args.databaseUrl,
         args.ed25519SigningKey,
       ]).apply(([
@@ -168,7 +145,7 @@ export class ControlPlaneService extends pulumi.ComponentResource {
       healthCheckGracePeriodSeconds: 60,
       networkConfiguration: {
         subnets: args.privateSubnetIds,
-        securityGroups: [this.securityGroup.id],
+        securityGroups: [this.securityGroup.id, args.taskSecurityGroupId],
         assignPublicIp: false,
       },
       loadBalancers: [

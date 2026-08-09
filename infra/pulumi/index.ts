@@ -7,6 +7,7 @@ import { PlatformStorage } from "./src/components/PlatformStorage";
 import { LoadBalancers } from "./src/components/LoadBalancers";
 import { LoreService } from "./src/components/LoreService";
 import { ControlPlaneService } from "./src/components/ControlPlaneService";
+import { readVersionPins } from "./src/versioning";
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const config = new pulumi.Config();
@@ -32,8 +33,14 @@ const ecsFargateMemory = config.require("ecsFargateMemory");
 const loreServiceDesiredCount = parseInt(config.require("loreServiceDesiredCount"));
 const controlPlaneDesiredCount = parseInt(config.require("controlPlaneDesiredCount"));
 
-// Control Plane Docker build
-const controlPlaneDockerPath = config.require("controlPlaneDockerPath");
+// Control Plane image (pinned in infra/lore/versions.yaml by publish-image.sh)
+const { controlPlaneImageUri } = readVersionPins();
+if (!controlPlaneImageUri) {
+  pulumi.log.warn(
+    "control-plane.image is not set in infra/lore/versions.yaml — skipping the " +
+      "Control Plane service. Run control-plane/scripts/publish-image.sh, then pulumi up again."
+  );
+}
 
 // Lore Server external image
 const loreServerImageUri = config.require("loreServerImageUri");
@@ -75,9 +82,10 @@ const platformDataStore = new PlatformDataStore(`${projectName}-datastore`, {
   databaseVersion,
   databaseAllocatedStorage,
   databaseUsername: "portals_admin",
+  controlPlaneSecurityGroupId: platformCluster.taskSecurityGroup.id,
 });
 
-// Create Platform Storage (S3 for Lore chunks + ECR for Control Plane image)
+// Create Platform Storage (S3 for Lore chunks)
 const platformStorage = new PlatformStorage(`${projectName}-storage`, {
   projectName,
   environment,
@@ -114,25 +122,29 @@ const loreService = new LoreService(`${projectName}-lore-service`, {
   awsRegion,
 });
 
-// Create Control Plane Service (built from Dockerfile)
-const controlPlaneService = new ControlPlaneService(`${projectName}-controlplane-service`, {
-  clusterArn: platformCluster.cluster.arn,
-  clusterName: platformCluster.cluster.name,
-  vpcId: platformNetwork.vpc.id,
-  privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
-  ecrRepositoryUrl: platformStorage.controlPlaneEcrRepository.repositoryUrl,
-  albTargetGroupArn: loadBalancers.controlPlaneAlbTargetGroup.arn,
-  albSecurityGroupId: loadBalancers.albSecurityGroup.id,
-  projectName,
-  environment,
-  dockerPath: controlPlaneDockerPath,
-  desiredCount: controlPlaneDesiredCount,
-  cpu: ecsFargateCpu,
-  memory: ecsFargateMemory,
-  databaseUrl: platformDataStore.databaseUrl,
-  ed25519SigningKey,
-  s3Region: awsRegion,
-});
+// Create Control Plane Service (image pre-built + pinned via versions.yaml).
+// Skipped when no image is pinned so a fresh stack and `pulumi destroy` work.
+let controlPlaneService: ControlPlaneService | undefined;
+if (controlPlaneImageUri) {
+  controlPlaneService = new ControlPlaneService(`${projectName}-controlplane-service`, {
+    clusterArn: platformCluster.cluster.arn,
+    clusterName: platformCluster.cluster.name,
+    vpcId: platformNetwork.vpc.id,
+    privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
+    albTargetGroupArn: loadBalancers.controlPlaneAlbTargetGroup.arn,
+    albSecurityGroupId: loadBalancers.albSecurityGroup.id,
+    taskSecurityGroupId: platformCluster.taskSecurityGroup.id,
+    projectName,
+    environment,
+    desiredCount: controlPlaneDesiredCount,
+    cpu: ecsFargateCpu,
+    memory: ecsFargateMemory,
+    databaseUrl: platformDataStore.databaseUrl,
+    ed25519SigningKey,
+    controlPlaneImageUri,
+    s3Region: awsRegion,
+  });
+}
 
 // ── Exports ──────────────────────────────────────────────────────────────────
 
@@ -141,10 +153,12 @@ export const albDnsName = loadBalancers.alb.dnsName;
 export const nlbDnsName = loadBalancers.nlb.dnsName;
 export const vpcId = platformNetwork.vpc.id;
 export const clusterArn = platformCluster.cluster.arn;
-export const controlPlaneEcrRepositoryUrl = platformStorage.controlPlaneEcrRepository.repositoryUrl;
+export { controlPlaneImageUri };
 export const loreChunksBucketName = platformStorage.loreChunksBucket.bucket;
 export const loreChunksBucketArn = platformStorage.loreChunksBucket.arn;
 export const loreDynamoDbTableName = platformDataStore.loreTable.name;
 export const loreDynamoDbTableArn = platformDataStore.loreTable.arn;
 export const loreServiceSecurityGroupArn = loreService.securityGroup.arn;
-export const controlPlaneServiceSecurityGroupArn = controlPlaneService.securityGroup.arn;
+export const controlPlaneServiceSecurityGroupArn = controlPlaneService
+  ? controlPlaneService.securityGroup.arn
+  : pulumi.output("");
