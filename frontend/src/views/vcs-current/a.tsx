@@ -80,18 +80,24 @@ const overviewItems: OverviewItem[] = [
 const problemCards = [
   {
     label: '01',
-    title: 'Consistency',
-    text: 'Nobody trusts the version. Seven files named final, final_v2, and use-this-one, and no one is sure which one shipped or whether it still matches the approved character, style, or brand.',
+    title: 'Identify',
+    text: 'Nobody trusts the version. Seven files named final, final_v2, and use-this-one — and no one can say which one shipped, or whether it still matches what was approved.',
+    quote: <><span className="t-p-lg-sans italic">71%</span> of creative professionals say it takes seven or more people to approve a single asset, with 59% admitting content often ships before approval is even finished.</>,
+    cite: 'Lucidpress, April 2026'
   },
   {
     label: '02',
-    title: 'Reproducibility',
+    title: 'Reproduce',
     text: 'Nobody can reproduce it. The exact prompt, model, seed, and reference chain behind an approved asset disappear the moment the file is exported.',
+    quote: <><span className="t-p-lg-sans italic">81%</span> of companies struggle with off-brand content creation despite having documented guidelines.</>,
+    cite: 'Lucidpress, April 2026'
   },
   {
     label: '03',
-    title: 'History',
-    text: 'Work gets paid for twice. Decisions, iterations, and approvals vanish after delivery, so teams regenerate from scratch instead of building on what already worked.',
+    title: 'Preserve',
+    text: 'Work gets paid for twice. Decisions, iterations, and approvals don\'t survive delivery, so teams regenerate from scratch instead of building on what already worked.',
+    quote: <><span className="t-p-lg-sans italic">75%</span> of marketing leaders spend three hours or more every week editing, fact-checking, and fixing AI output.</>,
+    cite: 'Optimizely, 2026'
   },
 ];
 
@@ -199,7 +205,7 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
 
 function pricingTierHref(tier: PricingTier): string {
   return tier.slug === PACKAGE_SPEC_SLUGS.productionTeam
-    ? '/workflow-assessment'
+    ? '/assessment'
     : scopeAPilotMailto;
 }
 
@@ -566,27 +572,29 @@ function ProblemSection() {
             When a client asks for five more like this, can your team reproduce the approved asset?
           </h2>
           <p className="t-p-lg-serif max-w-[38em] text-white">
-            AI production teams generate thousands of images and videos, and iterations daily. The final asset ships. The client approves it. Everyone moves on, but your production history is left scattered, incomplete, or lost. 
-            <br/><br/>
-            Your team pays a hidden AI production tax on every project.
+            AI production teams generate thousands of images and videos, and iterations daily. The client approves it.
+            The final asset ships. Everyone moves on, but your team pays a hidden AI production tax on each project:
           </p>
+          <p className="t-h3-sans max-w-[38em] text-white">Prompts, references, settings, and production decisions are left scattered, incomplete, or lost.</p>
         </div>
-        <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
-          {problemCards.map((card) => (
-            <article key={card.title} className="min-h-194 p-24 text-white">
-              <div className="mb-20 flex items-center gap-x-8">
-                <span className="size-8 bg-white" />
-                <span className="t-m2">{card.label}</span>
-              </div>
-              <h3 className="t-h3-sans mb-[0.4em]">{card.title}</h3>
-              <p className="t-p-sans text-white">{card.text}</p>
-            </article>
+        <div className="col-span-full grid grid-cols-1 lg:grid-cols-3">
+          {problemCards.map((card, index) => (
+            <div key={card.title}>
+              <article className="min-h-194 p-24 pb-0 text-white">
+                <div className="mb-20 flex items-center gap-x-8">
+                  <span className="size-8 bg-white" />
+                  <span className="t-m2">{card.label}</span>
+                </div>
+                <h3 className="t-h3-sans mb-[0.4em]">{card.title}</h3>
+                <p className="t-p-sans text-white">{card.text}</p>
+              </article>
+              <blockquote className={`mt-12 col-span-full border-l-2 pl-18 t-p-sans italic text-white ${index === problemCards.length - 1 ? 'border-r-2' : ''}`}>
+                {card.quote}
+                <cite>{' '}{card.cite}</cite>
+              </blockquote>
+            </div>
           ))}
         </div>
-        <blockquote className="col-span-full border-l border-white/30 ml-24 pl-18 t-p-serif text-white lg:col-span-14">
-          Tencent's video chief named this the main blocker to AI replacing long-form production: visual and continuity drift becomes obvious as productions scale.
-          <cite className="mt-16 block t-m2 text-white !normal-case">Variety, 2026</cite>
-        </blockquote>
       </div>
     </section>
   );
@@ -598,7 +606,7 @@ function SolutionSection() {
       <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white lg:min-h-screen">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
           <h2 className="t-d2-sans mx-auto max-w-[13em] lowercase">
-            The production repository for AI-native creative organizations
+            The production repository for AI{`\u2011`}native creative organizations
           </h2>
 
           <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
@@ -613,7 +621,7 @@ function SolutionSection() {
           </p>
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
-            <CTAButton href="/workflow-assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+            <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
               Assess your workflow
             </CTAButton>
           </div>
@@ -670,7 +678,7 @@ function CapabilitiesSection() {
             </article>
           ))}
           <div className="p-24 col-span-full flex md:justify-center">
-            <CTAButton href="/workflow-assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+            <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
               Assess your workflow
             </CTAButton>
           </div>
@@ -844,7 +852,7 @@ export function VCS({
               <strong className="t-d1-serif">best creative work</strong>
             </h1>
             <div className="flex flex-col gap-12 pt-12 sm:flex-row">
-              <CTAButton href="/workflow-assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+              <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
                 Assess your workflow
               </CTAButton>
               <CTAButton className="!hidden" href="/ai-production-workflow-risks" analyticsLabel="Explore Use Cases" analyticsIntent="education">
@@ -855,7 +863,7 @@ export function VCS({
           <div className="col-span-full grid grid-cols-subgrid">
             <div className="col-span-8 col-start-5 flex justify-end lg:col-span-full">
               <div className="max-w-[10.85em] t-p-sans lowercase!">
-                <p>THE PRODUCTION REPOSITORY FOR AI-NATIVE CREATIVE ORGANIZATIONS</p>
+                <p>THE PRODUCTION REPOSITORY FOR AI{`\u2011`}NATIVE CREATIVE ORGANIZATIONS</p>
               </div>
             </div>
           </div>
@@ -875,12 +883,14 @@ export function VCS({
         <div className="relative flex min-h-screen items-center text-white">
           <div className="ui-grid flex-1 gap-y-sms py-sms">
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
-              <h4 className="t-global-cta_heading max-w-[12em]">Stop losing your best AI work. <br /> Start building on it.</h4>
-              <p className="t-p-lg-serif max-w-[26em] text-white">
-                Give every asset your team creates a permanent identity, a complete history, and a system of record it can be trusted against from first generation through shipped production.
+              <h4 className="t-global-cta_heading max-w-[13em]">Stop losing your best AI work. <br /> Start building on it.</h4>
+              <p className="t-p-lg-serif max-w-[26em] text-white text-left">
+                Give every asset your team creates a permanent identity and a complete history.
+                <br/><br/>
+                Deliver faster and more consistently from first generation through shipped production.
               </p>
               <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton>
-              {/* <CTAButton href="/workflow-assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+              {/* <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
                 Assess your workflow
               </CTAButton> */}
             </div>

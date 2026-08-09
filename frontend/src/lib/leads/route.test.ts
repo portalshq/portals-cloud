@@ -71,7 +71,7 @@ const assessmentBody = (email: string) => ({
   formVersion: 'assessment.v1',
   provider: 'browser',
   identity: {email, company: 'Studio Example', role: 'producer', website: ''},
-  attribution: {sourcePage: '/workflow-assessment'},
+  attribution: {sourcePage: '/assessment'},
   consent: {disclosureVersion: DISCLOSURE, marketing: false, analytics: false},
   companyFax: '',
   answers: {
@@ -174,7 +174,7 @@ test('pilot_request through POST delivers the approval-room email to the submitt
   assert.equal(sent.to, email.toLowerCase())
   assert.match(String(sent.subject), /pilot approval room/)
   const link = String(sent.text).match(
-    /https:\/\/portals\.test\/pilot\/[^?]+\?t=([a-zA-Z0-9._-]+)/,
+    /https:\/\/portals\.test\/paid-pilot\/room\/[^?]+\?t=([a-zA-Z0-9._-]+)/,
   )
   assert.ok(link, 'the email carries a tokenized room link')
   assert.deepEqual(verifyRoomToken(link[1]), {
@@ -267,6 +267,25 @@ test('a disqualified pilot request is held for clarification', async (t) => {
   const token = profileTokenFrom(response)
   const {pilot} = await pilotForProfile(token)
   assert.equal(pilot?.state, 'not_eligible')
+})
+
+test('an assessment override creates a one-call qualification exception', async (t) => {
+  const email = `override-${crypto.randomUUID()}@studio.example`
+  t.mock.method(globalThis, 'fetch', async () => new Response('{}', {status: 200}))
+
+  const response = await post(
+    pilotBody(email, {assessmentOrigin: 'assessment_override'}),
+  )
+  assert.equal(response.status, 200)
+  const json = await response.json()
+  assert.equal(json.pilotState, 'exception_review')
+  assert.equal(json.pilotRoute, 'one-call')
+
+  const token = profileTokenFrom(response)
+  const {pilot} = await pilotForProfile(token)
+  assert.ok(
+    pilot?.exceptions.some((item) => item.kind === 'assessment-qualification'),
+  )
 })
 
 test('the API guards reject a foreign origin and an incomplete pilot form', async () => {

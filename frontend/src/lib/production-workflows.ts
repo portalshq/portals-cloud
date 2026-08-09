@@ -1,4 +1,11 @@
-export const productionWorkflows = [
+export const productionWorkflows: {
+  id: string
+  title: string
+  problem: string
+  outcome: string
+  quote?: string
+  source?: string
+}[] = [
   {
     id: 'five-more-like-this',
     title: 'five more like this',
@@ -22,6 +29,9 @@ export const productionWorkflows = [
       'characters, products, environments, props, and visual rules change across tools, creators, and production cycles.',
     outcome:
       'preserve the references, variations, and production history needed to extend a character consistently.',
+    quote:
+      'Tencent\'s video chief named "visual and continuity drift" the main blocker to AI replacing long-form production.',
+    source: 'Variety, 2026',
   },
   {
     id: 'campaign-variant-control',

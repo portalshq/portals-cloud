@@ -41,6 +41,8 @@ type PatchAction =
   | 'revise'
   | 'request_exception'
   | 'resolve_exceptions'
+  | 'qualify'
+  | 'disqualify'
   | 'finalize'
   | 'sign'
   | 'pay'
@@ -178,6 +180,22 @@ export async function PATCH(
   const pilot = await getPilotById(id)
   if (!pilot) {
     return NextResponse.json({ok: false, message: 'pilot record not found'}, {status: 404})
+  }
+  const hasAssessmentQualification = pilot.exceptions.some(
+    (item) => item.kind === 'assessment-qualification' && !item.resolvedAt,
+  )
+  const founderEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
+  const founderAccess = Boolean(founderEmail) && token.email.toLowerCase() === founderEmail
+  if (
+    (body.action === 'qualify' ||
+      body.action === 'disqualify' ||
+      (body.action === 'resolve_exceptions' && hasAssessmentQualification)) &&
+    !founderAccess
+  ) {
+    return NextResponse.json(
+      {ok: false, message: 'only the founder can resolve this qualification exception'},
+      {status: 403},
+    )
   }
 
   try {
@@ -497,6 +515,8 @@ export async function PATCH(
       revise: null,
       request_exception: 'exception',
       resolve_exceptions: null,
+      qualify: null,
+      disqualify: null,
       finalize: 'ready_sign',
       sign: null,
       pay: 'paid',
@@ -610,6 +630,10 @@ export async function PATCH(
           ? 'request_exception'
           : body.action === 'resolve_exceptions'
             ? 'resolve_exceptions'
+            : body.action === 'qualify'
+              ? 'qualify'
+              : body.action === 'disqualify'
+                ? 'disqualify'
             : body.action === 'finalize'
               ? 'finalize'
               : body.action === 'activate'
@@ -631,6 +655,23 @@ export async function PATCH(
       next.exceptions = next.exceptions.map((item) => ({
         ...item,
         resolvedAt: new Date().toISOString(),
+      }))
+    }
+    if (transition === 'qualify') {
+      next.answers = {...next.answers, assessmentOrigin: 'standard'}
+      const qualified = classifyPilot(next.answers as PilotAnswers)
+      next.route = qualified.route === 'disqualified' ? 'one-call' : qualified.route
+      next.exceptions = qualified.exceptions
+      next.unresolved = computeUnresolved(next.answers as PilotAnswers, {
+        startDate: pilot.resolvedStartDate || undefined,
+        route: next.route,
+      })
+    }
+    if (transition === 'disqualify') {
+      next.route = 'disqualified'
+      next.exceptions = next.exceptions.map((item) => ({
+        ...item,
+        resolvedAt: item.resolvedAt || new Date().toISOString(),
       }))
     }
     if (

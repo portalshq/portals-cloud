@@ -21,14 +21,17 @@ export default async function ContactPage({
     searchParams,
   ])
   return (
-    <main className="relative z-(--z-main) min-h-screen bg-[#343434] lowercase text-white">
-      <section data-header-theme="light" className="ui-grid min-h-[64vh] items-end pb-40 pt-Header-h">
+    <main className="relative z-(--z-main) min-h-screen bg-[#343434] text-white">
+      <section data-header-theme="light" className="ui-grid pt-Header-h">
         <div className="col-span-full max-w-[900px] py-48">
-          <h1 className="max-w-[11em] t-d2-sans">bring us the production decision in front of you.</h1>
+          <h1 className="max-w-[12em] t-d2-sans">
+            ready to fix your workflow
+          </h1>
           <p className="mt-24 max-w-[38em] t-p-lg-serif text-white">
-            share enough context for a useful response. 
+            bring us the production decision in front of you for a direct response.
             <br />
-            <span className="flex mt-24 normal-case items-baseline">to request a commercial evaluation, <CTAButton className="ml-8" href={scopeAPilotMailto}>Scope a pilot</CTAButton></span>
+            <span className="flex mt-12 normal-case items-baseline">to request a commercial evaluation, scope a pilot.</span>
+            <CTAButton className="ml-8" href={scopeAPilotMailto}>Scope a pilot</CTAButton>
           </p>
         </div>
       </section>

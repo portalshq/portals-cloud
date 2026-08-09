@@ -196,6 +196,14 @@ test('state machine allows only valid transitions', () => {
     state: 'paid',
     allowed: true,
   })
+  assert.deepEqual(applyTransition('exception_review', 'qualify'), {
+    state: 'reviewing',
+    allowed: true,
+  })
+  assert.deepEqual(applyTransition('exception_review', 'disqualify'), {
+    state: 'not_eligible',
+    allowed: true,
+  })
 })
 
 test('team review phase gates invitations behind the draft review', () => {

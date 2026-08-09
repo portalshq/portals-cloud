@@ -157,13 +157,14 @@ export function ConsentFields({
 }) {
   return (
     <div className="space-y-12">
-      <p className="t-p-sm-sans text-white">
-        By submitting, you agree that we may contact you about this request. see our{' '}
-        <a className="underline underline-offset-4" href="/privacy-policy" target="_blank">
-          privacy policy
-        </a>.
-      </p>
       {showMarketing ? (
+      <>
+        <p className="t-p-sm-sans text-white">
+          By submitting, you agree that we may contact you about this request. see our{' '}
+          <a className="underline underline-offset-4" href="/privacy-policy" target="_blank">
+            privacy policy
+          </a>.
+        </p>
         <label className="flex items-start gap-10 t-p-sm-sans text-white">
           <LeadCheckbox
             name="marketingConsent"
@@ -171,6 +172,7 @@ export function ConsentFields({
           />
           <span>Send me occasional portals resources and product updates. unsubscribe anytime.</span>
         </label>
+        </>
       ) : null}
       <input
         className="absolute -left-[10000px] h-px w-px"

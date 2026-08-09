@@ -132,7 +132,7 @@ export async function GET(
     const buffer = await renderToBuffer(
       AssessmentResultPdfDocument({data}),
     )
-    return pdfResponse(buffer, `${company}-production-workflow-assessment.pdf`)
+    return pdfResponse(buffer, `${company}-production-workflow-evaluation.pdf`)
   }
 
   const requiredPilotFields = [

@@ -47,6 +47,12 @@ export default async function PilotRoomPage({
             accessToken={access.accessToken}
             sessionId={query.session_id}
             revisePath={`/paid-pilot/room/${id}/revise?t=${encodeURIComponent(access.accessToken)}`}
+            founderAccess={
+              Boolean(process.env.LEADS_NOTIFICATION_EMAIL) &&
+              access.token.email.toLowerCase() ===
+                String(process.env.LEADS_NOTIFICATION_EMAIL).trim().toLowerCase()
+            }
+            qualificationCalendarUrl={process.env.PILOT_CALENDAR_URL}
           />
         )}
       </section>

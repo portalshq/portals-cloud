@@ -148,7 +148,7 @@ export function ResourceLeadForm({
               {downloadLabel}
             </CTAButton>
           ) : null}
-          <CTAButton href="/workflow-assessment" analyticsLabel="Assess Your Workflow">
+          <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow">
             Assess your workflow
             <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
           </CTAButton>

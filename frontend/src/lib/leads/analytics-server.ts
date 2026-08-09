@@ -22,6 +22,8 @@ export async function trackSubmissionEvents(
       ? assessmentScore(submission.scores)
       : undefined,
     qualification_tier: submission.tier,
+    qualification_outcome: submission.response.qualificationOutcome,
+    workflow_risk_score: submission.scores?.workflowRiskScore,
     utm_source: submission.request.attribution.utmSource,
     utm_campaign: submission.request.attribution.utmCampaign,
     score_version: submission.scores?.version,
@@ -49,6 +51,9 @@ export async function trackSubmissionEvents(
   }
   if (submission.request.submissionType === 'assessment') {
     events.push({event: 'assessment_completed', properties: common})
+  }
+  if (submission.request.submissionType === 'commercial_readiness') {
+    events.push({event: 'commercial_clarification_completed', properties: common})
   }
   if (submission.scores) {
     events.push({event: 'qualification_assigned', properties: common})

@@ -39,7 +39,11 @@ import {
 } from '@/lib/leads/store'
 import {
   calculateQualification,
+  commercialReadinessComplete,
   mergeQualificationAnswers,
+  missingReadinessFields,
+  qualificationOutcome,
+  qualificationReasonCodes,
   qualificationTier,
   recommendedWorkflow,
 } from '@/lib/leads/scoring'
@@ -58,14 +62,11 @@ function productionConfigurationError(request: LeadRequest): string | null {
   if (request.provider !== 'attio') {
     required.push('ATTIO_API_KEY')
   }
-  if (
-    request.submissionType !== 'assessment' &&
-    request.submissionType !== 'commercial_event'
-  ) {
+  if (request.submissionType !== 'commercial_event') {
     required.push('RESEND_API_KEY', 'LEADS_EMAIL_FROM')
   }
   if (
-    ['pilot_request', 'pilot_brief_download', 'workflow_review', 'contact', 'security_download'].includes(
+    ['assessment', 'pilot_request', 'pilot_brief_download', 'commercial_readiness', 'workflow_review', 'contact', 'security_download'].includes(
       request.submissionType,
     )
   ) {
@@ -73,6 +74,9 @@ function productionConfigurationError(request: LeadRequest): string | null {
   }
   if (request.consent.analytics) {
     required.push('MIXPANEL_PROJECT_TOKEN')
+  }
+  if (request.submissionType === 'pilot_request') {
+    required.push('PILOT_ROOM_SECRET')
   }
   const missing = required.filter((name) => !process.env[name])
   return missing.length ? `Lead operations are missing: ${missing.join(', ')}` : null
@@ -123,7 +127,21 @@ function routeResponse(
   scores?: ReturnType<typeof calculateQualification>,
   qualificationAnswers?: Record<string, unknown>,
 ): LeadResponse {
-  const tier = scores ? qualificationTier(scores) : undefined
+  const tier = scores ? qualificationTier(scores, qualificationAnswers || request.answers) : undefined
+  const outcome = tier ? qualificationOutcome(tier) : undefined
+  const reasonCodes = scores && outcome
+    ? qualificationReasonCodes(qualificationAnswers || request.answers, scores, outcome)
+    : undefined
+  const publicQualification = scores && tier && outcome
+    ? {
+        qualificationOutcome: outcome,
+        reasonCodes,
+        missingFields: outcome === 'clarify'
+          ? missingReadinessFields(qualificationAnswers || request.answers)
+          : [],
+        workflowRiskScore: scores.workflowRiskScore,
+      }
+    : {}
   const workflow = recommendedWorkflow({
     ...(qualificationAnswers || request.answers),
     workflowRisk: request.attribution.useCase,
@@ -145,42 +163,78 @@ function routeResponse(
   if (request.submissionType === 'contact') {
     return {ok: true, nextAction: 'follow_up', message: 'Your request is recorded.'}
   }
+  if (
+    request.submissionType === 'commercial_readiness' &&
+    scores &&
+    scores.fit.normalized >= 50 &&
+    scores.pain.normalized >= 40 &&
+    commercialReadinessComplete(qualificationAnswers || request.answers)
+  ) {
+    return {
+      ok: true,
+      nextAction: 'pilot_scope',
+      ...publicQualification,
+      qualificationOutcome: 'pilot_candidate',
+      reasonCodes: qualificationReasonCodes(
+        qualificationAnswers || request.answers,
+        scores,
+        'pilot_candidate',
+      ),
+      missingFields: [],
+      recommendedWorkflow: workflow,
+      message: 'Your workflow and commercial readiness support building a customized pilot plan.',
+    }
+  }
+  if (request.submissionType === 'commercial_readiness' && scores) {
+    return {
+      ok: true,
+      nextAction: 'use_case',
+      qualificationOutcome: 'education',
+      reasonCodes: qualificationReasonCodes(
+        qualificationAnswers || request.answers,
+        scores,
+        'education',
+      ),
+      missingFields: [],
+      workflowRiskScore: scores.workflowRiskScore,
+      recommendedWorkflow: workflow,
+      message:
+        'The added context did not yet establish pilot readiness. Explore the relevant workflow, or build a free customized pilot plan if the assessment missed important context.',
+    }
+  }
   if (tier === 'high') {
     return {
       ok: true,
       nextAction: 'pilot_scope',
-      qualificationTier: tier,
-      scores,
+      ...publicQualification,
       recommendedWorkflow: workflow,
       ...(request.submissionType === 'assessment'
         ? {downloadUrl: '/api/leads/documents/assessment-result'}
         : {}),
-      message: 'Your workflow appears to be a strong fit for a paid production pilot.',
+      message: 'This workflow is a viable candidate for a paid production pilot.',
     }
   }
   if (tier === 'medium' || tier === 'incomplete') {
     return {
       ok: true,
-      nextAction: 'assessment_review',
-      qualificationTier: tier,
-      scores,
+      nextAction: 'commercial_clarification',
+      ...publicQualification,
       recommendedWorkflow: workflow,
       ...(request.submissionType === 'assessment'
         ? {downloadUrl: '/api/leads/documents/assessment-result'}
         : {}),
-      message: 'Your workflow has relevant signals and needs a closer review.',
+      message: 'This workflow may be viable; a few practical details will clarify pilot readiness.',
     }
   }
   return {
     ok: true,
     nextAction: 'use_case',
-    qualificationTier: tier || 'low',
-    scores,
+    ...publicQualification,
     recommendedWorkflow: workflow,
     ...(request.submissionType === 'assessment'
       ? {downloadUrl: '/api/leads/documents/assessment-result'}
       : {}),
-    message: 'The most useful next step is to explore the relevant workflow.',
+    message: 'Based on the available information, education is the most useful next step.',
   }
 }
 
@@ -192,7 +246,32 @@ async function syncPilotRecord(
 ): Promise<LeadResponse> {
   if (leadRequest.submissionType !== 'pilot_request') return response
   const answers = leadRequest.answers as PilotAnswers
-  const classification = classifyPilot(answers)
+  const baseClassification = classifyPilot(answers)
+  const assessmentOverride = answers.assessmentOrigin === 'assessment_override'
+  const classification = assessmentOverride
+    ? {
+        ...baseClassification,
+        route: 'one-call' as const,
+        reasons: [
+          ...baseClassification.reasons,
+          'assessment override requires a qualification decision',
+        ],
+        exceptions: baseClassification.exceptions.some(
+          (item) => item.kind === 'assessment-qualification',
+        )
+          ? baseClassification.exceptions
+          : [
+              ...baseClassification.exceptions,
+              {
+                kind: 'assessment-qualification',
+                summary:
+                  'The assessment did not establish a credible active workflow or sufficient fit and pain.',
+                amendment:
+                  'A founder qualification call must confirm or decline this pilot request.',
+              },
+            ],
+      }
+    : baseClassification
   const successCriteria = buildSuccessCriteria(answers)
   const securityDecisions = buildSecurityDecisions(answers)
   const unresolved = computeUnresolved(answers, {route: classification.route})
@@ -218,14 +297,14 @@ async function syncPilotRecord(
       pilot.state === 'signed'
     const version = frozen ? pilot.version + 1 : pilot.version
     const updated = await updatePilot(pilot.id, {
-      state: 'reviewing',
+      state: assessmentOverride ? 'exception_review' : 'reviewing',
       action: 'revise',
       route: classification.route,
       answers: {
         ...(pilot.answers as Record<string, unknown>),
         ...answers,
-        ...(!pilot.answers.email && submitterEmail ? {email: submitterEmail} : {}),
-        ...(!pilot.answers.name && submitterName ? {name: submitterName} : {}),
+        ...(submitterEmail ? {email: submitterEmail} : {}),
+        ...(submitterName ? {name: submitterName} : {}),
       },
       exceptions: classification.exceptions,
       unresolved,
@@ -273,7 +352,11 @@ async function syncPilotRecord(
     initialSubmissionId: submissionId,
     answers: pilotAnswers,
     route: classification.route,
-    state: classification.route === 'disqualified' ? 'not_eligible' : 'reviewing',
+    state: assessmentOverride
+      ? 'exception_review'
+      : classification.route === 'disqualified'
+        ? 'not_eligible'
+        : 'reviewing',
     exceptions: classification.exceptions,
     unresolved,
     successCriteria,
@@ -295,11 +378,13 @@ async function syncPilotRecord(
     pilotState: pilot.state,
     pilotRoute: pilot.route,
     message:
-      pilot.route === 'disqualified'
+      assessmentOverride
+        ? 'Your free customized pilot plan is ready in the approval room. A qualification call is required before the pilot can proceed.'
+        : pilot.route === 'disqualified'
         ? 'Your pilot request needs clarification before it can proceed.'
         : pilot.route === 'one-call'
-          ? 'Your personalized pilot approval room is ready. A short pilot terms review is required before signing.'
-          : 'Your personalized pilot approval room is ready. Review the plan, confirm the scope, and sign when ready.',
+          ? 'Your pilot approval room is ready with your free customized plan. A short pilot terms review is required before signing.'
+          : 'Your pilot approval room is ready with your free customized plan. The $5,000 fee applies only if you approve and conduct the pilot.',
   }
 }
 
@@ -338,6 +423,7 @@ async function handleLeadRequest(
     profile = null
   }
   const identity: LeadIdentity = {
+    name: incomingIdentity.name || profile?.identity.name,
     email: incomingIdentity.email || profile?.identity.email,
     company: incomingIdentity.company || profile?.identity.company,
     role: incomingIdentity.role || profile?.identity.role,
@@ -357,10 +443,13 @@ async function handleLeadRequest(
     ...(leadRequest.submissionType === 'workflow_review'
       ? [{workflowReviewRequested: true}]
       : []),
+    ...(leadRequest.submissionType === 'commercial_readiness'
+      ? [{commercialReadinessCompleted: true}]
+      : []),
     ...(leadRequest.submissionType === 'pilot_request'
       ? [{
           activeWorkflow: leadRequest.answers.pilotWorkflow,
-          timeline: leadRequest.answers.targetStartPeriod,
+          targetStartPeriod: leadRequest.answers.targetStartPeriod,
           stakeholderInvolved: true,
           pricingOrPilotViewed: true,
         }]
@@ -370,6 +459,20 @@ async function handleLeadRequest(
     qualificationAnswers = mergeQualificationAnswers(qualificationAnswers, {
       pilotWorkflow:
         qualificationAnswers.pilotWorkflow || qualificationAnswers.activeWorkflow,
+    })
+  }
+  if (leadRequest.submissionType === 'commercial_readiness') {
+    const readiness = leadRequest.answers
+    qualificationAnswers = mergeQualificationAnswers(qualificationAnswers, {
+      ...(readiness.objectionDetail
+        ? {pilotBlocker: readiness.objectionDetail}
+        : {}),
+      ...(readiness.primaryObjection === 'integration' && readiness.objectionDetail
+        ? {requiredIntegrations: readiness.objectionDetail}
+        : {}),
+      ...(readiness.primaryObjection === 'security' && readiness.objectionDetail
+        ? {securityRequirements: readiness.objectionDetail}
+        : {}),
     })
   }
   const effectiveLeadRequest: LeadRequest =
@@ -399,11 +502,11 @@ async function handleLeadRequest(
       {status: 400},
     )
   }
-  const scoreable = ['assessment', 'workflow_review', 'pilot_request'].includes(
+  const scoreable = ['assessment', 'commercial_readiness', 'workflow_review', 'pilot_request'].includes(
     leadRequest.submissionType,
   )
   const scores = scoreable ? calculateQualification(qualificationAnswers) : undefined
-  const tier = scores ? qualificationTier(scores) : undefined
+  const tier = scores ? qualificationTier(scores, qualificationAnswers) : undefined
   const response = routeResponse(effectiveLeadRequest, scores, qualificationAnswers)
   const persisted = await persistSubmission({
     request: effectiveLeadRequest,

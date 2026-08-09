@@ -2,7 +2,7 @@
 
 The website accepts every form through `POST /api/leads`. A submission is encrypted and committed to the marketing-intake database before the browser receives success. Attio, Resend, and server-side Mixpanel work is then performed from an idempotent outbox.
 
-The public funnel has three canonical paths: `/ai-production-workflow-risks` for education and the Field Guide, `/workflow-assessment` for qualification and a personalized assessment result, and `/paid-pilot` for pilot scope, the customized pilot packet, and scheduling. `/use-cases` is a compatibility redirect to the workflow-risks page. The production-team pricing CTA routes to the assessment; the paid pilot and higher-touch packages route to pilot scope. Security and contact remain supporting pages, not separate qualification funnels.
+The public funnel has three canonical paths: `/ai-production-workflow-risks` for education and the Field Guide, `/assessment` for qualification and a personalized assessment result, and `/paid-pilot` for pilot scope, the customized pilot packet, and scheduling. `/use-cases` is a compatibility redirect to the workflow-risks page. The production-team pricing CTA routes to the assessment; the paid pilot and higher-touch packages route to pilot scope. Security and contact remain supporting pages, not separate qualification funnels.
 
 ## Launch order
 
@@ -22,7 +22,7 @@ For device testing through a local-network hostname, add that hostname to `NEXT_
 
 ## Workflow assessment
 
-The assessment runs as a native React form (`src/components/leads/AssessmentForm.tsx`) at `/workflow-assessment`, so it shares the site's type, styling, draft persistence, and consent controls. It submits through `POST /api/leads` with `provider: browser`, is verified on arrival, and can open the progressive workflow-review form for medium and incomplete results.
+The assessment runs as a native React form (`src/components/leads/AssessmentForm.tsx`) at `/assessment`, so it shares the site's type, styling, draft persistence, and consent controls. It submits through `POST /api/leads` with `provider: browser`, is verified on arrival, and can open the progressive workflow-review form for medium and incomplete results.
 
 The form asks these canonical questions with these values:
 
@@ -45,7 +45,7 @@ The server derives progressive context in `getKnownLeadContext` (`src/lib/leads/
 ### Verification checklist
 
 1. `npm run typecheck` and `npm run test:leads` pass.
-2. `LEADS_DRY_RUN=true` with the dev server; submit a sample from `/workflow-assessment` and confirm the breakdown renders with a production-memory risk `/24` and the correct tier CTA.
+2. `LEADS_DRY_RUN=true` with the dev server; submit a sample from `/assessment` and confirm the breakdown renders with a production-memory risk `/24` and the correct tier CTA.
 3. On production after deployment, submit a real sample and confirm the submission arrives at `/api/leads`, the outbox completes, the Attio person/company are created, the person is added to `production-assessments`, the attributes and note are populated, and `qualification_score` lands in the 0-24 range.
 4. Review the first 20 to 30 submissions manually before adjusting any scoring or thresholds.
 

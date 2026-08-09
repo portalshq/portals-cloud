@@ -30,6 +30,8 @@ export type PilotAction =
   | 'confirm_scope'
   | 'request_exception'
   | 'resolve_exceptions'
+  | 'qualify'
+  | 'disqualify'
   | 'finalize'
   | 'sign'
   | 'pay'
@@ -226,14 +228,14 @@ const STATE_LABELS: Record<PilotState, string> = {
   reviewing: 'Scope draft — under review',
   revision: 'Revision requested',
   team_review: 'Ready for team review',
-  exception_review: 'Ready for team review',
+  exception_review: 'Qualification or exception review',
   scope_confirmed: 'Scope confirmed',
   ready_sign: 'Ready for signature',
   signed: 'Signed',
   paid: 'Paid',
   kickoff: 'Scheduled',
   active: 'Active pilot',
-  not_eligible: 'Scope draft — under review',
+  not_eligible: 'Not eligible',
 }
 
 export function stateLabel(state: PilotState): string {
@@ -244,7 +246,12 @@ const TRANSITIONS: Record<PilotState, Partial<Record<PilotAction, PilotState>>> 
   reviewing: {revise: 'revision', start_team_review: 'team_review', confirm_scope: 'scope_confirmed', request_exception: 'exception_review'},
   revision: {revise: 'reviewing', start_team_review: 'team_review', confirm_scope: 'scope_confirmed', request_exception: 'exception_review'},
   team_review: {revise: 'revision', confirm_scope: 'scope_confirmed', request_exception: 'exception_review'},
-  exception_review: {resolve_exceptions: 'reviewing', revise: 'revision'},
+  exception_review: {
+    resolve_exceptions: 'reviewing',
+    qualify: 'reviewing',
+    disqualify: 'not_eligible',
+    revise: 'revision',
+  },
   scope_confirmed: {finalize: 'ready_sign', request_exception: 'exception_review', revise: 'revision'},
   ready_sign: {sign: 'signed', revise: 'revision'},
   signed: {pay: 'paid'},

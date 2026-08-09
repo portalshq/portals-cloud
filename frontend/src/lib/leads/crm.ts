@@ -144,7 +144,10 @@ async function promoteLifecycle(
 function personLifecycleTarget(submission: StoredSubmission): string {
   if (submission.request.submissionType === 'pilot_request') return 'Pilot Requested'
   if (submission.tier === 'high') return 'Qualified'
-  if (submission.request.submissionType === 'assessment') return 'Assessed'
+  if (
+    submission.request.submissionType === 'assessment' ||
+    submission.request.submissionType === 'commercial_readiness'
+  ) return 'Assessed'
   return 'Captured Lead'
 }
 
@@ -234,7 +237,7 @@ async function addToList(
 
 export function desiredOperationalList(submission: StoredSubmission): ListKey | null {
   if (submission.request.submissionType === 'pilot_request') return 'pilotRequests'
-  if (!['assessment', 'workflow_review'].includes(submission.request.submissionType)) {
+  if (!['assessment', 'commercial_readiness', 'workflow_review'].includes(submission.request.submissionType)) {
     return null
   }
   return submission.tier === 'high' ? 'qualifiedOpportunities' : 'nurture'

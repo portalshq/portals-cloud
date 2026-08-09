@@ -1,13 +1,14 @@
 import {z} from 'zod'
 
 export const DISCLOSURE_VERSION = '2026-08-01'
-export const SCORE_VERSION = '2026-08-01.v1'
+export const SCORE_VERSION = '2026-08-09.v2'
 
 export const leadSubmissionTypes = [
   'guide_download',
   'security_download',
   'pilot_brief_download',
   'assessment',
+  'commercial_readiness',
   'workflow_review',
   'pilot_request',
   'contact',
@@ -96,6 +97,25 @@ export const workflowReviewAnswersSchema = z.object({
   unresolvedQuestion: optionalText(2000),
   stakeholderInvolved: z.boolean().optional(),
   securityDiligence: z.boolean().optional(),
+})
+
+export const commercialReadinessAnswersSchema = z.object({
+  targetStartPeriod: z.enum(['within-30-days', 'within-60-days', 'this-quarter', 'later']),
+  approvalPath: z.enum(['self', 'other', 'procurement', 'not-established', 'no']),
+  productionOwner: z.string().trim().min(1).max(300),
+  primaryObjection: z.enum([
+    'none',
+    'workflow-fit',
+    'value',
+    'pilot-scope',
+    'security',
+    'integration',
+    'procurement',
+    'timing-budget',
+    'stakeholder-alignment',
+    'other',
+  ]),
+  objectionDetail: optionalText(2000),
 })
 
 export const pilotControlledOptionLists = {
@@ -217,6 +237,7 @@ export type SecurityDecision = {
 }
 
 export const pilotRequestAnswersSchema = assessmentAnswersSchema.extend({
+  assessmentOrigin: z.enum(['standard', 'assessment_override']).optional().default('standard'),
   pilotWorkflow: optionalText(2000),
   productionOwner: optionalText(300),
   economicBuyer: optionalText(300),
@@ -279,6 +300,10 @@ export const leadRequestSchema = z.discriminatedUnion('submissionType', [
     answers: assessmentAnswersSchema,
   }),
   commonSchema.extend({
+    submissionType: z.literal('commercial_readiness'),
+    answers: commercialReadinessAnswersSchema,
+  }),
+  commonSchema.extend({
     submissionType: z.literal('workflow_review'),
     answers: workflowReviewAnswersSchema,
   }),
@@ -318,14 +343,26 @@ export type QualificationScores = {
   pain: ScoreDimension
   intent: ScoreDimension
   assessmentScore: number
+  workflowRiskScore: number
 }
 
 export type QualificationTier = 'high' | 'medium' | 'low' | 'incomplete'
+export type QualificationOutcome = 'pilot_candidate' | 'clarify' | 'education'
+export type QualificationReasonCode =
+  | 'strong-workflow-fit'
+  | 'repeatable-production'
+  | 'measurable-rework-risk'
+  | 'production-context-fragmented'
+  | 'approved-version-risk'
+  | 'commercial-readiness-needed'
+  | 'workflow-definition-needed'
+  | 'limited-current-risk'
 export type LeadNextAction =
   | 'download'
   | 'pilot_scope'
   | 'pilot_room'
   | 'assessment_review'
+  | 'commercial_clarification'
   | 'use_case'
   | 'calendar'
   | 'follow_up'
@@ -341,6 +378,10 @@ export type LeadResponse = {
   pilotRoute?: string
   qualificationTier?: QualificationTier
   scores?: QualificationScores
+  qualificationOutcome?: QualificationOutcome
+  reasonCodes?: QualificationReasonCode[]
+  missingFields?: string[]
+  workflowRiskScore?: number
   recommendedWorkflow?: string
   message?: string
   analyticsPersonId?: string
@@ -351,10 +392,14 @@ export type KnownLeadContext = {
   known: boolean
   knownFields: Array<'email' | 'name' | 'company' | 'role' | 'website'>
   knownAnswerFields: string[]
-  answerValues?: Record<string, string>
+  answerValues?: Record<string, unknown>
   requiresWebsite?: boolean
   scores?: QualificationScores
   qualificationTier?: QualificationTier
+  qualificationOutcome?: QualificationOutcome
+  reasonCodes?: QualificationReasonCode[]
+  missingFields?: string[]
+  assessmentCompleted?: boolean
   recommendedWorkflow?: string
   incidentFollowUpEligible?: boolean
 }

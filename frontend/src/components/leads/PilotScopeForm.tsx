@@ -36,7 +36,7 @@ const STAGES = [
   {key: 'eligibility', label: 'eligibility'},
   {key: 'scope', label: 'scope'},
   {key: 'success', label: 'success'},
-  {key: 'purchase', label: 'purchase'},
+  {key: 'purchase', label: 'approval'},
   {key: 'confirmation', label: 'confirmation'},
 ] as const
 
@@ -69,17 +69,23 @@ export function PilotScopeForm({
   context,
   pilotId,
   initialAnswers,
+  assessmentOrigin = 'standard',
 }: {
   specSummary: string
   context: KnownLeadContext
   pilotId?: string
   initialAnswers?: Record<string, unknown>
+  assessmentOrigin?: 'standard' | 'assessment_override'
 }) {
+  const carriedAnswers = {
+    ...(context.answerValues || {}),
+    ...(initialAnswers || {}),
+  }
   const [stage, setStage] = useState(0)
   const [submitState, setSubmitState] = useState<SubmitState>({status: 'idle'})
   const [email, setEmail] = useState('')
   const [liveAnswers, setLiveAnswers] = useState<Record<string, string | boolean>>(
-    () => Object.fromEntries(Object.entries(initialAnswers || {})) as Record<string, string | boolean>,
+    () => Object.fromEntries(Object.entries(carriedAnswers)) as Record<string, string | boolean>,
   )
   const [stageError, setStageError] = useState('')
   const [submissionId, setSubmissionId] = useState(() =>
@@ -116,6 +122,13 @@ export function PilotScopeForm({
       preview: stored.preview,
     })
   }, [pilotId])
+
+  useEffect(() => {
+    void trackEvent('pilot_scope_viewed', {
+      assessment_origin: assessmentOrigin,
+      carried_fields: Object.keys(carriedAnswers).length,
+    })
+  }, [])
 
   useEffect(() => {
     const direction = stepNav.current
@@ -225,10 +238,7 @@ export function PilotScopeForm({
     setLiveAnswers(collectValues())
   }
 
-  const knownAnswerValues = {
-    ...(context.answerValues || {}),
-    ...(initialAnswers || {}),
-  }
+  const knownAnswerValues = carriedAnswers
 
   function summaryAnswer(name: string): string {
     const live = String(liveAnswers[name] ?? '')
@@ -267,6 +277,7 @@ export function PilotScopeForm({
       return (value || '') as T[number]
     }
     return {
+      assessmentOrigin,
       teamType: string('teamType'),
       teamSize: string('teamSize'),
       workflowCollaborators: string('workflowCollaborators'),
@@ -370,7 +381,11 @@ export function PilotScopeForm({
         attribution: buildAttribution({
           sourcePage: isRevision ? `/paid-pilot/room/${pilotId}/revise` : '/paid-pilot',
           ctaLabel: isRevision ? 'Submit Revision' : 'Build my pilot plan',
-          intent: isRevision ? 'pilot_revision' : 'pilot_scope',
+          intent: isRevision
+            ? 'pilot_revision'
+            : assessmentOrigin === 'assessment_override'
+              ? 'assessment_override'
+              : 'pilot_scope',
         }),
         consent: {
           disclosureVersion: DISCLOSURE_VERSION,
@@ -399,6 +414,10 @@ export function PilotScopeForm({
         downloadUrl: result.downloadUrl,
         pilotRoute: result.pilotRoute,
         preview: result.dryRun,
+      })
+      void trackEvent('pilot_requested', {
+        assessment_origin: assessmentOrigin,
+        pilot_route: result.pilotRoute || 'unknown',
       })
       form.reset()
     } catch (error) {
@@ -516,6 +535,14 @@ export function PilotScopeForm({
       onFocus={onStarted}
       onSubmit={handleSubmit}
     >
+      {!isRevision && Object.keys(carriedAnswers).length > 0 ? (
+        <div className="sm:col-span-2 rounded-sm border border-white/25 px-16 py-14">
+          <p className="t-p-sm-sans text-white/70">carried forward from your assessment</p>
+          <p className="mt-8 t-p-sans text-white">
+            Available workflow, timing, owner, approval, security, integration, and objection details are prefilled. Five short stages remain; fields already completed are omitted where possible.
+          </p>
+        </div>
+      ) : null}
       <div className="sm:col-span-2">
         <ol className="flex flex-wrap items-center gap-x-16 gap-y-8 t-p-sm-sans text-white">
           {STAGES.map((item, index) => (
@@ -564,7 +591,7 @@ export function PilotScopeForm({
               name="pilotWorkflow"
               required
               minRows={6}
-              defaultValue={String(initialAnswers?.pilotWorkflow || '')}
+              defaultValue={String(carriedAnswers.pilotWorkflow || carriedAnswers.activeWorkflow || '')}
               placeholder="one active workflow with current production behavior, e.g. approved campaign variants for the flagship account"
             />
           </LeadField>
@@ -587,7 +614,7 @@ export function PilotScopeForm({
             id="targetStartPeriod"
             name="targetStartPeriod"
             required
-            defaultValue={String(initialAnswers?.targetStartPeriod || '')}
+            defaultValue={String(carriedAnswers.targetStartPeriod || '')}
           >
             <option value="" disabled>select one</option>
             <option value="within-30-days">within 30 days</option>
@@ -601,7 +628,7 @@ export function PilotScopeForm({
             id="approvalPath"
             name="approvalPath"
             required
-            defaultValue={String(initialAnswers?.approvalPath || '')}
+            defaultValue={String(carriedAnswers.approvalPath || '')}
           >
             <option value="" disabled>select one</option>
             <option value="self">I can approve it</option>
@@ -650,7 +677,7 @@ export function PilotScopeForm({
               id="productionOwner"
               name="productionOwner"
               required
-              defaultValue={String(initialAnswers?.productionOwner || '')}
+              defaultValue={String(carriedAnswers.productionOwner || '')}
               placeholder="name and title"
             />
           </LeadField>
@@ -692,7 +719,7 @@ export function PilotScopeForm({
               name="requiredIntegrations"
               required
               minRows={4}
-              defaultValue={String(initialAnswers?.requiredIntegrations || '')}
+              defaultValue={String(carriedAnswers.requiredIntegrations || '')}
               placeholder="systems, what is imported, what is exported"
             />
           </LeadField>
@@ -750,7 +777,7 @@ export function PilotScopeForm({
               name="securityRequirements"
               required
               minRows={4}
-              defaultValue={String(initialAnswers?.securityRequirements || '')}
+              defaultValue={String(carriedAnswers.securityRequirements || '')}
               placeholder="e.g. SSO/SAML, SOC 2 report, data residency, dedicated infrastructure"
             />
           </LeadField>
@@ -873,7 +900,7 @@ export function PilotScopeForm({
               id="pilotBlocker"
               name="pilotBlocker"
               minRows={2}
-              defaultValue={String(initialAnswers?.pilotBlocker || '')}
+              defaultValue={String(carriedAnswers.pilotBlocker || carriedAnswers.objectionDetail || '')}
             />
           </LeadField>
         </div>

@@ -150,7 +150,17 @@ function ProductionWorkflows({
                 </p>
                 <h3 className="mt-12 t-h3-sans">{workflow.title}</h3>
                 <p className="mt-16 t-p-sans text-white">{workflow.problem}</p>
-                <p className="mt-12 t-p-sans text-white">{workflow.outcome}</p>
+                <p className="mt-12 t-p-sans text-white">instead, {workflow.outcome}</p>
+                {workflow.quote && (
+                  <blockquote className="mt-20 t-p-sans italic col-span-full border-l-2 border-r-2 px-18 text-white lg:col-span-14">
+                    {workflow.quote}
+                    {workflow.source && (
+                      <cite>
+                        {' '}{workflow.source}
+                      </cite>
+                    )}
+                  </blockquote>
+                )}
               </article>
             ))}
           </div>
@@ -262,7 +272,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
             </p>
           ) : null}
           {cta.primaryCta ? (
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center justify-center gap-14 sm:flex-row">
               <a
                 className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 px-12 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:!bg-white/30"
                 href={href}
@@ -271,6 +281,15 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
               >
                 <span className="t-p-sans">{cta.primaryCta.label}</span>
               </a>
+              <CTAButton
+                href="/assessment"
+                appearance="plain"
+                className="underline underline-offset-4"
+                analyticsLabel="Assess Your AI Creative Production Workflow"
+                analyticsIntent="assessment"
+              >
+                assess your AI creative production workflow
+              </CTAButton>
             </div>
           ) : null}
         </div>
@@ -288,7 +307,7 @@ const faqs = [
   {
     question: 'What is Portals?',
     answer:
-      'Portals is the production repository for AI-native creative organizations. It preserves the history and context behind important AI-generated assets so teams can find, understand, reproduce, and extend their work.',
+      'Portals is the production repository for AI{`\u2011`}native creative organizations. It preserves the history and context behind important AI-generated assets so teams can find, understand, reproduce, and extend their work.',
   },
   {
     question: 'Is Portals a digital asset management system?',
@@ -357,18 +376,27 @@ function ResourceFAQ() {
 function FinalCTA() {
   return (
     <section data-header-theme="light">
-      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160ch] text-center">
-          <h2 className="t-d2-sans max-w-[13em] mx-auto">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] min-h-screen items-center text-white">
+        <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160ch]">
+          <h4 className="t-global-cta_heading max-w-[13em] mx-auto text-center">
             Stop losing your best AI work. <br /> Start building on it.
-          </h2>
-          <p className="t-p-lg-serif max-w-[26em] mx-auto text-white">
-            Give every asset your team creates a permanent identity, a complete
-            history, and a system of record it can be trusted against from first
-            generation through shipped production.
+          </h4>
+          <p className="t-p-lg-serif max-w-[26em] mx-auto text-white text-left">
+            Give every asset your team creates a permanent identity and a complete history.
+            <br/><br/>
+            Deliver faster and more consistently from first generation through shipped production.
           </p>
           <div className="flex flex-col sm:flex-row gap-16 items-center justify-center">
             <CTAButton href="/paid-pilot#scope">Scope a pilot</CTAButton>
+            <CTAButton
+              href="/assessment"
+              appearance="plain"
+              className="underline underline-offset-4"
+              analyticsLabel="Assess Your AI Creative Production Workflow"
+              analyticsIntent="assessment"
+            >
+              Assess your workflow first
+            </CTAButton>
           </div>
         </div>
       </div>

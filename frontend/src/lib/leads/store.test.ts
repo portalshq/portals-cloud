@@ -2,9 +2,25 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {leadRequestSchema, type LeadResponse} from './contracts'
 import {calculateQualification, qualificationTier} from './scoring'
-import {getProfileById, getProfileByToken, persistSubmission} from './store'
+import {getProfileById, getProfileByToken, outboxActions, persistSubmission} from './store'
 
 process.env.LEADS_DRY_RUN = 'true'
+
+test('assessment founder notifications are limited to medium and high tiers', () => {
+  const request = leadRequestSchema.parse({
+    submissionType: 'assessment',
+    idempotencyKey: `assessment:${crypto.randomUUID()}`,
+    formVersion: 'assessment.v1',
+    provider: 'browser',
+    identity: {email: 'notify@studio.example', company: 'Studio', role: 'producer', website: ''},
+    attribution: {sourcePage: '/assessment'},
+    consent: {disclosureVersion: '2026-08-01', marketing: false, analytics: false},
+    answers: {activeWorkflow: 'weekly campaign variants'},
+  })
+  assert.equal(outboxActions(request, 'low').includes('founder_notification'), false)
+  assert.equal(outboxActions(request, 'medium').includes('founder_notification'), true)
+  assert.equal(outboxActions(request, 'high').includes('founder_notification'), true)
+})
 
 test('an idempotent repeat submission returns the stored submission', async () => {
   const idempotencyKey = `assessment:${crypto.randomUUID()}`
@@ -19,7 +35,7 @@ test('an idempotent repeat submission returns the stored submission', async () =
       role: 'production-operations',
       website: '',
     },
-    attribution: {sourcePage: '/workflow-assessment'},
+    attribution: {sourcePage: '/assessment'},
     consent: {
       disclosureVersion: '2026-08-01',
       marketing: false,
@@ -190,7 +206,7 @@ test('a repeat submission reuses the stored profile without re-issuing a token',
     formVersion: 'assessment.v1',
     provider: 'browser',
     identity: {email, company: 'Repeat Studio', role: 'producer', website: ''},
-    attribution: {sourcePage: '/workflow-assessment'},
+    attribution: {sourcePage: '/assessment'},
     consent: {disclosureVersion: '2026-08-01', marketing: false, analytics: false},
     answers: {teamType: 'creative-studio', teamSize: '5-9'},
   })

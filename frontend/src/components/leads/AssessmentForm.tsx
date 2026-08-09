@@ -25,6 +25,42 @@ import {usePreservedSwap} from './usePreservedSwap'
 
 const frequencyOptions = ['never', 'quarterly', 'monthly', 'weekly', 'daily'] as const
 
+const reasonLabels: Record<string, string> = {
+  'strong-workflow-fit': 'Your team and production pattern align with a repository-backed workflow.',
+  'repeatable-production': 'The workflow repeats often enough to test in a bounded production pilot.',
+  'measurable-rework-risk': 'Your answers show material rediscovery, recreation, or delivery risk.',
+  'production-context-fragmented': 'Prompts, references, and generation context are split across people or tools.',
+  'approved-version-risk': 'Approved-version control depends on conventions that are difficult to reproduce reliably.',
+  'commercial-readiness-needed': 'A few ownership, timing, or approval details are still unknown.',
+  'workflow-definition-needed': 'The assessment could not establish a sufficiently specific active workflow.',
+  'limited-current-risk': 'The current answers show limited production-memory risk or urgency.',
+}
+
+function restoredResult(context: KnownLeadContext): LeadResponse | null {
+  if (!context.assessmentCompleted || !context.qualificationOutcome) return null
+  return {
+    ok: true,
+    nextAction:
+      context.qualificationOutcome === 'pilot_candidate'
+        ? 'pilot_scope'
+        : context.qualificationOutcome === 'clarify'
+          ? 'commercial_clarification'
+          : 'use_case',
+    qualificationOutcome: context.qualificationOutcome,
+    reasonCodes: context.reasonCodes,
+    missingFields: context.missingFields,
+    workflowRiskScore: context.scores?.workflowRiskScore,
+    recommendedWorkflow: context.recommendedWorkflow,
+    downloadUrl: '/api/leads/documents/assessment-result',
+    message:
+      context.qualificationOutcome === 'pilot_candidate'
+        ? 'Your workflow is a viable candidate for a paid production pilot.'
+        : context.qualificationOutcome === 'clarify'
+          ? 'A few practical details will clarify whether this workflow is ready for a pilot.'
+          : 'The relevant production workflow is the most useful place to continue.',
+  }
+}
+
 function AssessmentSelect({
   id,
   name,
@@ -72,7 +108,7 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
   const [incidentType, setIncidentType] = useState<string>(
     () => (context.answerValues?.incidentType as string | undefined) || '',
   )
-  const [result, setResult] = useState<LeadResponse | null>(null)
+  const [result, setResult] = useState<LeadResponse | null>(() => restoredResult(context))
   const [reviewOpen, setReviewOpen] = useState(false)
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [error, setError] = useState('')
@@ -89,6 +125,14 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
   useEffect(() => {
     void trackEvent('form_opened', {form_name: 'workflow_assessment'})
   }, [])
+
+  useEffect(() => {
+    if (!result) return
+    void trackEvent('assessment_result_viewed', {
+      qualification_outcome: result.qualificationOutcome || 'unknown',
+      workflow_risk_score: result.workflowRiskScore ?? 'unknown',
+    })
+  }, [result])
 
   function onStarted() {
     if (started.current) return
@@ -122,7 +166,7 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
-          sourcePage: '/workflow-assessment',
+          sourcePage: '/assessment',
           ctaLabel: 'Assess Your Workflow',
           intent: 'workflow_assessment',
         }),
@@ -157,9 +201,6 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
       reserve()
       clear()
       setResult(response)
-      void trackEvent('assessment_completed', {
-        qualification_tier: response.qualificationTier || 'unknown',
-      })
       setStatus('idle')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'we could not score the assessment')
@@ -169,6 +210,13 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
 
   if (result) {
     const workflow = result.recommendedWorkflow || 'asset-reproduction'
+    const outcome = result.qualificationOutcome ||
+      (result.nextAction === 'pilot_scope'
+        ? 'pilot_candidate'
+        : result.nextAction === 'commercial_clarification' || result.nextAction === 'assessment_review'
+          ? 'clarify'
+          : 'education')
+    const reasons = (result.reasonCodes || []).map((code) => reasonLabels[code]).filter(Boolean)
     return (
       <div
         ref={swapRef}
@@ -177,68 +225,88 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
         style={reservedHeight ? {minHeight: reservedHeight} : undefined}
       >
         <div className="space-y-14">
+          <p className="mt-18 t-p-sm-sans text-white/80">we've evaluated your workflow</p>
           <h2 className="t-d2-sans max-w-[12em]">
-            {result.qualificationTier === 'high'
-              ? 'strong fit'
-              : result.qualificationTier === 'low'
-                ? 'not urgent'
-                : 'needs review'}
+            {outcome === 'pilot_candidate'
+              ? 'pilot candidate'
+              : outcome === 'clarify'
+                ? 'complete pilot readiness'
+                : 'explore the workflow'}
           </h2>
           <p className="max-w-[38em] t-p-lg-serif text-white">{result.message}</p>
         </div>
-        {result.scores ? (
+        {typeof result.workflowRiskScore === 'number' ? (
           <div className="space-y-20">
             <p className="t-p-lg-serif text-white">
-              production-memory risk: <span className="t-h1-sans">{result.scores.assessmentScore}/24</span>
+              production-memory risk: <span className="t-h1-sans">{result.workflowRiskScore}/24</span>
             </p>
-            <dl className="grid max-w-[680px] grid-cols-3 gap-20">
-              {(['fit', 'pain', 'intent'] as const).map((key) => (
-                <div key={key}>
-                  <dt className="t-p-sm-sans text-white">{key}</dt>
-                  <dd className="mt-8 t-h1-sans text-white">{result.scores?.[key].normalized}%</dd>
-                  <dd className="mt-4 t-p-sm-sans text-white">{result.scores?.[key].coverage}% coverage</dd>
-                </div>
-              ))}
-            </dl>
           </div>
         ) : null}
-        {result.downloadUrl ? (
+        {reasons.length ? <div className="max-w-[680px] space-y-10">
+          <p className="t-p-sm-sans text-white/70">why this result</p>
+          <ul className="space-y-8 t-p-sans text-white">
+            {reasons.map((reason) => <li key={reason}>— {reason}</li>)}
+          </ul>
+        </div> : null}
+        {result.missingFields?.length ? <p className="max-w-[680px] t-p-sans text-white/80">
+          Still needed: {result.missingFields.map((field) => field.replaceAll(/([A-Z])/g, ' $1').toLowerCase()).join(', ')}.
+        </p> : null}
+        {result.nextAction === 'pilot_scope' ? (
+          <div className="max-w-[680px] space-y-14">
+            <p className="t-p-sans text-white/80">
+              Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
+            </p>
+            <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', {workflow})}>
+              build my customized pilot plan
+              <ArrowRight aria-hidden="true" size={18} />
+            </CTAButton>
+          </div>
+        ) : result.nextAction === 'commercial_clarification' || result.nextAction === 'assessment_review' ? (
           <CTAButton
-            href={result.downloadUrl}
-            target="_blank"
-            rel="noreferrer"
-            analyticsLabel="Download My Assessment"
-            analyticsIntent="assessment_result"
+            type="button"
+            onClick={() => setReviewOpen(true)}
+            analyticsLabel="Complete Pilot Readiness"
+            analyticsIntent="commercial_readiness"
           >
+            complete pilot readiness
+            <ArrowRight aria-hidden="true" size={18} />
+          </CTAButton>
+        ) : (
+          <div className="max-w-[760px] space-y-20">
+            <CTAButton
+              href={`/ai-production-workflow-risks#${workflow}`}
+              analyticsLabel="Explore the Relevant Workflow"
+              analyticsUseCase={workflow}
+              onClick={() => void trackEvent('education_use_case_clicked', {workflow})}
+            >
+              explore the relevant production use case
+              <ArrowRight aria-hidden="true" size={18} />
+            </CTAButton>
+            <div className="border-l border-white/30 pl-20">
+              <p className="t-p-lg-serif text-white">
+                Think your workflow could benefit from a production repository and memory system? You’re invited to build a customized pilot plan.
+              </p>
+              <p className="mt-8 t-p-sans text-white/70">
+                Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
+              </p>
+              <CTAButton
+                href="/paid-pilot?from=assessment-override#scope"
+                analyticsLabel="Build a Customized Pilot Plan"
+                onClick={() => void trackEvent('assessment_override_started', {workflow})}
+                className="mt-14"
+              >
+                build a customized pilot plan
+                <ArrowRight aria-hidden="true" size={18} />
+              </CTAButton>
+            </div>
+          </div>
+        )}
+        {result.downloadUrl ? (
+          <CTAButton href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
             <ArrowDownToLine aria-hidden="true" size={18} />
             download my assessment
           </CTAButton>
         ) : null}
-        {result.nextAction === 'pilot_scope' ? (
-          <CTAButton href="/paid-pilot#scope" analyticsLabel="Scope a Production Pilot">
-            scope a production pilot
-            <ArrowRight aria-hidden="true" size={18} />
-          </CTAButton>
-        ) : result.nextAction === 'assessment_review' ? (
-          <CTAButton
-            type="button"
-            onClick={() => setReviewOpen(true)}
-            analyticsLabel="Review My Assessment"
-            analyticsIntent="workflow_review"
-          >
-            review my assessment
-            <ArrowRight aria-hidden="true" size={18} />
-          </CTAButton>
-        ) : (
-          <CTAButton
-            href={`/ai-production-workflow-risks#${workflow}`}
-            analyticsLabel="Explore the Relevant Workflow"
-            analyticsUseCase={workflow}
-          >
-            explore the relevant workflow
-            <ArrowRight aria-hidden="true" size={18} />
-          </CTAButton>
-        )}
         {reviewOpen ? (
           <div className="mt-40 max-w-[680px]">
             <WorkflowReviewForm

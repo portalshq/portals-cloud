@@ -210,21 +210,6 @@ function pilotValueStatement(data: PersonalizedQualification): string {
   return 'the pilot will establish the current retrieval, recreation, and handoff baseline before measuring whether portals can reduce the exposure.'
 }
 
-function ScoreMetrics({data, light = false}: {data: PersonalizedQualification; light?: boolean}) {
-  return (
-    <View style={styles.metrics}>
-      {(['fit', 'pain', 'intent'] as const).map((dimension) => (
-        <View key={dimension} style={light ? styles.lightMetric : styles.metric}>
-          <Text style={light ? styles.lightMetricValue : styles.metricValue}>
-            {data.scores[dimension].normalized}%
-          </Text>
-          <Text>{dimension} / {data.scores[dimension].coverage}% coverage</Text>
-        </View>
-      ))}
-    </View>
-  )
-}
-
 function Header({title, page}: {title: string; page?: number}) {
   return (
     <View style={styles.header}>
@@ -255,13 +240,11 @@ export function AssessmentResultPdfDocument({
           {data.identity.company} / {readable(data.identity.role || '')} / {new Date(data.generatedAt).toLocaleDateString('en-US')}
         </Text>
         <Text style={styles.coverMuted}>
-          production-memory risk {data.scores.assessmentScore}/24 · {readable(data.tier)}
+          production-memory risk {data.scores.workflowRiskScore ?? Math.round((data.scores.pain.normalized / 100) * 24)}/24
         </Text>
         <Text style={styles.body}>
           this result summarizes reported production conditions and routes the most useful next step. it is not a benchmark or guaranteed savings forecast.
         </Text>
-        <ScoreMetrics data={data} />
-
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>current production state</Text>
           <View style={styles.columns}>

@@ -77,7 +77,7 @@ test('sendPilotStatusEmail uses the stored submitter email and mints a submitter
   assert.match(String(calls[0].subject), /approval room is ready/)
   assert.equal(calls[0].idempotency, `${pilot.id}-status-reviewing-ava@studio.example`)
   const link = String(calls[0].text).match(
-    /https:\/\/portals\.test\/pilot\/[^?]+\?t=([a-zA-Z0-9._-]+)/,
+    /https:\/\/portals\.test\/paid-pilot\/room\/[^?]+\?t=([a-zA-Z0-9._-]+)/,
   )
   assert.ok(link, 'the email contains a tokenized room link')
   assert.deepEqual(verifyRoomToken(link[1]), {
@@ -107,7 +107,7 @@ test('sendPilotStatusEmail mints a tokenized room link from the recipient even w
   assert.equal(calls.length, 1)
   assert.equal(calls[0].to, 'ava@studio.example')
   const link = String(calls[0].text).match(
-    /https:\/\/portals\.test\/pilot\/[^?]+\?t=([a-zA-Z0-9._-]+)/,
+    /https:\/\/portals\.test\/paid-pilot\/room\/[^?]+\?t=([a-zA-Z0-9._-]+)/,
   )
   assert.ok(link, 'the email must contain a tokenized room link when answers.email is empty')
   assert.deepEqual(verifyRoomToken(link[1]), {

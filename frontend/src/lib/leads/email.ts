@@ -265,11 +265,13 @@ export function pilotCopy(
     default: {
       const oneCall = pilot.route === 'one-call'
       return {
-        subject: 'review pilot terms, share, revise, and confirm',
+        subject: 'your pilot approval room is ready',
         text: [
           'thanks for scoping a paid production pilot with portals.',
           '',
-          'your personalized pilot plan is assembled — no call required:',
+          oneCall
+            ? 'your free customized pilot plan is assembled; one pilot terms review is required:'
+            : 'your free customized pilot plan is assembled — no call required:',
           roomUrl,
           '',
           'your customized pilot brief and the portals security brief are packaged together:',
@@ -278,6 +280,7 @@ export function pilotCopy(
           ...(securityUrl ? ['', `security and architecture brief: ${securityUrl}`] : []),
           '',
           'in the approval room you can confirm the scope as drafted, request changes, or share the plan with the approver.',
+          'the $5,000 fee applies only if you approve the plan and conduct the pilot.',
           ...(oneCall && calendar
             ? ['', `a pilot terms review is required: choose a time: ${calendar}`]
             : []),
@@ -422,6 +425,13 @@ export async function sendFounderNotification(
     submission.request.submissionType === 'pilot_request'
       ? await getPilotBySubmissionId(submission.id)
       : null
+  const answers = submission.request.answers as Record<string, unknown>
+  const principalObjection = String(
+    answers.objectionDetail || answers.pilotBlocker || answers.primaryObjection || 'none recorded',
+  )
+  const founderPilotLink = pilot
+    ? pilotRoomLink(pilot, 'approver', recipient)
+    : null
   await sendEmail({
     idempotencyKey: `${submission.id}-founder`,
     to: recipient,
@@ -434,6 +444,17 @@ export async function sendFounderNotification(
       `role: ${submission.identity.role}`,
       `source: ${submission.request.attribution.sourcePage}`,
       ...(submission.tier ? [`qualification: ${submission.tier}`] : []),
+      ...(submission.response.qualificationOutcome
+        ? [`public outcome: ${submission.response.qualificationOutcome}`]
+        : []),
+      ...(submission.response.reasonCodes?.length
+        ? [`reason codes: ${submission.response.reasonCodes.join(', ')}`]
+        : []),
+      ...(submission.response.recommendedWorkflow
+        ? [`recommended workflow: ${submission.response.recommendedWorkflow}`]
+        : []),
+      `principal objection: ${principalObjection}`,
+      `next action: ${submission.response.nextAction}`,
       ...(pilot
         ? [
             '',
@@ -441,6 +462,7 @@ export async function sendFounderNotification(
             `pilot state: ${pilot.state}`,
             `unresolved items: ${pilot.unresolved.length}`,
             `exceptions: ${pilot.exceptions.length}`,
+            `approval room: ${founderPilotLink}`,
           ]
         : []),
       '',

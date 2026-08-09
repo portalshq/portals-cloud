@@ -379,9 +379,11 @@ function Responsibilities({document}: {document: ResourceDocument}) {
 function PilotForm({
   specSummary,
   context,
+  assessmentOrigin,
 }: {
   specSummary: string
   context: KnownLeadContext
+  assessmentOrigin: 'standard' | 'assessment_override'
 }) {
   return (
     <section id="scope" data-header-theme="light" className="scroll-mt-20">
@@ -392,19 +394,27 @@ function PilotForm({
             put one production workflow under test
           </h2>
           <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
-            five short stages: eligibility, scope, success, purchase, and
-            confirmation. your answers produce a personalized pilot plan and
-            approval room — no call required.
+            five short stages: eligibility, scope, success, approval, and
+            confirmation. building and receiving the customized pilot plan and
+            security details is free. the $5,000 fee applies only after you approve the plan and conduct the pilot.
           </p>
           <p className="mt-24 max-w-[36em] t-p-lg-sans text-white">
             the plan covers objectives, scope, milestones, success criteria,
             commercial terms, and security information. once confirmed, the
             standard pilot agreement is generated for signature and funding.
           </p>
+          {assessmentOrigin === 'assessment_override' ? (
+            <p className="mt-18 max-w-[36em] t-p-sans text-white/80">
+              You are continuing despite an educational assessment outcome. Complete the scope so one qualification call can definitively confirm or decline the pilot.
+            </p>
+          ) : null}
+          <p className="mt-18 t-p-sans text-white/80">
+            Not ready to scope? <a className="underline underline-offset-4" href="/assessment">Assess your AI creative production workflow first.</a>
+          </p>
         </div>
 
         <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
-          <PilotScopeForm specSummary={specSummary} context={context} />
+          <PilotScopeForm specSummary={specSummary} context={context} assessmentOrigin={assessmentOrigin} />
         </div>
       </div>
     </section>
@@ -489,9 +499,11 @@ function FinalDecision({document}: {document: ResourceDocument}) {
 export function PaidPilotLandingPage({
   document,
   context,
+  assessmentOrigin = 'standard',
 }: {
   document: ResourceDocument
   context: KnownLeadContext
+  assessmentOrigin?: 'standard' | 'assessment_override'
 }) {
   const specification = paidPilotSpec(document)
   const formSpecSummary = [
@@ -525,7 +537,7 @@ export function PaidPilotLandingPage({
         <SuccessCriteria document={document} />
         <CommercialTerms document={document} />
         <Responsibilities document={document} />
-        <PilotForm specSummary={formSpecSummary} context={context} />
+        <PilotForm specSummary={formSpecSummary} context={context} assessmentOrigin={assessmentOrigin} />
         <PilotFaq document={document} />
         <FinalDecision document={document} />
       </div>

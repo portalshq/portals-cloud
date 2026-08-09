@@ -2,7 +2,14 @@ import {cookies} from 'next/headers'
 import type {KnownLeadContext} from './contracts'
 import {getProfileByToken, latestQualificationAnswers, PROFILE_COOKIE} from './store'
 import {emailDomain, isPublicEmailDomain} from './identity'
-import {calculateQualification, qualificationTier, recommendedWorkflow} from './scoring'
+import {
+  calculateQualification,
+  missingReadinessFields,
+  qualificationOutcome,
+  qualificationReasonCodes,
+  qualificationTier,
+  recommendedWorkflow,
+} from './scoring'
 
 export async function currentProfileToken(): Promise<string | undefined> {
   return (await cookies()).get(PROFILE_COOKIE)?.value
@@ -41,8 +48,10 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
       Object.entries(fallbackAnswers).filter(([, value]) =>
         typeof value === 'string' ? value.trim().length > 0 : value != null,
       ),
-    ) as Record<string, string>
+    )
     const recreationFrequency = fallbackAnswers.recreationFrequency
+    const tier = fallbackScores ? qualificationTier(fallbackScores, fallbackAnswers) : undefined
+    const outcome = tier ? qualificationOutcome(tier) : undefined
     return {
       known: true,
       knownFields,
@@ -52,9 +61,18 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
         Boolean(profile.identity.email) &&
         !profile.identity.website &&
         isPublicEmailDomain(emailDomain(profile.identity.email || '')),
-      scores: qualification?.scores || fallbackScores,
-      qualificationTier:
-        qualification?.tier || (fallbackScores ? qualificationTier(fallbackScores) : undefined),
+      scores: fallbackScores,
+      qualificationTier: tier,
+      qualificationOutcome: outcome,
+      reasonCodes:
+        fallbackScores && outcome
+          ? qualificationReasonCodes(fallbackAnswers, fallbackScores, outcome)
+          : undefined,
+      missingFields:
+        outcome === 'clarify' ? missingReadinessFields(fallbackAnswers) : [],
+      assessmentCompleted: Boolean(
+        profile.qualification && fallbackAnswers.activeWorkflow,
+      ),
       recommendedWorkflow:
         qualification?.recommendedWorkflow ||
         (hasQualification ? recommendedWorkflow(fallbackAnswers) : undefined),

@@ -13,6 +13,7 @@ import {
 } from '@/lib/leads/pilot'
 import type {RoomToken} from '@/lib/leads/pilot-tokens'
 import type {StoredPilot} from '@/lib/leads/store'
+import {trackEvent} from '@/lib/leads/analytics-client'
 
 const EDITABLE_STATES: PilotState[] = [
   'reviewing',
@@ -106,12 +107,16 @@ export function PilotApprovalRoom({
   accessToken,
   sessionId,
   revisePath,
+  founderAccess = false,
+  qualificationCalendarUrl,
 }: {
   pilot: StoredPilot
   token: RoomToken
   accessToken: string
   sessionId?: string
   revisePath: string
+  founderAccess?: boolean
+  qualificationCalendarUrl?: string
 }) {
   const [pilot, setPilot] = useState(initial)
   const [criteria, setCriteria] = useState(initial.successCriteria)
@@ -144,6 +149,17 @@ export function PilotApprovalRoom({
       reviewer.email.toLowerCase() === token.email.toLowerCase() &&
       reviewer.status !== 'revoked',
   )
+  const assessmentQualificationPending = pilot.exceptions.some(
+    (item) => item.kind === 'assessment-qualification' && !item.resolvedAt,
+  )
+
+  useEffect(() => {
+    void trackEvent('pilot_room_opened', {
+      pilot_state: pilot.state,
+      pilot_route: pilot.route,
+      assessment_origin: answers.assessmentOrigin || 'standard',
+    })
+  }, [])
 
   useEffect(() => {
     if (!sessionId || pilot.state === 'paid') return
@@ -377,6 +393,22 @@ export function PilotApprovalRoom({
     }
   }
 
+  async function onQualificationDecision(action: 'qualify' | 'disqualify') {
+    const accepted = await patch({
+      action,
+      note:
+        action === 'qualify'
+          ? 'assessment override qualified by founder'
+          : 'assessment override declined by founder',
+    })
+    if (accepted) {
+      void trackEvent('qualification_call_outcome', {
+        pilot_id: pilot.id,
+        outcome: action === 'qualify' ? 'qualified' : 'not_eligible',
+      })
+    }
+  }
+
   const actionButtons = useMemo(() => {
     const pendingExceptionReview =
       pilot.route === 'one-call' &&
@@ -420,6 +452,18 @@ export function PilotApprovalRoom({
           </>
         )
       case 'exception_review':
+        if (assessmentQualificationPending) {
+          return founderAccess ? (
+            <>
+              <button onClick={() => onQualificationDecision('qualify')} disabled={busy} className={accentButtonClasses}>
+                qualify for pilot
+              </button>
+              <button onClick={() => onQualificationDecision('disqualify')} disabled={busy} className={plainButtonClasses}>
+                mark not eligible
+              </button>
+            </>
+          ) : null
+        }
         return (
           <>
             <button onClick={() => patch({action: 'resolve_exceptions', note: 'exceptions resolved'})} disabled={busy} className={accentButtonClasses}>
@@ -468,7 +512,7 @@ export function PilotApprovalRoom({
       default:
         return null
     }
-  }, [pilot.state, pilot.route, pilot.exceptions, pilot.proposal?.priceAmount, busy])
+  }, [pilot.state, pilot.route, pilot.exceptions, pilot.proposal?.priceAmount, busy, assessmentQualificationPending, founderAccess])
 
   const routeBadge =
     pilot.route === 'zero-call'
@@ -625,6 +669,26 @@ export function PilotApprovalRoom({
               a single pilot terms review is required before this plan can be
               finalized and signed.
             </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {assessmentQualificationPending ? (
+        <div className="mt-24 rounded border border-[#E5C7A8] bg-[#FBF3E9] px-20 py-16">
+          <p className="t-p-sm-sans font-medium">qualification call required</p>
+          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
+            This request came through the assessment self-selection path. The completed scope gives the founder enough context to definitively qualify or decline the pilot.
+          </p>
+          {!founderAccess && qualificationCalendarUrl ? (
+            <a
+              className="mt-12 inline-block t-p-sm-sans underline underline-offset-4"
+              href={qualificationCalendarUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => void trackEvent('qualification_call_scheduled', {pilot_id: pilot.id})}
+            >
+              schedule the qualification call
+            </a>
           ) : null}
         </div>
       ) : null}

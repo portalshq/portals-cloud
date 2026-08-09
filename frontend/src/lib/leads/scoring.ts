@@ -1,5 +1,7 @@
 import {
   SCORE_VERSION,
+  type QualificationOutcome,
+  type QualificationReasonCode,
   type QualificationScores,
   type QualificationTier,
   type ScoreDimension,
@@ -25,6 +27,14 @@ export function assessmentScore(
     100
   return Math.round(
     Math.min(ASSESSMENT_SCORE_MAXIMUM, (composite / 100) * ASSESSMENT_SCORE_MAXIMUM),
+  )
+}
+
+export function workflowRiskScore(
+  scores: Pick<QualificationScores, 'pain'>,
+): number {
+  return Math.round(
+    Math.min(ASSESSMENT_SCORE_MAXIMUM, (scores.pain.normalized / 100) * ASSESSMENT_SCORE_MAXIMUM),
   )
 }
 
@@ -267,6 +277,12 @@ export function calculateQualification(
       '3-plus-months': 1,
       'not-planned': 0,
     }),
+    mapped(answers, 'targetStartPeriod', 5, {
+      'within-30-days': 5,
+      'within-60-days': 4,
+      'this-quarter': 3,
+      later: 0,
+    }, !text(answers, 'timeline')),
     {maximum: 3, value: bool(answers, 'productProofCompleted') === undefined ? undefined : bool(answers, 'productProofCompleted') ? 3 : 0},
     {maximum: 3, value: bool(answers, 'pricingOrPilotViewed') === undefined ? undefined : bool(answers, 'pricingOrPilotViewed') ? 3 : 0},
     {maximum: 3, value: bool(answers, 'workflowReviewRequested') === undefined ? undefined : bool(answers, 'workflowReviewRequested') ? 3 : 0},
@@ -274,40 +290,104 @@ export function calculateQualification(
     {maximum: 2, value: bool(answers, 'securityDiligence') === undefined ? undefined : bool(answers, 'securityDiligence') ? 2 : 0},
   ])
 
-  return {version: SCORE_VERSION, fit, pain, intent, assessmentScore: assessmentScore({fit, pain, intent})}
+  return {
+    version: SCORE_VERSION,
+    fit,
+    pain,
+    intent,
+    assessmentScore: assessmentScore({fit, pain, intent}),
+    workflowRiskScore: workflowRiskScore({pain}),
+  }
 }
 
 export function qualificationTier(
   scores: QualificationScores,
+  answers?: QualificationAnswers,
 ): QualificationTier {
-  const sufficientCoverage =
+  if (answers && !credibleActiveWorkflow(answers)) return 'low'
+  if (
     scores.fit.coverage >= 60 &&
     scores.pain.coverage >= 60 &&
-    scores.intent.coverage >= 50
-
-  if (
-    sufficientCoverage &&
     scores.fit.normalized >= 70 &&
-    scores.pain.normalized >= 66 &&
-    scores.intent.normalized >= 60
+    scores.pain.normalized >= 57 &&
+    scores.intent.normalized >= 50
   ) {
     return 'high'
   }
 
   if (
-    scores.fit.coverage >= 60 &&
-    scores.pain.coverage >= 60 &&
-    scores.fit.normalized >= 70 &&
-    scores.pain.normalized >= 57
+    scores.fit.coverage < 60 ||
+    scores.pain.coverage < 60 ||
+    scores.fit.normalized >= 50 ||
+    scores.pain.normalized >= 40
   ) {
     return 'medium'
   }
 
-  if (scores.fit.coverage < 60 || scores.pain.coverage < 60) {
-    return 'incomplete'
-  }
-
   return 'low'
+}
+
+export function credibleActiveWorkflow(answers: QualificationAnswers): boolean {
+  const workflow = text(answers, 'activeWorkflow') || text(answers, 'pilotWorkflow')
+  return Boolean(workflow) && !/^(no|none|n\/a|not\s+(yet|sure)|unknown)$/i.test(workflow)
+}
+
+export function qualificationOutcome(
+  tier: QualificationTier,
+): QualificationOutcome {
+  if (tier === 'high') return 'pilot_candidate'
+  if (tier === 'medium' || tier === 'incomplete') return 'clarify'
+  return 'education'
+}
+
+export function qualificationReasonCodes(
+  answers: QualificationAnswers,
+  scores: QualificationScores,
+  outcome: QualificationOutcome,
+): QualificationReasonCode[] {
+  const reasons: QualificationReasonCode[] = []
+  if (scores.fit.normalized >= 70) reasons.push('strong-workflow-fit')
+  if (['daily', 'weekly', 'monthly'].includes(text(answers, 'recurringWorkflow'))) {
+    reasons.push('repeatable-production')
+  }
+  if (scores.pain.normalized >= 57) reasons.push('measurable-rework-risk')
+  if (['multiple-tools', 'chat-personal-notes', 'memory-inconsistent'].includes(text(answers, 'productionContextMethod'))) {
+    reasons.push('production-context-fragmented')
+  }
+  if (['folder-naming', 'chat-spreadsheet', 'creator-memory', 'inconsistent'].includes(text(answers, 'approvedVersionMethod'))) {
+    reasons.push('approved-version-risk')
+  }
+  if (!text(answers, 'activeWorkflow') || /^(no|none|n\/a|not\s+yet)$/i.test(text(answers, 'activeWorkflow'))) {
+    reasons.push('workflow-definition-needed')
+  } else if (outcome === 'clarify') {
+    reasons.push('commercial-readiness-needed')
+  }
+  if (outcome === 'education' && scores.pain.normalized < 40) {
+    reasons.push('limited-current-risk')
+  }
+  return [...new Set(reasons)].slice(0, 3)
+}
+
+export const readinessFields = [
+  'targetStartPeriod',
+  'approvalPath',
+  'productionOwner',
+  'primaryObjection',
+] as const
+
+export function missingReadinessFields(answers: QualificationAnswers): string[] {
+  return readinessFields.filter((field) => !hasAnswer(answers[field]))
+}
+
+export function commercialReadinessComplete(answers: QualificationAnswers): boolean {
+  const approvalPath = text(answers, 'approvalPath')
+  const targetStartPeriod = text(answers, 'targetStartPeriod')
+  return (
+    credibleActiveWorkflow(answers) &&
+    Boolean(text(answers, 'productionOwner')) &&
+    ['self', 'other', 'procurement'].includes(approvalPath) &&
+    ['within-30-days', 'within-60-days', 'this-quarter'].includes(targetStartPeriod)
+  )
 }
 
 const workflowByRisk: Record<string, string> = {

@@ -524,6 +524,7 @@ function mergeIdentity(
 ): LeadIdentity {
   if (!incoming) return current
   return {
+    name: incoming.name || current.name,
     email: incoming.email || current.email,
     company: incoming.company || current.company,
     role: incoming.role || current.role,
@@ -885,7 +886,10 @@ async function persistQualification(
   )
 }
 
-function outboxActions(request: LeadRequest): string[] {
+export function outboxActions(
+  request: LeadRequest,
+  tier?: QualificationTier,
+): string[] {
   if (request.submissionType === 'commercial_event') {
     return request.consent.analytics ? ['analytics'] : []
   }
@@ -902,6 +906,10 @@ function outboxActions(request: LeadRequest): string[] {
       'contact',
       'security_download',
     ].includes(request.submissionType)
+    || (
+      ['assessment', 'commercial_readiness'].includes(request.submissionType) &&
+      (tier === 'medium' || tier === 'high')
+    )
   ) {
     actions.push('founder_notification')
   }
@@ -1004,12 +1012,19 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
     )
 
     if (input.verified) {
-      const actions = outboxActions(input.request)
+      const actions = outboxActions(input.request, input.tier)
       for (const action of actions) {
+        const actionKey =
+          action === 'founder_notification' &&
+          ['assessment', 'commercial_readiness'].includes(input.request.submissionType) &&
+          input.tier &&
+          input.scores
+            ? `${profile.id}:${input.scores.version}:${input.tier}:${action}`
+            : `${input.request.idempotencyKey}:${action}`
         await client.query(
           `INSERT INTO lead_outbox(submission_id, action_type, action_key)
            VALUES ($1,$2,$3) ON CONFLICT(action_key) DO NOTHING`,
-          [id, action, `${input.request.idempotencyKey}:${action}`],
+          [id, action, actionKey],
         )
       }
       if (actions.length === 0) {
