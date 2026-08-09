@@ -1,17 +1,20 @@
 {
   "extends": "../tsconfig.base.json",
-  "include": ["src/**/*", "public/saga-webgl.js"],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
+  "include": ["src/**/*", "app/**/*", "public/saga-webgl.js"],
+  "exclude": ["node_modules", "build", "dist", ".next", "out", "**/*.test.ts"],
   "compilerOptions": {
     "noEmit": true,
     "jsx": "preserve",
     "lib": ["esnext", "dom", "dom.iterable"],
     "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
     "moduleResolution": "bundler",
-    "types": ["node", "vite/client"],
+    "plugins": [{ "name": "next" }],
+    "allowJs": true,
+    "incremental": true,
+    "types": ["node"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/config/*": ["./config/*"]
     }
   },
   "references": [

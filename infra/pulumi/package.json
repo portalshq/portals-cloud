@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "lint": "eslint . --ext .ts",
+    "test": "tsx --test tests/*.test.ts && ../../control-plane/scripts/test-pipeline.sh",
     "predeploy": "npm run build",
     "deploy": "pulumi up",
     "destroy": "pulumi destroy",
@@ -24,14 +25,16 @@
   "dependencies": {
     "@pulumi/aws": "^6.0.0",
     "@pulumi/awsx": "^2.0.0",
-    "@pulumi/docker": "^4.0.0",
-    "@pulumi/pulumi": "^3.0.0"
+    "@pulumi/pulumi": "^3.0.0",
+    "@pulumi/random": "^4.21.1",
+    "yaml": "^2.4.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.0.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }
 }

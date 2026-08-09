@@ -4,7 +4,7 @@ import { PlatformNetworkArgs } from "../interfaces";
 
 /**
  * PlatformNetwork Component
- * 
+ *
  * Creates a production-grade VPC network with:
  * - 3 public subnets
  * - 3 private subnets
@@ -19,7 +19,7 @@ export class PlatformNetwork extends pulumi.ComponentResource {
   public readonly privateSubnets: aws.ec2.Subnet[];
   public readonly internetGateway: aws.ec2.InternetGateway;
   public readonly natGateway: aws.ec2.NatGateway;
-  public readonly natEip: aws.eip.Eip;
+  public readonly natEip: aws.ec2.Eip;
   public readonly publicRouteTable: aws.ec2.RouteTable;
   public readonly privateRouteTable: aws.ec2.RouteTable;
   public readonly defaultSecurityGroup: aws.ec2.SecurityGroup;
@@ -28,6 +28,9 @@ export class PlatformNetwork extends pulumi.ComponentResource {
     super("portals:platform:Network", name, {}, opts);
 
     const resourcePrefix = `${args.projectName}-${args.environment}`;
+
+    // Resolve availability zones from Input
+    const resolvedAzs = pulumi.output(args.availabilityZones);
 
     // Create VPC
     this.vpc = new aws.ec2.Vpc(`${resourcePrefix}-vpc`, {
@@ -52,7 +55,7 @@ export class PlatformNetwork extends pulumi.ComponentResource {
     }, { parent: this });
 
     // Create Elastic IP for NAT Gateway
-    this.natEip = new aws.eip.Eip(`${resourcePrefix}-nat-eip`, {
+    this.natEip = new aws.ec2.Eip(`${resourcePrefix}-nat-eip`, {
       domain: "vpc",
       tags: {
         Name: `${resourcePrefix}-nat-eip`,
@@ -61,28 +64,26 @@ export class PlatformNetwork extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Create NAT Gateway in the first public subnet for cost optimization
+    // Create public subnets
+    this.publicSubnets = args.publicSubnetCidrs.map((cidr, index) =>
+      this.createPublicSubnet(index, cidr, args, resolvedAzs)
+    );
+
+    // Create private subnets
+    this.privateSubnets = args.privateSubnetCidrs.map((cidr, index) =>
+      this.createPrivateSubnet(index, cidr, args, resolvedAzs)
+    );
+
+    // Create NAT Gateway in the first public subnet
     this.natGateway = new aws.ec2.NatGateway(`${resourcePrefix}-nat`, {
       allocationId: this.natEip.id,
-      subnetId: pulumi.output(args.publicSubnetCidrs[0]).apply(cidr => 
-        this.createPublicSubnet(0, cidr, args).id
-      ),
+      subnetId: this.publicSubnets[0].id,
       tags: {
         Name: `${resourcePrefix}-nat`,
         Project: args.projectName,
         Environment: args.environment,
       },
     }, { parent: this });
-
-    // Create public subnets
-    this.publicSubnets = args.publicSubnetCidrs.map((cidr, index) => 
-      this.createPublicSubnet(index, cidr, args)
-    );
-
-    // Create private subnets
-    this.privateSubnets = args.privateSubnetCidrs.map((cidr, index) => 
-      this.createPrivateSubnet(index, cidr, args)
-    );
 
     // Create public route table
     this.publicRouteTable = new aws.ec2.RouteTable(`${resourcePrefix}-public-rt`, {
@@ -146,12 +147,17 @@ export class PlatformNetwork extends pulumi.ComponentResource {
     this.registerOutputs();
   }
 
-  private createPublicSubnet(index: number, cidr: string, args: PlatformNetworkArgs): aws.ec2.Subnet {
+  private createPublicSubnet(
+    index: number,
+    cidr: string,
+    args: PlatformNetworkArgs,
+    resolvedAzs: pulumi.Output<string[]>,
+  ): aws.ec2.Subnet {
     const resourcePrefix = `${args.projectName}-${args.environment}`;
     return new aws.ec2.Subnet(`${resourcePrefix}-public-subnet-${index}`, {
       vpcId: this.vpc.id,
       cidrBlock: cidr,
-      availabilityZone: args.availabilityZones[index],
+      availabilityZone: resolvedAzs[index],
       mapPublicIpOnLaunch: true,
       tags: {
         Name: `${resourcePrefix}-public-subnet-${index}`,
@@ -162,12 +168,17 @@ export class PlatformNetwork extends pulumi.ComponentResource {
     }, { parent: this });
   }
 
-  private createPrivateSubnet(index: number, cidr: string, args: PlatformNetworkArgs): aws.ec2.Subnet {
+  private createPrivateSubnet(
+    index: number,
+    cidr: string,
+    args: PlatformNetworkArgs,
+    resolvedAzs: pulumi.Output<string[]>,
+  ): aws.ec2.Subnet {
     const resourcePrefix = `${args.projectName}-${args.environment}`;
     return new aws.ec2.Subnet(`${resourcePrefix}-private-subnet-${index}`, {
       vpcId: this.vpc.id,
       cidrBlock: cidr,
-      availabilityZone: args.availabilityZones[index],
+      availabilityZone: resolvedAzs[index],
       mapPublicIpOnLaunch: false,
       tags: {
         Name: `${resourcePrefix}-private-subnet-${index}`,

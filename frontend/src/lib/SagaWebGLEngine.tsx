@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useRef } from "react";
 
 export const SagaWebGLEngine: React.FC = () => {
@@ -17,7 +19,7 @@ export const SagaWebGLEngine: React.FC = () => {
     const webglScriptElement = document.createElement('script');
     webglScriptElement.id = targetScriptId;
     webglScriptElement.type = 'module';
-    webglScriptElement.src = './saga-webgl.js';
+    webglScriptElement.src = '/saga-webgl.js';
     
     webglScriptElement.onerror = (errorEvent) => {
       console.error('[SagaWebGLEngine] Critical failure: Unable to load external WebGL script.', errorEvent);

@@ -1,249 +1,356 @@
 ---
 name: Portals
-description: Production repository for AI-native creative organizations — The Archivist aesthetic
-colors:
-  bg: "#0c0c0c"
-  surface: "#141414"
-  surface-variant: "#1e1e1e"
-  ink: "#e8e4df"
-  muted: "#8a8680"
-  primary: "#c4841a"
-  primary-foreground: "#ffffff"
-  secondary: "#7a9ab5"
-  secondary-foreground: "#ffffff"
-  destructive: "#d43c2e"
-  destructive-foreground: "#ffffff"
-  border: "#2a2a2a"
-  ring: "#c4841a"
-  card: "#111111"
-  card-border: "#2a2a2a"
-  popover: "#111111"
-  popover-border: "#2a2a2a"
-  input: "#1e1e1e"
-  surface-lowest: "#0a0a0a"
+description: Immersive editorial design system for the Portals production repository
+sourceOfTruth: "src/pages/vcs-current.tsx"
+theme:
+  direction: "cinematic, editorial, fluid, immersive"
+  foreground: "#ffffff"
+  fallbackBackground: "#010528"
+  canvas:
+    type: "animated WebGL color field"
+    baseColors:
+      deepIndigo: "#0E115F"
+      violet: "#726DD2"
+    transitionColors:
+      cobalt: "#3A87CB"
+      paleBlueGray: "#AAB5C3"
+      magenta: "#DD30C9"
+      dustyPink: "#C243A7"
+      mutedGreen: "#8BBFAF"
+  translucentSurface: "rgb(255 255 255 / 0.12)"
+  translucentSurfaceHover: "rgb(255 255 255 / 0.30)"
+  subtleBorder: "rgb(255 255 255 / 0.10)"
+  structuralBorder: "rgb(255 255 255 / 0.20)"
+  quoteBorder: "rgb(255 255 255 / 0.30)"
 typography:
-  display:
-    fontFamily: "Geist, system-ui, sans-serif"
-    fontSize: "clamp(2.5rem, 5vw, 4.5rem)"
-    fontWeight: 500
-    lineHeight: 1.05
-    letterSpacing: "-0.03em"
-  headline:
-    fontFamily: "Geist, system-ui, sans-serif"
-    fontSize: "clamp(2rem, 4vw, 3rem)"
-    fontWeight: 500
-    lineHeight: 1.1
-    letterSpacing: "-0.02em"
-  body:
-    fontFamily: "Geist, system-ui, sans-serif"
-    fontSize: "1rem"
-    fontWeight: 400
-    lineHeight: 1.6
-    letterSpacing: "normal"
-  label:
-    fontFamily: "JetBrains Mono, monospace"
-    fontSize: "0.75rem"
-    fontWeight: 500
-    lineHeight: 1.4
-    letterSpacing: "0.08em"
-  mono:
-    fontFamily: "JetBrains Mono, monospace"
-    fontSize: "0.875rem"
-    fontWeight: 400
-    lineHeight: 1.5
-    letterSpacing: "normal"
-rounded:
-  none: "0px"
-spacing:
-  sm: "8px"
-  md: "16px"
-  lg: "24px"
-  xl: "40px"
-  2xl: "64px"
-  3xl: "96px"
-components:
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.primary-foreground}"
-    rounded: "{rounded.none}"
-    padding: "12px 24px"
-  button-primary-hover:
-    backgroundColor: "#a87018"
-    textColor: "{colors.primary-foreground}"
-    rounded: "{rounded.none}"
-    padding: "12px 24px"
-  button-ghost:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
-    padding: "12px 24px"
-  button-outline:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
-    padding: "12px 24px"
-  card:
-    backgroundColor: "{colors.card}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
-    padding: "40px"
-  input:
-    backgroundColor: "{colors.input}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
-    padding: "12px 16px"
-  section-header:
-    fontFamily: "JetBrains Mono, monospace"
-    fontSize: "0.875rem"
-    fontWeight: 500
-    letterSpacing: "0.08em"
-    textTransform: "uppercase"
+  displaySans: "DieGroteskC"
+  textSans: "DieGroteskB"
+  editorialSerif: "StkBureau"
+  utilityMono: "AeonikFono"
+layout:
+  columns: 24
+  headerHeight: "78px"
+  siteMargin: "clamp(14.74px, calc(9px + 1.79375vw), 54.92px)"
+  siteGutter: "clamp(6.74px, calc(1px + 1.79375vw), 46.92px)"
+  sectionPadding: "clamp(76px, calc(67.429px + 1.339vw), 106px)"
+shape:
+  controlRadius: "4px"
+  defaultRadius: "0px"
+motion:
+  standardDuration: "500ms"
+  overviewEnter: "1250ms"
+  overviewExit: "400ms"
+  overviewStagger: "150ms"
 ---
 
-# Design System: Portals
+# Portals Design Language
 
-## 1. Overview
+## 1. Creative direction
 
-**Creative North Star: "The Production Archive"**
+Portals is presented as a living creative environment rather than a conventional software interface. The page combines production-system precision with the scale and pacing of an editorial campaign: oversized type, long full-viewport chapters, sparse white UI, and a continuously changing field of color behind the content.
 
-Portals is the memory layer of creative worlds. Its interface should feel like the physical archive of a world-class production studio — calm, precise, and built to outlast the work it preserves. Every surface communicates intentionality: nothing is decorative, nothing is accidental, nothing exists for "vibe." The system earns trust through structural honesty.
+The defining impression is **cinematic continuity**. The background, typography, scroll pacing, and pinned transitions make the page feel like one evolving composition instead of a stack of isolated marketing sections.
 
-This is not a SaaS landing page. Not a DAM. Not a dashboard. The interface sits between Apple's craft precision and Linear's software rigor, with the quiet authority of a Pixar production pipeline. The metaphor is a studio archive — not a filing cabinet, not a command center.
+The current design language is:
 
-**Key Characteristics:**
-- **Brutalist structural honesty.** Zero border-radius, no shadows, 1px borders. Depth through tonal layering and spacing, not decoration.
-- **Warmth through type and accent, not surface.** The near-black background is achromatic; all brand warmth lives in the amber primary and the quality of the typography.
-- **Monospace as technical authority.** JetBrains Mono carries section headers, metrics, and data — signaling precision without saying "developer tool."
-- **Cinematic restraint.** Motion is purposeful and minimal. Every animation earns its place through function, not flourish.
-- **Structural hierarchy through borders.** Grids separated by 1px lines at `--border` create clear visual zones without cards, shadows, or rounded containers.
+- Immersive rather than card-based.
+- Editorial rather than dashboard-like.
+- Color-rich rather than achromatic.
+- Fluid and responsive rather than governed by a small fixed type scale.
+- Mostly flat, with translucent glass used selectively for controls and grouped content.
+- Precise in its grid and typography, expressive in its background and motion.
 
-## 2. Colors
+## 2. Canvas and color
 
-The palette is achromatic at its foundation with a warm amber brand anchor and a cool slate secondary for functional contrast. All warmth comes from accent and type, never from the surface.
+### The canvas
 
-### Primary
-- **Archive Amber** (`#c4841a`): The brand anchor. Used on CTAs, active states, links, and the brand wordmark. Reserved for ≤15% of any screen — its rarity is its authority.
+The default HTML fallback is deep navy `#010528`. In the full experience, a fixed WebGL layer sits behind the page and supplies the visual atmosphere. Its ramps move through indigo, violet, cobalt, pale blue-gray, magenta, dusty pink, and muted green.
 
-### Secondary
-- **Archive Slate** (`#7a9ab5`): Cool counterpart for secondary actions, data labels, and the "With Portals" column highlights. Provides contrast against the warm primary without competing.
+Do not replace this experience with a single near-black surface. Color progression is a core part of the identity and gives each scroll chapter a distinct mood while preserving continuity.
 
-### Neutral
-- **Void Black** (`#0c0c0c`): The body background. Pure achromatic near-black — no warmth, no cool tint. The stage, not the set.
-- **Surface** (`#141414`): Cards, panels, raised containers. One step above void — enough to separate without lifting.
-- **Surface Variant** (`#1e1e1e`): Subtle containers, input backgrounds, secondary surfaces. Two steps above void.
-- **Surface Lowest** (`#0a0a0a`): Deepest layer — hero backgrounds, footer foundation. Below void.
-- **Ink** (`#e8e4df`): Primary body text. Warm off-white with a slight cream cast — readable, comfortable, never stark white.
-- **Muted** (`#8a8680`): Secondary text, captions, placeholder copy. Must reach ≥4.5:1 against its background.
-- **Border** (`#2a2a2a`): All structural separators, grid lines, card edges. Always 1px.
+### Foreground
 
-### Named Rules
+White is the universal foreground:
 
-**The Archive Amber Rule.** The primary accent is used on ≤15% of any given screen. Its rarity is the point — when amber appears, it means something. Never use it for decorative elements, background tints, or gradient fills.
+- Primary text and icons: `#ffffff`
+- Secondary table text: white at 80% opacity
+- Quiet borders and fills: white at 10–30% opacity
 
-**The Achromatic Foundation Rule.** The background surface carries zero chroma. All brand warmth lives in the amber primary, the slate secondary, and the quality of the typography. Adding warmth to the surface creates the cream/sand/beige AI default.
+The system does not use a separate brand accent for calls to action. Hierarchy comes from size, font contrast, opacity, layout, and glass treatment.
+
+### Translucency
+
+Translucent white surfaces are intentionally used over the animated canvas:
+
+- CTA fill: `white / 12%`
+- CTA border: `white / 10%`
+- CTA hover: `white / 30%`
+- Overview list items: `white / 10%` with `20px` backdrop blur
+- Capability group: `20%` white separators with `12px` backdrop blur
+- CTA control: `50px` backdrop blur
+
+These treatments should remain sparse. They are functional lenses over the moving background, not a universal container style.
+
+### Color rules
+
+- Keep text white across all color-ramp states.
+- Use opacity, not new hues, for secondary information.
+- Preserve enough darkness or saturation behind text to maintain contrast.
+- Treat the WebGL palette as a continuous environmental field, not as discrete section background tokens.
+- Do not introduce amber, slate, beige, or solid charcoal themes; they are not part of this page.
 
 ## 3. Typography
 
-**Display Font:** Geist (with system-ui, sans-serif fallback)
-**Body Font:** Geist (with system-ui, sans-serif fallback)
-**Label/Mono Font:** JetBrains Mono (with monospace fallback)
+Typography carries most of the hierarchy. Four purpose-built families create a strong editorial contrast.
 
-**Character:** Geist is a clean, geometric sans-serif with humanist proportions — technical without being cold, modern without being trendy. Paired with JetBrains Mono for technical labels and data, the pairing signals "production-grade infrastructure" without crossing into developer-tool territory. The mono is never used for body copy.
+### Display sans — Die Grotesk C
 
-### Hierarchy
-- **Display** (500, clamp(2.5rem, 5vw, 4.5rem), 1.05): Hero headlines. The single largest typographic moment on any page. Tight leading, tight tracking (-0.03em).
-- **Headline** (500, clamp(2rem, 4vw, 3rem), 1.1): Section headings. Clear hierarchy below display but commanding.
-- **Title** (500, 1.5rem, 1.2): Subsection titles within sections. Supporting the headline.
-- **Body** (400, 1rem, 1.6): All running prose. Line length capped at 65–75ch. `text-wrap: pretty` on long paragraphs.
-- **Label** (500, 0.75rem, 0.08em tracking, uppercase): Section headers ("THE PROBLEM", "HOW IT WORKS"), eyebrow text, technical labels. JetBrains Mono only.
+Used for hero and section-scale statements.
 
-### Named Rules
+- `t-d1-sans`: fluid `43.8–114.12px`, weight 300, line-height 95%, slightly positive tracking
+- `t-d2-sans`: fluid `33.7–107.36px`, weight 300, line-height 100%, slightly positive tracking
 
-**The Mono Authority Rule.** JetBrains Mono appears only where precision is the message: section headers, metrics, data points, code references, the brand wordmark in footer contexts. It never carries body prose or UI labels that don't need technical weight.
+The display sans is airy, light, and monumental. Large headings should usually be sentence case or lowercase, constrained by `em`-based max widths, and allowed to establish their own line breaks.
 
-**The Display Ceiling Rule.** Display heading size never exceeds 4.5rem (~72px). Above that the page is shouting, not designing. The clamp() max is the hard ceiling.
+### Editorial serif — STK Bureau
 
-## 4. Elevation
+Used inside major statements to change voice and emphasis rather than merely weight.
 
-No shadows. None. The system is structurally flat — all depth is conveyed through tonal layering (surface → surface-variant → surface-lowest) and 1px borders. Shadows would break the brutalist contract and introduce the visual softness the design explicitly rejects.
+- `t-d1-serif`: fluid `45.8–116.12px`, weight 400, line-height 95%, tight negative tracking
+- `t-d2-serif`: fluid `34.65–109.98px`, weight 400, line-height 100%, tight negative tracking
+- `t-p-lg-serif`: fluid `19.69–29.73px`, weight 400, line-height 120%
 
-### Depth Strategy
-Depth is communicated through three mechanisms:
-1. **Tonal stepping.** Background → surface → surface-variant creates readable layering without lifting.
-2. **1px borders.** Every structural separator, grid line, and card edge is a 1px border at `--border`. The grid-gap-px pattern (seen in the comparison table and capability grids) uses borders as the primary organizational tool.
-3. **Spacing rhythm.** Vertical spacing increases at section boundaries (py-24) and decreases within sections (gap-4, gap-8), creating implicit depth without visual lifting.
+The serif is the emotional register of the page. Use it for decisive phrases, lead copy, explanatory prose, and quotes.
 
-### Named Rules
+### Text sans — Die Grotesk B
 
-**The Flat-By-Default Rule.** Surfaces are flat at all times. Shadows never appear — not on hover, not on focus, not on elevation. State changes are communicated through color shift, border emphasis, or tonal stepping.
+Used for supporting copy, headings, branding, controls, tables, and lists.
 
-## 5. Components
+- `t-h3-sans`: fluid `25.48–42.22px`, weight 400, line-height 104%
+- `t-p-sans`: fluid `15.69–25.73px`, weight 400, line-height 120%
+- `t-button`: `18px`, weight 500
+- Global CTA heading: fluid `37.91–104.87px`, weight 300, line-height 100%
 
-### Buttons
-- **Shape:** Zero border-radius (0px). Sharp corners, always.
-- **Primary:** Archive Amber fill (`--primary`), white text. Padding: 12px 24px. Font: Geist 500. Monospace variant available for CTA contexts.
-- **Hover:** Amber deepens to `#a87018`. No transform, no shadow — color shift only.
-- **Ghost:** Transparent background, ink text. Used for secondary actions ("Read Docs").
-- **Outline:** Transparent background, ink text, 1px border at `--border`. Used for tertiary actions.
+### Utility mono — Aeonik Fono
 
-### Cards / Containers
-- **Corner Style:** Zero radius (0px). Sharp corners, always.
-- **Background:** `--card` (`#111111`) for standard cards, `--surface-lowest` (`#0a0a0a`) for hero backgrounds.
-- **Shadow Strategy:** None. Depth via tonal stepping and borders only.
-- **Border:** 1px solid `--border` (`#2a2a2a`). Always present on cards.
-- **Internal Padding:** 40px (standard), 24px (compact), 64px (hero).
+`t-m2` is a fluid `13.74–22.11px`, uppercase, 100% line-height utility style. It is used for:
 
-### Inputs / Fields
-- **Style:** `--input` background (`#1e1e1e`), ink text, zero radius. 1px border at `--border`.
-- **Focus:** Border color shifts to `--ring` (Archive Amber). No glow, no shadow.
-- **Error:** Border shifts to `--destructive` (red).
+- Three-digit overview indices
+- Problem-card numbers
+- Comparison labels
+- Pricing periods
+- Citations and compact metadata
 
-### Section Headers
-- **Style:** JetBrains Mono, 500 weight, 0.08em tracking, uppercase. Color: Archive Slate (`--secondary`). Always lowercase in the current implementation ("THE PROBLEM", "HOW IT WORKS").
+Utility mono should remain terse. It is not a body or navigation font.
+Number markers use single padding: `01`, `02`, `03`, not `001`, `002`, `003`.
 
-### Grid Separators
-- **Pattern:** `gap-px bg-[--border]` on the parent creates 1px grid lines between children. Children carry their own background. This is the primary structural tool for comparison tables, capability grids, and pricing tiers.
+### Type rules
 
-### Navigation
-- **Style:** Lowercase Geist, ink text. Hover: transitions to white. No active state indicator — navigation relies on scroll position, not visual emphasis.
+- Build hierarchy with font role, scale, and placement—not many weights.
+- Use the serif to create tonal shifts inside large sans statements.
+- Preserve deliberately tight display leading.
+- Keep large copy widths expressed in `em` so measure scales with type.
+- Lowercase is a recurring voice choice for the brand, hero, comparison language, and supporting label.
+- Avoid generic system fonts, tracked eyebrow labels above every section, and conventional 72px display ceilings; this page intentionally scales beyond them.
 
-### Pricing Tiers
-- **Popular indicator:** 1px border at Archive Amber (`--secondary` in current code, should be `--primary`). "Most Popular" label in JetBrains Mono uppercase.
+## 4. Layout and spatial system
 
-## 6. Do's and Don'ts
+### Grid
 
-### Do:
-- **Do** use 1px borders as the primary structural tool. Grids, cards, sections, tables — all separated by 1px borders at `--border`.
-- **Do** use tonal stepping (background → surface → surface-variant) for depth hierarchy instead of shadows or elevation.
-- **Do** use JetBrains Mono for section headers, metrics, and technical labels — it signals precision.
-- **Do** keep the Archive Amber accent to ≤15% of any screen. Its rarity communicates authority.
-- **Do** use `text-wrap: balance` on h1–h3 for even line lengths. Use `text-wrap: pretty` on long prose.
-- **Do** use `clamp()` for responsive display typography. Never exceed 4.5rem.
-- **Do** maintain ≥4.5:1 contrast for body text and ≥3:1 for large text. The warm `--ink` on `--background` achieves this.
-- **Do** use the grid-gap-px pattern for structured comparisons (comparison tables, capability grids, pricing).
-- **Do** keep body line length at 65–75ch maximum.
+The primary layout is a responsive 24-column grid (`ui-grid`). Content frequently spans asymmetric subsets of that grid:
 
-### Don't:
-- **Don't** use border-radius greater than 0px on any element. Zero radius is a structural commitment, not a starting point. Full-pill is acceptable for tags and badges only.
-- **Don't** use box-shadow on any element. The system is flat by design.
-- **Don't** use gradient text (`background-clip: text`). Decorative, never meaningful.
-- **Don't** use side-stripe borders (`border-left` or `border-right` greater than 1px as colored accent). Rewrite with full borders, background tints, or nothing.
-- **Don't** use glassmorphism, backdrop-blur, or translucent surfaces. Rare and purposeful, or nothing.
-- **Don't** use cream, sand, beige, or warm-tinted backgrounds. The background is pure achromatic near-black. Warmth comes from accent and type only.
-- **Don't** use gradient backgrounds. Surfaces are solid colors.
-- **Don't** use the hero-metric template (big number + small label + supporting stats + gradient accent). It's a SaaS cliché.
-- **Don't** use identical card grids (same-sized cards with icon + heading + text, repeated endlessly). Use the grid-gap-px pattern or varied layouts.
-- **Don't** put a tiny uppercase tracked eyebrow above every section. Use it deliberately for key sections, not as universal scaffolding.
-- **Don't** use numbered section markers (01 / 02 / 03) as default scaffolding. Numbers earn their place when the section is a real sequence.
-- **Don't** use hand-drawn / sketchy SVG illustrations. If you can't render the scene with real assets, ship no illustration.
-- **Don't** use `repeating-linear-gradient(...)` stripe backgrounds. Pure decoration.
-- **Don't** use decorative grid backgrounds (two-axis CSS grid overlays from `linear-gradient`).
-- **Don't** look like generic SaaS landing pages (cream backgrounds, gradient cards, hero-metric templates).
-- **Don't** look like traditional DAM/enterprise tools (bureaucratic compliance-software aesthetic).
-- **Don't** look like playful AI creativity tools (fun/bubbly AI image generators, neon gradients, "magic" terminology).
-- **Don't** look like generic AI infrastructure / developer tooling (terminal screenshots, code-first heroes, benchmark numbers).
-- **Don't** look like consumer AI companion / "AI magic" products (chat bubbles, magic wands, sparkles).
-- **Don't** look like enterprise workflow software (Jira/Monday.com feel, checklists, status dashboards).
-- **Don't** look like stock photography / marketing SaaS aesthetic (people around laptops, "empower your team" copy).
-- **Don't** look like NFT / Web3 / ownership aesthetic (blockchain visuals, crypto gradients, token language).
-- **Don't** look like overly futuristic sci-fi (holograms, glowing interfaces, cyberpunk, AI brain imagery).
+- Lead statement: 20 columns, offset by 2
+- Overview: icon in 3 columns, title and copy across the remaining 21
+- Workflow: copy on the left, ordered actions beginning around column 13
+- Supporting hero label: narrow block offset from the left
+
+Do not collapse desktop compositions into centered single-column containers by default. Offset, asymmetry, and wide negative space are essential.
+
+### Fluid margins
+
+- Site margin: `14.74–54.92px`
+- Site gutter: `6.74–46.92px`
+- Standard section block padding: `76–106px`
+- Common section row gap: `30–52px`
+
+Spacing is continuous across viewport sizes through `clamp()`. Fixed values are used mainly for component internals (`8`, `16`, `18`, `20`, `24`, `34`, and `36px`).
+
+### Vertical pacing
+
+Major chapters use generous vertical duration:
+
+- Hero: at least one viewport high
+- Lead, problem, and solution chapters: one viewport on desktop where appropriate
+- Overview: a `900vh` desktop scroll stage with a sticky full-screen composition
+- Closing CTA: one viewport high
+
+The page should breathe in chapters. Avoid compressing it into a conventional sequence of compact content bands.
+
+### Responsive behavior
+
+Desktop begins at `64rem`.
+
+- Below desktop, complex grids become single-column or two-column arrangements.
+- The pinned overview becomes a long vertical list with large gaps (`106–212px`).
+- The header is absolute on small screens and fixed from the medium breakpoint.
+- Comparison rows stack their metric and both states; contextual column labels appear inside each row.
+- Pricing, cards, and audience groups stack to one column.
+
+Mobile is a recomposition of the same narrative, not a miniaturized desktop layout.
+
+## 5. Components and recurring patterns
+
+### Header
+
+The header is `78px` high and overlays the page. It contains only:
+
+- Lowercase `portals` wordmark in the sans heading face
+- A single Scope a pilot control
+
+Keep navigation minimal. The moving canvas and hero need visual room.
+
+### CTA button
+
+The primary CTA is a compact glass control:
+
+- Minimum width `220px`
+- Height `48px`
+- Horizontal padding `18px` left and `12px` right
+- `4px` radius
+- `1px` white/10 border
+- White/12 fill
+- `50px` backdrop blur
+- White text in 18px medium sans
+- 500ms color transition to white/30 on hover
+
+There is no solid accent button, shadow, lift, or transform.
+
+### Number labels
+
+Sequence labels pair:
+
+- An `8px × 8px` solid white square
+- A utility-mono number, generally single padded (`01`, `02`, …)
+- A wide `32px` horizontal gap in the overview; tighter variants may use `8px`
+
+This square-plus-number construction is the recurring marker language.
+
+### Editorial content groups
+
+Problem cards, audience entries, and pricing tiers rely on shared grid alignment and whitespace rather than independent filled cards. They typically use `24px` internal padding with no background.
+
+Do not automatically add borders around every item. Some groups are intentionally open; separators appear only where the composition needs them.
+
+### Comparison table
+
+The comparison is a typographic three-column matrix:
+
+- Metric
+- Without Portals
+- With Portals
+
+Rows use white/20 top rules. Desktop columns use white/20 left rules. Secondary content drops to 80% opacity. The table remains visually integrated with the canvas rather than enclosed in a card.
+
+### Capability group
+
+Capabilities form a two-column glass-adjacent grid on desktop:
+
+- `1px` gaps created by a white/20 parent background
+- `4px` group radius
+- `12px` backdrop blur
+- `24px` item padding
+
+Items themselves remain transparent so the animated field reads through.
+
+### Workflow items
+
+Workflow steps are simple bordered rows:
+
+- `1px` inherited white border
+- `4px` radius
+- `18px` padding
+- `8px` vertical separation
+
+The treatment is quieter and more compact than the capability group.
+
+### Quotes
+
+Quotes use a single white/30 left rule with `18px` left padding, large editorial serif copy, and a mono citation below. A side rule is appropriate here because it denotes quotation, not decoration.
+
+### Icons
+
+Overview icons are abstract, geometric SVG line/forms rendered in the current text color. Their width scales fluidly from `44–86px`. Icons are editorial anchors, not small badges inside cards.
+
+## 6. Motion and scroll behavior
+
+Motion is a principal design material.
+
+### Environmental motion
+
+The fixed WebGL layer responds to scroll markers and changes color ramps across the narrative. Page content remains transparent so this background can unify every section.
+
+### Overview chapter
+
+On desktop, the overview is pinned while five concepts advance through scroll:
+
+- Repository
+- Identity
+- History
+- Provenance
+- Collaboration
+
+Each state replaces the previous one in place. Content exits with opacity and `10px` blur over `400ms`, then enters over `1250ms` using an expressive ease-out curve. Four content layers stagger by `150ms`: title/icon, first copy column, middle copy/list column, and final statement. A thin horizontal progress line scales from the left.
+
+On mobile, all overview items are visible in sequence and the pinned interaction is removed.
+
+### Interaction motion
+
+- Button hover changes translucent fill over `500ms`.
+- Do not add routine card lifts, bounce, parallax text, or shadow animation.
+- Preserve `prefers-reduced-motion`: overview transitions are disabled when reduced motion is requested.
+
+## 7. Composition patterns
+
+Use these patterns when extending the page:
+
+1. **Monumental statement:** a light-weight display sans sentence with one strategically chosen serif phrase.
+2. **Asymmetric explanation:** title or lead copy occupying 9–16 of the 24 columns, balanced by negative space or supporting content.
+3. **Open grid:** repeated content aligned by the parent grid without compulsory card chrome.
+4. **Hairline matrix:** comparisons organized with white/20 one-pixel rules.
+5. **Glass lens:** a small interactive control or grouped module that lightly blurs the animated canvas.
+6. **Full-screen chapter:** one key idea with enough vertical space to feel like a scene rather than a section.
+7. **Square and index:** compact sequence metadata paired with the white square marker.
+
+## 8. Do and do not
+
+### Do
+
+- Let the animated color field remain visible through the page.
+- Use white as the primary interface color and opacity for secondary hierarchy.
+- Pair Die Grotesk and STK Bureau within important statements.
+- Use the 24-column grid to create offset and asymmetric compositions.
+- Scale typography and spacing fluidly.
+- Give major narrative moments viewport-scale breathing room.
+- Use translucent blur selectively for CTAs, compact lists, and grouped capability content.
+- Use one-pixel white rules for tables and deliberate structural divisions.
+- Preserve the sticky overview’s staged blur-and-opacity rhythm.
+- Recompose complex interactions for mobile.
+
+### Do not
+
+- Do not restore the previous near-black and amber “archive” palette.
+- Do not use Geist or JetBrains Mono; they are not the page’s typefaces.
+- Do not describe the system as brutalist, achromatic, or zero-radius.
+- Do not prohibit backdrop blur; it is part of the implemented component language.
+- Do not place all content on opaque dark cards.
+- Do not add shadows or elevation to create hierarchy.
+- Do not turn every repeated item into a bordered card.
+- Do not add gradients as isolated CSS decoration; color belongs to the shared WebGL environment.
+- Do not add a conventional navigation bar full of links.
+- Do not standardize all headings into one sans style; serif contrast is fundamental.
+- Do not shorten the desktop overview into a static card grid.
+- Do not use bright accent colors for individual controls that compete with the canvas.
+
+## 9. Source-of-truth rule
+
+`src/pages/vcs-current.tsx`, together with `src/saga-repro.css`, `src/saga.css`, and `public/saga-webgl.js`, defines the current design language. This document should follow those implementations. If the page and this document diverge, update this document to describe the page rather than preserving obsolete guidance.

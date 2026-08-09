@@ -280,7 +280,7 @@ class Timer {
     this._start = performance.now();
     this._delta = 0;
     this._elapsed = 0;
-    this._timescale = 1;
+    this._timescale = 0.95;
     this._onVis = this._onVis.bind(this);
   }
 
@@ -731,7 +731,6 @@ class SagaEngine {
       uniforms: this.meshUniforms,
       vertexShader: MESH_VS,
       fragmentShader: MESH_FS,
-      morphTargets: true,
     });
 
     this.postEffects = null;
@@ -1101,7 +1100,7 @@ function createPostEffects(renderer, scene, camera, width, height) {
 // SECTION 11: SCROLL HIJACK SYSTEM
 // =============================================================================
 //
-// Only the overview section's sub-blocks (001-004) are fixed and blurred.
+// Only the overview section's sub-blocks (01-04) are fixed and blurred.
 // Everything else scrolls normally: hero, lead, CTA, footer.
 //
 // Layout:

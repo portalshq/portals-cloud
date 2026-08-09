@@ -1,0 +1,862 @@
+chat: 
+    - https://chatgpt.com/g/g-p-6a64fe9a45088191bee1035ede77e031-portals-sales/c/6a712f39-1934-83ea-816a-3e3c845bb365
+---
+Revise the customized paid pilot brief, We are moving primarily to a zero-call pilot system. Build a zero-call standard package, and a one-call exception package. Identify and fix the gaps to the zero call standard package.
+ The customized paid pilot brief is not a draft proof of work. It is a draft pilot plan or proposed statement of work. Proof of work would be evidence that work was completed.
+More importantly, the current flow ends with a document when it should end with a decision surface:
+Form submitted → PDF downloaded → prospect reads it → uncertainties accumulate → someone requests a call → scope is renegotiated → final terms are drafted → signature → payment
+The PDF is informative, but it creates a dead end. It does not let the buyer:
+	•	correct assumptions;
+	•	accept individual scope elements;
+	•	request bounded exceptions;
+	•	involve another stakeholder;
+	•	approve commercial terms;
+	•	sign;
+	•	pay;
+	•	schedule kickoff.
+The highest-leverage change is therefore not another document. It is a personalized Pilot Approval Room that turns the generated proposal into an editable, approvable, signable transaction.
+The target funnel
+Standard path: zero calls
+
+Pilot inquiry
+→ eligibility and configuration form
+→ personalized pilot approval room
+→ prospect confirms or edits scope
+→ standard pilot agreement generated
+→ authorized signer signs
+→ payment submitted
+→ kickoff scheduled
+
+Exception path: one call
+
+Pilot inquiry
+→ personalized pilot approval room
+→ prospect requests nonstandard terms
+→ system classifies and summarizes exceptions
+→ all required decision-makers attend one resolution call
+→ final terms resolved during the call
+→ agreement signed and payment initiated
+
+
+Build a zero-call standard package and a one-call exception package.
+That matches current B2B buying behavior: buyers increasingly prefer self-directed digital evaluation, but still use sellers at critical moments to validate fit, reduce risk, secure internal support, and finalize purchases.
+Calls are for resolving consequential exceptions, not collecting information your system could have collected beforehand.
+A call should not be used to ask:
+	•	What workflow do you want to test?
+	•	Who owns it?
+	•	Which integrations do you need?
+	•	How many participants will be involved?
+	•	What does success mean?
+	•	Do you require a security review?
+	•	Who signs?
+	•	Can you approve $5,000?
+Those questions belong in the configuration flow.
+The call should be reserved for:
+	•	custom integration feasibility;
+	•	materially altered success criteria;
+	•	special security or data terms;
+	•	pricing or annual-deployment negotiation;
+	•	internal stakeholder disagreement;
+	•	legal redlines;
+	•	nonstandard liability, SLA, or data-processing requirements.
+Gap 1: the brief defers nearly every binding term
+The document says:
+Before kickoff, Portals and the customer will agree in writing on the annual deployment scope, annual deployment price, pilot-fee credit window, final decision date, included users, included projects, and integrations.
+That means the generated brief does not define the transaction. It explicitly postpones it.
+The unresolved list includes:
+	•	annual deployment scope;
+	•	annual price;
+	•	credit window;
+	•	decision date;
+	•	participant count;
+	•	project count;
+	•	integrations;
+	•	final success criteria;
+	•	budget approval.
+This is why a call remains necessary. Your form collects information, but your output does not convert enough of it into settled commercial terms.
+Correction
+The generated proposal should contain exact values:
+
+Pilot price: $5,000
+Payment: due on signature
+Pilot term: September 1–21, 2026
+Participants: 5 named production participants
+Included workflow: [specific workflow]
+Included active project: [project]
+Included historical project: [project]
+Included integration method: structured import from [system]
+Annual deployment option: Studio, $30,000 annually
+Pilot credit: $5,000 if annual agreement is signed by September 28, 2026
+Final decision meeting or deadline: September 22, 2026
+
+The approval interface (paid pilot form)
+If a value is unknown, the prospect should resolve it inside the approval interface before the agreement can be signed.
+Do not generate:
+To be confirmed during pilot scoping.
+Generate:
+Required before approval: select a budget status.
+Gap 2: the form produces a summary, not a configuration
+Your form is extensive, but several questions collect loose text rather than contractual parameters.
+Examples:
+	•	workflow details
+	•	success criteria
+	•	security requirements
+	•	annual deployment expectations
+	•	message
+These are useful for discovery but difficult to convert automatically into binding scope.
+Use controlled configuration wherever possible
+For example:
+Historical project
+	•	One completed project
+	•	No historical project available
+	•	More than one required
+Integration method
+	•	Manual structured upload
+	•	Supported cloud-storage import
+	•	API-based import
+	•	Custom integration required
+	•	Not yet known
+Customer data classification
+	•	Public or published material
+	•	Confidential commercial material
+	•	Unreleased client material
+	•	Personal data
+	•	Regulated or specially restricted data
+	•	Not sure
+Success criterion
+	•	Approved asset retrieval
+	•	Production-context recovery
+	•	Reproduction
+	•	Meaningful extension
+	•	Knowledge transfer
+	•	Variant-lineage control
+	•	Continuity preservation
+	•	Other
+Then collect free text only to qualify the selected parameter.
+This allows the system to distinguish:
+	•	standard included scope;
+	•	permissible standard adjustment;
+	•	priced add-on;
+	•	nonstandard exception;
+	•	disqualifying requirement.
+
+Gap 3: there is no explicit standard-scope boundary
+Your landing page describes what the pilot includes, but it does not make the limits operationally precise.
+A buyer cannot tell whether the $5,000 includes:
+	•	one integration or several;
+	•	custom API development;
+	•	historical data cleaning;
+	•	unlimited asset ingestion;
+	•	custom security review;
+	•	legal redlines;
+	•	dedicated infrastructure;
+	•	complex model integration;
+	•	additional users;
+	•	additional projects;
+	•	post-pilot export assistance.
+That ambiguity forces a conversation.
+Publish a standard package specification. Note: the specification already exists in @PersonalizedPilotPdfDocument and should utilized and expanded, if needed.
+For example:
+Standard $5,000 pilot includes
+	•	One production team
+	•	One active workflow
+	•	One historical project
+	•	Up to five participating users
+	•	One standard import or integration path
+	•	Up to a defined asset or storage limit
+	•	Standard repository configuration
+	•	One kickoff
+	•	One participant onboarding session
+	•	Support during the 21-day period
+	•	One final evaluation
+	•	Standard pilot agreement
+	•	Standard security documentation
+Not included without written amendment
+	•	Custom software development
+	•	Dedicated infrastructure
+	•	Customer-managed encryption keys
+	•	Custom SLA or recovery commitments
+	•	More than one integration path
+	•	Complex data migration or cleansing
+	•	Regulated data
+	•	Bespoke legal or security controls
+	•	Additional projects or participants
+	•	On-site implementation
+A zero-call transaction is only possible when the product being purchased has an objective boundary.
+Gap 4: “required integrations” is too broad
+The form asks for:
+Required integrations or export paths
+But the brief repeats:
+Integrations: internal storage
+That does not establish:
+	•	which system;
+	•	what data;
+	•	read versus write access;
+	•	authentication method;
+	•	who configures it;
+	•	whether an API exists;
+	•	whether custom work is required;
+	•	whether it must be ready before kickoff.
+Replace it with an integration worksheet
+For each system, capture:
+	•	System name
+	•	Integration purpose
+	•	Data imported
+	•	Data exported
+	•	Standard connector, API, or manual import
+	•	Customer credentials or administrator required
+	•	Portals engineering required
+	•	Must-have or optional
+	•	Confirmed supported or pending review
+Then classify automatically:
+Classification
+Result
+Standard import/export
+Included
+Existing supported connector
+Included
+Simple API configuration
+Eligible after technical confirmation
+Custom development
+One-call or separately priced
+Unknown internal system
+Technical review required
+Gap 5: the success criteria are not sufficiently executable
+The baseline criteria are directionally sound, but several remain subjective:
+	•	“meaningful reproduction or extension”;
+	•	“understand its production history”;
+	•	“measured reduction”;
+	•	“enough to justify the annual price.”
+Every success criterion needs five components
+	1	Test
+	2	Participant
+	3	Baseline
+	4	Target
+	5	Evidence
+Example:
+Criterion
+Definition
+Test
+Locate the approved asset
+Participant
+A producer who did not create it
+Baseline
+Current median retrieval time reported as 20–60 minutes
+Target
+Under one minute
+Evidence
+Timed task during final evaluation
+Another:
+Criterion
+Definition
+Test
+Extend one approved asset
+Participant
+Named production contributor
+Baseline
+Current workflow requires reconstructing source context
+Target
+Contributor retrieves available context and creates one accepted derivative
+Evidence
+New derivative linked to the approved source lineage
+Do not ask “Do you agree with the success criteria?”
+Show each criterion and let the buyer select:
+	•	Accept
+	•	Modify target
+	•	Not applicable
+	•	Add criterion
+Gap 6: annual conversion remains hypothetical
+You need to know:
+	•	Which plan?
+	•	At what price?
+	•	For how many users and repositories?
+	•	What implementation is included?
+	•	When would the annual term begin?
+	•	What happens to the pilot workspace?
+	•	What is the credit deadline?
+	•	Who approves the annual contract?
+The annual option should appear in the pilot order form
+Example:
+Upon successful completion, the proposed deployment is Portals Studio for 20 production members and 15 active repositories at $30,000 annually. The $5,000 pilot fee will be credited if the annual order form is signed by September 28, 2026.
+The buyer does not have to bind themselves to the annual purchase before the pilot. But they should acknowledge the price and expected deployment scope.
+Use an explicit checkbox:
+I acknowledge that the proposed post-pilot deployment is $30,000 annually and that the pilot is intended to evaluate that purchase.
+This prevents a successful pilot from reopening price discovery.
+Gap 7: budget readiness is currently evasive
+This is not an ungated guide download. The prospect is requesting a $5,000 commercial engagement whose price is prominently published.
+You do not need to ask for a budget range. Ask whether the stated purchase can be approved.
+Replace the question with
+If the scope is acceptable, can your organization approve the $5,000 pilot?
+	•	Yes, I can approve it
+	•	Yes, approval from another person is required
+	•	A purchase request or procurement process is required
+	•	Funding has not yet been established
+	•	No
+	•	I am not sure
+This is less invasive and more actionable.
+Do not include “I don’t want to say.” “I am not sure” is sufficient and reveals a genuine process state.
+Then branch:
+If another person must approve
+	•	Approver name
+	•	Role
+	•	Email
+	•	Must they review before signing?
+	•	Would you like to share this pilot plan with them now?
+If procurement is required
+	•	Purchase order required?
+	•	Vendor setup required?
+	•	Expected review time?
+	•	Required documents?
+Gap 8: the buying authority is named but not operationalized
+You collect:
+	•	production owner;
+	•	economic buyer;
+	•	technical evaluator.
+But the generated process does not require these people to:
+	•	receive the plan;
+	•	confirm their role;
+	•	approve relevant sections;
+	•	attend a call;
+	•	sign;
+	•	complete security review.
+A prospect can type arbitrary role descriptions and proceed alone.
+Add role confirmation
+After the initial respondent completes the form:
+	•	Invite the production owner to approve workflow and success criteria.
+	•	Invite the technical evaluator to approve integration and security assumptions.
+	•	Invite the economic buyer to approve pricing and annual path.
+	•	Invite the authorized signer to execute the agreement.
+For small companies, one person may hold several roles. That is fine.
+The objective is not to manufacture bureaucracy. It is to expose missing consensus before the closing step.
+Add a one-page security decision matrix to personalized paid pilot brief
+The long brief should remain available, but the personalized pilot room should show only the relevant decisions:
+Requirement
+Current position
+Pilot compatibility
+Private customer data used for model training
+No without written permission
+Compatible
+Logical tenant isolation
+Current standard, with exact implementation disclosed
+Confirm
+Encryption in transit
+State verified implementation
+Confirm
+Encryption at rest
+State verified provider configuration
+Confirm
+SSO/SAML
+Not universal
+Exception if required
+Formal SLA
+Not standard
+Exception
+SOC 2
+Not certified
+Buyer must accept
+Dedicated tenant
+Not standard
+Custom review
+GDPR-related processing
+Requires DPA and processing analysis
+Legal review
+Data export
+Describe current supported mechanism
+Confirm
+Deletion
+State process and expected timing
+Confirm
+
+The security brief is informational. It explicitly says it is not:
+	•	an audit;
+	•	a warranty;
+	•	an SLA;
+	•	a signed commitment.
+That is appropriate. But a buyer may still require:
+	•	pilot agreement or order form;
+	•	service terms;
+	•	confidentiality terms;
+	•	privacy terms;
+	•	data-processing addendum;
+	•	subprocessor list;
+	•	acceptable-use terms;
+	•	data return and deletion terms.
+A zero-call funnel requires these documents to be available before checkout, not introduced after the prospect clicks “proceed.”
+Electronic contracts and signatures generally cannot be denied effect solely because they are electronic under the federal E-SIGN framework, although your exact contract, jurisdiction, retention process, and presentation should be reviewed by qualified counsel.
+Gap 11: the final legal and operational consequences are missing
+Before the pilot can be signable, address:
+	•	Payment due date
+	•	Taxes
+	•	Refundability
+	•	Cancellation
+	•	Rescheduling
+	•	Pilot extensions
+	•	Customer delays
+	•	Scope changes
+	•	Data limits
+	•	Support channel and response expectations
+	•	Ownership of customer assets
+	•	Ownership of Portals software
+	•	Confidentiality
+	•	Permitted product telemetry
+	•	Data return after pilot
+	•	Deletion after pilot
+	•	Liability allocation
+	•	Warranty disclaimers
+	•	No guarantee of exact model reproduction
+	•	Prohibited data classes
+	•	Publicity and logo usage
+	•	Governing law
+	•	Order of precedence between documents
+These should not all be negotiated in the customized brief. Most belong in standardized pilot terms reviewed by counsel.
+The order form should contain commercial variables. The standard terms should contain stable legal provisions.
+Replace the PDF-first experience
+Current CTA
+Download my paid pilot brief
+This is not a closing CTA. It encourages passive document consumption.
+Recommended primary CTA
+Build My Pilot Plan
+After the form:
+Review and Approve My Pilot
+Then:
+Sign and Fund the Pilot
+The PDF becomes secondary:
+Download a PDF copy
+The personalized Pilot Approval Room
+Create one private URL containing:
+1. Executive summary
+	•	Problem being tested
+	•	Why the workflow qualifies
+	•	Expected first value
+	•	Pilot price and timeline
+	•	Proposed annual path
+2. Scope configuration
+Each item has:
+	•	Accepted
+	•	Edit
+	•	Request exception
+3. Success plan
+	•	Baseline
+	•	Target
+	•	Evidence
+	•	Responsible participant
+4. Implementation checklist
+	•	Customer requirements
+	•	Portals requirements
+	•	Dates
+	•	Named owners
+	•	Dependencies
+5. Security compatibility
+Show only relevant security requirements and explicit gaps.
+6. Commercial terms
+	•	Pilot fee
+	•	Payment timing
+	•	Annual option
+	•	Credit window
+	•	Decision date
+	•	Extension pricing
+	•	Cancellation treatment
+7. Unresolved items
+One visible list:
+Three items must be resolved before signature.
+No hidden uncertainty.
+8. Stakeholder sharing
+	•	Invite production owner
+	•	Invite economic buyer
+	•	Invite technical evaluator
+	•	Invite legal or security reviewer
+9. Decision controls
+	•	Approve standard terms
+	•	Request an exception
+	•	Sign agreement
+	•	Pay
+	•	Schedule kickoff
+This is a lightweight digital deal room, but it should feel like a single coherent transaction rather than a folder of sales collateral.
+Standard versus exception routing
+Eligible for zero-call close
+A prospect can close without a meeting when all of these are true:
+	•	One active workflow
+	•	One historical project
+	•	Five or fewer participants
+	•	Standard pilot duration
+	•	Standard supported import or integration
+	•	No custom engineering
+	•	No regulated or prohibited data
+	•	Standard security posture accepted
+	•	Standard legal terms accepted
+	•	Authorized signer identified
+	•	$5,000 approval path confirmed
+	•	Proposed annual price acknowledged
+	•	Payment can be made by supported method
+	•	Success criteria fit standard templates
+Require one call
+Route to one resolution call when any of these appear:
+	•	Custom integration
+	•	Dedicated infrastructure
+	•	SSO or special identity requirement
+	•	Data residency
+	•	Regulated or highly sensitive data
+	•	Custom SLA
+	•	Legal redlines
+	•	Procurement complexity
+	•	More participants or projects
+	•	Unusual reproduction requirement
+	•	Custom success criteria
+	•	Annual pricing disagreement
+	•	Missing economic buyer
+	•	Conflicting stakeholder requirements
+	•	Internal-build comparison requiring technical review
+Disqualify or defer
+Do not schedule a closing call when:
+	•	No active workflow exists
+	•	The buyer will not identify a production owner
+	•	No credible approval path exists
+	•	They expect extensive custom development for $5,000
+	•	They refuse to acknowledge annual pricing
+	•	They cannot supply usable production context
+	•	The use case depends on guaranteed exact reproduction that Portals cannot control
+
+Design the one call correctly
+Do not call it a discovery call.
+Call it:
+Pilot Terms Review
+The call should have one purpose:
+Resolve all listed exceptions and make a final proceed-or-stop decision.
+Before the call
+The prospect receives:
+	•	complete proposed scope;
+	•	exact price;
+	•	annual option;
+	•	security status;
+	•	standard terms;
+	•	all detected exceptions;
+	•	specific decisions required;
+	•	attendee requirements.
+Require the relevant people to attend. Do not hold separate calls with the champion, technical evaluator, and economic buyer when one meeting can contain all three.
+The agreement should be available for signature during the same interaction. Do not conclude with “I’ll send a revised proposal later” unless a genuinely unresolved legal or technical issue remains.
+Specific brief changes
+Rename it
+Current:
+Customized paid production pilot brief
+Use:
+Proposed Portals Production Pilot Plan
+After all terms are accepted:
+Portals Production Pilot Order Form and Statement of Work
+Remove “why this pilot” from the final contract
+It is useful in a sales summary, but phrases such as:
+This appears to be a strong pilot candidate
+do not belong in the contractual SOW.
+Keep it in the approval room as explanatory context.
+Replace “should” with defined obligations or targets
+Current:
+The initial record should preserve…
+Use:
+Portals will configure the initial record to include the following materials supplied by the customer and technically available from the selected systems: …
+Remove unresolved placeholders
+Require clarification or visibly mark the document:
+Incomplete—not eligible for signature.
+Make the value calculation auditable
+The 130-hour estimate is useful, but include:
+	•	reported frequency range;
+	•	reported time-loss range;
+	•	number of affected people;
+	•	formula;
+	•	low and high estimate;
+	•	customer confirmation.
+Example:
+
+Reported incidents: 2–4 per month
+Reported time loss: 2–4 hours per incident
+Affected contributors: 1–2
+Modeled annual exposure: 48–384 hours
+Planning midpoint: 130 hours
+
+Do not present a single number without its sensitivity range.
+Immediate page changes
+Change the hero CTA
+From:
+Scope a pilot
+To:
+Build Your Pilot Plan
+Supporting copy:
+Confirm fit, configure scope, review security, and receive signable pilot terms.
+Change the output CTA
+From:
+Download my paid pilot brief
+To:
+Review My Pilot Plan
+Add the standardization message
+The $5,000 pilot follows a defined standard scope. You can approve standard terms directly or request an exception. Nonstandard integration, security, legal, or deployment requirements are resolved in one terms-review call.
+Add a compatibility check before the long form
+Standard pilot eligibility:
+	•	One active workflow
+	•	One historical project
+	•	Up to five participants
+	•	Standard import or supported integration
+	•	No prohibited or unsupported data
+	•	Ability to approve a $5,000 commercial evaluation
+What you should not optimize away
+Do not remove human involvement where it protects:
+	•	informed consent;
+	•	accurate technical scope;
+	•	security compatibility;
+	•	internal consensus;
+	•	commercial confidence;
+	•	enforceable terms;
+	•	customer success.
+A zero-call close that produces misunderstanding, purchase regret, or a failed pilot is less efficient than one decisive call. Gartner’s research reflects this tension: digital self-service is strongly preferred, but buyer confidence and deal quality can decline when contextual guidance is absent or inconsistent.
+Main landing page
+→ Paid pilot landing page
+→ Pilot eligibility + scoping form
+→ Personalized brief emailed
+→ Confirm scope / Request changes / Schedule terms review
+→ Final order form
+→ Signature
+→ Payment
+→ Kickoff
+Email should remain the buyer’s command center (sequence through Apollo). The actual editing, signing, and payment should happen through secure linked pages rather than attempting to embed the entire transaction inside an email.
+implement iterative document refinement?
+Yes, but narrowly.
+You need self-service refinement because the generated proposal will regularly contain:
+	•	incorrect assumptions;
+	•	incomplete names;
+	•	unresolved integration details;
+	•	success criteria requiring adjustment;
+	•	security questions;
+	•	annual scope requiring confirmation.
+But you do not need Google Docs-style collaborative editing.
+The prospect should be able to do only four things:
+	1	Confirm the proposal as drafted.
+	2	Correct previously submitted information.
+	3	Request a bounded exception.
+	4	Escalate unresolved items to one terms-review meeting.
+That is a controlled commercial configuration system, not a document editor.
+Build a lightweight private approval page with: 
+authentication;
+payment state; 
+document regeneration; 
+signature integration; 
+current proposal summary;
+proposal status;
+unresolved items;
+PDF download;
+security brief;
+confirm button;
+revise button;
+schedule-review button;
+final agreement button when ready.
+
+The best email-centered transaction
+After the form submission, send one transactional email (attio sequence) containing:
+Summary
+	•	Proposed objective
+	•	21-day term
+	•	$5,000 fee
+	•	Target start
+	•	Proposed annual path
+	•	Number of unresolved items
+Documents
+	•	Customized pilot brief
+	•	Security and Architecture Brief
+	•	Standard pilot terms
+	•	Relevant product or integration documentation
+
+Use existing product database (leads database) and existing solutions for other components where possible.
+
+Three primary actions
+1. Confirm Scope as Drafted
+This confirms that the operational proposal is accurate.
+It should not yet imply legal acceptance.
+2. Request Changes
+This opens the prefilled revision form. The prospect changes only the relevant answers.
+After submission:
+	•	the Attio Pilot record updates;
+	•	the proposal regenerates;
+	•	a revised email is sent;
+	•	the prior version remains available internally;
+	•	the prospect receives the updated proposal.
+3. Schedule a Pilot Terms Review
+This is reserved for material exceptions.
+The scheduling page should display the unresolved items so the meeting has a defined agenda.
+Once scope is confirmed, the next email contains:
+	•	final order form;
+	•	standard terms;
+	•	signature link;
+	•	payment link;
+	•	kickoff scheduling link.
+Do not put the complete transaction literally inside the email
+Keep the navigation and decision sequence inside email.
+Do not attempt to make the email itself handle:
+	•	detailed document editing;
+	•	security questionnaires;
+	•	contractual redlines;
+	•	signatures;
+	•	payment;
+	•	multi-party approvals.
+Email clients are poor transactional interfaces. The email should always make the next action obvious, but each consequential action should open a dedicated secure page.
+Think of email as the transaction controller:
+
+Email
+├── Review proposal
+├── Confirm scope
+├── Request revision
+├── Share with buyer
+├── Sign agreement
+├── Pay invoice
+└── Schedule kickoff
+
+Recommended state model
+Create one Pilot record in Attio or your application database. (It may already exist, so review thoroughly).
+Inquiry submitted
+→ Draft generated
+→ Prospect reviewing
+→ Revision requested
+→ Scope confirmed
+→ Exception review required
+→ Ready for signature
+→ Signed
+→ Paid
+→ Kickoff scheduled
+→ Active pilot
+
+Every email button should transition or update that same record.
+Do not create a new lead, submission, or document record every time the prospect makes a correction. The pilot record should remain authoritative.
+leverage the existing form?
+Yes. Keep it as the initial source of truth.
+Your existing form already collects most of the required information. Replacing it would add development work without fixing the real problem.
+The gap occurs after submission.
+The revision flow should reuse the existing pilot record and be prefilled from the original submission, driven by the approval room itself rather than a separate form provider.
+Confirm or Revise Your Pilot Plan
+It should be prefilled from the original submission and show only information relevant to revision:
+	•	Objective
+	•	Workflow
+	•	Production owner
+	•	Economic buyer
+	•	Technical evaluator
+	•	Included projects
+	•	Participants
+	•	Integration method
+	•	Success criteria
+	•	Target start
+	•	Security requirements
+	•	Annual deployment option
+	•	Remaining blocker
+For each section, offer:
+	•	Confirm as drafted
+	•	Change this
+	•	Request an exception
+	•	Ask a question
+Should “Scope a Pilot” go immediately to an Approval Room?
+No
+There is nothing to approve before the prospect provides a workflow, participants, requirements, and commercial context.
+An approval room is a post-submission environment.
+The correct sequence is:
+
+Scope a Paid Pilot
+→ Understand the standardized offer
+→ Configure the proposed pilot
+→ Review and approve the generated proposal
+
+Sending the prospect directly into an empty approval system would introduce complexity without adding buyer value.
+Main landing page → pilot landing page → form?
+Yes
+That is the correct architecture.
+Main landing page CTA
+Scope a Paid Pilot
+This communicates the commercial destination.
+It should link directly to the paid pilot landing page.
+Paid pilot landing page
+This page answers:
+	•	What is the pilot?
+	•	Why is it paid?
+	•	What is included?
+	•	What is excluded?
+	•	What does success mean?
+	•	What happens in 48 hours?
+	•	What must the customer provide?
+	•	What happens after 21 days?
+	•	What is the annual path?
+	•	Which security limitations should be understood?
+Its primary CTA should be:
+Build Your Pilot Plan
+This scrolls to or opens the form on the same page.
+After form submission
+The buyer enters the approval process through email:
+Review Your Proposed Pilot
+This progression is semantically clean:
+
+Scope
+→ Build
+→ Review
+→ Confirm
+→ Sign
+
+Your landing page and form play different roles
+Paid pilot landing page
+Persuades and clarifies.
+It explains the standardized commercial offer and proactively addresses objections.
+Pilot form
+Qualifies and configures.
+It collects the variables required to produce the proposal.
+Email approval flow
+Resolves and closes.
+It lets the prospect confirm assumptions, request bounded changes, sign, pay, and schedule kickoff.
+Do not combine all three functions into one massive interface.
+Improve the current pilot form
+The current form is comprehensive, but it mixes:
+	•	qualification;
+	•	scoping;
+	•	discovery;
+	•	commercial approval;
+	•	security diligence.
+Structure it into conditional stages.
+Stage 1: Eligibility
+	•	Active workflow
+	•	Historical project
+	•	Target start
+	•	$5,000 approval path
+	•	Data classification
+	•	Nonstandard requirements
+Stage 2: Scope
+	•	Production owner
+	•	Participants
+	•	Workflow details
+	•	Tools
+	•	Projects
+	•	Integrations
+	•	Asset volume
+Stage 3: Success
+	•	Current baseline
+	•	Failure frequency
+	•	Recent impact
+	•	Selected success criteria
+	•	Target outcome
+	•	Evidence required
+Stage 4: Purchase process
+	•	Economic buyer
+	•	Technical evaluator
+	•	Authorized signer
+	•	Procurement requirements
+	•	Security requirements
+	•	Annual package
+	•	Remaining blocker
+Stage 5: Confirmation
+Show a readable summary:
+This is the information that will be used to generate your proposed pilot plan.
+Let the prospect correct it before final submission.
+This pre-submission review will eliminate a meaningful portion of the iterative correction burden.
+Implement now
+	1	Keep the paid pilot landing page.
+	2	Keep and restructure the existing form.
+	3	Add the short eligibility gate inside the same form.
+	4	Add a pre-submission confirmation page.
+	5	Generate the customized PDF.
+	6	Create one Attio Pilot record.
+	7	Email the brief and security document.
+	8	Add three actions:
+	◦	Confirm scope
+	◦	Request changes
+	◦	Schedule terms review
+	9	Build a prefilled revision form.
+	10	Regenerate the proposal after revisions.
+	11	Send a final e-signature and payment path once scope is confirmed.

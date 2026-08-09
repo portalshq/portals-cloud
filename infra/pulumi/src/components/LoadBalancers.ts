@@ -4,11 +4,11 @@ import { LoadBalancersArgs } from "../interfaces";
 
 /**
  * LoadBalancers Component
- * 
+ *
  * Creates load balancers with:
- * - Application Load Balancer (ALB) for HTTP traffic
- * - Network Load Balancer (NLB) for TCP/UDP QUIC traffic
- * - Target groups for each service
+ * - Application Load Balancer (ALB) for HTTP traffic (Control Plane + Lore HTTP)
+ * - Network Load Balancer (NLB) for TCP/UDP QUIC traffic (Lore QUIC)
+ * - Target groups for each active service
  * - Security groups
  * - Listeners
  */
@@ -19,8 +19,6 @@ export class LoadBalancers extends pulumi.ComponentResource {
   public readonly nlbSecurityGroup: aws.ec2.SecurityGroup;
   public readonly loreAlbTargetGroup: aws.lb.TargetGroup;
   public readonly loreNlbTargetGroup: aws.lb.TargetGroup;
-  public readonly serverAlbTargetGroup: aws.lb.TargetGroup;
-  public readonly frontendAlbTargetGroup: aws.lb.TargetGroup;
   public readonly controlPlaneAlbTargetGroup: aws.lb.TargetGroup;
 
   constructor(name: string, args: LoadBalancersArgs, opts?: pulumi.ComponentResourceOptions) {
@@ -28,7 +26,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
 
     const resourcePrefix = `${args.projectName}-${args.environment}`;
 
-    // Create ALB Security Group
+    // ── ALB Security Group ───────────────────────────────────────────────
     this.albSecurityGroup = new aws.ec2.SecurityGroup(`${resourcePrefix}-alb-sg`, {
       vpcId: args.vpcId,
       description: "Security group for Application Load Balancer",
@@ -39,7 +37,6 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Allow HTTP traffic to ALB
     new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-http-ingress`, {
       type: "ingress",
       fromPort: 80,
@@ -49,17 +46,26 @@ export class LoadBalancers extends pulumi.ComponentResource {
       cidrBlocks: ["0.0.0.0/0"],
     }, { parent: this });
 
-    // Allow HTTPS traffic to ALB
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-https-ingress`, {
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-lore-ingress`, {
       type: "ingress",
-      fromPort: 443,
-      toPort: 443,
+      fromPort: 41339,
+      toPort: 41339,
       protocol: "tcp",
       securityGroupId: this.albSecurityGroup.id,
       cidrBlocks: ["0.0.0.0/0"],
     }, { parent: this });
 
-    // Create NLB Security Group
+    // Control Plane listener on port 8083
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-cp-ingress`, {
+      type: "ingress",
+      fromPort: 8083,
+      toPort: 8083,
+      protocol: "tcp",
+      securityGroupId: this.albSecurityGroup.id,
+      cidrBlocks: ["0.0.0.0/0"],
+    }, { parent: this });
+
+    // ── NLB Security Group ───────────────────────────────────────────────
     this.nlbSecurityGroup = new aws.ec2.SecurityGroup(`${resourcePrefix}-nlb-sg`, {
       vpcId: args.vpcId,
       description: "Security group for Network Load Balancer",
@@ -70,7 +76,6 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Allow QUIC traffic to NLB (port 41337)
     new aws.ec2.SecurityGroupRule(`${resourcePrefix}-nlb-quic-ingress`, {
       type: "ingress",
       fromPort: 41337,
@@ -80,7 +85,17 @@ export class LoadBalancers extends pulumi.ComponentResource {
       cidrBlocks: ["0.0.0.0/0"],
     }, { parent: this });
 
-    // Create Application Load Balancer
+    // NLB also forwards TCP on 41337 (TCP_UDP listener)
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-nlb-tcp-ingress`, {
+      type: "ingress",
+      fromPort: 41337,
+      toPort: 41337,
+      protocol: "tcp",
+      securityGroupId: this.nlbSecurityGroup.id,
+      cidrBlocks: ["0.0.0.0/0"],
+    }, { parent: this });
+
+    // ── Application Load Balancer ────────────────────────────────────────
     this.alb = new aws.lb.LoadBalancer(`${resourcePrefix}-alb`, {
       internal: false,
       loadBalancerType: "application",
@@ -93,10 +108,11 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Create Network Load Balancer
+    // ── Network Load Balancer ────────────────────────────────────────────
     this.nlb = new aws.lb.LoadBalancer(`${resourcePrefix}-nlb`, {
       internal: false,
       loadBalancerType: "network",
+      securityGroups: [this.nlbSecurityGroup.id],
       subnets: args.publicSubnetIds,
       tags: {
         Name: `${resourcePrefix}-nlb`,
@@ -105,12 +121,23 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Create ALB target group for Lore service (HTTP on port 41339)
+    // ── Lore ALB Target Group (HTTP on port 41339) ───────────────────────
     this.loreAlbTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-lore-alb-tg`, {
       port: 41339,
       protocol: "HTTP",
       targetType: "ip",
       vpcId: args.vpcId,
+      healthCheck: {
+        enabled: true,
+        path: "/health_check",
+        port: "41339",
+        protocol: "HTTP",
+        healthyThreshold: 3,
+        unhealthyThreshold: 3,
+        timeout: 5,
+        interval: 30,
+        matcher: "200",
+      },
       tags: {
         Name: `${resourcePrefix}-lore-alb-tg`,
         Project: args.projectName,
@@ -119,12 +146,13 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Create NLB target group for Lore service (TCP/UDP QUIC on port 41337)
+    // ── Lore NLB Target Group (TCP_UDP on port 41337 for QUIC) ──────────
     this.loreNlbTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-lore-nlb-tg`, {
       port: 41337,
       protocol: "TCP_UDP",
       targetType: "ip",
       vpcId: args.vpcId,
+      preserveClientIp: "true",
       tags: {
         Name: `${resourcePrefix}-lore-nlb-tg`,
         Project: args.projectName,
@@ -133,36 +161,9 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Create ALB target group for Server service
-    this.serverAlbTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-server-alb-tg`, {
-      port: 80,
-      protocol: "HTTP",
-      targetType: "ip",
-      vpcId: args.vpcId,
-      tags: {
-        Name: `${resourcePrefix}-server-alb-tg`,
-        Project: args.projectName,
-        Environment: args.environment,
-        Service: "server",
-      },
-    }, { parent: this });
-
-    // Create ALB target group for Frontend service
-    this.frontendAlbTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-frontend-alb-tg`, {
-      port: 80,
-      protocol: "HTTP",
-      targetType: "ip",
-      vpcId: args.vpcId,
-      tags: {
-        Name: `${resourcePrefix}-frontend-alb-tg`,
-        Project: args.projectName,
-        Environment: args.environment,
-        Service: "frontend",
-      },
-    }, { parent: this });
-
-    // Create ALB target group for Control Plane service (port 8083)
+    // ── Control Plane ALB Target Group (port 8083) ──────────────────────
     this.controlPlaneAlbTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-controlplane-alb-tg`, {
+      name: `${resourcePrefix}-cp-tg`,
       port: 8083,
       protocol: "HTTP",
       targetType: "ip",
@@ -186,20 +187,26 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Create ALB listener for HTTP (port 80)
+    // ── ALB Listeners ────────────────────────────────────────────────────
+
+    // Default HTTP listener: 404 (no frontend in MVP)
     new aws.lb.Listener(`${resourcePrefix}-alb-http-listener`, {
       loadBalancerArn: this.alb.arn,
       port: 80,
       protocol: "HTTP",
       defaultActions: [
         {
-          type: "forward",
-          targetGroupArn: this.frontendAlbTargetGroup.arn,
+          type: "fixed-response",
+          fixedResponse: {
+            contentType: "text/plain",
+            statusCode: "404",
+            messageBody: "Not Found",
+          },
         },
       ],
     }, { parent: this });
 
-    // Create ALB listener for Lore service on port 41339
+    // Lore HTTP listener on port 41339
     new aws.lb.Listener(`${resourcePrefix}-alb-lore-listener`, {
       loadBalancerArn: this.alb.arn,
       port: 41339,
@@ -212,7 +219,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
       ],
     }, { parent: this });
 
-    // Create ALB listener for Control Plane service on port 8083
+    // Control Plane listener on port 8083
     new aws.lb.Listener(`${resourcePrefix}-alb-controlplane-listener`, {
       loadBalancerArn: this.alb.arn,
       port: 8083,
@@ -225,7 +232,9 @@ export class LoadBalancers extends pulumi.ComponentResource {
       ],
     }, { parent: this });
 
-    // Create NLB listener for Lore service on port 41337
+    // ── NLB Listener ─────────────────────────────────────────────────────
+
+    // Lore QUIC (TCP_UDP on port 41337)
     new aws.lb.Listener(`${resourcePrefix}-nlb-lore-listener`, {
       loadBalancerArn: this.nlb.arn,
       port: 41337,

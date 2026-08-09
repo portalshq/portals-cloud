@@ -1,1 +1,3 @@
 npx turbo lint build '--filter=[HEAD]'
+cd frontend && npm run generate-pdfs && cd ..
+git add generated-assets/

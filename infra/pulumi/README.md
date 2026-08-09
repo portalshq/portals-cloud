@@ -1,88 +1,103 @@
 # Portals Platform Infrastructure
 
-Production-grade Pulumi AWS infrastructure stack for the Portals platform.
+Pulumi AWS infrastructure stack for the Portals platform — the Lore VCS
+service and the Lore Cloud Control Plane.
 
-## Architecture Overview
+## Architecture
 
 ```
-                            Internet
-                               │
-                    ┌──────────┴──────────┐
-                    │   ALB (public)       │
-                    │  :80  Frontend       │
-                    │  :8083 Control Plane │
-                    │  :41339 Lore (HTTP)  │
-                    └──────────┬──────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              │                │                │
-       ┌──────┴──────┐ ┌──────┴──────┐ ┌───────┴──────┐
-       │   Frontend  │ │Control Plane│ │     Lore     │
-       │  (React)    │ │(Rust/Axum) │ │   (VCS)      │
-       │  port 80    │ │ port 8083  │ │ port 41339   │
-       └─────────────┘ └──────┬─────┘ └──────┬───────┘
-                              │               │
-              ┌───────────────┼───────┬───────┤
-              │               │       │       │
-       ┌──────┴──────┐ ┌─────┴───┐ ┌─┴────┐ ┌┴───────┐
-       │  Aurora PG  │ │SQS (DLQ)│ │ EFS  │ │  ECR   │
-       │  (RDS)      │ │Event Bus│ │locks │ │images  │
-       └─────────────┘ └─────────┘ └──────┘ └────────┘
+                              Internet
+                                 │
+                  ┌──────────────┴──────────────┐
+                  │  ALB (public)               │
+                  │  :8083  Control Plane (HTTP)│
+                  │  :41339 Lore (HTTP)         │
+                  └──────────────┬──────────────┘
+                                 │
+                  ┌──────────────┴──────────────┐
+                  │        ECS Fargate          │
+                  │  ┌─────────┐  ┌──────────┐  │
+                  │  │ Control │  │  Lore    │  │
+                  │  │  Plane  │  │  VCS     │  │
+                  │  │ :8083   │  │ :41339   │  │
+                  │  └────┬────┘  └────┬─────┘  │
+                  └───────┼───────────┼─────────┘
+                          │           │
+        ┌─────────────────┼───────────┼──────────────┐
+        │                 │           │              │
+   ┌────┴─────┐    ┌──────┴─────┐ ┌───┴──────┐ ┌─────┴─────┐
+   │  RDS     │    │ DynamoDB   │ │  S3      │ │ Docker Hub│
+   │PostgreSQL│    │ (lore      │ │ (lore    │ │ (control- │
+   │ (control │    │  mutable + │ │  chunks) │ │  plane    │
+   │  plane)  │    │  lock)     │ │          │ │  image)   │
+   └──────────┘    └────────────┘ └──────────┘ └───────────┘
 
-                    NLB (public)
-                    │  :41337 Lore (QUIC/TCP)
-                    └───────────┘
+                  NLB (public)
+                  │  :41337 Lore (QUIC/TCP)
+                  └───────────────┘
 ```
 
-### Components
+## Components
 
-| Component | Description |
-|-----------|-------------|
-| **PlatformNetwork** | VPC with 3 public + 3 private subnets, Internet Gateway, NAT Gateway |
-| **PlatformCluster** | ECS Fargate cluster, CloudWatch log group, task execution IAM role |
-| **PlatformDataStore** | Aurora PostgreSQL 15.4 RDS cluster with encrypted storage |
-| **PlatformStorage** | ECR repos (lore, server, frontend, control-plane) + EFS for persistent locks |
-| **PlatformEventBus** | SQS main queue + dead-letter queue with IAM policy for ECS tasks |
-| **LoadBalancers** | ALB (HTTP :80/:8083/:41339) + NLB (QUIC/TCP :41337) |
-| **LoreService** | ECS Fargate with EFS mount, ALB + NLB integration |
-| **ServerService** | ECS Fargate with ALB integration |
-| **FrontendService** | ECS Fargate with ALB integration |
-| **ControlPlaneService** | ECS Fargate with ALB integration, SQS event bus, health checks |
+| Component | What it creates |
+|-----------|-----------------|
+| **PlatformNetwork** | VPC, 3 public + 3 private subnets, Internet Gateway, NAT Gateway |
+| **PlatformCluster** | ECS Fargate cluster, CloudWatch log group, task execution role, task role, shared task security group |
+| **PlatformDataStore** | RDS PostgreSQL 15 instance (Control Plane), DynamoDB table (Lore mutable + lock store) |
+| **PlatformStorage** | S3 bucket for Lore chunks (immutable store), bucket encryption + lifecycle rules |
+| **LoadBalancers** | ALB for HTTP (Control Plane :8083, Lore :41339), NLB for QUIC/TCP (Lore :41337) |
+| **LoreService** | ECS Fargate service pulling the stock Lore server image from the external registry; S3 + DynamoDB stores via IAM task role |
+| **ControlPlaneService** | ECS Fargate service running the pre-built Control Plane image (see [Image versioning](#image-versioning)) |
 
-### Services and Ports
+There is no Frontend/Server service, no SQS event bus, and no EFS in this
+stack. SQS is wired as an empty env var placeholder (events degrade
+gracefully without delivery for the MVP).
 
-| Service | Container Port | ALB Listener | Protocol | Health Check |
-|---------|---------------|-------------|----------|-------------|
-| Frontend | 80 | :80 | HTTP | / |
-| Control Plane | 8083 | :8083 | HTTP | /healthz |
-| Lore | 41339 | :41339 | HTTP | — |
-| Lore (QUIC) | 41337 | :41337 (NLB) | TCP_UDP | — |
+## Services and ports
+
+| Service | Container port | Load balancer | Protocol | Health check |
+|---------|---------------|---------------|----------|--------------|
+| Control Plane | 8083 | ALB :8083 | HTTP | `/healthz` |
+| Lore | 41339 | ALB :41339 | HTTP | — |
+| Lore | 41337 | NLB :41337 | TCP/UDP (QUIC) | — |
+
+## Image versioning
+
+Pulumi does **not** build Docker images. Deployment follows a
+"build & push, then pin, then deploy" flow where
+[`infra/lore/versions.yaml`](../lore/versions.yaml) is the single source of
+truth for what is deployed:
+
+1. **Build & push** — `control-plane/scripts/publish-image.sh`
+   builds the Control Plane image, pushes it to Docker Hub under a unique
+   `<git-short-sha>-<timestamp>` tag, and records the image URI in
+   `versions.yaml` under `control-plane.image`.
+2. **Deploy** — `pulumi up` reads the pinned image from `versions.yaml` and
+   registers a new ECS task definition that points at it.
+3. **Verify** — `control-plane/scripts/verify-and-update-versions.sh`
+   compares the image actually running in ECS against `versions.yaml` and can
+   correct the pin after manual deploys (`--write`).
+
+If `control-plane.image` is empty or missing, `pulumi up` prints a warning and
+skips the Control Plane service so a fresh stack and `pulumi destroy` still
+work. Publish the image, then run `pulumi up` again to add the service.
 
 ## Prerequisites
 
 - Node.js 18+
 - Pulumi CLI (`brew install pulumi`)
-- AWS CLI configured with appropriate credentials (`aws configure`)
-- Docker (for building images)
+- AWS CLI configured with credentials (`aws configure`)
+- Docker + `docker login` to Docker Hub (only for the build script)
 
-## Installation
+## Setup
 
 ```bash
 cd infra/pulumi
 npm install
+pulumi stack init dev     # or per-environment stack
 ```
 
-## Configuration
-
-### Stack Initialization
-
-```bash
-# Create or select a stack
-pulumi stack init dev      # development
-pulumi stack init prod     # production
-```
-
-### Required Configuration
+### Required configuration
 
 ```bash
 # AWS
@@ -90,7 +105,7 @@ pulumi config set aws:region us-east-1
 
 # Project
 pulumi config set projectName portals
-pulumi config set environment dev        # or prod
+pulumi config set environment dev
 
 # Network
 pulumi config set vpcCidr "10.0.0.0/16"
@@ -98,70 +113,44 @@ pulumi config set publicSubnetCidrs "10.0.1.0/24,10.0.2.0/24,10.0.3.0/24"
 pulumi config set privateSubnetCidrs "10.0.10.0/24,10.0.11.0/24,10.0.12.0/24"
 
 # Database
-pulumi config set databaseInstanceClass "db.r6g.xlarge"
-pulumi config set databaseVersion "15.4"
-pulumi config set databaseAllocatedStorage "100"
+pulumi config set databaseInstanceClass "db.t4g.micro"
+pulumi config set databaseVersion "15.18"
+pulumi config set databaseAllocatedStorage "20"
 
 # ECS
-pulumi config set ecsFargateCpu "2048"
-pulumi config set ecsFargateMemory "4096"
+pulumi config set ecsFargateCpu "1024"
+pulumi config set ecsFargateMemory "2048"
 
-# Service desired counts
-pulumi config set loreServiceDesiredCount "2"
-pulumi config set serverServiceDesiredCount "2"
-pulumi config set frontendServiceDesiredCount "2"
-pulumi config set controlPlaneDesiredCount "2"
+# Service counts
+pulumi config set loreServiceDesiredCount "1"
+pulumi config set controlPlaneDesiredCount "1"
 
-# Docker build contexts (relative to infra/pulumi/)
-pulumi config set loreServerDockerPath "../../apps/lore-server"
-pulumi config set serverDockerPath "../../apps/server"
-pulumi config set frontendDockerPath "../../apps/frontend"
-pulumi config set controlPlaneDockerPath "../.."  # repo root for multi-stage Dockerfile
-```
+# Lore server external image
+pulumi config set loreServerImageUri "portalshq/lore-server:latest-amd64"
 
-### Secrets (mark with `--secret`)
-
-```bash
-# Ed25519 signing key for data plane JWT tokens
+# Control Plane signing key (secret)
 pulumi config set --secret ed25519SigningKey "$(openssl rand -base64 32)"
-
-# S3 storage credentials
-pulumi config set --secret s3AccessKey "<your-aws-access-key>"
-pulumi config set --secret s3SecretKey "<your-aws-secret-key>"
 ```
 
-### Optional Configuration
+Defaults for all of these live in [`Pulumi.yaml`](Pulumi.yaml) — only the
+secrets and any overrides need to be set per stack.
+
+## Deploy
 
 ```bash
-# S3 storage
-pulumi config set s3Endpoint ""              # empty = real AWS S3
-pulumi config set s3BucketChunks "lore-chunks"
-pulumi config set s3Region "us-east-1"
-```
+# 1. Build, push, and pin the Control Plane image
+../../control-plane/scripts/publish-image.sh
 
-## Deployment
-
-### Preview Changes
-
-```bash
+# 2. Preview and apply
 pulumi preview
-```
-
-### Deploy Infrastructure
-
-```bash
 pulumi up
 ```
 
-### Destroy Infrastructure
-
-```bash
-pulumi destroy
-```
+For a fresh stack, publish the image first (or run `pulumi up` once to create
+the infrastructure with the Control Plane service skipped, then publish and
+`pulumi up` again to add it).
 
 ## Outputs
-
-After deployment, the following outputs are available:
 
 | Output | Description |
 |--------|-------------|
@@ -169,119 +158,79 @@ After deployment, the following outputs are available:
 | `albDnsName` | Application Load Balancer DNS name |
 | `nlbDnsName` | Network Load Balancer DNS name |
 | `vpcId` | VPC ID |
-| `clusterArn` | ECS Cluster ARN |
-| `loreEcrRepositoryUrl` | ECR repository URL for Lore service |
-| `serverEcrRepositoryUrl` | ECR repository URL for Server service |
-| `frontendEcrRepositoryUrl` | ECR repository URL for Frontend service |
-| `controlPlaneEcrRepositoryUrl` | ECR repository URL for Control Plane service |
-| `efsFileSystemId` | EFS file system ID |
-| `eventQueueUrl` | SQS event queue URL |
-| `eventQueueArn` | SQS event queue ARN |
-| `deadLetterQueueUrl` | SQS dead-letter queue URL |
-| `deadLetterQueueArn` | SQS dead-letter queue ARN |
+| `clusterArn` | ECS cluster ARN |
+| `controlPlaneImageUri` | Control Plane image URI pinned in `versions.yaml` |
+| `loreChunksBucketName` | S3 bucket for Lore chunks (immutable store) |
+| `loreChunksBucketArn` | ARN of the Lore chunks bucket |
+| `loreDynamoDbTableName` | DynamoDB table for Lore mutable + lock store |
+| `loreDynamoDbTableArn` | ARN of the Lore DynamoDB table |
+| `loreServiceSecurityGroupArn` | ARN of the Lore service security group |
+| `controlPlaneServiceSecurityGroupArn` | ARN of the Control Plane security group (`""` until the image is pinned) |
 
-## Control Plane Service
+## Control Plane service
 
-The Control Plane is the Lore Cloud reconciliation engine — a Rust/Axum service that manages repositories, organizations, sessions, and capabilities through declarative controller loops.
+The Control Plane is the Lore Cloud reconciliation engine — a Rust/Axum
+service that manages repositories, organizations, sessions, and capabilities
+through declarative controller loops.
 
-### Environment Variables
-
-The Rust binary uses `clap` with `env` attributes. All values can be set via environment variables or CLI flags.
+### Environment variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | **yes** | — | PostgreSQL connection string |
-| `ED25519_SIGNING_KEY` | **yes** | — | Base64-encoded Ed25519 key for data plane JWTs |
-| `S3_ACCESS_KEY` | **yes** | — | S3/MinIO access key |
-| `S3_SECRET_KEY` | **yes** | — | S3/MinIO secret key |
+| `DATABASE_URL` | yes | — | PostgreSQL connection string |
+| `ED25519_SIGNING_KEY` | yes | — | Base64-encoded Ed25519 key for data plane JWTs |
 | `LISTEN_ADDR` | no | `0.0.0.0:8083` | HTTP listen address |
-| `SQS_QUEUE_URL` | no | `""` | SQS queue URL (enables outbox relay) |
-| `S3_ENDPOINT` | no | `http://localhost:9002` | S3 endpoint URL |
-| `S3_BUCKET_CHUNKS` | no | `lore-chunks` | S3 bucket for repository chunks |
-| `S3_REGION` | no | `us-east-1` | AWS region for S3 |
+| `AWS_REGION` | no | (config) | AWS region for S3 |
+| `SQS_QUEUE_URL` | no | `""` | SQS queue URL (outbox relay; empty = degraded) |
 | `PROVIDER_TYPE` | no | `aws` | `aws` or `mock` |
-| `RUST_LOG` | no | `info,lorecloud_control_plane=debug,sqlx=warn` | Log filter |
-| `REDIS_URL` | no | `""` | Redis for idempotency cache |
 | `JWT_AUTH_ENABLED` | no | `false` | Enable JWT authentication |
 | `IDEMPOTENCY_ENABLED` | no | `true` | Enable idempotency checks |
 | `METRICS_ENABLED` | no | `true` | Enable Prometheus metrics |
-| `CORS_ALLOWED_ORIGINS` | no | `*` | Comma-separated CORS origins |
 | `DP_TOKEN_EXPIRY_SECS` | no | `3600` | Data plane token TTL |
+| `CORS_ALLOWED_ORIGINS` | no | `*` | Comma-separated CORS origins |
+| `RUST_LOG` | no | `info,lorecloud_control_plane=debug,sqlx=warn` | Log filter |
+| `REDIS_URL` | no | `""` | Redis for idempotency cache (empty = in-memory) |
 
-### Health Check
+`GET /healthz` on port 8083 is probed by both the container health check
+(`wget`) and the ALB target group.
 
-The control plane exposes `GET /healthz` on port 8083. Both the container health check (wget) and ALB target group health check probe this endpoint.
+## Lore service
 
-### Event Bus Integration
+- Pulls the stock Lore server image from the external registry (`loreServerImageUri`).
+- **Immutable store** (fragments/chunks): S3 bucket via the `lore-aws` plugin.
+- **Mutable + lock store**: DynamoDB table via the `lore-aws` plugin.
+- Access is via an IAM task role scoped to the S3 bucket and DynamoDB table.
+- ALB listener :41339 (HTTP) and NLB listener :41337 (TCP/UDP QUIC).
 
-When `SQS_QUEUE_URL` is set, the control plane runs an outbox relay that polls the `outbox` table and delivers events to SQS. When empty, events are marked published without delivery (graceful degradation).
+## Network topology
 
-## Docker Integration
-
-The ECS services automatically build Docker images from the configured local paths and push to ECR during `pulumi up`.
-
-### Control Plane Dockerfile
-
-The control plane uses a multi-stage Rust build:
-
-1. **Builder stage** (`rust:1.97-slim-bookworm`): Compiles the workspace with dependency caching
-2. **Runtime stage** (`debian:bookworm-slim`): Minimal image with the compiled binary
-
-Build context is the repo root (`../..`) because the Dockerfile copies from `control-plane/` and needs access to the full workspace.
-
-```bash
-# Manual build (for testing)
-docker build -f docker/control-plane/Dockerfile -t lorecloud-control-plane .
-```
-
-## Network Topology
-
-- **Public Subnets** (3x /24): Internet Gateway access, ALB/NLB placement
-- **Private Subnets** (3x /24): NAT Gateway access, ECS tasks, RDS, EFS
-- **NAT Gateway**: Single cost-optimized gateway in first public subnet
-- **ALB**: Application Load Balancer for HTTP traffic (Frontend :80, Control Plane :8083, Lore :41339)
-- **NLB**: Network Load Balancer for TCP/UDP QUIC traffic (Lore :41337)
+- **Public subnets** (3x /24): Internet Gateway access, ALB/NLB placement.
+- **Private subnets** (3x /24): NAT Gateway access; ECS tasks, RDS.
+- **ALB**: HTTP — Control Plane :8083, Lore :41339.
+- **NLB**: TCP/UDP — Lore :41337 (QUIC).
 
 ## Security
 
-- All resources tagged with `Project` and `Environment` labels
-- Database credentials auto-generated and stored as Pulumi secrets
-- EFS and RDS storage encrypted at rest
-- Security groups follow least-privilege (ingress only from ALB, egress to anywhere)
-- ECS tasks run in private subnets with no public IP
-- Sensitive config values (`ed25519SigningKey`, `s3AccessKey`, `s3SecretKey`) encrypted in Pulumi state
-- Container health checks prevent routing to unhealthy instances
-
-## Lore Service Specifics
-
-- EFS volume mounted at `/data/locks` for persistent lock storage
-- ALB listener on port 41339 for HTTP traffic
-- NLB listener on port 41337 for TCP/UDP QUIC traffic
-- Database URL injected as environment variable
+- All resources tagged with `Project` and `Environment`.
+- Database credentials auto-generated and stored as Pulumi secrets.
+- RDS and S3 encrypted at rest; the Lore chunks bucket blocks public access
+  and enforces secure transport.
+- Security groups follow least privilege (ingress from load balancers only,
+  egress to anywhere).
+- ECS tasks run in private subnets with no public IP.
+- `ed25519SigningKey` is encrypted in Pulumi state; AWS access is via IAM
+  roles, not embedded credentials.
+- S3 lifecycle rules abort incomplete multipart uploads after 7 days.
 
 ## Development
 
-### Build TypeScript
-
 ```bash
-npm run build
-```
-
-### Lint Code
-
-```bash
-npm run lint
-```
-
-### Preview Infrastructure
-
-```bash
-pulumi preview --diff
+npm run build      # compile TypeScript
+npm run lint       # eslint
+pulumi preview     # preview stack changes
 ```
 
 ## Notes
 
-- This is platform infrastructure only. No tenant-specific resources are created.
-- The infrastructure follows AWS best practices for high availability and security.
-- All components are modular and can be reused or extended as needed.
-- The control plane Docker build context is the repo root — ensure the full `control-plane/` workspace is accessible.
+- Platform infrastructure only — no tenant-specific resources.
+- This is an MVP stack: no HA multi-AZ replication for Lore, no SQS delivery.
