@@ -138,7 +138,7 @@ The event bus provides:
 - **Publish/Subscribe**: Decoupled event delivery
 - **Acknowledgment**: At-least-once delivery semantics
 - **Replay**: Replay events from a given position
-- **Dead-Letter Queue**: Failed events for inspection
+- **Dead-Letter Queue**: Failed events for inspection (planned; not provisioned in the MVP — SQS delivery is optional)
 
 ## Getting Started
 
@@ -383,7 +383,10 @@ cargo +1.97.0-aarch64-apple-darwin test -- --ignored
 |--------|-------------|
 | `./control-plane/scripts/test.sh` | Run all tests |
 | `./control-plane/scripts/build.sh` | Build release binary |
-| `./control-plane/scripts/docker-build.sh` | Build Docker image |
+| `./control-plane/scripts/docker-build.sh` | Build Docker image locally |
+| `./control-plane/scripts/publish-image.sh` | Build, push to Docker Hub, and pin the image in `infra/lore/versions.yaml` |
+| `./control-plane/scripts/verify-and-update-versions.sh` | Verify ECS runs the pinned image; `--write` fixes drift |
+| `./control-plane/scripts/test-pipeline.sh` | Regression tests for the build/pin/deploy/verify pipeline |
 | `./control-plane/scripts/generate-key.sh` | Generate Ed25519 signing key |
 | `./control-plane/scripts/dev.sh` | Start dev environment and run server |
 
@@ -559,23 +562,22 @@ telemetry.init_tracing("http://localhost:4317").await?;
 The control plane integrates with the existing Pulumi infrastructure in `cloud/infra/pulumi`:
 
 ### StateStore Integration
-- **Database**: Shares Aurora PostgreSQL (PlatformDataStore) with existing platform services
+- **Database**: Shares RDS PostgreSQL (PlatformDataStore) with existing platform services
 - **Migrations**: Uses sqlx migrations in `persistence/migrations/`
 - **Schema**: Tables for resources, events (outbox), dead-letter queue, and workflows
 - **Security**: Control-plane security group granted access to PostgreSQL
 - **Implementation**: `PostgresStateStore` in `persistence/src/postgres.rs`
 
 ### EventBus Integration
-- **Service**: AWS SQS with dead-letter queue (PlatformEventBus component)
+- **Service**: SQS is wired as an empty `SQS_QUEUE_URL` env var placeholder for the MVP — no SQS queue is provisioned by Pulumi yet. With a URL set, the outbox relay publishes to SQS; without one, events are marked published without delivery (graceful degradation).
 - **Implementation**: `SqsEventBus` in `events/src/sqs.rs`
-- **Features**: At-least-once delivery, acknowledgment, DLQ for failed events
-- **IAM**: Task execution role has SQS permissions via attached policy
+- **Features**: At-least-once delivery, acknowledgment
 
 ### Service Deployment
-- **Component**: ControlPlaneService in `cloud/infra/pulumi/src/components/`
+- **Component**: ControlPlaneService in `infra/pulumi/src/components/`
 - **Platform**: ECS Fargate in existing PlatformCluster
-- **Image**: Built and pushed to dedicated ECR repository
-- **Environment**: DATABASE_URL, EVENT_QUEUE_URL, DEAD_LETTER_QUEUE_URL, AWS_REGION
+- **Image**: Pre-built and pushed to Docker Hub by `control-plane/scripts/publish-image.sh`; the resulting URI is pinned in `infra/lore/versions.yaml` and read by Pulumi (Pulumi does not build images)
+- **Environment**: DATABASE_URL, ED25519_SIGNING_KEY, AWS_REGION, SQS_QUEUE_URL, PROVIDER_TYPE, feature flags (see Configuration)
 
 ### Local Development
 - **Docker Compose**: PostgreSQL + ElasticMQ (SQS-compatible) + Control Plane
@@ -596,18 +598,34 @@ Migrations run automatically on startup via `include_str!()`.
 
 ## Deployment
 
-**Docker:**
+**Docker (local):**
 ```bash
 docker build -t lorecloud-control-plane -f docker/control-plane/Dockerfile .
 ```
 
-**Kubernetes/ECS:** See `infra/pulumi` directory for Pulumi infrastructure as code. The ControlPlaneService component supports the following optional parameters:
+**AWS (ECS via Pulumi):** See `infra/pulumi` for infrastructure as code. Images are
+not built during `pulumi up` — build, push, and pin first, then deploy:
+
+```bash
+# 1. Build + push to Docker Hub and record the image in infra/lore/versions.yaml
+./scripts/publish-image.sh
+
+# 2. Deploy the pinned image
+cd ../infra/pulumi && pulumi up -s dev
+
+# 3. Confirm ECS is running the pinned image
+../control-plane/scripts/verify-and-update-versions.sh dev
+```
+
+`verify-and-update-versions.sh --write` corrects `versions.yaml` after manual
+deploys that don't go through the build script. The ControlPlaneService
+component supports the following optional parameters:
 
 - `jwtAuthEnabled`: Enable JWT authentication (default: "false")
 - `idempotencyEnabled`: Enable idempotency keys (default: "true")
 - `metricsEnabled`: Enable Prometheus metrics (default: "true")
-- `imageTag`: Docker image tag (default: "latest")
 - `rustLog`: RUST_LOG filter (default: "info")
+- `controlPlaneImageUri`: Pinned image URI from `infra/lore/versions.yaml` (set by the build script)
 
 ## Recent Updates
 

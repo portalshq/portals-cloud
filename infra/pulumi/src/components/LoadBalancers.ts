@@ -46,19 +46,20 @@ export class LoadBalancers extends pulumi.ComponentResource {
       cidrBlocks: ["0.0.0.0/0"],
     }, { parent: this });
 
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-https-ingress`, {
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-lore-ingress`, {
       type: "ingress",
-      fromPort: 443,
-      toPort: 443,
+      fromPort: 41339,
+      toPort: 41339,
       protocol: "tcp",
       securityGroupId: this.albSecurityGroup.id,
       cidrBlocks: ["0.0.0.0/0"],
     }, { parent: this });
 
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-lore-ingress`, {
+    // Control Plane listener on port 8083
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-cp-ingress`, {
       type: "ingress",
-      fromPort: 41339,
-      toPort: 41339,
+      fromPort: 8083,
+      toPort: 8083,
       protocol: "tcp",
       securityGroupId: this.albSecurityGroup.id,
       cidrBlocks: ["0.0.0.0/0"],
@@ -84,6 +85,16 @@ export class LoadBalancers extends pulumi.ComponentResource {
       cidrBlocks: ["0.0.0.0/0"],
     }, { parent: this });
 
+    // NLB also forwards TCP on 41337 (TCP_UDP listener)
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-nlb-tcp-ingress`, {
+      type: "ingress",
+      fromPort: 41337,
+      toPort: 41337,
+      protocol: "tcp",
+      securityGroupId: this.nlbSecurityGroup.id,
+      cidrBlocks: ["0.0.0.0/0"],
+    }, { parent: this });
+
     // ── Application Load Balancer ────────────────────────────────────────
     this.alb = new aws.lb.LoadBalancer(`${resourcePrefix}-alb`, {
       internal: false,
@@ -101,6 +112,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
     this.nlb = new aws.lb.LoadBalancer(`${resourcePrefix}-nlb`, {
       internal: false,
       loadBalancerType: "network",
+      securityGroups: [this.nlbSecurityGroup.id],
       subnets: args.publicSubnetIds,
       tags: {
         Name: `${resourcePrefix}-nlb`,
@@ -140,6 +152,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
       protocol: "TCP_UDP",
       targetType: "ip",
       vpcId: args.vpcId,
+      preserveClientIp: "true",
       tags: {
         Name: `${resourcePrefix}-lore-nlb-tg`,
         Project: args.projectName,

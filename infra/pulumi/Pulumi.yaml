@@ -1,6 +1,6 @@
 name: portals-platform
 runtime: nodejs
-description: MVP Pulumi AWS infrastructure — Lore VCS + Control Plane
+description: MVP Pulumi AWS infrastructure — Lore VCS + Control Plane. Images are pre-built and pinned in infra/lore/versions.yaml (see control-plane/scripts/publish-image.sh); Pulumi does not build Docker images.
 main: index.ts
 config:
   projectName:
@@ -19,13 +19,13 @@ config:
     description: Private subnet CIDR blocks (comma-separated)
     default: "10.0.10.0/24,10.0.11.0/24,10.0.12.0/24"
   databaseInstanceClass:
-    description: Aurora PostgreSQL instance class
-    default: "db.t3.micro"
+    description: RDS PostgreSQL instance class
+    default: "db.t3.medium"
   databaseVersion:
-    description: Aurora PostgreSQL version
+    description: RDS PostgreSQL version
     default: "15.4"
   databaseAllocatedStorage:
-    description: Aligned storage for Aurora (GB)
+    description: Allocated storage for RDS (GB)
     default: "100"
   ecsFargateCpu:
     description: Fargate task CPU units
@@ -39,9 +39,6 @@ config:
   controlPlaneDesiredCount:
     description: Desired count for Control Plane service
     default: "1"
-  controlPlaneDockerPath:
-    description: Relative path to repo root for Control Plane multi-stage Docker build
-    default: "../.."
   loreServerImageUri:
     description: External Docker image URI for Lore server (e.g. portalshq/lore-server:latest-amd64)
     default: "portalshq/lore-server:latest-amd64"

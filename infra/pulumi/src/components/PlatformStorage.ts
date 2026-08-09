@@ -7,10 +7,8 @@ import { PlatformStorageArgs } from "../interfaces";
  *
  * Creates storage infrastructure with:
  * - S3 bucket for Lore repository chunks (immutable store)
- * - ECR repository for Control Plane Docker image (built from Dockerfile)
  */
 export class PlatformStorage extends pulumi.ComponentResource {
-  public readonly controlPlaneEcrRepository: aws.ecr.Repository;
   public readonly loreChunksBucket: aws.s3.BucketV2;
   public readonly loreChunksBucketPolicy: aws.s3.BucketPolicy;
 
@@ -18,21 +16,6 @@ export class PlatformStorage extends pulumi.ComponentResource {
     super("portals:platform:Storage", name, {}, opts);
 
     const resourcePrefix = `${args.projectName}-${args.environment}`;
-
-    // ── ECR: Control Plane only ─────────────────────────────────────────
-    this.controlPlaneEcrRepository = new aws.ecr.Repository(`${resourcePrefix}-controlplane-ecr`, {
-      name: `${resourcePrefix}-controlplane`,
-      forceDelete: true,
-      imageScanningConfiguration: {
-        scanOnPush: true,
-      },
-      tags: {
-        Name: `${resourcePrefix}-controlplane-ecr`,
-        Project: args.projectName,
-        Environment: args.environment,
-        Service: "control-plane",
-      },
-    }, { parent: this });
 
     // ── S3: Lore repository chunks ──────────────────────────────────────
     this.loreChunksBucket = new aws.s3.BucketV2(`${resourcePrefix}-lore-chunks`, {
@@ -72,6 +55,21 @@ export class PlatformStorage extends pulumi.ComponentResource {
             sseAlgorithm: "AES256",
           },
           bucketKeyEnabled: true,
+        },
+      ],
+    }, { parent: this });
+
+    // Lifecycle: old / incomplete / abandoned fragments are reclaimed by Lore VCS.
+    // Abort multipart uploads after 7 days so stray uploads never become a cost leak.
+    new aws.s3.BucketLifecycleConfigurationV2(`${resourcePrefix}-lore-chunks-lifecycle`, {
+      bucket: this.loreChunksBucket.id,
+      rules: [
+        {
+          id: "abort-incomplete-multipart-uploads",
+          status: "Enabled",
+          abortIncompleteMultipartUpload: {
+            daysAfterInitiation: 7,
+          },
         },
       ],
     }, { parent: this });

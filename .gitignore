@@ -7,6 +7,7 @@ dist/
 node_modules/
 .turbo/
 target/
+infra/pulumi/bin/
 
 # Compose runtime
 .compose-data/

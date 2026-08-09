@@ -41,7 +41,7 @@ export interface PlatformDataStoreArgs {
 
 /**
  * Interface for PlatformStorage component arguments
- * S3 for Lore chunks + ECR for Control Plane image
+ * S3 for Lore chunks (Control Plane image lives on Docker Hub)
  */
 export interface PlatformStorageArgs {
   readonly projectName: string;
@@ -96,20 +96,22 @@ export interface ControlPlaneServiceArgs {
   readonly clusterName: pulumi.Input<string>;
   readonly vpcId: pulumi.Input<string>;
   readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
-  readonly ecrRepositoryUrl: pulumi.Input<string>;
   readonly albTargetGroupArn: pulumi.Input<string>;
   readonly albSecurityGroupId: pulumi.Input<string>;
+  /** Shared ECS task security group (attached alongside the service SG for DB access) */
+  readonly taskSecurityGroupId: pulumi.Input<string>;
   readonly projectName: string;
   readonly environment: string;
-  readonly dockerPath: string;
   readonly desiredCount: number;
   readonly cpu: string;
   readonly memory: string;
   readonly databaseUrl: pulumi.Output<string>;
   /** Ed25519 signing key for data plane JWT tokens (base64-encoded) */
   readonly ed25519SigningKey: pulumi.Input<string>;
-  /** Docker image tag (defaults to "latest") */
-  readonly imageTag?: string;
+  /** Full pre-built image URI (e.g. portalshq/control-plane:sha-timestamp), pinned in
+   *  infra/lore/versions.yaml. Build + push via control-plane/scripts/publish-image.sh —
+   *  Pulumi does not build images. */
+  readonly controlPlaneImageUri: string;
   /** RUST_LOG filter (defaults to "info,lorecloud_control_plane=debug,sqlx=warn") */
   readonly rustLog?: string;
   /** Enable JWT authentication (defaults to "false") */

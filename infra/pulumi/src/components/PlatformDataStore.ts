@@ -7,13 +7,12 @@ import { PlatformDataStoreArgs } from "../interfaces";
  * PlatformDataStore Component
  *
  * Creates:
- * - Aurora PostgreSQL RDS cluster (for Control Plane)
+ * - RDS PostgreSQL single instance (for Control Plane)
  * - DynamoDB table (for Lore Server mutable/lock store)
  */
 export class PlatformDataStore extends pulumi.ComponentResource {
   // RDS (Control Plane)
-  public readonly cluster: aws.rds.Cluster;
-  public readonly clusterInstance: aws.rds.ClusterInstance;
+  public readonly databaseInstance: aws.rds.Instance;
   public readonly subnetGroup: aws.rds.SubnetGroup;
   public readonly securityGroup: aws.ec2.SecurityGroup;
   public readonly databaseUrl: pulumi.Output<string>;
@@ -26,11 +25,11 @@ export class PlatformDataStore extends pulumi.ComponentResource {
 
     const resourcePrefix = `${args.projectName}-${args.environment}`;
 
-    // ── RDS: Aurora PostgreSQL for Control Plane ─────────────────────────
+    // ── RDS: PostgreSQL single instance for Control Plane ────────────────
 
     this.subnetGroup = new aws.rds.SubnetGroup(`${resourcePrefix}-db-subnet-group`, {
       subnetIds: args.privateSubnetIds,
-      description: "Database subnet group for Aurora PostgreSQL",
+      description: "Database subnet group for RDS PostgreSQL",
       tags: {
         Name: `${resourcePrefix}-db-subnet-group`,
         Project: args.projectName,
@@ -40,7 +39,7 @@ export class PlatformDataStore extends pulumi.ComponentResource {
 
     this.securityGroup = new aws.ec2.SecurityGroup(`${resourcePrefix}-db-sg`, {
       vpcId: args.vpcId,
-      description: "Security group for Aurora PostgreSQL",
+      description: "Security group for RDS PostgreSQL",
       tags: {
         Name: `${resourcePrefix}-db-sg`,
         Project: args.projectName,
@@ -61,42 +60,33 @@ export class PlatformDataStore extends pulumi.ComponentResource {
       }, { parent: this });
     }
 
-    this.cluster = new aws.rds.Cluster(`${resourcePrefix}-aurora-cluster`, {
-      engine: aws.rds.EngineType.AuroraPostgresql,
+    const dbPassword = new random.RandomPassword(`${resourcePrefix}-db-password`, {
+      length: 32,
+      special: true,
+    }, { parent: this }).result;
+
+    this.databaseInstance = new aws.rds.Instance(`${resourcePrefix}-db`, {
+      engine: "postgres",
       engineVersion: args.databaseVersion,
-      databaseName: "portals",
-      masterUsername: args.databaseUsername,
-      masterPassword: pulumi.secret(new random.RandomPassword(`${resourcePrefix}-db-password`, {
-        length: 32,
-        special: true,
-      }, { parent: this }).result),
+      instanceClass: args.databaseInstanceClass,
+      allocatedStorage: args.databaseAllocatedStorage,
+      dbName: "portals",
+      username: args.databaseUsername,
+      password: pulumi.secret(dbPassword),
       dbSubnetGroupName: this.subnetGroup.name,
       vpcSecurityGroupIds: [this.securityGroup.id],
+      publiclyAccessible: false,
       skipFinalSnapshot: true,
       storageEncrypted: true,
       applyImmediately: true,
       tags: {
-        Name: `${resourcePrefix}-aurora-cluster`,
+        Name: `${resourcePrefix}-db`,
         Project: args.projectName,
         Environment: args.environment,
       },
     }, { parent: this });
 
-    this.clusterInstance = new aws.rds.ClusterInstance(`${resourcePrefix}-aurora-instance`, {
-      clusterIdentifier: this.cluster.id,
-      instanceClass: args.databaseInstanceClass,
-      engine: aws.rds.EngineType.AuroraPostgresql,
-      engineVersion: args.databaseVersion,
-      dbSubnetGroupName: this.subnetGroup.name,
-      publiclyAccessible: false,
-      tags: {
-        Name: `${resourcePrefix}-aurora-instance`,
-        Project: args.projectName,
-        Environment: args.environment,
-      },
-    }, { parent: this });
-
-    this.databaseUrl = pulumi.interpolate`postgresql://${args.databaseUsername}:${this.cluster.masterPassword}@${this.cluster.endpoint}:5432/portals`;
+    this.databaseUrl = pulumi.interpolate`postgresql://${args.databaseUsername}:${this.databaseInstance.password}@${this.databaseInstance.endpoint}:5432/portals`;
 
     // ── DynamoDB: Lore Server mutable + lock store ───────────────────────
 

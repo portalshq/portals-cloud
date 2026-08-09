@@ -24,6 +24,14 @@ export class PlatformCluster extends pulumi.ComponentResource {
 
     const resourcePrefix = `${args.projectName}-${args.environment}`;
 
+    // ── ECS Service-Linked Role ────────────────────────────────────────────
+    // Auto-created by AWS on first console use, but must be explicit for
+    // fully-API-managed accounts (CreateService requires it).
+    new aws.iam.ServiceLinkedRole(`${resourcePrefix}-ecs-slr`, {
+      awsServiceName: "ecs.amazonaws.com",
+      description: "Service-linked role for Amazon ECS",
+    }, { parent: this });
+
     // ── CloudWatch Log Group ─────────────────────────────────────────────
     this.logGroup = new aws.cloudwatch.LogGroup(`${resourcePrefix}-ecs-logs`, {
       name: `/ecs/${resourcePrefix}`,
