@@ -65,7 +65,7 @@ impl<'a> PostgresTransactionPool<'a> {
 #[async_trait]
 impl<'a> StoreTransaction for PostgresTransactionPool<'a> {
     async fn set_observed(
-        &mut self,
+        &self,
         id: &ResourceId,
         state: &serde_json::Value,
         version: u64,
@@ -91,7 +91,7 @@ impl<'a> StoreTransaction for PostgresTransactionPool<'a> {
     }
 
     async fn set_workflow_id(
-        &mut self,
+        &self,
         id: &ResourceId,
         workflow_id: &str,
         _version: u64,
@@ -109,7 +109,7 @@ impl<'a> StoreTransaction for PostgresTransactionPool<'a> {
         Ok(())
     }
 
-    async fn enqueue_outbox_event(&mut self, event: PlatformEvent) -> Result<(), StoreError> {
+    async fn enqueue_outbox_event(&self, event: PlatformEvent) -> Result<(), StoreError> {
         let mut tx_guard = self.tx.lock().await;
         let tx = tx_guard.as_mut().ok_or_else(|| StoreError::Database("Transaction already consumed".into()))?;
         let event_type = serde_json::to_value(&event)

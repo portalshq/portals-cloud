@@ -74,10 +74,8 @@ services:
       - control-plane-network
 
   control-plane:
-    build:
-      context: .
-      dockerfile: docker/control-plane/Dockerfile
-      target: runtime
+    # Published image (pin from infra/lore/versions.yaml via publish-image.sh).
+    image: portalshq/control-plane:a9a62c4-20260810-011331
     container_name: control-plane-server
     ports:
       - "8083:8083"

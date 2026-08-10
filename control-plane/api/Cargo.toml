@@ -29,6 +29,8 @@ jsonwebtoken = { workspace = true }
 sha2 = { workspace = true }
 rand = { workspace = true }
 clap = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-sqs = { workspace = true }
 models = { path = "../models" }
 events = { path = "../events" }
 persistence = { path = "../persistence" }

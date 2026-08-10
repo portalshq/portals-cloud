@@ -420,10 +420,8 @@ services:
     # Lore Cloud Control Plane — Rust-based reconciliation engine.
     # Manages Repository resources via Postgres state store + transactional outbox.
     # In prod: ECS Fargate (infra/terraform-aws/modules/ecs/ or infra/pulumi/)
-    build:
-      context: .
-      dockerfile: docker/control-plane/Dockerfile
-      target: runtime
+    # Published image (pin from infra/lore/versions.yaml via publish-image.sh).
+    image: portalshq/control-plane:a9a62c4-20260810-011331
     <<: [*restart, *logging]
     depends_on:
       postgres:

@@ -12,4 +12,4 @@ lore:
 
 control-plane:
   # Set by control-plane/scripts/publish-image.sh after each push.
-  image: ""
+  image: "portalshq/control-plane:a9a62c4-20260810-011331"

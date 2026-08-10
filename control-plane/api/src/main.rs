@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
     let reconciler_handle = {
         use controllers::repository::{RepositoryController, RepositoryResource};
         use controllers::organization::{OrganizationController, OrganizationResource};
-        use models::ResourceKind;
+        use models::{Controller, ResourceKind};
 
         let repo_store = store.clone();
 

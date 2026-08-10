@@ -105,4 +105,6 @@ pub enum TokenError {
     Signing(String),
     #[error("Verification error: {0}")]
     Verification(String),
+    #[error("Invalid token: {0}")]
+    InvalidToken(String),
 }

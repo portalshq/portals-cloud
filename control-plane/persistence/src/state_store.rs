@@ -19,9 +19,9 @@ pub enum StoreError {
 
 #[async_trait]
 pub trait StoreTransaction: Send + Sync {
-    async fn set_observed(&mut self, id: &ResourceId, state: &serde_json::Value, version: u64) -> Result<(), StoreError>;
-    async fn set_workflow_id(&mut self, id: &ResourceId, workflow_id: &str, version: u64) -> Result<(), StoreError>;
-    async fn enqueue_outbox_event(&mut self, event: PlatformEvent) -> Result<(), StoreError>;
+    async fn set_observed(&self, id: &ResourceId, state: &serde_json::Value, version: u64) -> Result<(), StoreError>;
+    async fn set_workflow_id(&self, id: &ResourceId, workflow_id: &str, version: u64) -> Result<(), StoreError>;
+    async fn enqueue_outbox_event(&self, event: PlatformEvent) -> Result<(), StoreError>;
 }
 
 #[async_trait]

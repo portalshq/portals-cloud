@@ -61,6 +61,22 @@ impl Telemetry {
     }
 }
 
+/// Initialize telemetry with defaults for the control plane binary.
+/// Filtering is controlled via `RUST_LOG`; `log_filter` is accepted for
+/// call-site compatibility.
+pub fn init(log_filter: &str) -> Result<Telemetry, ObservabilityError> {
+    let _ = log_filter;
+    Telemetry::init(
+        "lorecloud-control-plane",
+        &ObservabilityConfig {
+            otlp_endpoint: std::env::var("OTLP_ENDPOINT")
+                .unwrap_or_else(|_| "http://localhost:4317".into()),
+            service_name: "lorecloud-control-plane".into(),
+            environment: std::env::var("ENVIRONMENT").unwrap_or_else(|_| "dev".into()),
+        },
+    )
+}
+
 fn build_otlp_exporter(endpoint: &str) -> opentelemetry_otlp::SpanExporterBuilder {
     opentelemetry_otlp::SpanExporterBuilder::Tonic(opentelemetry_otlp::new_exporter()
         .tonic()

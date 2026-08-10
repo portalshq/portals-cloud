@@ -37,6 +37,9 @@ COPY control-plane/models/Cargo.toml /app/control-plane/models/Cargo.toml
 COPY control-plane/observability/Cargo.toml /app/control-plane/observability/Cargo.toml
 COPY control-plane/persistence/Cargo.toml /app/control-plane/persistence/Cargo.toml
 COPY control-plane/providers/Cargo.toml /app/control-plane/providers/Cargo.toml
+COPY control-plane/providers/trait/Cargo.toml /app/control-plane/providers/trait/Cargo.toml
+COPY control-plane/providers/aws/Cargo.toml /app/control-plane/providers/aws/Cargo.toml
+COPY control-plane/providers/mock/Cargo.toml /app/control-plane/providers/mock/Cargo.toml
 COPY control-plane/reconciler/Cargo.toml /app/control-plane/reconciler/Cargo.toml
 COPY control-plane/server/Cargo.toml /app/control-plane/server/Cargo.toml
 COPY control-plane/tests/Cargo.toml /app/control-plane/tests/Cargo.toml
@@ -44,12 +47,14 @@ COPY control-plane/workflows/Cargo.toml /app/control-plane/workflows/Cargo.toml
 
 # Create minimal stub source files so `cargo build` can resolve deps.
 # Each crate needs a lib.rs or main.rs to compile.
-RUN for crate in models events observability config controllers providers persistence reconciler workflows server tests; do \
+RUN for crate in models events observability config controllers providers providers/trait providers/aws providers/mock persistence reconciler workflows server tests; do \
         mkdir -p /app/control-plane/$crate/src && \
         echo "pub fn init() {}" > /app/control-plane/$crate/src/lib.rs; \
     done && \
     mkdir -p /app/control-plane/api/src && \
     echo "fn main() {}" > /app/control-plane/api/src/main.rs && \
+    mkdir -p /app/control-plane/server/src && \
+    echo "fn main() {}" > /app/control-plane/server/src/main.rs && \
     for controller in audit quota permissions billing gc session storage world channel capability-deployment runtime-scheduling resolver audience-session; do \
         mkdir -p /app/control-plane/controllers/$controller/src && \
         echo "pub fn init() {}" > /app/control-plane/controllers/$controller/src/lib.rs; \
@@ -60,6 +65,10 @@ RUN cd /app/control-plane && cargo build --release
 
 # Now copy real source and build the binary
 COPY control-plane/ /app/control-plane/
+# COPY preserves checkout mtimes, which can be older than the dep-cache layer's
+# compiled artifacts; cargo fingerprints by mtime and would skip rebuilding the
+# workspace crates, linking the binary against the stub libs above.
+RUN find /app/control-plane -name '*.rs' -exec touch {} +
 RUN cd /app/control-plane && cargo build --release --bin lorecloud-control-plane
 
 # ── Stage 2: Runtime ────────────────────────────────────────────────────────
