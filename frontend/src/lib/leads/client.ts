@@ -1,7 +1,11 @@
 'use client'
 
 import type {LeadRequest, LeadResponse} from './contracts'
-import {identifyAnalyticsPerson, trackEvent} from './analytics-client'
+import {
+  anonymousAnalyticsId,
+  identifyAnalyticsPerson,
+  trackEvent,
+} from './analytics-client'
 import {emailDomain, isPublicEmailDomain, normalizeDomain} from './identity'
 
 export function newSubmissionId(prefix: string): string {
@@ -28,7 +32,7 @@ export async function submitLead(request: LeadRequest): Promise<LeadResponse> {
   const response = await fetch('/api/leads', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(request),
+    body: JSON.stringify({...request, anonAnalyticsId: anonymousAnalyticsId()}),
   })
   const result = (await response.json()) as LeadResponse & {error?: string}
   if (!response.ok || !result.ok) {

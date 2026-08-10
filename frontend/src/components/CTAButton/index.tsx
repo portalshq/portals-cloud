@@ -60,6 +60,7 @@ export function CTAButton(props: CTAButtonProps) {
     return (
       <a
         {...anchorProps}
+        data-analytics-cta="true"
         className={cn(classes)}
         onClick={(event) => {
           void trackEvent('cta_clicked', {
@@ -80,6 +81,7 @@ export function CTAButton(props: CTAButtonProps) {
   return (
     <button
       {...buttonProps}
+      data-analytics-cta="true"
       className={cn(classes)}
       onClick={(event) => {
         if (analyticsLabel) {

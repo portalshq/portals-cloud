@@ -7,7 +7,7 @@ The public funnel has three canonical paths: `/ai-production-workflow-risks` for
 ## Launch order
 
 1. Provision a separate managed PostgreSQL database and run `npm --workspace frontend run migrate:leads`.
-2. Create the Attio lists and attributes in `config/attio-lead-operations.json`. Set `ATTIO_CUSTOM_ATTRIBUTES_ENABLED=true` only after every custom API slug exists.
+2. Provision Attio with `npm --workspace frontend run provision:attio`, which reconciles the lists, attributes, and select options in `config/attio-lead-operations.json` idempotently through the Attio API. Set `ATTIO_CUSTOM_ATTRIBUTES_ENABLED=true` only after the script completes with zero failures.
 3. Configure and verify the Resend sending domain. Use a monitored sender and founder-notification address.
 4. Add Vercel environment values from `.env.example`, deploy, then verify the cron endpoint and outbox retries.
 5. Enable the Mixpanel browser and server tokens only after the privacy text is published.
@@ -46,7 +46,7 @@ The server derives progressive context in `getKnownLeadContext` (`src/lib/leads/
 
 1. `npm run typecheck` and `npm run test:leads` pass.
 2. `LEADS_DRY_RUN=true` with the dev server; submit a sample from `/assessment` and confirm the breakdown renders with a production-memory risk `/24` and the correct tier CTA.
-3. On production after deployment, submit a real sample and confirm the submission arrives at `/api/leads`, the outbox completes, the Attio person/company are created, the person is added to `production-assessments`, the attributes and note are populated, and `qualification_score` lands in the 0-24 range.
+3. On production after deployment, submit a real sample and confirm the submission arrives at `/api/leads`, the outbox completes, the Attio person/company are created, the person is added to `production_assessments`, the attributes and note are populated, and `qualification_score` lands in the 0-24 range.
 4. Review the first 20 to 30 submissions manually before adjusting any scoring or thresholds.
 
 ## Personalized documents
@@ -61,9 +61,11 @@ The assessment and pilot documents may show an annualized time-at-risk scenario 
 
 ### CRM preparations
 
-Before enabling `ATTIO_CUSTOM_ATTRIBUTES_ENABLED`, create the lists and attributes in `config/attio-lead-operations.json` and add every custom API slug in Attio:
+`config/attio-lead-operations.json` is the declarative source of truth for lists, attributes, and select options. `npm --workspace frontend run provision:attio` reconciles it against the workspace through the Attio API: it creates missing lists (`POST /v2/lists`), attributes (`POST /v2/objects/{object}/attributes`), and select options (`POST /v2/objects/{object}/attributes/{attribute}/options`), and skips anything that already exists, so it is safe to re-run. It requires `ATTIO_API_KEY` from a token with the `object_configuration:read-write` and `list_configuration:read-write` scopes created by a workspace admin. The deals object must be enabled in the workspace for `portals_submission_id`; the deal `stage` title written by the integration must already exist in the pipeline (or override it with `ATTIO_PILOT_STAGE`).
 
-- Lists: `inbound-leads`, `guide-downloads`, `production-assessments` (people, history on); `nurture`, `qualified-opportunities`, `pilot-requests`, `paid-pilots` (manual), `customers` (manual) (companies). People keep historical membership in the three people lists; companies reconcile into at most one operational list.
+Select attributes must ship with their full option sets. Attio never auto-creates options: writing a value whose option title does not exist fails the write, so every string the integration sends must be an option title in `config/attio-lead-operations.json` before `ATTIO_CUSTOM_ATTRIBUTES_ENABLED=true`. Option titles are the canonical API values from the forms and scoring, not display labels.
+
+- Lists: `inbound_leads`, `guide_downloads`, `production_assessments` (people, history on); `nurture`, `qualified_opportunities`, `pilot_requests`, `paid_pilots` (manual), `customers` (manual) (companies). People keep historical membership in the three people lists; companies reconcile into at most one operational list.
 - People attributes: `lead_intent` (select), `cta_label` (text), `source_page` (text), `use_case_interest` (multi-select), `qualification_score` (number, 0-24 composite risk), `qualification_tier` (select, people and companies), `production_role` (text), `company_type` (select), `team_size` (select), `tools_used` (text, raw answer string), `approved_version_method` (select), `production_context_method` (select), `recreation_frequency` (select), `active_workflow` (text, workflow description), `timeline` (select), `message` (text, multiline), `utm_source` / `utm_campaign` (text), `first_touch_page` / `last_touch_page` (text, people and companies), `last_cta_clicked` (text), `lifecycle_stage` (select, people and companies), `recommended_next_action` (select, people and companies), `marketing_consent` / `analytics_consent` (checkbox).
 - Company attributes: `fit_score`, `pain_score`, `intent_score` (number), `qualifying_submission_id` (text), plus the shared `qualification_tier`, `recommended_next_action`, `first_touch_page`, `last_touch_page`.
 - Deal attribute: `portals_submission_id` (text, unique), used to upsert paid-pilot deals.
@@ -82,7 +84,11 @@ The same workflow may report those authoritative changes to `POST /api/leads` as
 
 Browser Mixpanel starts only after analytics consent and uses the opaque intake profile ID. Never add email, names, messages, assessment answers, or workflow descriptions to analytics properties.
 
-Build funnel reports for `page_viewed`, `cta_clicked`, `form_opened`, `form_started`, `form_submitted`, `guide_downloaded`, `assessment_completed`, `qualification_assigned`, `calendar_shown`, `meeting_booked`, `pilot_requested`, `pilot_proposed`, `pilot_accepted`, `annual_contract_sent`, and `annual_contract_won`.
+An anonymous visitor gets a stable opaque browser ID (`portals_analytics_anon_id`) used as `distinct_id` (and `$device_id` on every event) until intake. At intake the server sends `$create_alias` (anon ID to profile ID) before submission events, and the client re-sends it lazily if the user consents later, so pre-intake browsing merges into the person profile. The browser ID is not PII and is never tied to an identity without consent.
+
+Build funnel reports for `page_viewed`, `cta_clicked`, `form_opened`, `form_started`, `form_submitted`, `guide_downloaded`, `assessment_completed`, `qualification_assigned`, `calendar_shown`, `meeting_booked`, `pilot_requested`, `pilot_proposed`, `pilot_accepted`, `annual_contract_sent`, and `annual_contract_won`. Browser behavior events share the same consent gate and the browser-ID identity model: `scroll_depth` (25/50/75/90/100 thresholds, 1s debounce, once per threshold per page), `link_clicked` (text, destination, external), `button_clicked` (text), `faq_expanded` (question), `page_leave` (seconds on page). Dedup rules: `[data-analytics-cta]` elements emit `cta_clicked` only, and `[data-faq-question]` elements emit `faq_expanded` only.
+
+Apollo's website tracker (`app/layout.tsx`) runs unconditionally for sales intelligence on anonymous visitors; it is separate from the Mixpanel consent gate.
 
 The primary report is paid-pilot revenue per distinct qualified company grouped by first-touch source. Keep last-touch reporting separate. Review the first 20 to 30 assessments manually before changing score mappings or thresholds; never move thresholds automatically from a median.
 

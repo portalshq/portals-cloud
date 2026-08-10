@@ -441,6 +441,7 @@ function PilotFaq({document}: {document: ResourceDocument}) {
                 <CTAButton
                   appearance="plain"
                   type="button"
+                  data-faq-question={faq.question}
                   onClick={() =>
                     setOpenIndex(openIndex === index ? null : index)
                   }

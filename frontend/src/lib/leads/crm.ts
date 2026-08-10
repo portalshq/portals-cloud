@@ -28,12 +28,12 @@ type ListKey =
   | 'nurture'
 
 const defaultLists: Record<ListKey, string> = {
-  inboundLeads: 'inbound-leads',
-  guideDownloads: 'guide-downloads',
-  productionAssessments: 'production-assessments',
-  pilotRequests: 'pilot-requests',
-  qualifiedOpportunities: 'qualified-opportunities',
-  paidPilots: 'paid-pilots',
+  inboundLeads: 'inbound_leads',
+  guideDownloads: 'guide_downloads',
+  productionAssessments: 'production_assessments',
+  pilotRequests: 'pilot_requests',
+  qualifiedOpportunities: 'qualified_opportunities',
+  paidPilots: 'paid_pilots',
   customers: 'customers',
   nurture: 'nurture',
 }

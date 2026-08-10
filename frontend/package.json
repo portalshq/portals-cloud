@@ -11,6 +11,7 @@
     "audit:package-specifications": "tsx scripts/audit-package-specifications.ts",
     "generate-pdfs": "export $(grep -v '^#' .env.local | xargs) && tsx scripts/generate-pdfs.ts",
     "migrate:leads": "tsx scripts/migrate-leads.ts",
+    "provision:attio": "tsx scripts/provision-attio.ts",
     "test:leads": "tsx --test src/lib/leads/*.test.ts"
   },
   "devDependencies": {

@@ -9,11 +9,13 @@ export async function trackSubmissionEvents(
   const token =
     process.env.MIXPANEL_PROJECT_TOKEN || process.env.NEXT_PUBLIC_MIXPANEL_TOKEN
   if (!token) throw new Error('MIXPANEL_PROJECT_TOKEN is required.')
+  const anonAnalyticsId = submission.request.anonAnalyticsId
   const common = {
     token,
     distinct_id: submission.profile.analyticsPersonId,
     person_id: submission.profile.analyticsPersonId,
     company_domain: submission.profile.companyDomain,
+    $device_id: anonAnalyticsId,
     intent: submission.request.attribution.intent,
     source_page: submission.request.attribution.sourcePage,
     cta_label: submission.request.attribution.ctaLabel,
@@ -30,6 +32,18 @@ export async function trackSubmissionEvents(
     time: Math.floor(Date.now() / 1000),
   }
   const events: Event[] = []
+  if (anonAnalyticsId) {
+    events.push({
+      event: '$create_alias',
+      properties: {
+        token,
+        distinct_id: anonAnalyticsId,
+        $device_id: anonAnalyticsId,
+        alias: submission.profile.analyticsPersonId,
+        time: Math.floor(Date.now() / 1000),
+      },
+    })
+  }
   if (submission.request.submissionType === 'commercial_event') {
     events.push({
       event: submission.request.answers.event,

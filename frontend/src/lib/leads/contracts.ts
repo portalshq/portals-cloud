@@ -61,6 +61,7 @@ const commonSchema = z.object({
   attribution: attributionSchema,
   consent: consentSchema,
   companyFax: z.string().max(200).optional().default(''),
+  anonAnalyticsId: z.string().trim().max(64).optional(),
 })
 
 const resourceAnswersSchema = z.object({

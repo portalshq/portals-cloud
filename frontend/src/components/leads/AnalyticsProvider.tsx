@@ -11,11 +11,14 @@ import {
   trackEvent,
   type AnalyticsConsent,
 } from '@/lib/leads/analytics-client'
+import {useBehaviorTracking} from '@/lib/leads/analytics-behaviors'
 
 export function AnalyticsProvider() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [consent, setConsent] = useState<AnalyticsConsent>(null)
+
+  useBehaviorTracking(pathname, consent === 'accepted')
 
   useEffect(() => {
     captureFirstTouch()

@@ -380,6 +380,7 @@ function SecurityFAQ() {
                 className="rounded-sm border border-white/70 bg-white/8 backdrop-blur-[18px]"
               >
                 <button
+                  data-faq-question={faq.question}
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
                   className="cursor-pointer flex w-full items-center justify-between p-24 text-left t-p-sans focus:outline-none"
                   aria-expanded={openIndex === index}
