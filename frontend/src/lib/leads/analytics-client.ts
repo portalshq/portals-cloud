@@ -148,9 +148,9 @@ async function postToMixpanel(
   const token = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN
   if (!token) return
   try {
-    await fetch('https://api.mixpanel.com/track', {
+    await fetch('https://cdn.mixpanel.com/track', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'text/plain'},
       body: JSON.stringify([{
         event,
         properties: {
