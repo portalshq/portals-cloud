@@ -69,6 +69,15 @@ body {
   display: none;
 }
 
+.saga-overview-mobile-subsections {
+  display: none;
+}
+
+.saga-overview-progress-line {
+  transform: translate3d(0, 0, 0) scaleX(0);
+  will-change: transform;
+}
+
 .saga-overview-pin {
   position: sticky;
   top: 0;
@@ -82,20 +91,120 @@ body {
   }
 }
 
+@media (max-width: 47.99rem) {
+  .saga-front-header {
+    position: fixed;
+  }
+
+  .saga-hero-assess {
+    min-height: 60px;
+  }
+
+  .saga-hero-repository-copy[data-mobile-scroll-phase='pinned'],
+  .saga-hero-repository-copy[data-mobile-scroll-phase='released'] {
+    position: fixed;
+    top: 50vh;
+    top: 50svh;
+    left: var(--saga-repository-fixed-left);
+    z-index: 200;
+    width: var(--saga-repository-fixed-width);
+    transform: translate3d(0, -50%, 0);
+  }
+
+  .saga-hero-repository-copy[data-mobile-scroll-phase='released'] {
+    transform: translate3d(0, calc(-50% + var(--saga-repository-release-offset)), 0);
+  }
+
+  .saga-problem-section {
+    position: relative;
+    padding-top: 50vh;
+    padding-top: 50svh;
+  }
+}
+
+@media (min-width: 48rem) {
+  .saga-front-hero {
+    position: relative;
+  }
+
+  .saga-front-hero .saga-hero-repository {
+    position: absolute;
+    right: var(--spacing-sms);
+    bottom: var(--spacing-sms);
+    left: var(--spacing-sms);
+    display: block;
+  }
+
+  .saga-front-hero .saga-hero-repository > div {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .saga-front-hero .saga-hero-repository-anchor {
+    width: auto;
+    max-width: 10.85em;
+  }
+}
+
+@media (max-width: 22rem) {
+  .saga-front-header > div {
+    padding-right: var(--spacing-sms) !important;
+  }
+
+  .saga-front-header [data-analytics-cta='true'] {
+    height: 44px;
+    padding-inline: 8px;
+  }
+
+  .saga-front-header [data-analytics-cta='true'] .t-p-sans {
+    font-size: 14px;
+  }
+
+}
+
 @media (max-width: 63.99rem) {
   .saga-overview-content {
     will-change: auto;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .saga-overview-desktop {
+  .saga-overview-list {
+    visibility: hidden;
+  }
+
+  html {
+    scroll-snap-type: y proximity;
+  }
+
+  .saga-overview-subsections {
+    position: relative;
+    grid-column: 4 / -2;
+  }
+
+  .saga-overview-desktop-subsections {
     display: none;
   }
-  .saga-overview-mobile {
-    display: block;
+
+  .saga-overview-mobile-subsections {
+    position: relative;
+    display: grid;
+    grid-column: 1 / -1;
+    min-width: 0;
   }
-  .saga-overview-content {
-    transition: none;
+
+  .saga-overview-mobile-subsection-content {
+    display: flex;
+    grid-column: 1;
+    grid-row: 1;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .saga-overview-mobile-subsection-content[data-overview-visible='false'] {
+    pointer-events: none;
+  }
+
+  .saga-overview-snap-point {
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
   }
 }

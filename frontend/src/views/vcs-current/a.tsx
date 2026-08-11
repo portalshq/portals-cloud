@@ -8,7 +8,7 @@ import {
 } from '@/lib/package-specifications';
 import { formatNumber, scopeAPilotMailto } from '@/lib/utils';
 import type {PackageSpecification} from '@/types/resource';
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, type RefObject, useEffect, useRef, useState } from 'react';
 
 type OverviewItem = {
   heading: string;
@@ -49,30 +49,32 @@ const overviewItems: OverviewItem[] = [
       'Characters, props, styles, and locations become addressable entities',
       'Search, automation, and integrations can reference assets with certainty',
     ],
-    textC: ['Without identity, the approved version is a claim. With identity, it is a fact.'],
+    textC: ['Without identity, the approved version is a claim. With identity, it is a verifiable fact.'],
   },
   {
     heading: 'History',
     iconPath: iconPaths[2],
     textA: [
-      'Nothing is overwritten. Everything is recoverable.',
       'Every edit, regeneration, and approval becomes a new version, not a replacement.',
     ],
-    textB: ['Portals preserves the full lineage of an asset from first generation to shipped output, so any prior state can be recalled, compared, restored, or branched from in seconds.'],
-    textC: ['History turns institutional guesswork into institutional memory.'],
+    textB: ['History that preserves the full lineage of an asset from first generation to shipped output, so any prior state can be recalled, compared, restored, or branched from in seconds.'],
+    textC: ['Portals takes you from guesswork to institutional memory.'],
   },
   {
     heading: 'Provenance',
     iconPath: iconPaths[3],
-    textA: ['The asset and the reasoning behind it.'],
-    textB: ['Prompts, model version, reference images, parameters, edits, and approvals along the way. Portals captures that chain automatically, attached to the asset itself.'],
+    textA: [
+      // 'The asset and the reasoning behind it.',
+      'Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.',
+    ],
+    textB: ['Prompts, model version, reference images, parameters, edits, and approvals along the way. Portals captures the production chain automatically, attached to the asset itself.'],
     textC: ['Your best results become reproducible, explainable, and reusable.'],
   },
   {
     heading: 'Collaboration',
     iconPath: iconPaths[0],
     textA: ['One shared source of truth, not eleven personal copies.'],
-    textB: ['Because every asset lives in one governed repository with real identity and history, teams collaborate on the assets themselves, not on synced folders and hopeful naming conventions.'],
+    textB: ['Because every asset lives in one governed repository with history and identity, teams collaborate on shared assets, not on offline folders and hopeful naming conventions.'],
     textC: ['Everyone sees the same version, the same history, and the same provenance.'],
   },
 ];
@@ -209,12 +211,14 @@ function pricingTierHref(tier: PricingTier): string {
     : scopeAPilotMailto;
 }
 
-const blurEnterTransition = 'opacity 1.3s cubic-bezier(0.16, 1, 0.3, 1), filter 1.3s cubic-bezier(0.16, 1, 0.3, 1), transform 1.3s cubic-bezier(0.16, 1, 0.3, 1)';
-const blurExitTransition = 'opacity 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19), filter 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19), transform 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19)';
+const blurEnterDurationMs = 1300;
+const blurExitDurationMs = 200;
+const blurEnterEasing = 'cubic-bezier(0.16, 1, 0.3, 1)';
+const blurExitEasing = 'cubic-bezier(0.55, 0.06, 0.68, 0.19)';
 const overviewBlurStaggerMs = 330;
 const overviewLayerCount = 4;
-const overviewExitTotalMs = 200 + overviewBlurStaggerMs * (overviewLayerCount - 1);
-const overviewEnterTotalMs = 1300 + overviewBlurStaggerMs * (overviewLayerCount - 1);
+const overviewExitTotalMs = blurExitDurationMs + overviewBlurStaggerMs * (overviewLayerCount - 1);
+const overviewEnterTotalMs = blurEnterDurationMs + overviewBlurStaggerMs * (overviewLayerCount - 1);
 
 function overviewMotionStyle(visibleIndex: number, index: number, stage: OverviewTransitionStage, scrollDirection: 'up' | 'down', staggerIndex = 0): CSSProperties {
   const isVisibleLayer = visibleIndex === index;
@@ -234,7 +238,9 @@ function overviewMotionStyle(visibleIndex: number, index: number, stage: Overvie
     filter: active ? 'blur(0px)' : 'blur(10px)',
     transform: active ? 'translateX(0px)' : transform,
     pointerEvents: active ? 'auto' : 'none',
-    transition: active ? blurEnterTransition : blurExitTransition,
+    transitionProperty: 'opacity, filter, transform',
+    transitionDuration: `${active ? blurEnterDurationMs : blurExitDurationMs}ms`,
+    transitionTimingFunction: active ? blurEnterEasing : blurExitEasing,
     transitionDelay: isVisibleLayer ? `${staggerIndex * overviewBlurStaggerMs}ms` : '0ms',
   };
 }
@@ -274,7 +280,7 @@ function ListColumn({ item }: { item: OverviewItem }) {
   if (!item.list) return <Paragraphs lines={item.textB} className="t-p-lg-serif" />;
 
   return (
-    <ul className="space-y-8">
+    <ul className="saga-overview-list space-y-8">
       {item.list.map((text) => (
         <li key={text} className="rounded-[10px] border bg-white/10 px-16 py-8 backdrop-blur-[20px]">
           <div className="flex items-start gap-x-16 t-p-sans leading-[1.2em]">
@@ -354,14 +360,15 @@ function OverviewMobileItem({ item, index }: { item: OverviewItem; index: number
 
 function OverviewSection() {
   const sectionRef = useRef<HTMLElement>(null);
+  const progressLineRef = useRef<HTMLDivElement>(null);
   const requestedIndexRef = useRef(0);
   const [scrollIndex, setScrollIndex] = useState(0);
   const [visibleIndex, setVisibleIndex] = useState(0);
   const [transitionStage, setTransitionStage] = useState<OverviewTransitionStage>('hidden');
   const [scrollPhase, setScrollPhase] = useState<OverviewScrollPhase>('before');
-  const [progress, setProgress] = useState(0);
   const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('down');
   const lastProgressRef = useRef(0);
+  const renderedProgressRef = useRef(-1);
   const itemCount = overviewItems.length;
 
   useEffect(() => {
@@ -376,10 +383,15 @@ function OverviewSection() {
       const scrollRange = Math.max(1, section.offsetHeight - window.innerHeight);
       const unclampedProgress = -rect.top / scrollRange;
       const rawProgress = Math.min(1, Math.max(0, unclampedProgress));
+      const renderedProgress = Math.round(rawProgress * 1000) / 1000;
       const nextIndex = Math.min(itemCount - 1, Math.floor(rawProgress * itemCount));
       const nextScrollPhase: OverviewScrollPhase = unclampedProgress < 0 ? 'before' : unclampedProgress > 1 ? 'after' : 'viewing';
 
-      setProgress(rawProgress);
+      if (progressLineRef.current && renderedProgress !== renderedProgressRef.current) {
+        progressLineRef.current.style.transform = `translate3d(0, 0, 0) scaleX(${renderedProgress})`;
+        renderedProgressRef.current = renderedProgress;
+      }
+
       if (rawProgress > lastProgressRef.current) {
         setScrollDirection('down');
       } else if (rawProgress < lastProgressRef.current) {
@@ -471,8 +483,6 @@ function OverviewSection() {
     return undefined;
   }, [scrollPhase, transitionStage, scrollIndex]);
 
-  const progressScale = useMemo(() => ({ transform: `scaleX(${progress})` }), [progress]);
-
   return (
     <section ref={sectionRef} data-header-theme="light" data-slice-type="overview" data-slice-variation="default">
       <div className="relative">
@@ -489,37 +499,57 @@ function OverviewSection() {
                 <div className="col-span-full space-y-18">
                   <NumberLabel index={scrollIndex} />
                   <div className="relative -mx-sms h-px bg-white/20">
-                    <div data-progress-line className="absolute top-0 left-0 h-px w-full origin-left bg-white" style={progressScale} />
+                    <div ref={progressLineRef} data-progress-line className="saga-overview-progress-line absolute top-0 left-0 h-px w-full origin-left bg-white" />
                   </div>
                 </div>
 
-                <div className="col-span-21 col-start-4 grid grid-cols-subgrid">
-                  <div className="col-span-7">
-                    <div className="grid">
-                      {overviewItems.map((item, index) => (
-                        <div key={`${item.heading}-a`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 2)}>
+                <div className="saga-overview-subsections col-span-21 col-start-4 grid grid-cols-subgrid">
+                  <div className="saga-overview-desktop-subsections contents">
+                    <div className="saga-overview-subsection col-span-7">
+                      <div className="saga-overview-subsection-stack grid">
+                        {overviewItems.map((item, index) => (
+                          <div key={`${item.heading}-a`} data-content-index={index} data-overview-visible={visibleIndex === index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 2)}>
+                            <Paragraphs lines={item.textA} className="t-p-lg-serif" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="saga-overview-subsection col-span-7">
+                      <div className="saga-overview-subsection-stack grid">
+                        {overviewItems.map((item, index) => (
+                          <div key={`${item.heading}-b`} data-content-index={index} data-overview-visible={visibleIndex === index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 3)}>
+                            <ListColumn item={item} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="saga-overview-subsection col-span-7">
+                      <div className="saga-overview-subsection-stack grid">
+                        {overviewItems.map((item, index) => (
+                          <div key={`${item.heading}-c`} data-content-index={index} data-overview-visible={visibleIndex === index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 4)}>
+                            <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={false} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="saga-overview-mobile-subsections">
+                    {overviewItems.map((item, index) => (
+                      <div key={`${item.heading}-mobile-subsections`} data-content-index={index} data-overview-visible={visibleIndex === index} className="saga-overview-mobile-subsection-content">
+                        <div className="saga-overview-content" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 2)}>
                           <Paragraphs lines={item.textA} className="t-p-lg-serif" />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="col-span-7">
-                    <div className="grid">
-                      {overviewItems.map((item, index) => (
-                        <div key={`${item.heading}-b`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 3)}>
-                          <ListColumn item={item} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="col-span-7">
-                    <div className="grid">
-                      {overviewItems.map((item, index) => (
-                        <div key={`${item.heading}-c`} data-content-index={index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 4)}>
+                        {!item.list && (
+                          <div className="saga-overview-content" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 3)}>
+                            <Paragraphs lines={item.textB} className="t-p-lg-serif" />
+                          </div>
+                        )}
+                        <div className="saga-overview-content" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 4)}>
                           <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={false} />
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -533,6 +563,16 @@ function OverviewSection() {
                 {index > 0 && <div className="pointer-events-none h-px w-full" data-webgl-marker="colorRamps" />}
                 {index === overviewItems.length - 1 && <div className="pointer-events-none h-px w-full" data-webgl-marker="colorRamps" />}
               </div>
+            ))}
+          </div>
+
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            {overviewItems.map((item, index) => (
+              <div
+                className="saga-overview-snap-point absolute left-0 size-px"
+                key={`${item.heading}-snap-point`}
+                style={{ top: `calc(2px + ${index} * (100% - 100svh) / ${itemCount})` }}
+              />
             ))}
           </div>
         </div>
@@ -560,22 +600,22 @@ function SectionKicker({ children }: { children: string }) {
   return <p className="t-m2 text-white">{children}</p>;
 }
 
-function ProblemSection() {
+function ProblemSection({ headingRef }: { headingRef?: RefObject<HTMLHeadingElement | null> }) {
   return (
-    <section data-header-theme="light">
-      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white lg:min-h-screen lg:content-center">
+    <section className="saga-problem-section" data-header-theme="light">
+      <div className="ui-grid gap-y-fluid-[30,52] pb-fluid-[76,106] md:py-fluid-[76,106] md:mt-140 md:mb-80 text-white lg:min-h-screen lg:content-center">
         {/* <div className="col-span-full lg:col-span-6">
           <SectionKicker>the problem</SectionKicker>
         </div> */}
         <div className="col-span-full space-y-34 lg:col-span-16">
-          <h2 className="t-d2-sans max-w-[13.8em]">
-            When a client asks for five more like this, can your team reproduce the approved asset?
+          <h2 ref={headingRef} className="t-d2-sans max-w-[13.8em]">
+            when a client asks for five more like this, can your team reproduce the approved asset?
           </h2>
           <p className="t-p-lg-serif max-w-[38em] text-white">
             AI production teams generate thousands of images and videos, and iterations daily. The client approves it.
             The final asset ships. Everyone moves on, but your team pays a hidden AI production tax on each project:
           </p>
-          <p className="t-h3-sans max-w-[38em] text-white">Prompts, references, settings, and production decisions are left scattered, incomplete, or lost.</p>
+          <p className="t-h3-sans max-w-[38em] text-white">prompts, references, settings, and production decisions are left scattered, incomplete, or lost.</p>
         </div>
         <div className="col-span-full grid grid-cols-1 lg:grid-cols-3">
           {problemCards.map((card, index) => (
@@ -603,21 +643,18 @@ function ProblemSection() {
 function SolutionSection() {
   return (
     <section data-header-theme="light">
-      <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white lg:min-h-screen">
+      <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white min-h-screen">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
-          <h2 className="t-d2-sans mx-auto max-w-[13em] lowercase">
+          <h2 className="t-d2-sans mx-auto max-w-[65vw] md:max-w-[13em] lowercase">
             The production repository for AI{`\u2011`}native creative organizations
           </h2>
 
           <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
-            Portals preserves every version and creative decision behind your production, so your teams can build on previous work, deliver faster, and scale production without losing quality.
+            preserve every version and creative decision behind your production, so your teams can build on previous work, deliver faster, and scale production without losing quality.
             {/* Portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it. */}
           </p>
-          <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
-            Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.
-          </p>
           <p className="t-p-lg-sans max-w-[30em] mx-auto text-white">
-            Built for AI creative agencies, studios, game teams, and brand teams producing high-volume AI media.
+            built for AI creative agencies, studios, game teams, and brand teams producing high-volume AI media.
           </p>
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
@@ -824,14 +861,96 @@ export function VCS({
 }: {
   packageSpecifications: PackageSpecification[];
 }) {
+  const preserveHeadingRef = useRef<HTMLHeadingElement>(null);
+  const headerBrandRef = useRef<HTMLAnchorElement>(null);
+  const repositoryAnchorRef = useRef<HTMLDivElement>(null);
+  const repositoryCopyRef = useRef<HTMLDivElement>(null);
+  const problemHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    const mobileQuery = window.matchMedia('(max-width: 47.99rem)');
+    let raf = 0;
+
+    const update = () => {
+      raf = 0;
+      const brand = headerBrandRef.current;
+      const preserveHeading = preserveHeadingRef.current;
+      const repositoryAnchor = repositoryAnchorRef.current;
+      const repositoryCopy = repositoryCopyRef.current;
+      const problemHeading = problemHeadingRef.current;
+
+      if (!mobileQuery.matches) {
+        if (brand) brand.style.transform = '';
+        if (repositoryAnchor) repositoryAnchor.style.height = '';
+        if (repositoryCopy) {
+          repositoryCopy.dataset.mobileScrollPhase = 'normal';
+          repositoryCopy.style.removeProperty('--saga-repository-release-offset');
+          repositoryCopy.style.removeProperty('--saga-repository-fixed-left');
+          repositoryCopy.style.removeProperty('--saga-repository-fixed-width');
+        }
+        return;
+      }
+
+      if (brand && preserveHeading) {
+        const brandRestingBottom = 24 + brand.offsetHeight;
+        const brandPush = Math.min(0, preserveHeading.getBoundingClientRect().top - brandRestingBottom);
+        brand.style.transform = `translate3d(0, ${brandPush}px, 0)`;
+      }
+
+      if (repositoryAnchor && repositoryCopy && problemHeading) {
+        const repositoryHeight = repositoryCopy.offsetHeight;
+        repositoryAnchor.style.height = `${repositoryHeight}px`;
+        const repositoryBounds = repositoryAnchor.getBoundingClientRect();
+        repositoryCopy.style.setProperty('--saga-repository-fixed-left', `${repositoryBounds.left}px`);
+        repositoryCopy.style.setProperty('--saga-repository-fixed-width', `${repositoryBounds.width}px`);
+
+        const repositoryCenterTop = (window.innerHeight - repositoryHeight) / 2;
+        const repositoryCenterBottom = repositoryCenterTop + repositoryHeight;
+        const anchorTop = repositoryAnchor.getBoundingClientRect().top;
+        const problemTop = problemHeading.getBoundingClientRect().top;
+        const repositoryProblemGap = 16;
+
+        if (anchorTop > repositoryCenterTop) {
+          repositoryCopy.dataset.mobileScrollPhase = 'normal';
+          repositoryCopy.style.removeProperty('--saga-repository-release-offset');
+        } else if (problemTop > repositoryCenterBottom + repositoryProblemGap) {
+          repositoryCopy.dataset.mobileScrollPhase = 'pinned';
+          repositoryCopy.style.removeProperty('--saga-repository-release-offset');
+        } else {
+          repositoryCopy.dataset.mobileScrollPhase = 'released';
+          repositoryCopy.style.setProperty('--saga-repository-release-offset', `${problemTop - repositoryProblemGap - repositoryCenterBottom}px`);
+
+        }
+      }
+    };
+
+    const requestUpdate = () => {
+      if (!raf) raf = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener('scroll', requestUpdate, { passive: true });
+    window.addEventListener('resize', requestUpdate);
+    mobileQuery.addEventListener('change', requestUpdate);
+
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', requestUpdate);
+      window.removeEventListener('resize', requestUpdate);
+      mobileQuery.removeEventListener('change', requestUpdate);
+    };
+  }, []);
+
   return (
     <main className="relative z-(--z-main)">
       <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollFrom" data-webgl-position="0" data-webgl-easing="easeInOut" />
 
-      <header className="pointer-events-none w-full absolute md:!fixed inset-x-0 top-0 z-(--z-header)">
+      <header
+        className="saga-front-header pointer-events-none w-full absolute md:!fixed inset-x-0 top-0 z-(--z-header)"
+      >
         <div className="flex h-Header-h items-center px-sms !pr-16">
           <div className="pointer-events-auto flex flex-1 items-center justify-between gap-x-sgs">
-            <a className="" href="/">
+            <a ref={headerBrandRef} className="saga-front-header-brand" href="/">
               <span className="t-h3-sans !font-medium">
                 portals
               </span>
@@ -841,18 +960,22 @@ export function VCS({
           </div>
         </div>
       </header>
-      <section data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
-        <div className="ui-grid min-h-screen gap-y-[max(var(--spacing-sgs),12.5svh)] pt-[max(var(--spacing-Header-h),29.5svh)] pb-sms text-white">
+      <section className="saga-front-hero" data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
+        <div className="relative ui-grid min-h-screen gap-y-[max(var(--spacing-sgs),12.5svh)] pt-[max(var(--spacing-Header-h),29.5svh)] pb-sms text-white">
           <div className="col-span-full space-y-20">
-            <h1 className="max-w-[8.725em] t-d1-sans">
+            <h1 ref={preserveHeadingRef} className="max-w-[8.725em] t-d1-sans">
               preserve the
               <br/>
               history of your
               <br/>
               <strong className="t-d1-serif">best creative work</strong>
             </h1>
-            <div className="flex flex-col gap-12 pt-12 sm:flex-row">
-              <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+            <div className="saga-hero-assess flex flex-col gap-12 pt-12 sm:flex-row">
+              <CTAButton
+                href="/assessment"
+                analyticsLabel="Assess Your Workflow"
+                analyticsIntent="assessment"
+              >
                 Assess your workflow
               </CTAButton>
               <CTAButton className="!hidden" href="/ai-production-workflow-risks" analyticsLabel="Explore Use Cases" analyticsIntent="education">
@@ -860,17 +983,19 @@ export function VCS({
               </CTAButton>
             </div>
           </div>
-          <div className="col-span-full grid grid-cols-subgrid">
-            <div className="col-span-8 col-start-5 flex justify-end lg:col-span-full">
-              <div className="max-w-[10.85em] t-p-sans lowercase!">
-                <p>THE PRODUCTION REPOSITORY FOR AI{`\u2011`}NATIVE CREATIVE ORGANIZATIONS</p>
+          <div className="saga-hero-repository col-span-full grid grid-cols-subgrid">
+            <div className="md:col-span-8 md:col-start-5 flex justify-center md:justify-end items-end col-span-full">
+              <div ref={repositoryAnchorRef} className="saga-hero-repository-anchor w-full md:w-auto md:max-w-[10.85em]">
+                <div ref={repositoryCopyRef} className="saga-hero-repository-copy t-p-sans lowercase!" data-mobile-scroll-phase="normal">
+                  <p>THE PRODUCTION REPOSITORY FOR AI{`\u2011`}NATIVE CREATIVE ORGANIZATIONS</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <ProblemSection />
+      <ProblemSection headingRef={problemHeadingRef} />
       <SolutionSection />
       <OverviewSection />
       <ComparisonSection />
@@ -883,10 +1008,9 @@ export function VCS({
         <div className="relative flex min-h-screen items-center text-white">
           <div className="ui-grid flex-1 gap-y-sms py-sms">
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
-              <h4 className="t-global-cta_heading max-w-[13em]">Stop losing your best AI work. <br /> Start building on it.</h4>
+              <h4 className="t-global-cta_heading max-w-[13em]">Stop losing the history of your best work. <br /> Start building on it.</h4>
               <p className="t-p-lg-serif max-w-[26em] text-white text-left">
                 Give every asset your team creates a permanent identity and a complete history.
-                <br/><br/>
                 Deliver faster and more consistently from first generation through shipped production.
               </p>
               <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton>
