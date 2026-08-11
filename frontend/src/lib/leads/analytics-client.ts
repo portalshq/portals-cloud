@@ -145,20 +145,12 @@ async function postToMixpanel(
   event: string,
   properties: Record<string, unknown>,
 ): Promise<void> {
-  const token = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN
-  if (!token) return
+  if (!process.env.NEXT_PUBLIC_MIXPANEL_TOKEN) return
   try {
-    await fetch('https://cdn.mixpanel.com/track', {
+    await fetch('/api/analytics/track', {
       method: 'POST',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify([{
-        event,
-        properties: {
-          token,
-          ...properties,
-          time: Math.floor(Date.now() / 1000),
-        },
-      }]),
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({event, properties}),
       keepalive: true,
     })
   } catch {
