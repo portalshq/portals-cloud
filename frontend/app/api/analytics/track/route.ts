@@ -1,4 +1,5 @@
 import {NextResponse} from 'next/server'
+import {extractClientIp, sanitizeIp} from '@/lib/leads/ip-utils'
 
 export const runtime = 'nodejs'
 
@@ -76,17 +77,27 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ok: false, error: 'invalid request body'}, {status: 400})
   }
+  let clientIp: string | null = null
+  try {
+    clientIp = sanitizeIp(extractClientIp(request))
+  } catch (error) {
+    console.error('Error extracting client IP for analytics:', error)
+  }
+  const mixpanelProperties: Record<string, unknown> = {
+    token,
+    ...body.properties,
+    time: Math.floor(Date.now() / 1000),
+  }
+  if (clientIp) {
+    mixpanelProperties.ip = clientIp
+  }
   const mixpanelResponse = await fetch(MIXPANEL_TRACK_URL, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify([
       {
         event: body.event,
-        properties: {
-          token,
-          ...body.properties,
-          time: Math.floor(Date.now() / 1000),
-        },
+        properties: mixpanelProperties,
       },
     ]),
     cache: 'no-store',

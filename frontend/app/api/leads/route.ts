@@ -12,6 +12,7 @@ import {
 import {hashValue, verifySignature} from '@/lib/leads/crypto'
 import {leadDownloadUrl} from '@/lib/leads/downloads'
 import {normalizeEmail, validateIdentityForCapture} from '@/lib/leads/identity'
+import {extractClientIp, sanitizeIp} from '@/lib/leads/ip-utils'
 import {
   applyTransition,
   buildCommercialSnapshot,
@@ -83,11 +84,8 @@ function productionConfigurationError(request: LeadRequest): string | null {
 }
 
 function requestIp(request: Request): string {
-  return (
-    request.headers.get('x-vercel-forwarded-for') ||
-    request.headers.get('x-forwarded-for') ||
-    'unknown'
-  ).split(',')[0].trim()
+  const ip = sanitizeIp(extractClientIp(request))
+  return ip || 'unknown'
 }
 
 function validBrowserOrigin(request: Request): boolean {
@@ -406,6 +404,21 @@ async function handleLeadRequest(
     return NextResponse.json({ok: true, nextAction: 'follow_up'})
   }
 
+  // Capture client IP for geolocation
+  let clientIp: string | null = null
+  try {
+    clientIp = sanitizeIp(extractClientIp(request))
+  } catch (error) {
+    console.error('Error extracting client IP for lead request:', error)
+  }
+  const effectiveLeadRequest: LeadRequest = {
+    ...leadRequest,
+    attribution: {
+      ...leadRequest.attribution,
+      clientIp: clientIp || '',
+    },
+  }
+
   const profileToken = request.headers.get('cookie')
     ?.split(';')
     .map((part) => part.trim())
@@ -414,7 +427,7 @@ async function handleLeadRequest(
   let profile = boundProfileId
     ? await getProfileById(boundProfileId).catch(() => null)
     : await getProfileByToken(profileToken)
-  const incomingIdentity: Partial<LeadIdentity> = leadRequest.identity || {}
+  const incomingIdentity: Partial<LeadIdentity> = effectiveLeadRequest.identity || {}
   if (
     profile?.identity.email &&
     incomingIdentity.email &&
@@ -439,30 +452,30 @@ async function handleLeadRequest(
     : {}
   let qualificationAnswers = mergeQualificationAnswers(
     priorAnswers,
-    leadRequest.answers,
-    ...(leadRequest.submissionType === 'workflow_review'
+    effectiveLeadRequest.answers,
+    ...(effectiveLeadRequest.submissionType === 'workflow_review'
       ? [{workflowReviewRequested: true}]
       : []),
-    ...(leadRequest.submissionType === 'commercial_readiness'
+    ...(effectiveLeadRequest.submissionType === 'commercial_readiness'
       ? [{commercialReadinessCompleted: true}]
       : []),
-    ...(leadRequest.submissionType === 'pilot_request'
+    ...(effectiveLeadRequest.submissionType === 'pilot_request'
       ? [{
-          activeWorkflow: leadRequest.answers.pilotWorkflow,
-          targetStartPeriod: leadRequest.answers.targetStartPeriod,
+          activeWorkflow: effectiveLeadRequest.answers.pilotWorkflow,
+          targetStartPeriod: effectiveLeadRequest.answers.targetStartPeriod,
           stakeholderInvolved: true,
           pricingOrPilotViewed: true,
         }]
       : []),
   )
-  if (leadRequest.submissionType === 'pilot_request') {
+  if (effectiveLeadRequest.submissionType === 'pilot_request') {
     qualificationAnswers = mergeQualificationAnswers(qualificationAnswers, {
       pilotWorkflow:
         qualificationAnswers.pilotWorkflow || qualificationAnswers.activeWorkflow,
     })
   }
-  if (leadRequest.submissionType === 'commercial_readiness') {
-    const readiness = leadRequest.answers
+  if (effectiveLeadRequest.submissionType === 'commercial_readiness') {
+    const readiness = effectiveLeadRequest.answers
     qualificationAnswers = mergeQualificationAnswers(qualificationAnswers, {
       ...(readiness.objectionDetail
         ? {pilotBlocker: readiness.objectionDetail}
@@ -475,13 +488,13 @@ async function handleLeadRequest(
         : {}),
     })
   }
-  const effectiveLeadRequest: LeadRequest =
-    leadRequest.submissionType === 'pilot_request'
+  const finalLeadRequest: LeadRequest =
+    effectiveLeadRequest.submissionType === 'pilot_request'
       ? {
-          ...leadRequest,
+          ...effectiveLeadRequest,
           identity,
           answers: pilotRequestAnswersSchema.parse({
-            ...leadRequest.answers,
+            ...effectiveLeadRequest.answers,
             ...Object.fromEntries(
               pilotRequiredAnswerFields.map((field) => [
                 field,
@@ -490,11 +503,11 @@ async function handleLeadRequest(
             ),
           }),
         }
-      : leadRequest
+      : {...effectiveLeadRequest, identity}
   if (
-    effectiveLeadRequest.submissionType === 'pilot_request' &&
+    finalLeadRequest.submissionType === 'pilot_request' &&
     pilotRequiredAnswerFields.some(
-      (field) => !effectiveLeadRequest.answers[field].trim(),
+      (field) => !finalLeadRequest.answers[field].trim(),
     )
   ) {
     return NextResponse.json(
@@ -503,13 +516,13 @@ async function handleLeadRequest(
     )
   }
   const scoreable = ['assessment', 'commercial_readiness', 'workflow_review', 'pilot_request'].includes(
-    leadRequest.submissionType,
+    finalLeadRequest.submissionType,
   )
   const scores = scoreable ? calculateQualification(qualificationAnswers) : undefined
   const tier = scores ? qualificationTier(scores, qualificationAnswers) : undefined
-  const response = routeResponse(effectiveLeadRequest, scores, qualificationAnswers)
+  const response = routeResponse(finalLeadRequest, scores, qualificationAnswers)
   const persisted = await persistSubmission({
-    request: effectiveLeadRequest,
+    request: finalLeadRequest,
     identity,
     scores,
     tier,
@@ -530,9 +543,9 @@ async function handleLeadRequest(
     analyticsPersonId: persisted.submission.profile.analyticsPersonId,
   }
   const pilotResponse =
-    effectiveLeadRequest.submissionType === 'pilot_request'
+    finalLeadRequest.submissionType === 'pilot_request'
       ? await syncPilotRecord(
-          effectiveLeadRequest,
+          finalLeadRequest,
           persisted.submission.id,
           persisted.submission.profile.id,
           finalResponse,

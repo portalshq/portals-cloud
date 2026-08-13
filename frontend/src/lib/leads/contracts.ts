@@ -41,6 +41,8 @@ export const attributionSchema = z.object({
   utmCampaign: optionalText(160),
   utmContent: optionalText(160),
   utmTerm: optionalText(160),
+  clientIp: optionalText(64),
+  os: optionalText(80),
 })
 
 export type LeadAttribution = z.infer<typeof attributionSchema>

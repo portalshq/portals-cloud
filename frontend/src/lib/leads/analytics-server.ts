@@ -10,7 +10,7 @@ export async function trackSubmissionEvents(
     process.env.MIXPANEL_PROJECT_TOKEN || process.env.NEXT_PUBLIC_MIXPANEL_TOKEN
   if (!token) throw new Error('MIXPANEL_PROJECT_TOKEN is required.')
   const anonAnalyticsId = submission.request.anonAnalyticsId
-  const common = {
+  const common: Record<string, unknown> = {
     token,
     distinct_id: submission.profile.analyticsPersonId,
     person_id: submission.profile.analyticsPersonId,
@@ -30,6 +30,14 @@ export async function trackSubmissionEvents(
     utm_campaign: submission.request.attribution.utmCampaign,
     score_version: submission.scores?.version,
     time: Math.floor(Date.now() / 1000),
+  }
+  // Add client IP for geolocation if available
+  if (submission.request.attribution.clientIp) {
+    common.ip = submission.request.attribution.clientIp
+  }
+  // Add OS information if available
+  if (submission.request.attribution.os) {
+    common.$os = submission.request.attribution.os
   }
   const events: Event[] = []
   if (anonAnalyticsId) {

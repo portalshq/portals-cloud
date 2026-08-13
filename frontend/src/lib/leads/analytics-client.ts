@@ -1,6 +1,7 @@
 'use client'
 
 import type {LeadAttribution} from './contracts'
+import UAParser from 'ua-parser-js'
 
 const CONSENT_KEY = 'portals_analytics_consent'
 const TOUCH_KEY = 'portals_first_touch'
@@ -9,11 +10,35 @@ const DOMAIN_KEY = 'portals_company_domain'
 const ANON_KEY = 'portals_analytics_anon_id'
 const ALIAS_KEY = 'portals_analytics_alias_sent'
 const QUALIFICATION_BEHAVIOR_KEY = 'portals_qualification_behavior'
+const OS_CACHE_KEY = 'portals_analytics_os'
 const BEHAVIOR_TTL_MS = 90 * 24 * 60 * 60 * 1000
 
 export type QualificationBehavior = {
   pricingOrPilotViewed: boolean
   securityDiligence: boolean
+}
+
+export function detectOS(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    const cached = window.localStorage.getItem(OS_CACHE_KEY)
+    if (cached) return cached
+    const parser = new UAParser()
+    const os = parser.getOS()
+    if (os.name) {
+      const version = os.version ? ` ${os.version}` : ''
+      const result = `${os.name}${version}`.slice(0, 80)
+      try {
+        window.localStorage.setItem(OS_CACHE_KEY, result)
+      } catch {
+        // Storage might be disabled or full; continue without caching
+      }
+      return result
+    }
+  } catch (error) {
+    console.error('Error detecting OS:', error)
+  }
+  return ''
 }
 
 export type AnalyticsConsent = 'accepted' | 'rejected' | null
@@ -42,6 +67,8 @@ function queryAttribution(): LeadAttribution {
     utmCampaign: (params.get('utm_campaign') || '').slice(0, 160),
     utmContent: (params.get('utm_content') || '').slice(0, 160),
     utmTerm: (params.get('utm_term') || '').slice(0, 160),
+    clientIp: '',
+    os: detectOS(),
   }
 }
 
@@ -173,6 +200,7 @@ export async function trackEvent(
     company_domain: domain || undefined,
     source_page: window.location.pathname,
     $device_id: anonId,
+    $os: detectOS(),
     ...properties,
   })
 }

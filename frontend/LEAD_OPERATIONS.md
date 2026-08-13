@@ -86,6 +86,11 @@ Browser Mixpanel starts only after analytics consent and uses the opaque intake 
 
 An anonymous visitor gets a stable opaque browser ID (`portals_analytics_anon_id`) used as `distinct_id` (and `$device_id` on every event) until intake. At intake the server sends `$create_alias` (anon ID to profile ID) before submission events, and the client re-sends it lazily if the user consents later, so pre-intake browsing merges into the person profile. The browser ID is not PII and is never tied to an identity without consent.
 
+**Enhanced Analytics Features:**
+- **Geolocation:** Mixpanel automatically appends `$city`, `$region`, and `mp_country_code` to events based on the client's IP address. The system extracts the client IP from various proxy headers (CF-Connecting-IP, X-Forwarded-For, X-Real-IP, etc.) and passes it to Mixpanel's ingestion API. Mixpanel parses the IP through MaxMind's database and discards the IP address after geolocation parsing.
+- **Operating System Detection:** Client-side OS detection using `ua-parser-js` library, appended to all events using Mixpanel's reserved `$os` property. Results are cached in localStorage to avoid repeated parsing.
+- **Referrer Tracking:** Enhanced referrer data including source page, referrer URL, and UTM parameters are captured in the attribution data.
+
 Build funnel reports for `page_viewed`, `cta_clicked`, `form_opened`, `form_started`, `form_submitted`, `guide_downloaded`, `assessment_completed`, `qualification_assigned`, `calendar_shown`, `meeting_booked`, `pilot_requested`, `pilot_proposed`, `pilot_accepted`, `annual_contract_sent`, and `annual_contract_won`. Browser behavior events share the same consent gate and the browser-ID identity model: `scroll_depth` (25/50/75/90/100 thresholds, 1s debounce, once per threshold per page), `link_clicked` (text, destination, external), `button_clicked` (text), `faq_expanded` (question), `page_leave` (seconds on page). Dedup rules: `[data-analytics-cta]` elements emit `cta_clicked` only, and `[data-faq-question]` elements emit `faq_expanded` only.
 
 Apollo's website tracker (`app/layout.tsx`) runs unconditionally for sales intelligence on anonymous visitors; it is separate from the Mixpanel consent gate.
