@@ -5,6 +5,8 @@ import {AssessmentForm} from '@/components/leads/AssessmentForm'
 import {CTAButton} from '@/components/CTAButton'
 import {getKnownLeadContext} from '@/lib/leads/profile'
 import {SagaWebGLEngine} from '@/lib/SagaWebGLEngine'
+import Faq from '@/components/FAQ'
+import {getFaqsByCategories} from '@/lib/faqs'
 
 const assessmentUrl = new URL(
   '/assessment',
@@ -16,7 +18,7 @@ const assessmentImageUrl = new URL(
 ).toString()
 
 export const metadata: Metadata = {
-  title: 'AI Creative Production Workflow Assessment | Portals',
+  title: 'AI Creative Production Workflow Assessment | portals',
   description: 'Creative teams can assess approved-version control, generation history, handoffs, reproducibility, and production-memory risk in four minutes.',
   keywords: [
     'AI creative production workflow assessment',
@@ -36,14 +38,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: assessmentUrl,
-    siteName: 'Portals',
-    title: 'AI Creative Production Workflow Assessment | Portals',
+    siteName: 'portals',
+    title: 'AI Creative Production Workflow Assessment | portals',
     description: 'Assess approved versions, prompt and generation history, handoffs, reproducibility, and production-memory risk in four minutes.',
-    images: [{url: assessmentImageUrl, width: 1200, height: 630, alt: 'Portals AI creative production workflow assessment'}],
+    images: [{url: assessmentImageUrl, width: 1200, height: 630, alt: 'portals AI creative production workflow assessment'}],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AI Creative Production Workflow Assessment | Portals',
+    title: 'AI Creative Production Workflow Assessment | portals',
     description: 'Assess approved versions, generation history, handoffs, and AI content reproducibility in four minutes.',
     images: [assessmentImageUrl],
   },
@@ -61,51 +63,26 @@ function NumberLabel({index}: {index: number}) {
 }
 
 const pageLinks = [
-  {href: '#the-assessment', label: 'the assessment'},
+  {href: '#the-assessment', label: 'start the assessment'},
   {href: '#what-happens-next', label: 'what happens next'},
 ]
 
 const nextSteps = [
   {
     label: 'we score your workflow',
-    detail: 'we evaluate production-memory risk and determine whether a pilot, a short readiness clarification, or a relevant use case is the best next step.',
+    detail: 'we evaluate your workflow\'s cost risk and determine whether a pilot is the best next step for you.',
   },
   {
     label: 'you get the assessment',
-    detail: 'you get a downloadable evaluation that shows where the risk is concentrated across your workflow.',
+    detail: 'you get a downloadable evaluation that shows where cost risk is concentrated across your workflow.',
   },
   {
     label: 'you choose the next step',
-    detail: 'strong candidates can build a free customized pilot plan. a call is used only when the completed scope requires qualification or an exception review.',
+    detail: 'strong candidates can build a free customized pilot plan. schedule a call only when your needs fall outside the standard pilot scope.',
   },
 ]
 
-const faqs = [
-  {
-    question: 'What does an AI production workflow assessment measure?',
-    answer: 'It evaluates approved-version control, prompts and references, asset lineage, production handoffs, reproducibility, continuity, campaign variants, and the operational cost of missing production memory.',
-  },
-  {
-    question: 'How should teams preserve prompts and generation history?',
-    answer: 'Keep prompts, source references, model and generation context, revisions, approvals, and derivative relationships attached to the production record for each asset—not scattered across chats and personal notes.',
-  },
-  {
-    question: 'How is Portals different from a DAM?',
-    answer: 'A DAM primarily organizes and distributes finished assets. Portals is a production repository and memory system designed to preserve how an AI-generated asset was made, approved, reproduced, extended, and handed off.',
-  },
-  {
-    question: 'Are the assessment and customized pilot plan free?',
-    answer: 'Yes. The assessment, downloadable result, customized pilot plan, and security details are free.',
-  },
-  {
-    question: 'When does the $5,000 pilot fee apply?',
-    answer: 'The fee applies only after your team approves the customized plan and commercial terms and chooses to conduct the production pilot.',
-  },
-  {
-    question: 'When is a qualification call required?',
-    answer: 'No call is required for standard candidates unless the completed scope reveals an exception. A call is required when someone self-selects into pilot scoping after an educational assessment outcome.',
-  },
-]
+const faqs = getFaqsByCategories(['assessment'])
 
 export default async function WorkflowAssessmentPage() {
   const context = await getKnownLeadContext()
@@ -117,13 +94,13 @@ export default async function WorkflowAssessmentPage() {
       name: 'AI Creative Production Workflow Assessment',
       url: `${siteUrl}/assessment`,
       description: metadata.description,
-      isPartOf: {'@type': 'WebSite', name: 'Portals', url: siteUrl},
+      isPartOf: {'@type': 'WebSite', name: 'portals', url: siteUrl},
     },
     {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
-        {'@type': 'ListItem', position: 1, name: 'Portals', item: siteUrl},
+        {'@type': 'ListItem', position: 1, name: 'portals', item: siteUrl},
         {'@type': 'ListItem', position: 2, name: 'AI Creative Production Workflow Assessment', item: `${siteUrl}/assessment`},
       ],
     },
@@ -166,16 +143,18 @@ export default async function WorkflowAssessmentPage() {
         <section className="relative flex min-h-screen items-start overflow-hidden">
           <div className="ui-grid relative z-10 w-full gap-y-fluid-[30,52] py-fluid-[76,106] pt-[max(var(--spacing-Header-h),24svh)] text-white">
             <div className="col-span-full lg:col-span-14">
-              <p className="t-p-sans text-white">AI creative production workflow assessment</p>
               <h1 className="mt-20 max-w-[10em] t-d2-sans">
-                Can your AI creative production workflow reliably reproduce its best work?
+                Is your creative team paying the hidden AI production tax?
               </h1>
-              <p className="mt-28 max-w-[38em] t-p-lg-serif text-white">
-                Assess how your team preserves approved versions, prompt and generation history,
-                production handoffs, and the knowledge required for AI content reproducibility.
+              <p className="mt-28 max-w-[38em] t-p-serif text-white">
+                Assess how your team preserves approved versions, input context, 
+                production handoffs, and cost-effective best-practices for reproducibility.
               </p>
-              <p className="mt-20 max-w-[42em] t-p-sans text-white">
-                Complete the four-minute assessment. Depending on the result, you may answer a short pilot-readiness clarification and build a free customized pilot plan. No call is required unless the completed scope needs qualification or an exception review.
+              <p className="mt-20 max-w-[28em] t-p-serif text-white">
+                For agencies, creative studios, production companies, in-house brand and marketing teams, film and animation teams, game and entertainment teams.
+              </p>
+              <p className="mt-20 max-w-[42em] t-p-sm-sans text-white">
+                Complete in four minutes. Depending on your result, you may answer a short pilot-readiness clarification and build a customized pilot plan at no cost. No meeting is required unless the completed scope needs an integration review.
               </p>
             </div>
             <nav
@@ -201,49 +180,45 @@ export default async function WorkflowAssessmentPage() {
 
         <section className="relative">
           <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-            <div className="col-span-full lg:col-span-10">
-              <h2 className="max-w-[11em] t-d2-sans">built for AI-native creative production teams</h2>
-              <p className="mt-20 max-w-[38em] t-p-lg-serif text-white">
-                The assessment is for agencies, creative studios, production companies, in-house brand and marketing teams, film and animation teams, and game and entertainment teams.
-              </p>
-            </div>
-            <div className="col-span-full lg:col-span-11 lg:col-start-14">
-              <h3 className="t-h1-sans">what it evaluates</h3>
-              <p className="mt-16 t-p-sans text-white">
-                Approved versions, prompts and references, asset lineage, production handoffs, reproducibility, continuity, campaign variant management, and the systems that preserve production knowledge between creators and vendors.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="relative">
-          <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-            <div className="col-span-full lg:col-span-9">
-              <h2 className="t-d2-sans">recognizable production situations</h2>
-            </div>
-            <ul className="col-span-full grid gap-16 t-p-sans text-white sm:grid-cols-2 lg:col-span-12 lg:col-start-13">
-              <li>Reproduce an approved AI-generated asset without reconstructing decisions from memory.</li>
-              <li>Extend a campaign across channels while preserving approved brand and message choices.</li>
-              <li>Maintain character consistency across high-volume variations.</li>
-              <li>Transfer a creative production workflow between creators, teams, agencies, or vendors.</li>
-            </ul>
-            <div className="col-span-full mt-20 lg:col-span-18 lg:col-start-4">
-              <p className="t-p-sm-sans text-white/70">industry patterns—not Portals customer claims</p>
-              <p className="mt-12 t-p-sans text-white">
+            <blockquote className="col-span-full mb-20 lg:col-span-18 lg:col-start-4 px-18">
+              <p className="mb-12 t-p-sans text-white">
                 <a className="underline underline-offset-4" href="https://openai.com/business/plugins/creative-production/" target="_blank" rel="noreferrer">OpenAI describes creative production</a> that adapts top-performing assets across channels while maintaining consistency. <a className="underline underline-offset-4" href="https://business.adobe.com/products/firefly-business/firefly-creative-production/production-workflows.html" target="_blank" rel="noreferrer">Adobe describes enterprise production workflows</a> for approved-asset variants, localization, and reduced rework. Its <a className="underline underline-offset-4" href="https://business.adobe.com/au/blog/ipg-healths-studio-rx-supercharges-campaign-production-adobe-firefly-custom-ai-models" target="_blank" rel="noreferrer">IPG Health Studio Rx example</a> shows high-volume character variation with brand consistency.
               </p>
+            </blockquote>
+            <div className="col-span-full lg:col-span-9">
+              <h2 className="t-d2-sans">Recognizable production use cases</h2>
             </div>
+            <ul className="col-span-full grid gap-16 t-p-sans text-white sm:grid-cols-2 lg:col-span-12 lg:col-start-13">
+              <li className="flex items-baseline gap-20">
+                <span className="size-8 shrink-0 bg-white" />
+                Reproduce an approved AI-generated asset without rebuilding input context from scratch.
+              </li>
+              <li className="flex items-baseline gap-20">
+                <span className="size-8 shrink-0 bg-white" />
+                Extend a campaign across channels while preserving approved brand and message choices.
+              </li>
+              <li className="flex items-baseline gap-20">
+                <span className="size-8 shrink-0 bg-white" />
+                Maintain character consistency across high-volume variations.
+              </li>
+              <li className="flex items-baseline gap-20">
+                <span className="size-8 shrink-0 bg-white" />
+                Transfer a creative production workflow between creators, teams, agencies, or vendors.</li>
+            </ul>
           </div>
         </section>
 
         <section id="the-assessment" className="relative">
-          <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-            <div className="col-span-full lg:col-span-4">
+          <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
+            <div className="col-span-2">
               <NumberLabel index={1} />
-            </div>
+            </div> 
+            <p className="col-span-full max-w-[28em] lg:col-span-14 lg:col-start-9 t-p-lg-serif text-white">
+              Assess how your team preserves approved versions, input context, 
+              production handoffs, continuity, campaign variants, and cost-effective best-practices for reproducibility.
+            </p>
             <section className="col-span-full scroll-mt-24 lg:col-span-14 lg:col-start-9">
-              <p className="mt-18 max-w-[12em] t-p-sm-sans text-white/80">the assessment</p>
-              <div className="mt-24 max-w-[42em] space-y-5 text-white">
+              <div className="max-w-[42em] space-y-5 text-white">
                 <AssessmentForm context={context} />
               </div>
             </section>
@@ -256,11 +231,12 @@ export default async function WorkflowAssessmentPage() {
               <NumberLabel index={2} />
             </div>
             <section className="col-span-full scroll-mt-24 lg:col-span-14 lg:col-start-9">
-              <h2 className="max-w-[12em] t-d2-sans">what happens next</h2>
+              <h2 className="max-w-[12em] t-h3-sans">what happens next</h2>
               <ol className="mt-24 max-w-[42em]">
                 {nextSteps.map((step, index) => (
-                  <li key={step.label} className="grid grid-cols-[2.9em_1fr] gap-x-12 border-t border-white/20 py-20 first:border-t-0 first:pt-0">
-                    <span className="t-m2 text-white/80">{String(index + 1).padStart(2, '0')}</span>
+                  <li key={step.label} className="grid grid-cols-[2.9em_1fr] border-t border-white/20 py-20 first:border-t-0 first:pt-0 items-baseline">
+                    {/* <span className="t-m2 text-white/80">{String(index + 1).padStart(2, '0')}</span> */}
+                    <span className="size-8 bg-white shrink-0" />
                     <div>
                       {/* <p className="t-h4-sans text-white">{step.label}</p> */}
                       <p className="max-w-[36em] t-p-sans text-white">{step.detail}</p>
@@ -274,15 +250,10 @@ export default async function WorkflowAssessmentPage() {
 
         <section className="relative" id="assessment-faq">
           <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-            <div className="col-span-full lg:col-span-8"><h2 className="t-d2-sans">assessment FAQs</h2></div>
-            <dl className="col-span-full space-y-20 lg:col-span-13 lg:col-start-12">
-              {faqs.map((faq) => (
-                <div key={faq.question} className="border-t border-white/20 pt-16">
-                  <dt className="t-h3-sans">{faq.question}</dt>
-                  <dd className="mt-10 t-p-sans text-white">{faq.answer}</dd>
-                </div>
-              ))}
-            </dl>
+            <div className="col-span-full mx-auto lg:mx-0 lg:col-span-14 lg:col-start-9"><h2 className="t-d2-sans">assessment FAQs</h2></div>
+            <div className="col-span-full lg:col-span-14 lg:col-start-9">
+              <Faq faqs={faqs} />
+            </div>
           </div>
         </section>
 
@@ -292,23 +263,24 @@ export default async function WorkflowAssessmentPage() {
               <NumberLabel index={3} />
             </div>
             <div className="col-span-full lg:col-span-13">
-              <p className="t-p-sans text-white/80">next step</p>
-              <h2 className="mt-20 max-w-[10em] t-d2-sans">
-                ready to fix your workflow
+              <h2 className="max-w-[10em] t-d2-sans">
+                make your production workflow cost-effective
               </h2>
               <p className="mt-24 max-w-[34em] t-p-lg-serif text-white">
-                Your assessment result recommends the right next action: build a free customized pilot plan, complete readiness, or explore a relevant production use case.
+                Your assessment result recommends the right next action: 
+                <br/>
+                scope a paid pilot, or explore a relevant production use case.
               </p>
               <div className="mt-32 flex flex-wrap items-center gap-16">
                 <CTAButton href="#the-assessment" analyticsLabel="View My Recommended Next Step" analyticsIntent="workflow_assessment">
-                  <span>view my recommended next step</span>
+                  <span>View my recommended next step</span>
                   <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
                 </CTAButton>
                 <CTAButton
                   href="/contact?intent=workflow-assessment"
                   appearance="plain"
                   className="underline underline-offset-4"
-                  analyticsLabel="Contact Portals"
+                  analyticsLabel="Contact portals"
                   analyticsIntent="workflow_assessment"
                 >
                   <span>contact us</span>

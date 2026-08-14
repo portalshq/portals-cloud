@@ -6,6 +6,7 @@ import {CTAButton} from '@/components/CTAButton'
 import {ResourceLeadForm} from '@/components/leads/ResourceLeadForm'
 import type {KnownLeadContext} from '@/lib/leads/contracts'
 import {productionWorkflows} from '@/lib/production-workflows'
+import {getFaqsByCategories} from '@/lib/faqs'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
 
@@ -23,12 +24,12 @@ function StructuredData() {
               '@type': 'WebPage',
               name: 'Six Workflow Risks That Make AI Production Hard to Scale',
               description:
-                'Discover six workflow risks that make AI-generated creative production difficult to scale—and how Portals preserves approved versions, generation history, asset lineage, and production knowledge.',
+                'Discover six workflow risks that make AI-generated creative production difficult to scale—and how portals preserves approved versions, generation history, asset lineage, and production knowledge.',
               url: pageUrl,
             },
             {
               '@type': 'Organization',
-              name: 'Portals',
+              name: 'portals',
               description:
                 'The production repository for AI-native creative organizations',
               url: SITE_URL,
@@ -86,7 +87,7 @@ function ResourceHero({
           </p>
           <div className="flex flex-col sm:flex-row mx-auto gap-16 items-center justify-center">
             <CTAButton href="#download">
-              {'Download the guide'}
+              {'Download the production history guide'}
             </CTAButton>
           </div>
         </div>
@@ -131,7 +132,7 @@ function ProductionWorkflows({
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full space-y-36">
           <h2 className="t-d2-sans max-w-[12em]">
-            The six production workflow risks
+            Six production workflow risks
           </h2>
           {/* <div className="grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-2">
             {riskSections.map((risk, i) => (
@@ -145,9 +146,7 @@ function ProductionWorkflows({
                 key={workflow.id}
                 className="scroll-mt-Header-h p-24 text-white bg-white/20 rounded-sm backdrop-blur-[12px]"
               >
-                <p className="t-p-sm-sans text-white">
-                  {String(index + 1).padStart(2, '0')}
-                </p>
+                
                 <h3 className="mt-12 t-h3-sans">{workflow.title}</h3>
                 <p className="mt-16 t-p-sans text-white">{workflow.problem}</p>
                 <p className="mt-12 t-p-sans text-white">instead, {workflow.outcome}</p>
@@ -233,8 +232,8 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
           <ResourceLeadForm
             context={context}
             submissionType="guide_download"
-            title="Download the production memory field guide"
-            description="learn how to diagnose and address the production-memory risks behind ai-native creative work."
+            title="Download the production history guide"
+            description="Learn how to diagnose and address the production history risks behind ai-native creative work."
             interestLabel="which workflow risk is most relevant?"
             options={[
               {value: 'approved-version-retrieval', label: 'approved version confusion'},
@@ -245,7 +244,7 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
               {value: 'campaign-variant-control', label: 'variant families become hard to control'},
               {value: 'not-sure', label: 'not sure yet'},
             ]}
-            downloadLabel="Download the field guide"
+            downloadLabel="Download the guide"
             sourcePage="/ai-production-workflow-risks"
           />
         </div>
@@ -272,7 +271,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
             </p>
           ) : null}
           {cta.primaryCta ? (
-            <div className="flex flex-col items-center justify-center gap-14 sm:flex-row">
+            <div className="flex flex-col items-center justify-center gap-24 sm:flex-row">
               <a
                 className="t-button min-w-220 w-fit inline-flex justify-center items-center rounded-sm h-48 gap-x-9 px-12 border border-white/10 bg-white/12 text-white backdrop-blur-[50px] transition-colors duration-500 hover:!bg-white/30"
                 href={href}
@@ -288,7 +287,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
                 analyticsLabel="Assess Your AI Creative Production Workflow"
                 analyticsIntent="assessment"
               >
-                assess your AI creative production workflow
+                Assess your production workflow
               </CTAButton>
             </div>
           ) : null}
@@ -298,41 +297,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
   )
 }
 
-const faqs = [
-  {
-    question: 'Who is the field guide for?',
-    answer:
-      'It is for creative organizations producing high volumes of AI-assisted work across multiple people, tools, clients, projects, or production cycles.',
-  },
-  {
-    question: 'What is Portals?',
-    answer:
-      'Portals is the production repository for AI{`\u2011`}native creative organizations. It preserves the history and context behind important AI-generated assets so teams can find, understand, reproduce, and extend their work.',
-  },
-  {
-    question: 'Is Portals a digital asset management system?',
-    answer:
-      'Portals is not a traditional DAM. A DAM primarily organizes and distributes files. Portals stores the files and preserves the evolving production identity, history, context, approvals, and lineage behind the asset.',
-  },
-  {
-    question: 'Do I need Portals to use the field guide?',
-    answer: 'No. The guide includes minimum practices that teams can implement using folders, spreadsheets, documentation, approval logs, and handoff procedures.',
-  },
-  {
-    question: 'What is production memory?',
-    answer: 'Production memory is the complete, recoverable organizational record behind an important asset: its approved version, previous versions, creation context, decisions, and recovery information.',
-  },
-  {
-    question: 'Does Portals replace creative tools?',
-    answer:
-      'No. Portals works beneath the production stack. Teams continue using their preferred generation, editing, review, storage, and delivery tools.',
-  },
-  {
-    question: 'What does a production pilot prove?',
-    answer:
-      'A pilot tests whether preserving production memory creates measurable value on one real workflow through faster retrieval, stronger reproducibility, controlled extension, better knowledge transfer, or reduced production risk.',
-  },
-]
+const faqs = getFaqsByCategories(['general'])
 
 function ResourceFAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
@@ -346,8 +311,9 @@ function ResourceFAQ() {
           </h2>
           <div className="space-y-16 max-w-3xl lg:w-3xl mx-auto">
             {faqs.map((faq, index) => (
-              <div key={index} className="border border-white/70 rounded-sm">
+              <div key={faq.question} className="border border-white/70 rounded-sm">
                 <button
+                  data-faq-question={faq.question}
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
                   className="w-full p-24 text-left flex justify-between items-center t-p-sans focus:outline-none"
                   aria-expanded={openIndex === index}
@@ -379,12 +345,10 @@ function FinalCTA() {
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] min-h-screen items-center text-white">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160ch]">
           <h4 className="t-global-cta_heading max-w-[13em] mx-auto text-center">
-            Stop losing your best AI work. <br /> Start building on it.
+            Stop losing the history of your best work. <br /> Start building on it.
           </h4>
           <p className="t-p-lg-serif max-w-[26em] mx-auto text-white text-left">
-            Give every asset your team creates a permanent identity and a complete history.
-            <br/><br/>
-            Deliver faster and more consistently from first generation through shipped production.
+            Deliver faster at lower cost with complete asset history and identity from first generation through shipped production.
           </p>
           <div className="flex flex-col sm:flex-row gap-16 items-center justify-center">
             <CTAButton href="/paid-pilot#scope">Scope a pilot</CTAButton>

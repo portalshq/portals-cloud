@@ -11,6 +11,7 @@ import {CTAButton} from '@/components/CTAButton'
 import {ResourceLeadForm} from '@/components/leads/ResourceLeadForm'
 import type {KnownLeadContext} from '@/lib/leads/contracts'
 import type {ResourceDocument} from '@/types/resource'
+import {getFaqsByCategories} from '@/lib/faqs'
 import {ResourceBody} from './ResourceBody'
 
 const CURRENT_CERTIFICATIONS_ANCHOR = 'current-certifications'
@@ -65,33 +66,7 @@ const bodyTone =
 const bodyNoDividers =
   '[&_aside]:!border-transparent [&_blockquote]:!border-transparent [&_figure]:!border-transparent [&_tr]:!border-transparent [&_hr]:hidden'
 
-const securityFaqs = [
-  {
-    question: 'do you claim soc 2 or iso certification today?',
-    answer:
-      'no. the brief states the current security posture without claiming formal soc 2, iso, or other certifications that portals has not earned.',
-  },
-  {
-    question: 'is private customer data used to train models?',
-    answer:
-      'no. private customer data is not used as model-training material without written customer permission.',
-  },
-  {
-    question: 'how is customer data isolated?',
-    answer:
-      'portals uses logical organization boundaries so customer workspaces, assets, metadata, permissions, and production history are scoped to the right organization.',
-  },
-  {
-    question: 'can customers export or delete their data?',
-    answer:
-      'yes. the brief documents the export process and deletion handling, including where retention, backups, and contractual requirements can affect timing.',
-  },
-  {
-    question: 'what happens during a security review?',
-    answer:
-      'portals shares the public brief, confirms deployment-specific details, reviews requested controls, and documents any contractual commitments separately.',
-  },
-]
+const securityFaqs = getFaqsByCategories(['security'])
 
 function SectionLabel({children}: {children: string}) {
   return <p className="t-p-sans text-white">{children}</p>
@@ -122,7 +97,7 @@ function Hero({document}: {document: ResourceDocument}) {
           <div className="mt-32 flex flex-col gap-12 sm:flex-row">
             <CTAButton href="#download" analyticsLabel="Download the Security Brief" analyticsIntent="security_download">
               <ArrowDownToLine aria-hidden="true" size={18} strokeWidth={1.8} />
-              <span>Download the brief</span>
+              <span>Download security details</span>
             </CTAButton>
             <CTAButton
               href="/paid-pilot#scope"
@@ -140,7 +115,7 @@ function Hero({document}: {document: ResourceDocument}) {
             ['status', 'public brief'],
             ['version', (document.edition || 'version 1.0').toLowerCase()],
             ['published', publicationDate(document.publishedAt).toLowerCase()],
-            ['certifications', 'none claimed'],
+            ['certifications', 'none'],
           ].map(([label, value]) => (
             <div key={label} className="min-h-96 rounded-sm bg-white/8 p-16 backdrop-blur-[18px]">
               <dt className="t-p-sm-sans text-white">
@@ -166,20 +141,18 @@ function Principles() {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-32 py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-8">
-          <SectionLabel>security posture</SectionLabel>
-          <h2 className="mt-20 t-d2-sans max-w-[9em]">
-            production context has value. treat it that way.
+        <div className="col-span-full lg:col-span-12">
+          <h2 className="t-d2-sans max-w-[9em]">
+            your production context is sensitive operational
+            data. 
           </h2>
-        </div>
-        <div className="col-span-full lg:col-span-12 lg:col-start-13">
-          <p className="max-w-[39em] t-p-lg-serif text-white">
-            Prompts, source media, approved versions, client decisions, model
-            settings, and lineage can carry commercial and intellectual-property
-            value. Portals treats that production memory as sensitive operational
-            data.
+          <p className="mt-32 max-w-[39em] t-p-lg-serif text-white">
+            Source media, prompts, client decisions, model settings, and lineage
+            can carry commercial and intellectual-property value. Our security architecture is designed to protect it.
           </p>
-          <ul className="mt-32 grid gap-12">
+        </div>
+        <div className="col-span-full lg:col-span-11 lg:col-start-14">
+          <ul className="grid gap-12">
             {principles.map((principle) => (
               <li
                 key={principle}
@@ -216,15 +189,16 @@ function ControlInventory({document}: {document: ResourceDocument}) {
       className="scroll-mt-24"
     >
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-9">
-          <SectionLabel>control inventory</SectionLabel>
-          <h2 className="mt-20 t-d2-sans">current positions, without inflated claims.</h2>
+        <div className="col-span-full lg:col-span-12">
+          <h2 className="t-d2-sans max-w-[7em]">our current security posture</h2>
+          <p className="mt-32 col-span-full t-p-serif text-white">
+            Architecture, policy, operating position,
+            and commitments. 
+            <br/>
+            Deployment-specific details and contractual controls are
+            confirmed during pilot review.
+          </p>
         </div>
-        <p className="col-span-full max-w-[38em] t-p-lg-serif text-white lg:col-span-10 lg:col-start-14">
-          Each area states whether it is architecture, policy, operating position,
-          or commitment. Deployment-specific details and contractual controls are
-          confirmed during review.
-        </p>
 
         <div className="col-span-full mt-20 space-y-16">
           {controls.map((section, index) => (
@@ -244,7 +218,7 @@ function ControlInventory({document}: {document: ResourceDocument}) {
                   <span className="mb-10 block t-p-sm-sans text-white">
                     {String(index + 1).padStart(2, '0')} / {statusLabel(section.eyebrow)}
                   </span>
-                  <span className="block t-p-serif">{section.title.toLowerCase()}</span>
+                  {/* <span className="block t-p-serif">{section.title.toLowerCase()}</span> */}
                   <span className="mt-10 block max-w-[52em] t-p-sm-sans text-white">
                     {section.summary}
                   </span>
@@ -259,7 +233,7 @@ function ControlInventory({document}: {document: ResourceDocument}) {
               {openIndex === index ? (
                 <div
                   id={`${section.anchor}-content`}
-                  className={`px-24 pb-24 t-p-sans text-white ${bodyTone} ${bodyNoDividers}`}
+                  className={`px-24 pb-24 t-p-sm-sans text-white ${bodyTone} ${bodyNoDividers}`}
                 >
                   <ResourceBody value={section.body} />
                 </div>
@@ -295,21 +269,20 @@ function AssuranceStatus({document}: {document: ResourceDocument}) {
             />
             <p className="t-p-sans text-white">{statusLabel(current.eyebrow)}</p>
           </div>
-          <h2 className="mt-24 t-d2-sans max-w-[10em]">
+          {/* <h2 className="mt-24 t-d2-sans max-w-[10em]">
             no formal certification is claimed.
-          </h2>
-          <p className="mt-24 max-w-[36em] t-p-lg-serif text-white">
+          </h2> */}
+          <p className="mt-24 max-w-[36em] t-h3-sans text-white">
             {current.summary}
           </p>
-          <div className={`mt-24 max-w-[42em] ${bodyTone} ${bodyNoDividers}`}>
+          <div className={`mt-24 max-w-[42em] t-p-sans ${bodyTone} ${bodyNoDividers}`}>
             <ResourceBody value={current.body} />
           </div>
         </div>
 
         <div className="col-span-full rounded-sm bg-white/8 p-24 backdrop-blur-[18px] lg:col-span-11 lg:col-start-14">
-          <p className="t-p-sans text-[#5bc4ba]">{statusLabel(planned.eyebrow)}</p>
-          <h3 className="mt-24 t-h2-sans">{planned.title.toLowerCase()}</h3>
-          <p className="mt-16 t-p-sans text-white">{planned.summary}</p>
+          <h3 className="t-h3-sans">{planned.title.toLowerCase()}</h3>
+          <p className="mt-24 t-p-sm-sans text-white">{planned.summary}</p>
           <div className={`mt-20 ${bodyTone} ${bodyNoDividers}`}>
             <ResourceBody value={planned.body} />
           </div>
@@ -329,13 +302,13 @@ function DownloadSection({
   return (
     <section id="download" data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-13">
+        {/* <div className="col-span-full lg:col-span-13">
           <SectionLabel>downloadable brief</SectionLabel>
           <h2 className="mt-20 t-d2-sans max-w-[10em]">
             put the security posture in the review packet.
           </h2>
-        </div>
-        <div className="col-span-full lg:col-span-9 lg:col-start-16">
+        </div> */}
+        <div className="col-span-full max-w-[48em] mx-auto">
           <ResourceLeadForm
             context={context}
             submissionType="security_download"

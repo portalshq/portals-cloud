@@ -21,6 +21,7 @@ import {
   packageMilestoneLabel,
   packagePriceLabel,
 } from '@/lib/package-specifications'
+import {getFaqsByCategories} from '@/lib/faqs'
 
 type SubmitState =
   | {status: 'idle'}
@@ -40,49 +41,20 @@ function paidPilotSpec(document: ResourceDocument): PackageSpecification | undef
   )
 }
 
-function paidPilotFaqs(specification: PackageSpecification | undefined) {
+function paidPilotFaqValues(specification: PackageSpecification | undefined) {
   const firstValue = packageMilestoneLabel(specification, 'first value')
   const period = packageMilestoneLabel(specification, 'pilot period')
   const price = packagePriceLabel(specification)
   const participants = packageLimitLabel(specification, 'participants')
 
-  return [
-    {
-      question: 'how is this different from a free trial?',
-      answer:
-        'this is a focused commercial evaluation using real production work, agreed success criteria, named participants, and a final decision date. it is built to prove an operational outcome, not encourage indefinite product exploration.',
-    },
-    {
-      question: firstValue
-        ? `what should happen in the first ${firstValue}?`
-        : 'what should happen at first value?',
-      answer:
-        'one active project and one historical project become structured, searchable production records that preserve the available history and reveal what is missing. your team should be able to find the approved asset, understand how it was produced, and see what is required to reproduce or extend it.',
-    },
-    {
-      question: price ? `what does the ${price} cover?` : 'what does the pilot fee cover?',
-      answer: [
-        'the fee covers workflow alignment, pilot repository configuration',
-        participants ? `onboarding for ${participants} participants` : 'participant onboarding',
-        'agreed integration setup where applicable, active and historical project structure, support, and the final evaluation. One agreed standard integration or export path is included. Custom integration development is separately scoped.',
-      ].join(', '),
-    },
-    {
-      question: 'which projects should we choose?',
-      answer:
-        'choose one active project with current production behavior and one historical project whose decisions, prompts, versions, or source context are valuable enough to recover and reuse.',
-    },
-    {
-      question: 'does the pilot fee apply to an annual agreement?',
-      answer:
-        'yes, when the agreed success criteria and written conversion terms are met. the annual deployment scope, price, credit terms, and decision window are defined before kickoff.',
-    },
-    {
-      question: period ? `what happens after ${period}?` : 'what happens after the pilot?',
-      answer:
-        'the final review produces a clear decision: deploy portals, extend the pilot under a defined scope, or conclude that portals is not the right fit at this time.',
-    },
-  ]
+  return {
+    firstValuePhrase: firstValue ? `in the first ${firstValue}` : '',
+    periodPhrase: period || '',
+    pricePhrase: price || '',
+    participantsPhrase: participants
+      ? `onboarding for ${participants} participants`
+      : '',
+  }
 }
 
 function sectionByAnchor(
@@ -423,7 +395,10 @@ function PilotForm({
 
 function PilotFaq({document}: {document: ResourceDocument}) {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
-  const faqs = paidPilotFaqs(paidPilotSpec(document))
+  const faqs = getFaqsByCategories(
+    ['pilot'],
+    paidPilotFaqValues(paidPilotSpec(document)),
+  )
 
   return (
     <section data-header-theme="light">
