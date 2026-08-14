@@ -1,11 +1,11 @@
 //! Unit tests for controller logic.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use models::{
-    Controller, Resource, ResourceId, OwnerReference,
-    ReconcileContext, ReconcileResult, ErrorPolicy, HealthError,
+    Controller, ErrorPolicy, HealthError, OwnerReference, ReconcileContext, ReconcileResult,
+    Resource, ResourceId,
 };
+use std::sync::Arc;
 
 #[cfg(test)]
 mod test_controller {

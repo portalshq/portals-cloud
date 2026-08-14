@@ -1,0 +1,43 @@
+[package]
+name = "auth-gateway"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "lore-auth-gateway"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-kms = { workspace = true }
+aws-sdk-secretsmanager = { workspace = true }
+axum = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+hmac = { workspace = true }
+jsonwebtoken = { workspace = true }
+prost = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true }
+rsa = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+subtle = "2"
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+tonic-health = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+urlencoding = "2"
+uuid = { workspace = true }
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }
+
+[dev-dependencies]
+tower = { workspace = true }

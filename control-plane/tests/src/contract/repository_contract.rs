@@ -1,9 +1,9 @@
 //! Contract tests for RepositoryProvider implementations.
 
-use std::sync::Arc;
-use control_plane_provider_trait::RepositoryProvider;
-use control_plane_mock_provider::MockRepositoryProvider;
 use control_plane_mock_provider::MockProviderConfig;
+use control_plane_mock_provider::MockRepositoryProvider;
+use control_plane_provider_trait::RepositoryProvider;
+use std::sync::Arc;
 
 #[tokio::test]
 async fn contract_repository_provision_creates_handle() {

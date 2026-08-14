@@ -1,9 +1,4 @@
-use axum::{
-    extract::Request,
-    http::StatusCode,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 use tracing::{debug, warn};
 
 use crate::auth::{DataPlaneClaims, DataPlaneSigningKey};
@@ -24,9 +19,7 @@ pub async fn jwt_auth_middleware(
         .and_then(|h| h.to_str().ok());
 
     let token = match auth_header {
-        Some(header) if header.starts_with("Bearer ") => {
-            Some(header[7..].to_string())
-        }
+        Some(header) if header.starts_with("Bearer ") => Some(header[7..].to_string()),
         Some(_) => {
             warn!("Authorization header missing 'Bearer ' prefix");
             return Err(StatusCode::UNAUTHORIZED);
@@ -42,7 +35,7 @@ pub async fn jwt_auth_middleware(
         warn!("Authorization header present but token is empty");
         StatusCode::UNAUTHORIZED
     })?;
-    
+
     let claims: DataPlaneClaims = signing_key
         .verify_data_plane_token(token_str)
         .map_err(|e| {

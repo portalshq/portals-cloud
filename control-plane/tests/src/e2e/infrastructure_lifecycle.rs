@@ -19,7 +19,7 @@ async fn test_full_infrastructure_integration() {
     // - Environment variables for service endpoints
     //
     // Run with: cargo test --features e2e -- --ignored
-    
+
     todo!("Implement full infrastructure integration E2E test");
 }
 
@@ -34,7 +34,7 @@ async fn test_outbox_relay_integration() {
     // 4. Verify event is marked as published
     //
     // Run with: cargo test --features e2e -- --ignored
-    
+
     todo!("Implement outbox relay integration E2E test");
 }
 
@@ -50,6 +50,6 @@ async fn test_reconciler_loop_integration() {
     // 5. Verify level-triggered sweep on interval
     //
     // Run with: cargo test --features e2e -- --ignored
-    
+
     todo!("Implement reconciler loop integration E2E test");
 }

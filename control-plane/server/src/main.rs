@@ -13,7 +13,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
-use tracing::{info, error};
+use tracing::{error, info};
 // use tracing_subscriber;
 
 use config::AppConfig;
@@ -46,7 +46,10 @@ fn create_router(state: AppState) -> Router {
         .route("/api/v1/resources", post(create_resource))
         .route("/api/v1/resources/:kind/:id", get(get_resource))
         .route("/api/v1/resources/:kind", get(list_resources))
-        .route("/api/v1/resources/:kind/:id", axum::routing::delete(delete_resource))
+        .route(
+            "/api/v1/resources/:kind/:id",
+            axum::routing::delete(delete_resource),
+        )
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
@@ -123,14 +126,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         environment: "dev".to_string(),
     };
     let _telemetry = Telemetry::init("control-plane", &obs_config)?;
-    
+
     // Initialize tracing subscriber
     // tracing_subscriber::fmt()
     //     .with_target(false)
     //     .compact()
     //     .init();
 
-    info!("Starting control-plane server v{}", env!("CARGO_PKG_VERSION"));
+    info!(
+        "Starting control-plane server v{}",
+        env!("CARGO_PKG_VERSION")
+    );
 
     // Create application state
     let state = AppState {

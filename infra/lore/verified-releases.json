@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "releases": {
+    "nap-client": {
+      "version": "0.5.8",
+      "sourceCommit": "28fd29d4e02e013eff1b1fb671cd8d7e45638775",
+      "releaseTag": "v0.5.8",
+      "securityContract": "legacy",
+      "artifactManifestSha256": "",
+      "loreClientVersion": "0.8.4",
+      "loreClientArtifactManifestSha256": "",
+      "napSignatureVerified": false,
+      "napChecksumsVerified": false,
+      "loreSignatureVerified": false,
+      "verifiedAt": ""
+    }
+  }
+}

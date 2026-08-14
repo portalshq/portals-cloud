@@ -5,47 +5,22 @@
 # Builds a custom loreserver binary with the AWS plugin (S3 + DynamoDB)
 # compiled in, excluding unused plugins (hashicorp/consul).
 #
-# Produces: portalshq/lore-server-base:latest-<arch>
+# Produces an ECR multi-architecture manifest. The publishing script resolves
+# and records its immutable digest before building the runtime image.
 #
 # This image is reusable across environments. No Portals-specific
 # configuration is baked in. Configuration belongs in the derived image
 # (Dockerfile.loreserver) and is mounted at runtime.
 #
-# CI/CD Build & Push (native runner per architecture — NO QEMU):
-#   # On Intel/AMD CI runner:
-#   docker buildx build \
-#     --platform linux/amd64 \
-#     -f infra/lore/Dockerfile.loreserver.base \
-#     -t portalshq/lore-server-base:latest-amd64 \
-#     --cache-to=type=inline \
-#     --push \
-#     infra/lore/lore
-#
-#   # On ARM64/Graviton CI runner:
-#   docker buildx build \
-#     --platform linux/arm64 \
-#     -f infra/lore/Dockerfile.loreserver.base \
-#     -t portalshq/lore-server-base:latest-arm64 \
-#     --cache-to=type=inline \
-#     --push \
-#     infra/lore/lore
-#
-# Local build (host arch only, auto-detected):
-#   docker build \
-#     -f infra/lore/Dockerfile.loreserver.base \
-#     -t portalshq/lore-server-base:latest-amd64 \
-#     infra/lore/lore
-#
-# Or use the cloud Makefile (recommended — auto-detects host arch):
-#   make lore-base             # local single-arch build (dev)
-#   make lore_base_push        # build + push host arch (CI/CD)
+# Production publishing is centralized in
+# infra/lore/scripts/docker-buildx-lore.sh and requires ECR_REGISTRY.
 #
 # =============================================================================
 
 # ---------------------------------------------------------------------------
 # Stage 1: Builder — compile the custom loreserver binary
 # ---------------------------------------------------------------------------
-FROM rust:slim-trixie AS builder
+FROM rust:slim-trixie@sha256:3b2879047d42784ca9403ad20c51ed3df361a50f1df96f5777d39b4e33aa65cd AS builder
 
 # Prevent apt from prompting for configuration
 ARG DEBIAN_FRONTEND=noninteractive
@@ -68,7 +43,8 @@ COPY . .
 #   - hashicorp/consul plugin (unused)
 # ---------------------------------------------------------------------------
 RUN rm -f lore-server/src/plugins/hashicorp.rs \
-    && sed -i '/lore-hashicorp/d' lore-server/Cargo.toml
+    && sed -i '/lore-hashicorp/d' lore-server/Cargo.toml \
+    && sed -i '/pub mod hashicorp;/d; /hashicorp::register(registry);/d' lore-server/src/plugins/mod.rs
 
 # On ARM64 (Apple Silicon build machines), strip the Graviton-specific
 # target-cpu flag that breaks on non-Graviton CPUs
@@ -86,7 +62,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/build/target \
-    cargo build --release --bin loreserver -p lore-server \
+    cargo build --release --jobs 1 --bin loreserver -p lore-server \
     && cp /build/target/release/loreserver /loreserver-bin
 
 # Strip debug symbols from the binary to reduce image size (the binary
@@ -95,29 +71,18 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 RUN strip /loreserver-bin
 
 # ---------------------------------------------------------------------------
-# Stage 2: Runtime base — minimal Debian with the compiled binary
+# Stage 2: Runtime base — shell-free, nonroot distroless image
 # ---------------------------------------------------------------------------
-FROM debian:trixie-slim
-
-ARG DEBIAN_FRONTEND=noninteractive
-
-# Runtime dependencies: ca-certificates for TLS, curl for health checks
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775
 
 # Copy the compiled binary
-COPY --from=builder /loreserver-bin /usr/local/bin/loreserver
+COPY --chown=65532:65532 --from=builder /loreserver-bin /usr/local/bin/loreserver
 
 # Copy the upstream default.toml so the server starts with sensible
 # defaults even when no external config directory is mounted. This is
 # the ORIGINAL upstream config; Portals-specific overrides go in the
 # derived image (Dockerfile.loreserver).
-COPY --from=builder /build/lore-server/config/default.toml /etc/lore/config/default.toml
-
-# Create persistent data directory
-RUN mkdir -p /data
+COPY --chown=65532:65532 --from=builder /build/lore-server/config/default.toml /etc/lore/config/default.toml
 
 # Environment defaults
 ENV LORE_CONFIG_PATH=/etc/lore/config
@@ -132,6 +97,10 @@ EXPOSE 41337 41337/udp 41339
 # Persistent data volume
 VOLUME /data
 
+WORKDIR /data
+
+USER 65532:65532
+
 # Default entrypoint — no flags needed because LORE_CONFIG_PATH and
 # LORE_ENV are set via environment variables
-ENTRYPOINT ["loreserver"]
+ENTRYPOINT ["/usr/local/bin/loreserver"]

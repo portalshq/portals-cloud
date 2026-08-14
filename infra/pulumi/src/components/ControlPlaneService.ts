@@ -9,8 +9,7 @@ import { ControlPlaneServiceArgs } from "../interfaces";
  * - Pre-built Docker image (built/pushed by control-plane/scripts/publish-image.sh,
  *   pinned in infra/lore/versions.yaml — Pulumi does NOT build images)
  * - ECS task definition with health check
- * - ECS service with ALB integration on port 8083
- * - Security groups (ingress from ALB only)
+ * - Private ECS service with no internet-facing listener
  * - Environment variables matching the Rust AppConfig (clap env parser)
  *
  * Required Rust env vars (no default):
@@ -22,6 +21,7 @@ export class ControlPlaneService extends pulumi.ComponentResource {
   public readonly taskDefinition: aws.ecs.TaskDefinition;
   public readonly service: aws.ecs.Service;
   public readonly securityGroup: aws.ec2.SecurityGroup;
+  public readonly taskRole: aws.iam.Role;
 
   constructor(name: string, args: ControlPlaneServiceArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:platform:ControlPlaneService", name, {}, opts);
@@ -40,45 +40,85 @@ export class ControlPlaneService extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Allow ingress from ALB security group on port 8083
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-controlplane-alb-ingress`, {
-      type: "ingress",
-      fromPort: 8083,
-      toPort: 8083,
+    // Intentionally no ingress. A future Auth Gateway must use an explicit
+    // security-group reference; this service is never an ALB target.
+
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-controlplane-https-egress`, {
+      type: "egress",
+      fromPort: 443,
+      toPort: 443,
       protocol: "tcp",
       securityGroupId: this.securityGroup.id,
-      sourceSecurityGroupId: args.albSecurityGroupId,
+      cidrBlocks: ["0.0.0.0/0"],
+      description: "AWS APIs over TLS",
+    }, { parent: this });
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-controlplane-postgres-egress`, {
+      type: "egress",
+      fromPort: 5432,
+      toPort: 5432,
+      protocol: "tcp",
+      securityGroupId: this.securityGroup.id,
+      cidrBlocks: [args.vpcCidr],
+      description: "Private PostgreSQL",
+    }, { parent: this });
+    for (const protocol of ["tcp", "udp"]) {
+      new aws.ec2.SecurityGroupRule(`${resourcePrefix}-controlplane-dns-${protocol}`, {
+        type: "egress",
+        fromPort: 53,
+        toPort: 53,
+        protocol,
+        securityGroupId: this.securityGroup.id,
+        cidrBlocks: [args.vpcCidr],
+        description: "VPC DNS resolution",
+      }, { parent: this });
+    }
+
+    this.taskRole = new aws.iam.Role(`${resourcePrefix}-controlplane-task-role`, {
+      assumeRolePolicy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [{
+          Action: "sts:AssumeRole",
+          Effect: "Allow",
+          Principal: { Service: "ecs-tasks.amazonaws.com" },
+        }],
+      }),
+      tags: { Project: args.projectName, Environment: args.environment },
     }, { parent: this });
 
-    // Allow egress to anywhere (AWS APIs, database, S3)
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-controlplane-egress`, {
-      type: "egress",
-      fromPort: 0,
-      toPort: 0,
-      protocol: "-1",
-      securityGroupId: this.securityGroup.id,
-      cidrBlocks: ["0.0.0.0/0"],
+    new aws.iam.RolePolicy(`${resourcePrefix}-controlplane-s3-policy`, {
+      role: this.taskRole.id,
+      policy: pulumi.output(args.s3BucketArn).apply(bucketArn => JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [{
+          Effect: "Allow",
+          Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket", "s3:GetBucketLocation"],
+          Resource: [bucketArn, `${bucketArn}/*`],
+        }],
+      })),
     }, { parent: this });
 
     // ── ECS Task Definition ──────────────────────────────────────────────
-    const callerIdentity = aws.getCallerIdentity({});
-    const executionRoleArn = pulumi.interpolate`arn:aws:iam::${callerIdentity.then(i => i.accountId)}:role/${args.projectName}-${args.environment}-ecs-task-execution-role`;
+    const executionRoleArn = args.taskExecutionRoleArn;
 
     this.taskDefinition = new aws.ecs.TaskDefinition(`${resourcePrefix}-controlplane-task`, {
       family: `${resourcePrefix}-controlplane`,
       networkMode: "awsvpc",
       requiresCompatibilities: ["FARGATE"],
+      runtimePlatform: { cpuArchitecture: args.cpuArchitecture, operatingSystemFamily: "LINUX" },
       cpu: args.cpu,
       memory: args.memory,
       executionRoleArn,
+      taskRoleArn: this.taskRole.arn,
       containerDefinitions: pulumi.all([
         args.controlPlaneImageUri,
         args.databaseUrl,
         args.ed25519SigningKey,
+        args.s3BucketName,
       ]).apply(([
         image,
         databaseUrl,
         ed25519SigningKey,
+        s3BucketName,
       ]) => JSON.stringify([{
         name: "control-plane",
         image,
@@ -97,16 +137,21 @@ export class ControlPlaneService extends pulumi.ComponentResource {
           { name: "ED25519_SIGNING_KEY", value: ed25519SigningKey },
           // ── Networking ──
           { name: "LISTEN_ADDR", value: "0.0.0.0:8083" },
-          { name: "AWS_REGION", value: args.s3Region },
+          // ── S3 (Control Plane writes repo chunks to the lore-chunks bucket) ──
+          // Empty endpoint/credentials select the standard AWS endpoint and
+          // ECS task-role credential chain in the official SDK.
+          { name: "S3_REGION", value: args.s3Region },
+          { name: "S3_ENDPOINT", value: "" },
+          { name: "S3_BUCKET_CHUNKS", value: s3BucketName },
           // ── SQS: omitted for MVP (graceful degradation) ──
           { name: "SQS_QUEUE_URL", value: "" },
           // ── Feature flags ──
           { name: "PROVIDER_TYPE", value: args.providerType ?? "aws" },
-          { name: "JWT_AUTH_ENABLED", value: args.jwtAuthEnabled ?? "false" },
+          { name: "JWT_AUTH_ENABLED", value: args.jwtAuthEnabled ?? "true" },
           { name: "IDEMPOTENCY_ENABLED", value: args.idempotencyEnabled ?? "true" },
           { name: "METRICS_ENABLED", value: args.metricsEnabled ?? "true" },
-          { name: "DP_TOKEN_EXPIRY_SECS", value: args.dpTokenExpirySecs ?? "3600" },
-          { name: "CORS_ALLOWED_ORIGINS", value: args.corsAllowedOrigins ?? "*" },
+          { name: "DP_TOKEN_EXPIRY_SECS", value: args.dpTokenExpirySecs ?? "300" },
+          { name: "CORS_ALLOWED_ORIGINS", value: args.corsAllowedOrigins ?? "https://auth.portals.sh" },
           // ── Observability ──
           { name: "RUST_LOG", value: args.rustLog ?? "info,lorecloud_control_plane=debug,sqlx=warn" },
           // ── Optional infra ──
@@ -142,19 +187,11 @@ export class ControlPlaneService extends pulumi.ComponentResource {
       taskDefinition: this.taskDefinition.arn,
       desiredCount: args.desiredCount,
       launchType: "FARGATE",
-      healthCheckGracePeriodSeconds: 60,
       networkConfiguration: {
         subnets: args.privateSubnetIds,
         securityGroups: [this.securityGroup.id, args.taskSecurityGroupId],
         assignPublicIp: false,
       },
-      loadBalancers: [
-        {
-          targetGroupArn: args.albTargetGroupArn,
-          containerName: "control-plane",
-          containerPort: 8083,
-        },
-      ],
       tags: {
         Name: `${resourcePrefix}-controlplane-service`,
         Project: args.projectName,

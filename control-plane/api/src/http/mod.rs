@@ -12,7 +12,9 @@ use tower_http::cors::{AllowHeaders, Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
-use crate::auth::{DataPlaneSigningKey, idempotency::create_idempotency_cache, middleware::jwt_auth_middleware};
+use crate::auth::{
+    idempotency::create_idempotency_cache, middleware::jwt_auth_middleware, DataPlaneSigningKey,
+};
 use persistence::PostgresStateStore;
 use std::sync::Arc;
 
@@ -32,10 +34,9 @@ async fn request_id_middleware(request: Request, next: Next) -> Response {
     use axum::http::header::HeaderName;
     match request_id.parse() {
         Ok(header_value) => {
-            response.headers_mut().insert(
-                HeaderName::from_static("x-request-id"),
-                header_value,
-            );
+            response
+                .headers_mut()
+                .insert(HeaderName::from_static("x-request-id"), header_value);
         }
         Err(e) => {
             tracing::warn!(error = %e, "failed to parse request_id as header value");
@@ -59,11 +60,22 @@ async fn not_found() -> axum::response::Response {
 
 // ── Router builder ──────────────────────────────────────────────────────────
 
-pub fn build_router(state: AppState, jwt_enabled: bool, idempotency_enabled: bool, redis_url: Option<&str>) -> Router {
+pub fn build_router(
+    state: AppState,
+    jwt_enabled: bool,
+    idempotency_enabled: bool,
+    redis_url: Option<&str>,
+) -> Router {
     build_router_with_cors(state, "*", jwt_enabled, idempotency_enabled, redis_url)
 }
 
-pub fn build_router_with_cors(state: AppState, cors_origins: &str, jwt_enabled: bool, idempotency_enabled: bool, redis_url: Option<&str>) -> Router {
+pub fn build_router_with_cors(
+    state: AppState,
+    cors_origins: &str,
+    jwt_enabled: bool,
+    idempotency_enabled: bool,
+    redis_url: Option<&str>,
+) -> Router {
     let cors = if cors_origins == "*" {
         CorsLayer::new()
             .allow_origin(Any)
@@ -101,8 +113,7 @@ pub fn build_router_with_cors(state: AppState, cors_origins: &str, jwt_enabled: 
     let protected_routes = Router::new()
         .route(
             "/api/v1/repositories",
-            get(handlers::list_repositories)
-                .post(handlers::create_repository),
+            get(handlers::list_repositories).post(handlers::create_repository),
         )
         .route(
             "/api/v1/repositories/:id",
@@ -111,32 +122,22 @@ pub fn build_router_with_cors(state: AppState, cors_origins: &str, jwt_enabled: 
                 .delete(handlers::delete_repository),
         )
         .route(
-            "/api/v1/repositories/:id/tokens",
-            post(handlers::issue_data_plane_token),
-        )
-        .route(
             "/api/v1/repositories/:id/import",
             post(handlers::start_repository_import),
         )
         .route(
             "/api/v1/repositories/:id/workflows/:workflow_id",
-            get(handlers::get_workflow_status)
-                .post(handlers::advance_workflow),
+            get(handlers::get_workflow_status).post(handlers::advance_workflow),
         )
         .route(
             "/api/v1/organizations",
-            get(handlers::list_organizations)
-                .post(handlers::create_organization),
+            get(handlers::list_organizations).post(handlers::create_organization),
         )
         .route(
             "/api/v1/organizations/:id",
-            get(handlers::get_organization)
-                .delete(handlers::delete_organization),
+            get(handlers::get_organization).delete(handlers::delete_organization),
         )
-        .route(
-            "/api/v1/events",
-            get(handlers::list_events),
-        )
+        .route("/api/v1/events", get(handlers::list_events))
         .route(
             "/api/v1/events/unpublished",
             get(handlers::list_unpublished_events),
@@ -147,9 +148,7 @@ pub fn build_router_with_cors(state: AppState, cors_origins: &str, jwt_enabled: 
         let signing_key = state.signing_key.clone();
         protected_routes.layer(middleware::from_fn(move |request, next| {
             let signing_key = signing_key.clone();
-            async move {
-                jwt_auth_middleware(signing_key, request, next).await
-            }
+            async move { jwt_auth_middleware(signing_key, request, next).await }
         }))
     } else {
         protected_routes

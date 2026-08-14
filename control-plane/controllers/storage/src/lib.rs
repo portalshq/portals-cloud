@@ -2,20 +2,22 @@
 //!
 //! Phase 2 controller: manages storage allocations with health check and list_resources.
 
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use async_trait::async_trait;
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
 
-use reconciler::{
-    Controller, Resource, ResourceId, ResourceKind, OwnerReference,
-    ReconcileContext, ReconcileResult, ErrorPolicy, HealthError,
+use control_plane_provider_trait::{
+    StorageAllocation, StorageAllocationSpec, StorageProvider, StorageUsage,
 };
-use persistence::StateStore;
 use events::EventBus;
-use control_plane_provider_trait::{StorageProvider, StorageAllocationSpec, StorageAllocation, StorageUsage};
+use persistence::StateStore;
+use reconciler::{
+    Controller, ErrorPolicy, HealthError, OwnerReference, ReconcileContext, ReconcileResult,
+    Resource, ResourceId, ResourceKind,
+};
 
 /// Storage error types.
 #[derive(Debug, Error)]

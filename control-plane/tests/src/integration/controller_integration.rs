@@ -1,8 +1,8 @@
 //! Integration tests for controller with mock provider.
 
-use std::sync::Arc;
-use control_plane_mock_provider::{MockRepositoryProvider, MockProviderConfig};
+use control_plane_mock_provider::{MockProviderConfig, MockRepositoryProvider};
 use control_plane_provider_trait::RepositoryProvider;
+use std::sync::Arc;
 
 #[tokio::test]
 async fn test_repository_provisioning() {

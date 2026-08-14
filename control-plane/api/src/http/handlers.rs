@@ -130,7 +130,10 @@ pub async fn create_repository(
 
     let spec_value = serde_json::to_value(&spec).map_err(|e| {
         error!(error = %e, "failed to serialize repository spec");
-        ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to serialize repository spec")
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "failed to serialize repository spec",
+        )
     })?;
 
     state
@@ -144,7 +147,10 @@ pub async fn create_repository(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to create repository");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to create repository")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to create repository",
+            )
         })?;
 
     info!(id = %id.as_str(), name = %req.name, "repository created");
@@ -176,7 +182,10 @@ pub async fn get_repository(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to get repository");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to fetch repository")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to fetch repository",
+            )
         })?
         .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "repository not found"))?;
 
@@ -205,7 +214,10 @@ pub async fn list_repositories(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to list repositories");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to list repositories")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to list repositories",
+            )
         })?;
 
     let repos: Vec<RepositoryResponse> = rows
@@ -249,15 +261,17 @@ pub async fn update_repository(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to get repository for update");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to fetch repository")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to fetch repository",
+            )
         })?
         .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "repository not found"))?;
 
-    let mut spec: RepositorySpec =
-        serde_json::from_value(row.spec).unwrap_or(RepositorySpec {
-            name: "unknown".to_string(),
-            storage_tier: "standard".to_string(),
-        });
+    let mut spec: RepositorySpec = serde_json::from_value(row.spec).unwrap_or(RepositorySpec {
+        name: "unknown".to_string(),
+        storage_tier: "standard".to_string(),
+    });
 
     if let Some(name) = req.name {
         if name.is_empty() {
@@ -275,19 +289,21 @@ pub async fn update_repository(
 
     let spec_value = serde_json::to_value(&spec).map_err(|e| {
         error!(error = %e, "failed to serialize repository spec");
-        ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to serialize repository spec")
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "failed to serialize repository spec",
+        )
     })?;
     state
         .store
-        .update_spec(
-            ResourceKind::Repository.as_str(),
-            &resource_id,
-            &spec_value,
-        )
+        .update_spec(ResourceKind::Repository.as_str(), &resource_id, &spec_value)
         .await
         .map_err(|e| {
             error!(error = %e, "failed to update repository");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to update repository")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to update repository",
+            )
         })?;
 
     Ok(Json(RepositoryResponse {
@@ -313,82 +329,14 @@ pub async fn delete_repository(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to delete repository");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to delete repository")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to delete repository",
+            )
         })?;
 
     info!(id = %resource_id.as_str(), "repository deletion requested");
     Ok(StatusCode::ACCEPTED)
-}
-
-// ============================================================
-// Data Plane Token Issuance
-// ============================================================
-
-#[derive(Deserialize)]
-pub struct IssueTokenRequest {
-    pub subject: String,
-    pub permissions: Option<Vec<String>>,
-}
-
-#[derive(Serialize)]
-pub struct IssueTokenResponse {
-    pub token: String,
-    pub expires_in: u64,
-    pub verifying_key: String,
-}
-
-pub async fn issue_data_plane_token(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-    Json(req): Json<IssueTokenRequest>,
-) -> ApiResult<Json<IssueTokenResponse>> {
-    let resource_id = ResourceId::new(&id);
-
-    let exists = state
-        .store
-        .exists(ResourceKind::Repository, &resource_id)
-        .await
-        .map_err(|e| {
-            error!(error = %e, "failed to check repository existence");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to verify repository")
-        })?;
-
-    if !exists {
-        return Err(ApiError::new(
-            StatusCode::NOT_FOUND,
-            "repository not found",
-        ));
-    }
-
-    let permissions = req
-        .permissions
-        .unwrap_or_else(|| vec!["ReadChunks".to_string(), "WriteChunks".to_string()]);
-
-    let token = state
-        .signing_key
-        .issue_data_plane_token(
-            &req.subject,
-            &id,
-            permissions,
-            state.dp_token_expiry_secs,
-        )
-        .map_err(|e| {
-            error!(error = %e, "failed to issue token");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to issue token")
-        })?;
-
-    let verifying_key = base64::Engine::encode(
-        &base64::engine::general_purpose::STANDARD,
-        state.signing_key.verifying_key().to_bytes(),
-    );
-
-    info!(repo_id = %id, subject = %req.subject, "data plane token issued");
-
-    Ok(Json(IssueTokenResponse {
-        token,
-        expires_in: state.dp_token_expiry_secs,
-        verifying_key,
-    }))
 }
 
 // ============================================================
@@ -462,7 +410,10 @@ pub async fn get_workflow_status(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to get workflow");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to fetch workflow")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to fetch workflow",
+            )
         })?
         .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "workflow not found"))?;
 
@@ -505,7 +456,10 @@ pub async fn advance_workflow(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to advance workflow");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to advance workflow")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to advance workflow",
+            )
         })?;
 
     let row = state
@@ -514,7 +468,10 @@ pub async fn advance_workflow(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to re-read workflow");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to fetch workflow")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to fetch workflow",
+            )
         })?
         .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "workflow not found"))?;
 
@@ -581,7 +538,10 @@ pub async fn create_organization(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to create organization");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to create organization")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to create organization",
+            )
         })?;
 
     info!(id = %id.as_str(), name = %req.name, "organization created");
@@ -607,14 +567,27 @@ pub async fn get_organization(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to get organization");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to fetch organization")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to fetch organization",
+            )
         })?
         .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "organization not found"))?;
 
     Ok(Json(OrganizationResponse {
         id: row.id,
-        name: row.spec.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        slug: row.spec.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        name: row
+            .spec
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        slug: row
+            .spec
+            .get("slug")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         created_at: row.created_at.to_rfc3339(),
     }))
 }
@@ -628,15 +601,28 @@ pub async fn list_organizations(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to list organizations");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to list organizations")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to list organizations",
+            )
         })?;
 
     let orgs: Vec<OrganizationResponse> = rows
         .into_iter()
         .map(|row| OrganizationResponse {
             id: row.id,
-            name: row.spec.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            slug: row.spec.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            name: row
+                .spec
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            slug: row
+                .spec
+                .get("slug")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             created_at: row.created_at.to_rfc3339(),
         })
         .collect();
@@ -656,7 +642,10 @@ pub async fn delete_organization(
         .await
         .map_err(|e| {
             error!(error = %e, "failed to delete organization");
-            ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "failed to delete organization")
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to delete organization",
+            )
         })?;
 
     info!(id = %resource_id.as_str(), "organization deletion requested");
@@ -677,9 +666,7 @@ pub struct EventResponse {
     pub published: bool,
 }
 
-pub async fn list_events(
-    State(state): State<AppState>,
-) -> ApiResult<Json<Vec<EventResponse>>> {
+pub async fn list_events(State(state): State<AppState>) -> ApiResult<Json<Vec<EventResponse>>> {
     let events = state
         .store
         .poll_unpublished_events(100)

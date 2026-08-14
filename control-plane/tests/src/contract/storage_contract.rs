@@ -1,9 +1,9 @@
 //! Contract tests for StorageProvider implementations.
 
-use std::sync::Arc;
-use control_plane_provider_trait::StorageProvider;
-use control_plane_mock_provider::MockStorageProvider;
 use control_plane_mock_provider::MockProviderConfig;
+use control_plane_mock_provider::MockStorageProvider;
+use control_plane_provider_trait::StorageProvider;
+use std::sync::Arc;
 
 #[tokio::test]
 async fn contract_storage_allocate_returns_allocation() {

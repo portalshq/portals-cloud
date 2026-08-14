@@ -1,13 +1,13 @@
 //! Circuit breaker wrapper for provider calls.
 
+use super::{
+    ProviderError, RepositoryHandle, RepositoryProvider, RepositorySpec, RepositorySpecPatch,
+    RepositoryStatus,
+};
+use async_trait::async_trait;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use async_trait::async_trait;
 use tokio::sync::Mutex;
-use super::{
-    RepositoryProvider, RepositoryHandle, RepositorySpec, RepositoryStatus, RepositorySpecPatch,
-    ProviderError,
-};
 
 /// Circuit breaker state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,13 +78,15 @@ impl CircuitBreaker {
         let now = Instant::now();
 
         // Clean old failures outside sample window
-        self.failures.retain(|&t| now.duration_since(t) < self.config.sample_window);
+        self.failures
+            .retain(|&t| now.duration_since(t) < self.config.sample_window);
 
         match self.state {
             CircuitState::Closed => {
                 if is_failure {
                     self.failures.push(now);
-                    let failure_rate = self.failures.len() as f64 / self.config.sample_window.as_secs_f64();
+                    let failure_rate =
+                        self.failures.len() as f64 / self.config.sample_window.as_secs_f64();
                     if failure_rate >= self.config.failure_threshold {
                         self.state = CircuitState::Open;
                         self.opened_at = Some(now);
@@ -138,7 +140,7 @@ impl<P: RepositoryProvider> RepositoryProvider for CircuitBreakerRepositoryProvi
             let breaker = self.breaker.lock().await;
             breaker.state()
         };
-        
+
         match state {
             CircuitState::Open => {
                 return Err(ProviderError::CircuitOpen {
@@ -165,7 +167,7 @@ impl<P: RepositoryProvider> RepositoryProvider for CircuitBreakerRepositoryProvi
             let breaker = self.breaker.lock().await;
             breaker.state()
         };
-        
+
         match state {
             CircuitState::Open => {
                 return Err(ProviderError::CircuitOpen {
@@ -191,7 +193,7 @@ impl<P: RepositoryProvider> RepositoryProvider for CircuitBreakerRepositoryProvi
             let breaker = self.breaker.lock().await;
             breaker.state()
         };
-        
+
         match state {
             CircuitState::Open => {
                 return Err(ProviderError::CircuitOpen {
@@ -212,12 +214,16 @@ impl<P: RepositoryProvider> RepositoryProvider for CircuitBreakerRepositoryProvi
         result
     }
 
-    async fn update(&self, handle: &RepositoryHandle, patch: &RepositorySpecPatch) -> Result<(), ProviderError> {
+    async fn update(
+        &self,
+        handle: &RepositoryHandle,
+        patch: &RepositorySpecPatch,
+    ) -> Result<(), ProviderError> {
         let state = {
             let breaker = self.breaker.lock().await;
             breaker.state()
         };
-        
+
         match state {
             CircuitState::Open => {
                 return Err(ProviderError::CircuitOpen {

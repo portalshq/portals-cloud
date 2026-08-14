@@ -5,12 +5,12 @@
 
 pub mod circuit_breaker;
 
-use std::sync::Arc;
 use async_trait::async_trait;
-use thiserror::Error;
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 use reconciler::ResourceId;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use thiserror::Error;
 
 /// Provider error types.
 #[derive(Debug, Error)]
@@ -77,7 +77,11 @@ pub trait RepositoryProvider: Send + Sync {
     async fn provision(&self, spec: &RepositorySpec) -> Result<RepositoryHandle, ProviderError>;
     async fn deprovision(&self, handle: &RepositoryHandle) -> Result<(), ProviderError>;
     async fn describe(&self, handle: &RepositoryHandle) -> Result<RepositoryStatus, ProviderError>;
-    async fn update(&self, handle: &RepositoryHandle, patch: &RepositorySpecPatch) -> Result<(), ProviderError>;
+    async fn update(
+        &self,
+        handle: &RepositoryHandle,
+        patch: &RepositorySpecPatch,
+    ) -> Result<(), ProviderError>;
     async fn health_check(&self) -> Result<(), ProviderError>;
     async fn list_resources(&self) -> Result<Vec<RepositoryHandle>, ProviderError>;
 }
@@ -115,10 +119,18 @@ pub struct StorageUsage {
 /// Storage provider trait.
 #[async_trait]
 pub trait StorageProvider: Send + Sync {
-    async fn allocate(&self, spec: &StorageAllocationSpec) -> Result<StorageAllocation, ProviderError>;
+    async fn allocate(
+        &self,
+        spec: &StorageAllocationSpec,
+    ) -> Result<StorageAllocation, ProviderError>;
     async fn deallocate(&self, allocation: &StorageAllocation) -> Result<(), ProviderError>;
-    async fn describe(&self, allocation: &StorageAllocation) -> Result<StorageUsage, ProviderError>;
-    async fn resize(&self, allocation: &StorageAllocation, new_quota_bytes: u64) -> Result<(), ProviderError>;
+    async fn describe(&self, allocation: &StorageAllocation)
+        -> Result<StorageUsage, ProviderError>;
+    async fn resize(
+        &self,
+        allocation: &StorageAllocation,
+        new_quota_bytes: u64,
+    ) -> Result<(), ProviderError>;
     async fn health_check(&self) -> Result<(), ProviderError>;
     async fn list_resources(&self) -> Result<Vec<StorageAllocation>, ProviderError>;
 }

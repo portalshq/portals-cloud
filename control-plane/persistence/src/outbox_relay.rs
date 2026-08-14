@@ -1,7 +1,7 @@
 use crate::sqlx_store::PostgresStateStore;
+use aws_sdk_sqs::Client as SqsClient;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
-use aws_sdk_sqs::Client as SqsClient;
 
 pub struct OutboxRelay {
     store: Arc<PostgresStateStore>,
@@ -61,7 +61,9 @@ impl OutboxRelay {
                         if !self.queue_url.is_empty() {
                             self.deliver_events_to_sqs(sqs_client, &events).await
                         } else {
-                            warn!("SQS client configured but queue URL is empty, skipping delivery");
+                            warn!(
+                                "SQS client configured but queue URL is empty, skipping delivery"
+                            );
                             Ok(())
                         }
                     } else {

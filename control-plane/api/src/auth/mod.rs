@@ -3,8 +3,9 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation}
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub mod middleware;
+pub mod api_key;
 pub mod idempotency;
+pub mod middleware;
 
 #[derive(Clone)]
 pub struct DataPlaneSigningKey {
@@ -22,11 +23,9 @@ pub struct DataPlaneClaims {
 
 impl DataPlaneSigningKey {
     pub fn from_env(key_str: &str) -> anyhow::Result<Self> {
-        let key_bytes = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            key_str.trim(),
-        )
-        .map_err(|e| anyhow::anyhow!("invalid base64 key: {e}"))?;
+        let key_bytes =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, key_str.trim())
+                .map_err(|e| anyhow::anyhow!("invalid base64 key: {e}"))?;
 
         if key_bytes.len() == 32 {
             let bytes: [u8; 32] = key_bytes
@@ -74,7 +73,13 @@ impl DataPlaneSigningKey {
             exp: now + expiry_secs,
         };
 
-        let encoding_key = EncodingKey::from_secret(self.signing_key.to_bytes().as_slice());
+        // RFC 8410 PKCS#8 wrapper for a raw 32-byte Ed25519 private seed.
+        let mut private_der = vec![
+            0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22,
+            0x04, 0x20,
+        ];
+        private_der.extend_from_slice(&self.signing_key.to_bytes());
+        let encoding_key = EncodingKey::from_ed_der(&private_der);
         encode(
             &Header::new(jsonwebtoken::Algorithm::EdDSA),
             &claims,
@@ -85,7 +90,12 @@ impl DataPlaneSigningKey {
 
     pub fn verify_data_plane_token(&self, token: &str) -> Result<DataPlaneClaims, TokenError> {
         let vk = self.signing_key.verifying_key();
-        let decoding_key = DecodingKey::from_secret(vk.as_ref());
+        // RFC 8410 SubjectPublicKeyInfo wrapper for the raw public key.
+        let mut public_der = vec![
+            0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+        ];
+        public_der.extend_from_slice(vk.as_ref());
+        let decoding_key = DecodingKey::from_ed_der(&public_der);
         let mut validation = Validation::new(jsonwebtoken::Algorithm::EdDSA);
         validation.validate_exp = true;
 

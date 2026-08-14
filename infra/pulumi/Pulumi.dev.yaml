@@ -1,7 +1,26 @@
 config:
   aws:region: us-east-1
-  portals-platform:ed25519SigningKey:
-    secure: AAABADhSXCBOavnp39ayIuqlyOrQpq6fO3C/3SOasOZZTgNybvo/rnsNAZZ/0IHmSG3Ynt+gNEKvn0XI2nJRHxOlRilvGSoPC5+S+A==
   portals-platform:databaseInstanceClass: db.t4g.micro
   portals-platform:databaseAllocatedStorage: "20"
   portals-platform:databaseVersion: "15.18"
+  portals-platform:loreServiceDesiredCount: "0"
+  portals-platform:controlPlaneDesiredCount: "0"
+  portals-platform:authGatewayDesiredCount: "1"
+  portals-platform:authFoundationEnabled: "true"
+  portals-platform:publicIngressEnabled: "false"
+  portals-platform:jwksPublicationEnabled: "false"
+  portals-platform:recoveryControlsEnabled: "true"
+  portals-platform:databaseBackupRetentionDays: "1"
+  portals-platform:lowCostRdsSnapshotsEnabled: "true"
+  portals-platform:manualSnapshotRetentionCount: "7"
+  portals-platform:ecsCpuArchitecture: ARM64
+  portals-platform:threatDetectionEnabled: "false"
+  portals-platform:securityReviewDate: ""
+  portals-platform:authDomainPrefix: portals-dev-auth-907199504810
+  portals-platform:authCallbackUrls: https://auth.portals.sh/callback
+  portals-platform:authLogoutUrls: https://auth.portals.sh/logout
+  portals-platform:authHostname: auth.portals.sh
+  portals-platform:jwtSigningEnabled: "false"
+  portals-platform:credentialRotationEpoch: 2026-08-10-lore-security-rollout-v2
+  portals-platform:securityControlsEnabled: "true"
+  portals-platform:publicCertificateArn: arn:aws:acm:us-east-1:907199504810:certificate/cdef7138-4653-4719-93bf-8136308ce10b

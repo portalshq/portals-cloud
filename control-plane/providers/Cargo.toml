@@ -15,4 +15,6 @@ chrono = { workspace = true }
 futures = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
 models = { path = "../models" }

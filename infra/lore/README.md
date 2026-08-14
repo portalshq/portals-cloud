@@ -1,4 +1,9 @@
-# Lore Server on GCP
+# Lore Server on GCP (legacy, non-production)
+
+> **Do not use this topology for production.** It exposes direct Lore ports and
+> uses self-issued tokens. It is retained only as historical local/lab context.
+> The supported production architecture and migration invalidation rules are in
+> [the canonical AWS security guide](../../docs/security/lore-production-security.md).
 
 A reproducible, single-node production deployment of `loreserver` (the
 stock open-source binary, no plugins) on a Compute Engine VM, with:

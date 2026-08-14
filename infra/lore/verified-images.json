@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "images": {
+    "control-plane": {
+      "image": "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/auth-gateway@sha256:aa7945dacf559884fc7b526701621da7972b48b1a60846a63c2436588a2cd4db",
+      "platform": "linux/arm64",
+      "platformDigest": "sha256:5b79547090fce818f78415529db3b01a3c13b732abb42d15e4aa50fce2851bb6",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-13T02:26:18-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.73.0",
+        "completedAt": "2026-08-13T06:26:26.250Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": false,
+      "sourceCommit": "",
+      "protocolCommit": "",
+      "sourceTreeClean": false,
+      "verifiedAt": "2026-08-13T06:26:26.250Z"
+    },
+    "lore": {
+      "image": "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/lore@sha256:69d4bf5f77e94879d5a919eee7f3e2aecf2508294479fa54124a412deeef9bcb",
+      "platform": "linux/arm64",
+      "platformDigest": "sha256:5521c5dad17303e5ccc5b597d5de0bdd696a6a99502cca2723e9f86430a446f4",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-13T02:09:58-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.73.0",
+        "completedAt": "2026-08-13T06:10:08.054Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": false,
+      "sourceCommit": "",
+      "packagingCommit": "",
+      "sourceTreeClean": false,
+      "verifiedAt": "2026-08-13T06:10:08.054Z"
+    }
+  }
+}

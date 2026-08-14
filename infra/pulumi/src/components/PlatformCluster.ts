@@ -18,6 +18,7 @@ export class PlatformCluster extends pulumi.ComponentResource {
   public readonly taskExecutionRole: aws.iam.Role;
   public readonly taskRole: aws.iam.Role;
   public readonly taskSecurityGroup: aws.ec2.SecurityGroup;
+  public readonly serviceConnectNamespace?: aws.servicediscovery.HttpNamespace;
 
   constructor(name: string, args: PlatformClusterArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:platform:Cluster", name, {}, opts);
@@ -71,23 +72,6 @@ export class PlatformCluster extends pulumi.ComponentResource {
       policyArn: "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
     }, { parent: this });
 
-    // Grant SecretsManager read access (for external registry credentials)
-    new aws.iam.RolePolicy(`${resourcePrefix}-ecs-exec-secrets-policy`, {
-      role: this.taskExecutionRole.id,
-      policy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Effect: "Allow",
-            Action: [
-              "secretsmanager:GetSecretValue",
-            ],
-            Resource: "*",
-          },
-        ],
-      }),
-    }, { parent: this });
-
     // ── ECS Task Role ────────────────────────────────────────────────────
     // Used by the running application: S3, DynamoDB, etc.
     // Services attach their own granular policies to this role.
@@ -112,7 +96,13 @@ export class PlatformCluster extends pulumi.ComponentResource {
     }, { parent: this });
 
     // ── ECS Cluster ──────────────────────────────────────────────────────
+    this.serviceConnectNamespace = args.serviceConnectEnabled ? new aws.servicediscovery.HttpNamespace(`${resourcePrefix}-services`, {
+      name: `${resourcePrefix}-services`,
+      description: "Private ECS Service Connect discovery namespace",
+      tags: { Project: args.projectName, Environment: args.environment },
+    }, { parent: this }) : undefined;
     this.cluster = new aws.ecs.Cluster(`${resourcePrefix}-cluster`, {
+      serviceConnectDefaults: this.serviceConnectNamespace ? { namespace: this.serviceConnectNamespace.arn } : undefined,
       tags: {
         Name: `${resourcePrefix}-cluster`,
         Project: args.projectName,
@@ -131,15 +121,9 @@ export class PlatformCluster extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Allow egress from tasks to anywhere (AWS APIs, databases, S3, DynamoDB)
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-task-egress`, {
-      type: "egress",
-      fromPort: 0,
-      toPort: 0,
-      protocol: "-1",
-      securityGroupId: this.taskSecurityGroup.id,
-      cidrBlocks: ["0.0.0.0/0"],
-    }, { parent: this });
+    // No shared egress. Each service group declares the minimum protocols it
+    // needs. Secrets Manager permissions are likewise added only for specific
+    // secret ARNs by the service that consumes them.
 
     this.registerOutputs();
   }

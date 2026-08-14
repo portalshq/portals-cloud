@@ -2,22 +2,18 @@
 //!
 //! Used for unit tests, controller logic tests, and local development.
 
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 use async_trait::async_trait;
+use chrono::{DateTime, Duration, Utc};
 use control_plane_provider_trait::{
-    InfrastructureProvider, RepositoryProvider, StorageProvider, ComputeProvider,
-    IdentityProvider, NetworkingProvider, SecretProvider,
-    RepositorySpec, RepositoryHandle, RepositoryStatus, RepositorySpecPatch,
-    StorageAllocationSpec, StorageAllocation, StorageUsage,
-    ComputeSpec, ComputeHandle, ComputeStatus,
-    NamespaceSpec, Namespace, CredentialSpec, Token,
-    EndpointSpec, Endpoint,
-    SecretKey, SecretValue,
-    ProviderError,
+    ComputeHandle, ComputeProvider, ComputeSpec, ComputeStatus, CredentialSpec, Endpoint,
+    EndpointSpec, IdentityProvider, InfrastructureProvider, Namespace, NamespaceSpec,
+    NetworkingProvider, ProviderError, RepositoryHandle, RepositoryProvider, RepositorySpec,
+    RepositorySpecPatch, RepositoryStatus, SecretKey, SecretProvider, SecretValue,
+    StorageAllocation, StorageAllocationSpec, StorageProvider, StorageUsage, Token,
 };
 use reconciler::ResourceId;
-use chrono::{DateTime, Utc, Duration};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 /// Mock provider configuration.
 #[derive(Debug, Clone)]
@@ -62,7 +58,7 @@ impl MockRepositoryProvider {
 impl RepositoryProvider for MockRepositoryProvider {
     async fn provision(&self, spec: &RepositorySpec) -> Result<RepositoryHandle, ProviderError> {
         self.maybe_fail()?;
-        
+
         let handle = RepositoryHandle {
             id: ResourceId::new(uuid::Uuid::new_v4().to_string()),
             bucket_name: format!("mock-bucket-{}", spec.name),
@@ -71,7 +67,10 @@ impl RepositoryProvider for MockRepositoryProvider {
             created_at: Utc::now(),
         };
 
-        self.repositories.lock().unwrap().insert(handle.id.clone(), handle.clone());
+        self.repositories
+            .lock()
+            .unwrap()
+            .insert(handle.id.clone(), handle.clone());
         Ok(handle)
     }
 
@@ -85,7 +84,10 @@ impl RepositoryProvider for MockRepositoryProvider {
         self.maybe_fail()?;
         let repositories = self.repositories.lock().unwrap();
         if !repositories.contains_key(&handle.id) {
-            return Err(ProviderError::NotFound(format!("Repository {} not found", handle.id.as_str())));
+            return Err(ProviderError::NotFound(format!(
+                "Repository {} not found",
+                handle.id.as_str()
+            )));
         }
         Ok(RepositoryStatus {
             handle: handle.clone(),
@@ -95,7 +97,11 @@ impl RepositoryProvider for MockRepositoryProvider {
         })
     }
 
-    async fn update(&self, _handle: &RepositoryHandle, _patch: &RepositorySpecPatch) -> Result<(), ProviderError> {
+    async fn update(
+        &self,
+        _handle: &RepositoryHandle,
+        _patch: &RepositorySpecPatch,
+    ) -> Result<(), ProviderError> {
         self.maybe_fail()?;
         Ok(())
     }
@@ -105,7 +111,13 @@ impl RepositoryProvider for MockRepositoryProvider {
     }
 
     async fn list_resources(&self) -> Result<Vec<RepositoryHandle>, ProviderError> {
-        Ok(self.repositories.lock().unwrap().values().cloned().collect())
+        Ok(self
+            .repositories
+            .lock()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect())
     }
 }
 
@@ -126,7 +138,10 @@ impl MockStorageProvider {
 
 #[async_trait]
 impl StorageProvider for MockStorageProvider {
-    async fn allocate(&self, spec: &StorageAllocationSpec) -> Result<StorageAllocation, ProviderError> {
+    async fn allocate(
+        &self,
+        spec: &StorageAllocationSpec,
+    ) -> Result<StorageAllocation, ProviderError> {
         let allocation = StorageAllocation {
             id: ResourceId::new(uuid::Uuid::new_v4().to_string()),
             bucket_name: format!("mock-storage-{}", uuid::Uuid::new_v4()),
@@ -135,7 +150,10 @@ impl StorageProvider for MockStorageProvider {
             region: spec.region.clone(),
         };
 
-        self.allocations.lock().unwrap().insert(allocation.id.clone(), allocation.clone());
+        self.allocations
+            .lock()
+            .unwrap()
+            .insert(allocation.id.clone(), allocation.clone());
         Ok(allocation)
     }
 
@@ -144,7 +162,10 @@ impl StorageProvider for MockStorageProvider {
         Ok(())
     }
 
-    async fn describe(&self, allocation: &StorageAllocation) -> Result<StorageUsage, ProviderError> {
+    async fn describe(
+        &self,
+        allocation: &StorageAllocation,
+    ) -> Result<StorageUsage, ProviderError> {
         Ok(StorageUsage {
             allocation: allocation.clone(),
             used_bytes: 0,
@@ -152,7 +173,11 @@ impl StorageProvider for MockStorageProvider {
         })
     }
 
-    async fn resize(&self, _allocation: &StorageAllocation, _new_quota_bytes: u64) -> Result<(), ProviderError> {
+    async fn resize(
+        &self,
+        _allocation: &StorageAllocation,
+        _new_quota_bytes: u64,
+    ) -> Result<(), ProviderError> {
         Ok(())
     }
 
@@ -190,7 +215,10 @@ impl ComputeProvider for MockComputeProvider {
             region: spec.region.clone(),
         };
 
-        self.tasks.lock().unwrap().insert(handle.id.clone(), handle.clone());
+        self.tasks
+            .lock()
+            .unwrap()
+            .insert(handle.id.clone(), handle.clone());
         Ok(handle)
     }
 
@@ -242,7 +270,10 @@ impl IdentityProvider for MockIdentityProvider {
             role_arn: format!("arn:aws:iam:::role/{}", spec.name),
         };
 
-        self.namespaces.lock().unwrap().insert(namespace.id.clone(), namespace.clone());
+        self.namespaces
+            .lock()
+            .unwrap()
+            .insert(namespace.id.clone(), namespace.clone());
         Ok(namespace)
     }
 
@@ -291,7 +322,10 @@ impl NetworkingProvider for MockNetworkingProvider {
             addresses: vec![spec.target.clone()],
         };
 
-        self.endpoints.lock().unwrap().insert(endpoint.id.clone(), endpoint.clone());
+        self.endpoints
+            .lock()
+            .unwrap()
+            .insert(endpoint.id.clone(), endpoint.clone());
         Ok(endpoint)
     }
 
@@ -345,7 +379,10 @@ impl SecretProvider for MockSecretProvider {
         value: &SecretValue,
         _ttl: Option<std::time::Duration>,
     ) -> Result<(), ProviderError> {
-        self.secrets.lock().unwrap().insert(key.clone(), value.clone());
+        self.secrets
+            .lock()
+            .unwrap()
+            .insert(key.clone(), value.clone());
         Ok(())
     }
 
@@ -354,7 +391,10 @@ impl SecretProvider for MockSecretProvider {
             value: format!("rotated-{}", uuid::Uuid::new_v4()),
             version: "2".to_string(),
         };
-        self.secrets.lock().unwrap().insert(key.clone(), new_value.clone());
+        self.secrets
+            .lock()
+            .unwrap()
+            .insert(key.clone(), new_value.clone());
         Ok(new_value)
     }
 
@@ -371,11 +411,13 @@ impl SecretProvider for MockSecretProvider {
 /// Create mock infrastructure provider.
 pub fn create_mock_provider(config: MockProviderConfig) -> InfrastructureProvider {
     InfrastructureProvider {
-        repository: Arc::new(MockRepositoryProvider::new(config.clone())) as Arc<dyn RepositoryProvider>,
+        repository: Arc::new(MockRepositoryProvider::new(config.clone()))
+            as Arc<dyn RepositoryProvider>,
         storage: Arc::new(MockStorageProvider::new(config.clone())) as Arc<dyn StorageProvider>,
         compute: Arc::new(MockComputeProvider::new(config.clone())) as Arc<dyn ComputeProvider>,
         identity: Arc::new(MockIdentityProvider::new(config.clone())) as Arc<dyn IdentityProvider>,
-        networking: Arc::new(MockNetworkingProvider::new(config.clone())) as Arc<dyn NetworkingProvider>,
+        networking: Arc::new(MockNetworkingProvider::new(config.clone()))
+            as Arc<dyn NetworkingProvider>,
         secrets: Arc::new(MockSecretProvider::new(config)) as Arc<dyn SecretProvider>,
     }
 }

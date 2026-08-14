@@ -333,7 +333,12 @@ async fn jwt_auth_allows_valid_token(pool: sqlx::PgPool) {
 
     // Generate a valid token
     let token = signing_key
-        .issue_data_plane_token("test@example.com", "repo-123", vec!["ReadChunks".to_string()], 3600)
+        .issue_data_plane_token(
+            "test@example.com",
+            "repo-123",
+            vec!["ReadChunks".to_string()],
+            3600,
+        )
         .expect("failed to issue token");
 
     let response = app
@@ -436,7 +441,7 @@ async fn idempotency_caches_successful_response(pool: sqlx::PgPool) {
 #[ignore]
 async fn organization_soft_delete_returns_202(pool: sqlx::PgPool) {
     let app = test_app(pool);
-    
+
     // Create organization
     let create_response = app
         .clone()
@@ -458,7 +463,12 @@ async fn organization_soft_delete_returns_202(pool: sqlx::PgPool) {
         .unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
 
-    let body = create_response.into_body().collect().await.unwrap().to_bytes();
+    let body = create_response
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let org_id = json["id"].as_str().unwrap();
 
@@ -480,7 +490,7 @@ async fn organization_soft_delete_returns_202(pool: sqlx::PgPool) {
 #[ignore]
 async fn organization_with_repositories_cannot_delete(pool: sqlx::PgPool) {
     let app = test_app(pool);
-    
+
     // Create organization
     let create_org_response = app
         .clone()
@@ -502,7 +512,12 @@ async fn organization_with_repositories_cannot_delete(pool: sqlx::PgPool) {
         .unwrap();
     assert_eq!(create_org_response.status(), StatusCode::CREATED);
 
-    let org_body = create_org_response.into_body().collect().await.unwrap().to_bytes();
+    let org_body = create_org_response
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let org_json: serde_json::Value = serde_json::from_slice(&org_body).unwrap();
     let org_id = org_json["id"].as_str().unwrap();
 

@@ -8,7 +8,9 @@ pub fn create_test_provider() -> control_plane_provider_trait::InfrastructurePro
 }
 
 /// Create a test mock provider with failure injection.
-pub fn create_failing_provider(failure_rate: f64) -> control_plane_provider_trait::InfrastructureProvider {
+pub fn create_failing_provider(
+    failure_rate: f64,
+) -> control_plane_provider_trait::InfrastructureProvider {
     let config = MockProviderConfig {
         inject_failures: true,
         failure_rate,

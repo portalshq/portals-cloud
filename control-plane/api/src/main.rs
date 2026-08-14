@@ -1,18 +1,18 @@
+use aws_config::BehaviorVersion;
+use aws_sdk_sqs::Client as SqsClient;
 use config::AppConfig;
 use persistence::PostgresStateStore;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use tokio::signal;
 use tracing::{error, info, warn};
-use aws_sdk_sqs::Client as SqsClient;
-use aws_config::BehaviorVersion;
 
 use api::{auth, http};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = AppConfig::from_env();
-    observability::init(&config.log_filter);
+    let _telemetry = observability::init(&config.log_filter)?;
 
     info!("connecting to database");
     let pool = PgPoolOptions::new()
@@ -35,7 +35,9 @@ async fn main() -> anyhow::Result<()> {
     api::metrics::init_metrics();
 
     // Start outbox relay in background (skip if no event queue configured)
-    let outbox_handle = if config.sqs_queue_url.is_empty() && config.event_bridge_endpoint.is_empty() {
+    let outbox_handle = if config.sqs_queue_url.is_empty()
+        && config.event_bridge_endpoint.is_empty()
+    {
         warn!("no event queue configured (SQS_QUEUE_URL / EVENT_BRIDGE_ENDPOINT) — outbox relay disabled, events will be marked published without delivery");
         None
     } else {
@@ -43,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
         let outbox_interval = config.outbox_poll_interval_ms;
         let sqs_url = config.sqs_queue_url.clone();
         let aws_region = config.s3_region.clone();
-        
+
         Some(tokio::spawn(async move {
             let relay = if !sqs_url.is_empty() {
                 // Create SQS client for event delivery
@@ -64,35 +66,49 @@ async fn main() -> anyhow::Result<()> {
 
     // Start reconciler loop in background
     let reconciler_handle = {
-        use controllers::repository::{RepositoryController, RepositoryResource};
         use controllers::organization::{OrganizationController, OrganizationResource};
+        use controllers::repository::{RepositoryController, RepositoryResource};
         use models::{Controller, ResourceKind};
 
         let repo_store = store.clone();
 
         // Use real S3 provider if provider_type is "aws", otherwise mock
-        let repo_provider: Arc<dyn providers::r#trait::repository::RepositoryProvider> =
-            if config.provider_type == "aws" {
-                if config.s3_endpoint.is_empty() {
-                    error!("PROVIDER_TYPE=aws but S3_ENDPOINT is not configured");
-                    return Err(anyhow::anyhow!("PROVIDER_TYPE=aws requires S3_ENDPOINT to be configured"));
-                }
-                info!(endpoint = %config.s3_endpoint, bucket = %config.s3_bucket_chunks, "using S3 storage provider");
-                Arc::new(providers::aws::s3_storage::S3StorageProvider::new(
+        let repo_provider: Arc<dyn providers::r#trait::repository::RepositoryProvider> = if config
+            .provider_type
+            == "aws"
+        {
+            // An empty endpoint is the secure production path: the AWS SDK
+            // selects the regional S3 endpoint and obtains short-lived
+            // credentials from the ECS task role.  Explicit endpoints and
+            // credentials are retained only for isolated MinIO development.
+            info!(
+                endpoint = if config.s3_endpoint.is_empty() { "aws-default" } else { &config.s3_endpoint },
+                bucket = %config.s3_bucket_chunks,
+                "using S3 storage provider"
+            );
+            Arc::new(
+                providers::aws::s3_storage::S3StorageProvider::new(
                     config.s3_endpoint.clone(),
                     config.s3_access_key.clone(),
                     config.s3_secret_key.clone(),
                     config.s3_region.clone(),
                     config.s3_bucket_chunks.clone(),
                     config.s3_force_path_style(),
-                ))
-            } else if config.provider_type == "mock" {
-                warn!("PROVIDER_TYPE=mock — using mock storage provider (data will not be persisted)");
-                Arc::new(providers::mock::repository::MockRepositoryProvider::new())
-            } else {
-                error!("Invalid PROVIDER_TYPE: {} (must be 'aws' or 'mock')", config.provider_type);
-                return Err(anyhow::anyhow!("PROVIDER_TYPE must be either 'aws' or 'mock'"));
-            };
+                )
+                .await?,
+            )
+        } else if config.provider_type == "mock" {
+            warn!("PROVIDER_TYPE=mock — using mock storage provider (data will not be persisted)");
+            Arc::new(providers::mock::repository::MockRepositoryProvider::new())
+        } else {
+            error!(
+                "Invalid PROVIDER_TYPE: {} (must be 'aws' or 'mock')",
+                config.provider_type
+            );
+            return Err(anyhow::anyhow!(
+                "PROVIDER_TYPE must be either 'aws' or 'mock'"
+            ));
+        };
 
         let repo_controller = Arc::new(RepositoryController {
             store: repo_store.clone(),
@@ -111,18 +127,22 @@ async fn main() -> anyhow::Result<()> {
         // Phase 2: Health check gate - verify controllers are healthy
         info!("Phase 2: Running controller health checks");
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Brief initialization delay
-        
-        repo_controller.health_check().await
+
+        repo_controller
+            .health_check()
+            .await
             .map_err(|e| anyhow::anyhow!("Repository controller health check failed: {}", e))?;
         info!("Repository controller health check passed");
-        
-        org_controller.health_check().await
+
+        org_controller
+            .health_check()
+            .await
             .map_err(|e| anyhow::anyhow!("Organization controller health check failed: {}", e))?;
         info!("Organization controller health check passed");
 
         // Phase 3: Start reconciler loops
         info!("Phase 3: Starting reconciler loops");
-        
+
         // Repository reconciler loop
         let repo_reconciler_loop = reconciler::TypedReconcilerLoop::new(
             loop_store.clone(),
@@ -184,7 +204,11 @@ async fn main() -> anyhow::Result<()> {
         &config.cors_allowed_origins,
         config.jwt_auth_enabled,
         config.idempotency_enabled,
-        if config.redis_url.is_empty() { None } else { Some(&config.redis_url) },
+        if config.redis_url.is_empty() {
+            None
+        } else {
+            Some(&config.redis_url)
+        },
     );
 
     info!(addr = %config.listen_addr, "starting control plane API");

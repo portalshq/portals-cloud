@@ -1,236 +1,196 @@
-# Portals Platform Infrastructure
+# Secure Lore AWS deployment
 
-Pulumi AWS infrastructure stack for the Portals platform — the Lore VCS
-service and the Lore Cloud Control Plane.
+This Pulumi program is fail-closed infrastructure for Lore. The canonical
+security and incident runbook is
+[docs/security/lore-production-security.md](../../docs/security/lore-production-security.md).
 
-## Architecture
+## Topology
 
+The ALB is the only internet-facing application resource and has no ingress or
+listener by default. When all release assertions are satisfied, it exposes
+only HTTPS/gRPC `443` for `lore.portals.sh`, protected by WAF. There is no NLB,
+public control plane, public health port, or direct QUIC/gRPC listener.
+
+Lore and the Auth Gateway run in private subnets without public IPs. Lore
+accepts `41337` and store-aware `41339` checks only from the ALB security group;
+the container also checks `41339` locally.
+The unfinished legacy control-plane issuer is production-disabled and Pulumi
+rejects a nonzero desired count. Tasks use scoped IAM roles for S3 and DynamoDB.
+RDS is private. Cognito is a user pool only and the asymmetric JWT signer is in
+KMS.
+
+The stack owns immutable, scan-on-push ECR repositories for Lore and the Auth
+Gateway (the active control-plane runtime). The legacy control-plane repository
+is retained only for migration history and is never deployed. The stack also forces PostgreSQL TLS and writes ALB,
+WAF, CloudTrail, and VPC-flow audit data when security controls are enabled.
+
+## Safety gates
+
+Defaults keep Lore and the legacy control plane at zero and public ingress off.
+The Auth Gateway can be bootstrapped privately without an ALB attachment. A service cannot
+start without an ECR `@sha256` image reference. Lore also requires an HTTPS
+JWKS URL and issuer. Public ingress additionally requires all of:
+
+```text
+authGatewayReady=true
+securityControlsEnabled=true
+securityReviewDate=YYYY-MM-DD
+releaseGateApproved=true
+publicIngressEnabled=true
 ```
-                              Internet
-                                 │
-                  ┌──────────────┴──────────────┐
-                  │  ALB (public)               │
-                  │  :8083  Control Plane (HTTP)│
-                  │  :41339 Lore (HTTP)         │
-                  └──────────────┬──────────────┘
-                                 │
-                  ┌──────────────┴──────────────┐
-                  │        ECS Fargate          │
-                  │  ┌─────────┐  ┌──────────┐  │
-                  │  │ Control │  │  Lore    │  │
-                  │  │  Plane  │  │  VCS     │  │
-                  │  │ :8083   │  │ :41339   │  │
-                  │  └────┬────┘  └────┬─────┘  │
-                  └───────┼───────────┼─────────┘
-                          │           │
-        ┌─────────────────┼───────────┼──────────────┐
-        │                 │           │              │
-   ┌────┴─────┐    ┌──────┴─────┐ ┌───┴──────┐ ┌─────┴─────┐
-   │  RDS     │    │ DynamoDB   │ │  S3      │ │ Docker Hub│
-   │PostgreSQL│    │ (lore      │ │ (lore    │ │ (control- │
-   │ (control │    │  mutable + │ │  chunks) │ │  plane    │
-   │  plane)  │    │  lock)     │ │          │ │  image)   │
-   └──────────┘    └────────────┘ └──────────┘ └───────────┘
 
-                  NLB (public)
-                  │  :41337 Lore (QUIC/TCP)
-                  └───────────────┘
-```
+`threatDetectionEnabled=true` adds paid GuardDuty/Security Hub and is optional
+when the mandatory compensating baseline is deployed. Public ingress requires a
+real `securityReviewDate` within the last 90 days. Set release assertions only
+after their checks are evidenced and set public ingress last. The stack rejects
+plaintext or certificate-less public ingress.
+`jwtSigningEnabled` is a separate publish-before-use switch. Deploy the gateway
+privately with it false, then use `jwksPublicationEnabled=true` to expose only
+JWKS and health on TLS 443. In that bootstrap mode the callback, Auth gRPC, and
+Lore listener rules do not exist. After the live `kid` is verified, disable
+bootstrap mode and enable signing. The full public edge is rejected while
+signing is false.
 
-## Components
+`credentialRotationEpoch` deliberately rotates the generated database password
+and service-account API-key pepper. Change it only during an approved rollout
+that updates consumers atomically.
 
-| Component | What it creates |
-|-----------|-----------------|
-| **PlatformNetwork** | VPC, 3 public + 3 private subnets, Internet Gateway, NAT Gateway |
-| **PlatformCluster** | ECS Fargate cluster, CloudWatch log group, task execution role, task role, shared task security group |
-| **PlatformDataStore** | RDS PostgreSQL 15 instance (Control Plane), DynamoDB table (Lore mutable + lock store) |
-| **PlatformStorage** | S3 bucket for Lore chunks (immutable store), bucket encryption + lifecycle rules |
-| **LoadBalancers** | ALB for HTTP (Control Plane :8083, Lore :41339), NLB for QUIC/TCP (Lore :41337) |
-| **LoreService** | ECS Fargate service pulling the stock Lore server image from the external registry; S3 + DynamoDB stores via IAM task role |
-| **ControlPlaneService** | ECS Fargate service running the pre-built Control Plane image (see [Image versioning](#image-versioning)) |
+`databaseBackupRetentionDays` is `1` in the current AWS free-plan stack because
+AWS rejects a larger value. The low-cost bridge sets
+`lowCostRdsSnapshotsEnabled=true` and retains seven daily native manual
+snapshots using one 128 MB ARM Lambda plus EventBridge Scheduler. Public ingress
+with under seven days of automated PITR is rejected unless this bridge is
+enabled. Set automated retention to `35` when the account permits it. Deletion
+protection, final snapshots, S3 versioning, and DynamoDB PITR remain enabled
+regardless of that account-plan limit.
 
-There is no Frontend/Server service, no SQS event bus, and no EFS in this
-stack. SQS is wired as an empty env var placeholder (events degrade
-gracefully without delivery for the MVP).
+## Bootstrap permissions
 
-## Services and ports
+Use a short-lived, individually attributed deployment role. Bootstrap needs
+permission to manage VPC/ALB/WAF, ECS/ECR, IAM roles/policies, Cognito user
+pools, KMS keys/aliases, RDS, S3, DynamoDB, CloudWatch, and security logging.
+Runtime task roles are narrower and must never inherit deployment permissions.
+Protect Pulumi state and never put secrets or private keys in YAML or git.
+The least-privilege policy template is
+[`policies/deployer-security-bootstrap.json`](policies/deployer-security-bootstrap.json).
+The Access Analyzer and low-cost recovery additions are split into
+[`policies/deployer-recovery-bootstrap.json`](policies/deployer-recovery-bootstrap.json)
+to stay below AWS's managed-policy size limit.
+The maximum-permission guardrail is
+[`policies/deployer-permissions-boundary.json`](policies/deployer-permissions-boundary.json).
+Attaching it changes persistent account authorization and therefore requires a
+separate reviewed approval; never auto-attach it from a deployment script.
+The role/OIDC/permissions-boundary migration is specified in
+[`docs/security/aws-deployment-identity.md`](../../docs/security/aws-deployment-identity.md).
 
-| Service | Container port | Load balancer | Protocol | Health check |
-|---------|---------------|---------------|----------|--------------|
-| Control Plane | 8083 | ALB :8083 | HTTP | `/healthz` |
-| Lore | 41339 | ALB :41339 | HTTP | — |
-| Lore | 41337 | NLB :41337 | TCP/UDP (QUIC) | — |
-
-## Image versioning
-
-Pulumi does **not** build Docker images. Deployment follows a
-"build & push, then pin, then deploy" flow where
-[`infra/lore/versions.yaml`](../lore/versions.yaml) is the single source of
-truth for what is deployed:
-
-1. **Build & push** — `control-plane/scripts/publish-image.sh`
-   builds the Control Plane image, pushes it to Docker Hub under a unique
-   `<git-short-sha>-<timestamp>` tag, and records the image URI in
-   `versions.yaml` under `control-plane.image`.
-2. **Deploy** — `pulumi up` reads the pinned image from `versions.yaml` and
-   registers a new ECS task definition that points at it.
-3. **Verify** — `control-plane/scripts/verify-and-update-versions.sh`
-   compares the image actually running in ECS against `versions.yaml` and can
-   correct the pin after manual deploys (`--write`).
-
-If `control-plane.image` is empty or missing, `pulumi up` prints a warning and
-skips the Control Plane service so a fresh stack and `pulumi destroy` still
-work. Publish the image, then run `pulumi up` again to add the service.
-
-## Prerequisites
-
-- Node.js 18+
-- Pulumi CLI (`brew install pulumi`)
-- AWS CLI configured with credentials (`aws configure`)
-- Docker + `docker login` to Docker Hub (only for the build script)
-
-## Setup
+Pulumi must find its language host. If installed in the user directory:
 
 ```bash
-cd infra/pulumi
-npm install
-pulumi stack init dev     # or per-environment stack
+export PATH="$HOME/.pulumi/bin:$PATH"
 ```
 
-### Required configuration
+## Immutable image promotion
+
+Build once and push with BuildKit SBOM/provenance, then run
+`scripts/verify-and-promote-image.sh`. The helper resolves the runnable
+platform child, requires clean ECR and Trivy critical/high results, decodes the
+attestations, and only then updates both `infra/lore/versions.yaml` and the
+digest-bound receipt in `infra/lore/verified-images.json`. Pulumi refuses a
+running pin without a matching receipt and refuses public ingress until its
+cosign signature is verified. Mutable architecture/nightly tags may aid
+publishing but are never accepted by the service-count gate.
+
+CI also runs npm/RustSec dependency audits and CodeQL security-extended
+analysis. Those source gates complement, rather than replace, ECR scanning and
+signature/SBOM verification of the exact promoted manifest digest.
+
+`infra/lore/versions.yaml` is the sole release bill of materials. It has four
+active release entries: the independently signed Lore client, the Lore server
+image, the control plane implemented by the Auth Gateway image, and the signed
+Nap binary release that references the exact Lore client version. The legacy
+issuer is an explicit retired entry with an empty image. Pulumi does not accept a config
+override for the Lore image, so `pulumi up` cannot silently deploy a different
+artifact than the reviewed manifest.
+
+Publishers reject dirty component source, attach full source/protocol/packaging
+commit labels, and require those values in provenance before changing a pin.
+Promote the signed Lore CLI first with
+`scripts/verify-and-promote-lore-client-release.sh`; it records the fork source
+commit and release artifacts while deliberately leaving the Epic upstream pin
+and Lore submodule gitlink unchanged. `verify-and-promote-nap-release.sh` then
+verifies GitHub-OIDC Sigstore bundles, every Nap artifact checksum, and requires
+Nap's Lore dependency to match that independent top-level entry before changing
+the Nap entry and its matching `verified-releases.json` receipt. Public
+ingress additionally requires `release.status: approved` and one matching
+security contract across Nap, Lore, and the control plane.
+
+`lore-client.source_commit` is not synchronized from a dirty or checked-out
+submodule. After the patch is committed, tagged, and released from
+`portalshq/lore`, run
+`scripts/verify-and-promote-lore-client-release.sh vX.Y.Z`; only that verified
+promotion updates `source_commit`. The trigger is currently manual; verification
+and manifest editing are automated. Update `upstream_commit` and the submodule
+gitlink together only when intentionally rebasing to Epic upstream.
+
+## Containment and preview
 
 ```bash
-# AWS
-pulumi config set aws:region us-east-1
-
-# Project
-pulumi config set projectName portals
-pulumi config set environment dev
-
-# Network
-pulumi config set vpcCidr "10.0.0.0/16"
-pulumi config set publicSubnetCidrs "10.0.1.0/24,10.0.2.0/24,10.0.3.0/24"
-pulumi config set privateSubnetCidrs "10.0.10.0/24,10.0.11.0/24,10.0.12.0/24"
-
-# Database
-pulumi config set databaseInstanceClass "db.t4g.micro"
-pulumi config set databaseVersion "15.18"
-pulumi config set databaseAllocatedStorage "20"
-
-# ECS
-pulumi config set ecsFargateCpu "1024"
-pulumi config set ecsFargateMemory "2048"
-
-# Service counts
-pulumi config set loreServiceDesiredCount "1"
-pulumi config set controlPlaneDesiredCount "1"
-
-# Lore server external image
-pulumi config set loreServerImageUri "portalshq/lore-server:latest-amd64"
-
-# Control Plane signing key (secret)
-pulumi config set --secret ed25519SigningKey "$(openssl rand -base64 32)"
-```
-
-Defaults for all of these live in [`Pulumi.yaml`](Pulumi.yaml) — only the
-secrets and any overrides need to be set per stack.
-
-## Deploy
-
-```bash
-# 1. Build, push, and pin the Control Plane image
-../../control-plane/scripts/publish-image.sh
-
-# 2. Preview and apply
-pulumi preview
+pulumi config set loreServiceDesiredCount 0
+pulumi config set controlPlaneDesiredCount 0
+pulumi config set publicIngressEnabled false
+pulumi preview --diff
 pulumi up
 ```
 
-For a fresh stack, publish the image first (or run `pulumi up` once to create
-the infrastructure with the Control Plane service skipped, then publish and
-`pulumi up` again to add it).
+Confirm the preview deletes the NLB/listeners and ports `8083`, `41337`, and
+`41339`; inspect every replacement and deletion. Do not apply an unexpected
+database, bucket, table, KMS-key, or user-pool deletion.
 
-## Outputs
-
-| Output | Description |
-|--------|-------------|
-| `databaseUrl` | PostgreSQL connection string (secret) |
-| `albDnsName` | Application Load Balancer DNS name |
-| `nlbDnsName` | Network Load Balancer DNS name |
-| `vpcId` | VPC ID |
-| `clusterArn` | ECS cluster ARN |
-| `controlPlaneImageUri` | Control Plane image URI pinned in `versions.yaml` |
-| `loreChunksBucketName` | S3 bucket for Lore chunks (immutable store) |
-| `loreChunksBucketArn` | ARN of the Lore chunks bucket |
-| `loreDynamoDbTableName` | DynamoDB table for Lore mutable + lock store |
-| `loreDynamoDbTableArn` | ARN of the Lore DynamoDB table |
-| `loreServiceSecurityGroupArn` | ARN of the Lore service security group |
-| `controlPlaneServiceSecurityGroupArn` | ARN of the Control Plane security group (`""` until the image is pinned) |
-
-## Control Plane service
-
-The Control Plane is the Lore Cloud reconciliation engine — a Rust/Axum
-service that manages repositories, organizations, sessions, and capabilities
-through declarative controller loops.
-
-### Environment variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DATABASE_URL` | yes | — | PostgreSQL connection string |
-| `ED25519_SIGNING_KEY` | yes | — | Base64-encoded Ed25519 key for data plane JWTs |
-| `LISTEN_ADDR` | no | `0.0.0.0:8083` | HTTP listen address |
-| `AWS_REGION` | no | (config) | AWS region for S3 |
-| `SQS_QUEUE_URL` | no | `""` | SQS queue URL (outbox relay; empty = degraded) |
-| `PROVIDER_TYPE` | no | `aws` | `aws` or `mock` |
-| `JWT_AUTH_ENABLED` | no | `false` | Enable JWT authentication |
-| `IDEMPOTENCY_ENABLED` | no | `true` | Enable idempotency checks |
-| `METRICS_ENABLED` | no | `true` | Enable Prometheus metrics |
-| `DP_TOKEN_EXPIRY_SECS` | no | `3600` | Data plane token TTL |
-| `CORS_ALLOWED_ORIGINS` | no | `*` | Comma-separated CORS origins |
-| `RUST_LOG` | no | `info,lorecloud_control_plane=debug,sqlx=warn` | Log filter |
-| `REDIS_URL` | no | `""` | Redis for idempotency cache (empty = in-memory) |
-
-`GET /healthz` on port 8083 is probed by both the container health check
-(`wget`) and the ALB target group.
-
-## Lore service
-
-- Pulls the stock Lore server image from the external registry (`loreServerImageUri`).
-- **Immutable store** (fragments/chunks): S3 bucket via the `lore-aws` plugin.
-- **Mutable + lock store**: DynamoDB table via the `lore-aws` plugin.
-- Access is via an IAM task role scoped to the S3 bucket and DynamoDB table.
-- ALB listener :41339 (HTTP) and NLB listener :41337 (TCP/UDP QUIC).
-
-## Network topology
-
-- **Public subnets** (3x /24): Internet Gateway access, ALB/NLB placement.
-- **Private subnets** (3x /24): NAT Gateway access; ECS tasks, RDS.
-- **ALB**: HTTP — Control Plane :8083, Lore :41339.
-- **NLB**: TCP/UDP — Lore :41337 (QUIC).
-
-## Security
-
-- All resources tagged with `Project` and `Environment`.
-- Database credentials auto-generated and stored as Pulumi secrets.
-- RDS and S3 encrypted at rest; the Lore chunks bucket blocks public access
-  and enforces secure transport.
-- Security groups follow least privilege (ingress from load balancers only,
-  egress to anywhere).
-- ECS tasks run in private subnets with no public IP.
-- `ed25519SigningKey` is encrypted in Pulumi state; AWS access is via IAM
-  roles, not embedded credentials.
-- S3 lifecycle rules abort incomplete multipart uploads after 7 days.
-
-## Development
+Record a repeatable external probe (use the ALB DNS name during containment):
 
 ```bash
-npm run build      # compile TypeScript
-npm run lint       # eslint
-pulumi preview     # preview stack changes
+infra/pulumi/scripts/verify-external-surface.sh HOST containment
 ```
 
-## Notes
+After release, run it with `lore.portals.sh release`; it validates the TLS
+hostname/chain and fails unless exactly `443` is reachable.
 
-- Platform infrastructure only — no tenant-specific resources.
-- This is an MVP stack: no HA multi-AZ replication for Lore, no SQS delivery.
+## Secure deployment
+
+```bash
+npm ci
+npm test
+npm run build
+
+pulumi config set loreJwksEndpoint https://auth.portals.sh/.well-known/jwks.json
+pulumi config set loreJwtIssuer https://auth.portals.sh/
+pulumi config set publicCertificateArn arn:aws:acm:REGION:ACCOUNT:certificate/ID
+pulumi config set loreServerImageUri ACCOUNT.dkr.ecr.REGION.amazonaws.com/lore@sha256:DIGEST
+pulumi config set loreServiceDesiredCount 1
+pulumi preview --diff
+pulumi up
+```
+
+Leave public ingress false while private readiness and authenticated staging
+E2E run. After the full checklist in the security guide passes, set the three
+release assertions and enable ingress in one reviewed preview.
+
+## Health gates
+
+ECS and ALB target health invoke Lore's store-aware endpoint. Release also
+requires a real authenticated
+fragment write/read, branch-pointer update, and LockService acquire/release
+against S3/DynamoDB plus the complete Nap workflow.
+
+## Rollback
+
+Close ingress and scale to zero first. Reapply the prior digest and compatible
+configuration, or restore RDS/S3/DynamoDB into isolated resources. Never roll
+back to an exposed key, mutable tag, static AWS credential, public NLB, or
+unauthenticated config. Reopen only after all negative and data-plane gates pass.
+
+## Important outputs
+
+The stack exports the ALB DNS name, private service SGs, store names/ARNs,
+Cognito pool/client IDs, and KMS signing-key ARN. It intentionally has no NLB
+output and does not output credential material.

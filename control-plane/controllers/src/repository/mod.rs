@@ -1,7 +1,10 @@
-use models::{Controller, ErrorPolicy, HealthError, ReconcileContext, ReconcileResult, Resource, ResourceId, OwnerReference};
 use async_trait::async_trait;
 use events::PlatformEvent;
-use persistence::{PostgresStateStore, state_store::StateStore};
+use models::{
+    Controller, ErrorPolicy, HealthError, OwnerReference, ReconcileContext, ReconcileResult,
+    Resource, ResourceId,
+};
+use persistence::{state_store::StateStore, PostgresStateStore};
 use providers::r#trait::repository::{RepositoryHandle, RepositoryProvider, RepositorySpec};
 use std::sync::Arc;
 use std::time::Duration;
@@ -80,8 +83,9 @@ impl Controller for RepositoryController {
             let new_handle = self.provider.provision(&resource.spec).await?;
             let version = resource.version();
             let id = resource.id.clone();
-            let handle_json = serde_json::to_value(&new_handle)
-                .map_err(|e| RepositoryError::InvalidSpec(format!("failed to serialize handle: {e}")))?;
+            let handle_json = serde_json::to_value(&new_handle).map_err(|e| {
+                RepositoryError::InvalidSpec(format!("failed to serialize handle: {e}"))
+            })?;
 
             self.store
                 .transaction(|tx| {
@@ -157,10 +161,7 @@ impl RepositoryController {
         &self,
         resource: Arc<RepositoryResource>,
     ) -> Result<ReconcileResult, RepositoryError> {
-        if !resource
-            .finalizers()
-            .contains(&REPO_FINALIZER.to_string())
-        {
+        if !resource.finalizers().contains(&REPO_FINALIZER.to_string()) {
             return Ok(ReconcileResult::Ok);
         }
 

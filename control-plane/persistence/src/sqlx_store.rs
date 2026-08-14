@@ -1,7 +1,7 @@
 use crate::state_store::{StateStore, StoreError, StoreTransaction};
 use async_trait::async_trait;
-use models::{ResourceId, ResourceKind};
 use events::PlatformEvent;
+use models::{ResourceId, ResourceKind};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sqlx::postgres::PgPool;
@@ -25,10 +25,18 @@ impl PostgresStateStore {
     }
 
     pub async fn run_migrations(&self) -> Result<(), StoreError> {
-        sqlx::raw_sql(include_str!("../migrations/001_init.sql"))
-            .execute(&self.pool)
-            .await
-            .map_err(|e| StoreError::Database(format!("Migration failed: {e}")))?;
+        let migrations = [
+            include_str!("../migrations/001_init.sql"),
+            include_str!("../migrations/002_add_org_finalizers.sql"),
+            include_str!("../migrations/003_security_authorization.sql"),
+            include_str!("../migrations/004_auth_gateway_runtime.sql"),
+        ];
+        for migration in migrations {
+            sqlx::raw_sql(migration)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| StoreError::Database(format!("Migration failed: {e}")))?;
+        }
         info!("database migrations applied");
         Ok(())
     }
@@ -40,7 +48,9 @@ pub struct PostgresTransactionPool<'a> {
 
 impl<'a> PostgresTransactionPool<'a> {
     fn new(tx: sqlx::Transaction<'a, sqlx::Postgres>) -> Self {
-        Self { tx: Arc::new(Mutex::new(Some(tx))) }
+        Self {
+            tx: Arc::new(Mutex::new(Some(tx))),
+        }
     }
 
     async fn commit(&self) -> Result<(), StoreError> {
@@ -54,9 +64,9 @@ impl<'a> PostgresTransactionPool<'a> {
 
     async fn rollback(&self) -> Result<(), StoreError> {
         if let Some(tx) = self.tx.lock().await.take() {
-            tx.rollback()
-                .await
-                .map_err(|e| StoreError::Database(format!("failed to rollback transaction: {e}")))?;
+            tx.rollback().await.map_err(|e| {
+                StoreError::Database(format!("failed to rollback transaction: {e}"))
+            })?;
         }
         Ok(())
     }
@@ -71,7 +81,9 @@ impl<'a> StoreTransaction for PostgresTransactionPool<'a> {
         version: u64,
     ) -> Result<(), StoreError> {
         let mut tx_guard = self.tx.lock().await;
-        let tx = tx_guard.as_mut().ok_or_else(|| StoreError::Database("Transaction already consumed".into()))?;
+        let tx = tx_guard
+            .as_mut()
+            .ok_or_else(|| StoreError::Database("Transaction already consumed".into()))?;
         let result = sqlx::query(
             r#"UPDATE resources
                SET status = $1, version = version + 1, updated_at = NOW()
@@ -97,21 +109,23 @@ impl<'a> StoreTransaction for PostgresTransactionPool<'a> {
         _version: u64,
     ) -> Result<(), StoreError> {
         let mut tx_guard = self.tx.lock().await;
-        let tx = tx_guard.as_mut().ok_or_else(|| StoreError::Database("Transaction already consumed".into()))?;
-        sqlx::query(
-            r#"UPDATE resources SET workflow_id = $1, updated_at = NOW() WHERE id = $2"#,
-        )
-        .bind(workflow_id)
-        .bind(id.as_str())
-        .execute(&mut **tx)
-        .await
-        .map_err(|e| StoreError::Database(format!("set_workflow_id: {e}")))?;
+        let tx = tx_guard
+            .as_mut()
+            .ok_or_else(|| StoreError::Database("Transaction already consumed".into()))?;
+        sqlx::query(r#"UPDATE resources SET workflow_id = $1, updated_at = NOW() WHERE id = $2"#)
+            .bind(workflow_id)
+            .bind(id.as_str())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| StoreError::Database(format!("set_workflow_id: {e}")))?;
         Ok(())
     }
 
     async fn enqueue_outbox_event(&self, event: PlatformEvent) -> Result<(), StoreError> {
         let mut tx_guard = self.tx.lock().await;
-        let tx = tx_guard.as_mut().ok_or_else(|| StoreError::Database("Transaction already consumed".into()))?;
+        let tx = tx_guard
+            .as_mut()
+            .ok_or_else(|| StoreError::Database("Transaction already consumed".into()))?;
         let event_type = serde_json::to_value(&event)
             .ok()
             .and_then(|v| v.get("type").cloned())
@@ -178,21 +192,22 @@ impl StateStore for PostgresStateStore {
         T: Send,
     {
         // Begin a real database transaction
-        let tx = self.pool
+        let tx = self
+            .pool
             .begin()
             .await
             .map_err(|e| StoreError::Database(format!("failed to begin transaction: {e}")))?;
-        
+
         // Create transactional wrapper with lifetime
         let pg_tx = PostgresTransactionPool::new(tx);
-        
+
         // Clone the Arc so we can use it for commit/rollback after the function call
         let pg_tx_arc = Arc::new(pg_tx);
         let pg_tx_for_commit = pg_tx_arc.clone();
-        
+
         // Execute the transactional operations
         let result = f(pg_tx_arc).await;
-        
+
         // Commit or rollback based on result
         match result {
             Ok(value) => {
@@ -271,7 +286,12 @@ impl StateStore for PostgresStateStore {
         Ok(())
     }
 
-    async fn set_finalizers(&self, kind: &str, id: &ResourceId, finalizers: &[String]) -> Result<(), StoreError> {
+    async fn set_finalizers(
+        &self,
+        kind: &str,
+        id: &ResourceId,
+        finalizers: &[String],
+    ) -> Result<(), StoreError> {
         PostgresStateStore::set_finalizers(self, kind, id, finalizers).await
     }
 
@@ -540,10 +560,7 @@ impl PostgresStateStore {
 
     /// Transactional outbox: update status + enqueue event atomically.
     /// Uses optimistic concurrency control via version checks.
-    pub async fn transactional_outbox<F, Fut, T>(
-        &self,
-        f: F,
-    ) -> Result<T, StoreError>
+    pub async fn transactional_outbox<F, Fut, T>(&self, f: F) -> Result<T, StoreError>
     where
         F: FnOnce(&PgPool) -> Fut + Send,
         Fut: Future<Output = Result<T, StoreError>> + Send,

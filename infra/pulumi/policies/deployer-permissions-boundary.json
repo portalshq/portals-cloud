@@ -1,0 +1,70 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "MaximumPortalsDeploymentServiceSet",
+      "Effect": "Allow",
+      "Action": [
+        "access-analyzer:*", "acm:*", "application-autoscaling:*",
+        "cloudtrail:*", "cloudwatch:*", "cognito-idp:*", "dynamodb:*",
+        "ec2:*", "ecr:*", "ecs:*", "elasticloadbalancing:*",
+        "iam:GetRole", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies", "iam:ListRoleTags", "iam:ListRoles",
+        "iam:PassRole",
+        "kms:*", "lambda:*", "logs:*", "rds:*", "s3:*", "scheduler:*",
+        "secretsmanager:*", "servicediscovery:*", "sts:GetCallerIdentity",
+        "wafv2:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyRoutineIamMutation",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateRole", "iam:DeleteRole", "iam:UpdateAssumeRolePolicy",
+        "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy", "iam:PutRolePermissionsBoundary",
+        "iam:DeleteRolePermissionsBoundary", "iam:CreatePolicy",
+        "iam:CreatePolicyVersion", "iam:SetDefaultPolicyVersion",
+        "iam:DeletePolicy", "iam:DeletePolicyVersion"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyLongLivedIamCredentials",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateUser", "iam:CreateAccessKey", "iam:UpdateAccessKey",
+        "iam:CreateLoginProfile", "iam:UpdateLoginProfile",
+        "iam:CreateServiceSpecificCredential", "iam:ResetServiceSpecificCredential"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyRoutineAuditAndRecoveryDestruction",
+      "Effect": "Deny",
+      "Action": [
+        "access-analyzer:DeleteAnalyzer", "cloudtrail:DeleteTrail",
+        "cloudtrail:StopLogging", "dynamodb:DeleteTable", "kms:DisableKey",
+        "kms:ScheduleKeyDeletion", "logs:DeleteLogGroup", "rds:DeleteDBInstance",
+        "rds:DeleteDBSnapshot", "s3:DeleteBucket", "secretsmanager:DeleteSecret"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyRegionalDeploymentOutsideUsEast1",
+      "Effect": "Deny",
+      "Action": [
+        "acm:*", "application-autoscaling:*", "cloudwatch:*", "cognito-idp:*",
+        "dynamodb:*", "ec2:*", "ecr:*", "ecs:*", "elasticloadbalancing:*",
+        "kms:*", "lambda:*", "logs:*", "rds:*", "scheduler:*",
+        "secretsmanager:*", "servicediscovery:*", "wafv2:*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": { "aws:RequestedRegion": "us-east-1" },
+        "Null": { "aws:RequestedRegion": "false" }
+      }
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 #   docker run --env-file .env lorecloud-control-plane
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
-FROM rust:1.97-slim-bookworm AS builder
+FROM rust:1.97-slim-bookworm@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3 AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends pkg-config libssl-dev && \
@@ -17,6 +17,7 @@ WORKDIR /app
 COPY control-plane/Cargo.toml /app/control-plane/Cargo.toml
 COPY control-plane/Cargo.lock /app/control-plane/Cargo.lock
 COPY control-plane/api/Cargo.toml /app/control-plane/api/Cargo.toml
+COPY control-plane/auth-gateway/Cargo.toml /app/control-plane/auth-gateway/Cargo.toml
 COPY control-plane/config/Cargo.toml /app/control-plane/config/Cargo.toml
 COPY control-plane/controllers/Cargo.toml /app/control-plane/controllers/Cargo.toml
 COPY control-plane/controllers/audit/Cargo.toml /app/control-plane/controllers/audit/Cargo.toml
@@ -51,8 +52,9 @@ RUN for crate in models events observability config controllers providers provid
         mkdir -p /app/control-plane/$crate/src && \
         echo "pub fn init() {}" > /app/control-plane/$crate/src/lib.rs; \
     done && \
-    mkdir -p /app/control-plane/api/src && \
+    mkdir -p /app/control-plane/api/src /app/control-plane/auth-gateway/src && \
     echo "fn main() {}" > /app/control-plane/api/src/main.rs && \
+    echo "fn main() {}" > /app/control-plane/auth-gateway/src/main.rs && \
     mkdir -p /app/control-plane/server/src && \
     echo "fn main() {}" > /app/control-plane/server/src/main.rs && \
     for controller in audit quota permissions billing gc session storage world channel capability-deployment runtime-scheduling resolver audience-session; do \
@@ -61,7 +63,7 @@ RUN for crate in models events observability config controllers providers provid
     done
 
 # Pre-build dependencies (this layer is cached unless Cargo.toml changes)
-RUN cd /app/control-plane && cargo build --release
+RUN cd /app/control-plane && cargo build --release --bin lorecloud-control-plane
 
 # Now copy real source and build the binary
 COPY control-plane/ /app/control-plane/
@@ -72,7 +74,7 @@ RUN find /app/control-plane -name '*.rs' -exec touch {} +
 RUN cd /app/control-plane && cargo build --release --bin lorecloud-control-plane
 
 # ── Stage 2: Runtime ────────────────────────────────────────────────────────
-FROM debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241 AS runtime
 
 # wget is needed for healthchecks (available in bookworm-slim; curl is not)
 RUN apt-get update && \

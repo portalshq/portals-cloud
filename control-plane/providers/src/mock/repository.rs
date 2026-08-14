@@ -38,11 +38,18 @@ impl RepositoryProvider for MockRepositoryProvider {
         Ok(())
     }
 
-    async fn describe(&self, _handle: &RepositoryHandle) -> Result<RepositoryStatus, ProviderError> {
+    async fn describe(
+        &self,
+        _handle: &RepositoryHandle,
+    ) -> Result<RepositoryStatus, ProviderError> {
         Ok(RepositoryStatus { ready: true })
     }
 
-    async fn update(&self, _handle: &RepositoryHandle, _patch: &serde_json::Value) -> Result<(), ProviderError> {
+    async fn update(
+        &self,
+        _handle: &RepositoryHandle,
+        _patch: &serde_json::Value,
+    ) -> Result<(), ProviderError> {
         Ok(())
     }
 

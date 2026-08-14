@@ -1,3 +1,3 @@
-pub mod r#trait;
-pub mod mock;
 pub mod aws;
+pub mod mock;
+pub mod r#trait;

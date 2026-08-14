@@ -2,8 +2,8 @@
 //!
 //! This crate provides unified telemetry initialization for logs, metrics, and traces.
 
-use std::sync::Arc;
 use opentelemetry_otlp::WithExportConfig;
+use std::sync::Arc;
 use thiserror::Error;
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
@@ -30,10 +30,13 @@ pub struct Telemetry {
 
 impl Telemetry {
     /// Initialize unified telemetry pipeline.
-    pub fn init(service_name: &str, config: &ObservabilityConfig) -> Result<Self, ObservabilityError> {
+    pub fn init(
+        _service_name: &str,
+        config: &ObservabilityConfig,
+    ) -> Result<Self, ObservabilityError> {
         // 1. Structured logging to stdout — JSON in prod, pretty in local dev
         let env_filter = EnvFilter::from_default_env();
-        
+
         tracing_subscriber::fmt()
             .json()
             .with_span_events(FmtSpan::CLOSE)
@@ -51,7 +54,6 @@ impl Telemetry {
             tracer: Arc::new(tracer),
         })
     }
-
 
     /// Shutdown telemetry providers.
     pub fn shutdown(self) -> Result<(), ObservabilityError> {
@@ -78,9 +80,11 @@ pub fn init(log_filter: &str) -> Result<Telemetry, ObservabilityError> {
 }
 
 fn build_otlp_exporter(endpoint: &str) -> opentelemetry_otlp::SpanExporterBuilder {
-    opentelemetry_otlp::SpanExporterBuilder::Tonic(opentelemetry_otlp::new_exporter()
-        .tonic()
-        .with_endpoint(endpoint))
+    opentelemetry_otlp::SpanExporterBuilder::Tonic(
+        opentelemetry_otlp::new_exporter()
+            .tonic()
+            .with_endpoint(endpoint),
+    )
 }
 
 /// Standard span emitted by every controller reconcile pass.

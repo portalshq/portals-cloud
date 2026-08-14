@@ -21,19 +21,22 @@ mod test_config {
             s3_region: "us-east-1".to_string(),
             s3_bucket_chunks: "lore-chunks".to_string(),
             ed25519_signing_key: "test".to_string(),
-            dp_token_expiry_secs: 3600,
+            dp_token_expiry_secs: 300,
             event_bridge_endpoint: "".to_string(),
             sqs_queue_url: "".to_string(),
             log_filter: "info,lorecloud_control_plane=debug,sqlx=warn".to_string(),
-            cors_allowed_origins: "*".to_string(),
+            cors_allowed_origins: "http://127.0.0.1:8765".to_string(),
             metrics_enabled: true,
-            jwt_auth_enabled: false,
+            jwt_auth_enabled: true,
             idempotency_enabled: true,
             redis_url: "".to_string(),
             provider_type: "aws".to_string(),
         };
 
         assert_eq!(config.listen_addr.port(), 8083);
-        assert_eq!(config.log_filter, "info,lorecloud_control_plane=debug,sqlx=warn");
+        assert_eq!(
+            config.log_filter,
+            "info,lorecloud_control_plane=debug,sqlx=warn"
+        );
     }
 }

@@ -1,49 +1,61 @@
 use crate::r#trait::repository::*;
 use crate::r#trait::ProviderError;
 use async_trait::async_trait;
-use reqwest::Client;
+use aws_config::{BehaviorVersion, Region};
+use aws_sdk_s3::config::{Builder as S3ConfigBuilder, Credentials};
+use aws_sdk_s3::primitives::ByteStream;
 use tracing::{debug, info};
 
+/// Repository marker storage backed by the official AWS SDK.
+///
+/// Empty access/secret values intentionally select the default AWS credential
+/// chain (ECS task roles in production). Explicit credentials remain available
+/// for isolated MinIO development only.
 pub struct S3StorageProvider {
-    endpoint: String,
-    #[allow(dead_code)]
-    access_key: String,
-    #[allow(dead_code)]
-    secret_key: String,
-    #[allow(dead_code)]
-    region: String,
     bucket: String,
-    client: Client,
-    path_style: bool,
+    client: aws_sdk_s3::Client,
+    allow_bucket_creation: bool,
 }
 
 impl S3StorageProvider {
-    pub fn new(
+    pub async fn new(
         endpoint: String,
         access_key: String,
         secret_key: String,
         region: String,
         bucket: String,
         path_style: bool,
-    ) -> Self {
-        let client = Client::new();
-        Self {
-            endpoint,
-            access_key,
-            secret_key,
-            region,
-            bucket,
-            client,
-            path_style,
+    ) -> Result<Self, ProviderError> {
+        if access_key.is_empty() != secret_key.is_empty() {
+            return Err(ProviderError::ApiError(
+                "S3 access key and secret must both be set or both be empty".to_string(),
+            ));
         }
-    }
 
-    fn bucket_url(&self, bucket: &str) -> String {
-        if self.path_style {
-            format!("{}/{}", self.endpoint, bucket)
-        } else {
-            format!("{}.{}", self.endpoint, bucket)
+        let mut loader =
+            aws_config::defaults(BehaviorVersion::latest()).region(Region::new(region.clone()));
+        if !access_key.is_empty() {
+            loader = loader.credentials_provider(Credentials::new(
+                access_key,
+                secret_key,
+                None,
+                None,
+                "explicit-local-development",
+            ));
         }
+        let shared = loader.load().await;
+        let mut builder = S3ConfigBuilder::from(&shared)
+            .region(Region::new(region))
+            .force_path_style(path_style);
+        if !endpoint.is_empty() {
+            builder = builder.endpoint_url(endpoint);
+        }
+
+        Ok(Self {
+            bucket,
+            client: aws_sdk_s3::Client::from_conf(builder.build()),
+            allow_bucket_creation: path_style,
+        })
     }
 
     fn repo_prefix(&self, spec: &RepositorySpec) -> String {
@@ -51,24 +63,29 @@ impl S3StorageProvider {
     }
 
     async fn ensure_bucket_exists(&self) -> Result<(), ProviderError> {
-        let url = self.bucket_url(&self.bucket);
-        let response = self
+        if self
             .client
-            .put(&url)
-            .header("Host", format!("{}:9002", self.bucket))
+            .head_bucket()
+            .bucket(&self.bucket)
             .send()
             .await
-            .map_err(|e| ProviderError::ApiError(format!("ensure_bucket: {e}")))?;
-
-        if response.status().is_success() || response.status().as_u16() == 409 {
-            Ok(())
-        } else {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            Err(ProviderError::ApiError(format!(
-                "ensure_bucket failed ({status}): {body}"
-            )))
+            .is_ok()
+        {
+            return Ok(());
         }
+        if !self.allow_bucket_creation {
+            return Err(ProviderError::ApiError(format!(
+                "configured S3 bucket '{}' is unavailable; production never creates buckets at runtime",
+                self.bucket
+            )));
+        }
+        self.client
+            .create_bucket()
+            .bucket(&self.bucket)
+            .send()
+            .await
+            .map_err(|e| ProviderError::ApiError(format!("create_bucket: {e}")))?;
+        Ok(())
     }
 
     async fn put_object(
@@ -77,83 +94,46 @@ impl S3StorageProvider {
         data: &[u8],
         content_type: &str,
     ) -> Result<(), ProviderError> {
-        let url = if self.path_style {
-            format!("{}/{}/{}", self.endpoint, self.bucket, key)
-        } else {
-            format!("https://{}.{}/{}", self.bucket, self.endpoint.trim_start_matches("http://").trim_start_matches("https://"), key)
-        };
-
-        let response = self
-            .client
-            .put(&url)
-            .header("Content-Type", content_type)
-            .body(data.to_vec())
+        self.client
+            .put_object()
+            .bucket(&self.bucket)
+            .key(key)
+            .content_type(content_type)
+            .body(ByteStream::from(data.to_vec()))
             .send()
             .await
             .map_err(|e| ProviderError::ApiError(format!("put_object: {e}")))?;
-
-        if response.status().is_success() {
-            Ok(())
-        } else {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            Err(ProviderError::ApiError(format!(
-                "put_object failed ({status}): {body}"
-            )))
-        }
+        Ok(())
     }
 
     async fn delete_prefix(&self, prefix: &str) -> Result<(), ProviderError> {
-        // List objects with prefix and delete them
-        let list_url = if self.path_style {
-            format!(
-                "{}/{}/?list-type=2&prefix={}",
-                self.endpoint, self.bucket, prefix
-            )
-        } else {
-            format!(
-                "https://{}/?list-type=2&prefix={}",
-                self.bucket, prefix
-            )
-        };
-
-        let response = self
-            .client
-            .get(&list_url)
-            .send()
-            .await
-            .map_err(|e| ProviderError::ApiError(format!("list_objects: {e}")))?;
-
-        if !response.status().is_success() {
-            return Err(ProviderError::ApiError(format!(
-                "list_objects failed: {}",
-                response.status()
-            )));
-        }
-
-        let body: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| ProviderError::ApiError(format!("parse list response: {e}")))?;
-
-        let contents = body
-            .get("Contents")
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default();
-
-        for obj in contents {
-            if let Some(key) = obj.get("Key").and_then(|v| v.as_str()) {
-                let delete_url = if self.path_style {
-                    format!("{}/{}/{}", self.endpoint, self.bucket, key)
-                } else {
-                    format!("https://{}/{}", self.bucket, key)
-                };
-
-                let _ = self.client.delete(&delete_url).send().await;
+        let mut continuation = None;
+        loop {
+            let result = self
+                .client
+                .list_objects_v2()
+                .bucket(&self.bucket)
+                .prefix(prefix)
+                .set_continuation_token(continuation)
+                .send()
+                .await
+                .map_err(|e| ProviderError::ApiError(format!("list_objects: {e}")))?;
+            for object in result.contents() {
+                if let Some(key) = object.key() {
+                    self.client
+                        .delete_object()
+                        .bucket(&self.bucket)
+                        .key(key)
+                        .send()
+                        .await
+                        .map_err(|e| ProviderError::ApiError(format!("delete_object: {e}")))?;
+                }
             }
+            if result.is_truncated() != Some(true) {
+                break;
+            }
+            continuation = result.next_continuation_token().map(ToOwned::to_owned);
         }
-
         Ok(())
     }
 }
@@ -162,31 +142,24 @@ impl S3StorageProvider {
 impl RepositoryProvider for S3StorageProvider {
     async fn provision(&self, spec: &RepositorySpec) -> Result<RepositoryHandle, ProviderError> {
         info!(name = %spec.name, "provisioning S3 storage for repository");
-
         self.ensure_bucket_exists().await?;
-
         let prefix = self.repo_prefix(spec);
-
-        // Create a marker object to indicate the repo exists
-        let marker_key = format!("{}/.lorecloud/marker.json", prefix);
+        let marker_key = format!("{prefix}/.lorecloud/marker.json");
         let marker_data = serde_json::json!({
             "name": spec.name,
             "storage_tier": spec.storage_tier,
             "created_at": chrono::Utc::now().to_rfc3339(),
         });
-
         self.put_object(
             &marker_key,
-            &serde_json::to_vec_pretty(&marker_data).unwrap(),
+            &serde_json::to_vec_pretty(&marker_data).expect("marker serializes"),
             "application/json",
         )
         .await?;
-
         let handle = RepositoryHandle {
             bucket: self.bucket.clone(),
             prefix,
         };
-
         debug!(bucket = %handle.bucket, prefix = %handle.prefix, "S3 storage provisioned");
         Ok(handle)
     }
@@ -197,27 +170,16 @@ impl RepositoryProvider for S3StorageProvider {
     }
 
     async fn describe(&self, handle: &RepositoryHandle) -> Result<RepositoryStatus, ProviderError> {
-        // Check if the marker object exists
         let marker_key = format!("{}/.lorecloud/marker.json", handle.prefix);
-        let url = if self.path_style {
-            format!("{}/{}/{}", self.endpoint, self.bucket, marker_key)
-        } else {
-            format!(
-                "https://{}/{}",
-                self.bucket, marker_key
-            )
-        };
-
-        let response = self
+        let ready = self
             .client
-            .head(&url)
+            .head_object()
+            .bucket(&handle.bucket)
+            .key(marker_key)
             .send()
             .await
-            .map_err(|e| ProviderError::ApiError(format!("head_object: {e}")))?;
-
-        Ok(RepositoryStatus {
-            ready: response.status().is_success(),
-        })
+            .is_ok();
+        Ok(RepositoryStatus { ready })
     }
 
     async fn update(
@@ -229,27 +191,13 @@ impl RepositoryProvider for S3StorageProvider {
     }
 
     async fn health_check(&self) -> Result<(), ProviderError> {
-        let url = if self.path_style {
-            format!("{}/", self.endpoint)
-        } else {
-            format!("{}/", self.endpoint)
-        };
-
-        let response = self
-            .client
-            .get(&url)
+        self.client
+            .head_bucket()
+            .bucket(&self.bucket)
             .send()
             .await
-            .map_err(|e| ProviderError::ApiError(format!("health check: {e}")))?;
-
-        if response.status().is_success() || response.status().as_u16() == 403 {
-            Ok(())
-        } else {
-            Err(ProviderError::ApiError(format!(
-                "S3 health check failed: {}",
-                response.status()
-            )))
-        }
+            .map_err(|e| ProviderError::ApiError(format!("S3 health check failed: {e}")))?;
+        Ok(())
     }
 
     async fn list_resources(&self) -> Result<Vec<RepositoryHandle>, ProviderError> {

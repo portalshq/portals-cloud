@@ -1,18 +1,18 @@
 {
   "ai-production-workflow-risks": {
-    "hash": "935264f9724576db986e8f7d57b1f980e408b7823e4e51aa4b1c3bf09d768aeb",
+    "hash": "ed48668430f4e96c7316e439526e77831b0fb52e0e9e635e6f3fb09884c67c38",
     "fileName": "ai-production-workflow-risks.pdf"
   },
   "production-memory-field-guide": {
-    "hash": "932249d6cc51783474d5207f5d394883c201788b500fc32af389593d337e01b0",
+    "hash": "13d2e361d4ad6ed40b02420dbed56601fe31d2785dfaed5c7b39d45eb020dcf0",
     "fileName": "production-memory-field-guide.pdf"
   },
   "security-and-architecture": {
-    "hash": "e4a15a31687d6984ebe3949b56c81e28f50e2c7a1499031718ae010edda2792c",
+    "hash": "9d96e416405d7a6024566e40953ea5ad3a9c739eab79e7f4b2cad26bfc6793c3",
     "fileName": "portals-security-architecture-brief.pdf"
   },
   "paid-pilot": {
-    "hash": "b50a73f3041b1e8c33486eb4c186983f1c31eca87413d9820819df27a612f59a",
+    "hash": "aafb8863cdd46be6acb4014b07de9a0fdd52f186cf25de1e01d8e24099868f7a",
     "fileName": "portals-paid-production-pilot-brief.pdf"
   }
 }

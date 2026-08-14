@@ -1,6 +1,7 @@
 # Local env — contains secrets, never commit
 .env.compose.local
 *.local
+infra/lore/certs/*.pem
 
 # Build outputs
 dist/

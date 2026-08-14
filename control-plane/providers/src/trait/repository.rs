@@ -24,7 +24,11 @@ pub trait RepositoryProvider: Send + Sync {
     async fn provision(&self, spec: &RepositorySpec) -> Result<RepositoryHandle, ProviderError>;
     async fn deprovision(&self, handle: &RepositoryHandle) -> Result<(), ProviderError>;
     async fn describe(&self, handle: &RepositoryHandle) -> Result<RepositoryStatus, ProviderError>;
-    async fn update(&self, handle: &RepositoryHandle, patch: &serde_json::Value) -> Result<(), ProviderError>;
+    async fn update(
+        &self,
+        handle: &RepositoryHandle,
+        patch: &serde_json::Value,
+    ) -> Result<(), ProviderError>;
     async fn health_check(&self) -> Result<(), ProviderError>;
     async fn list_resources(&self) -> Result<Vec<RepositoryHandle>, ProviderError>;
 }

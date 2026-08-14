@@ -27,6 +27,7 @@ ed25519-dalek = { workspace = true }
 base64 = { workspace = true }
 jsonwebtoken = { workspace = true }
 sha2 = { workspace = true }
+hmac = { workspace = true }
 rand = { workspace = true }
 clap = { workspace = true }
 aws-config = { workspace = true }

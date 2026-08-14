@@ -20,14 +20,14 @@ export class PlatformStorage extends pulumi.ComponentResource {
     // ── S3: Lore repository chunks ──────────────────────────────────────
     this.loreChunksBucket = new aws.s3.BucketV2(`${resourcePrefix}-lore-chunks`, {
       bucket: `${resourcePrefix}-lore-chunks`,
-      forceDestroy: true,
+      forceDestroy: false,
       tags: {
         Name: `${resourcePrefix}-lore-chunks`,
         Project: args.projectName,
         Environment: args.environment,
         Service: "lore",
       },
-    }, { parent: this });
+    }, { parent: this, protect: args.recoveryControlsEnabled });
 
     // Block all public access
     const publicAccessBlock = new aws.s3.BucketPublicAccessBlock(`${resourcePrefix}-lore-chunks-pab`, {
@@ -45,6 +45,11 @@ export class PlatformStorage extends pulumi.ComponentResource {
         objectOwnership: "BucketOwnerEnforced",
       },
     }, { parent: this, dependsOn: [publicAccessBlock] });
+
+    new aws.s3.BucketVersioningV2(`${resourcePrefix}-lore-chunks-versioning`, {
+      bucket: this.loreChunksBucket.id,
+      versioningConfiguration: { status: "Enabled" },
+    }, { parent: this });
 
     // Enforce server-side encryption by default
     new aws.s3.BucketServerSideEncryptionConfigurationV2(`${resourcePrefix}-lore-chunks-sse`, {

@@ -6,9 +6,9 @@ import { LoreServiceArgs } from "../interfaces";
  * LoreService Component
  *
  * Creates an ECS Fargate service for Lore VCS with:
- * - External Docker image (from portalshq/lore-server registry)
+ * - Immutable ECR image selected by repository digest
  * - ECS task definition with S3 + DynamoDB plugin configuration
- * - ECS service with ALB (HTTP) and NLB (QUIC) integration
+ * - ECS service with ALB gRPC integration on the private h2c target port
  * - Security groups
  * - IAM task role for S3 and DynamoDB access
  */
@@ -35,45 +35,42 @@ export class LoreService extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Allow ingress from ALB (HTTP on port 41339)
+    // The only network caller is the ALB.  Direct HTTP/QUIC ports are never
+    // admitted by this security group.
     new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-alb-ingress`, {
       type: "ingress",
-      fromPort: 41339,
-      toPort: 41339,
+      fromPort: 41337,
+      toPort: 41337,
       protocol: "tcp",
       securityGroupId: this.securityGroup.id,
       sourceSecurityGroupId: args.albSecurityGroupId,
     }, { parent: this });
 
-    // Allow ingress from NLB (QUIC/UDP on port 41337)
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-nlb-ingress-udp`, {
-      type: "ingress",
-      fromPort: 41337,
-      toPort: 41337,
-      protocol: "udp",
-      securityGroupId: this.securityGroup.id,
-      sourceSecurityGroupId: args.nlbSecurityGroupId,
-    }, { parent: this });
-
-    // Allow ingress from NLB (gRPC/TCP on port 41337)
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-nlb-ingress-tcp`, {
-      type: "ingress",
-      fromPort: 41337,
-      toPort: 41337,
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-https-egress`, {
+      type: "egress",
+      fromPort: 443,
+      toPort: 443,
       protocol: "tcp",
       securityGroupId: this.securityGroup.id,
-      sourceSecurityGroupId: args.nlbSecurityGroupId,
-    }, { parent: this });
-
-    // Allow egress from Lore service
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-egress`, {
-      type: "egress",
-      fromPort: 0,
-      toPort: 0,
-      protocol: "-1",
-      securityGroupId: this.securityGroup.id,
       cidrBlocks: ["0.0.0.0/0"],
+      description: "JWKS and AWS APIs over TLS",
     }, { parent: this });
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-rebac-egress`, {
+      type: "egress", fromPort: 8087, toPort: 8087, protocol: "tcp",
+      securityGroupId: this.securityGroup.id, cidrBlocks: [args.vpcCidr],
+      description: "Private ReBAC service through ECS Service Connect",
+    }, { parent: this });
+    for (const protocol of ["tcp", "udp"]) {
+      new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-dns-${protocol}`, {
+        type: "egress",
+        fromPort: 53,
+        toPort: 53,
+        protocol,
+        securityGroupId: this.securityGroup.id,
+        cidrBlocks: [args.vpcCidr],
+        description: "VPC DNS resolution",
+      }, { parent: this });
+    }
 
     // ── IAM Task Role for S3 + DynamoDB access ───────────────────────────
     this.taskRole = new aws.iam.Role(`${resourcePrefix}-lore-task-role`, {
@@ -122,8 +119,13 @@ export class LoreService extends pulumi.ComponentResource {
       policy: s3Policy,
     }, { parent: this });
 
-    // DynamoDB access for mutable store + lock store
-    const dynamoDbPolicy = pulumi.all([args.dynamoDbTableName]).apply(([tableName]) => JSON.stringify({
+    // DynamoDB access for immutable (fragments + metadata), mutable and lock stores
+    const dynamoDbPolicy = pulumi.all([
+      args.fragmentsTableName,
+      args.metadataTableName,
+      args.mutableTableName,
+      args.locksTableName,
+    ]).apply(([fragments, metadata, mutable, locks]) => JSON.stringify({
       Version: "2012-10-17",
       Statement: [
         {
@@ -142,8 +144,14 @@ export class LoreService extends pulumi.ComponentResource {
             "dynamodb:DescribeTable",
           ],
           Resource: [
-            `arn:aws:dynamodb:*:*:table/${tableName}`,
-            `arn:aws:dynamodb:*:*:table/${tableName}/index/*`,
+            `arn:aws:dynamodb:*:*:table/${fragments}`,
+            `arn:aws:dynamodb:*:*:table/${fragments}/index/*`,
+            `arn:aws:dynamodb:*:*:table/${metadata}`,
+            `arn:aws:dynamodb:*:*:table/${metadata}/index/*`,
+            `arn:aws:dynamodb:*:*:table/${mutable}`,
+            `arn:aws:dynamodb:*:*:table/${mutable}/index/*`,
+            `arn:aws:dynamodb:*:*:table/${locks}`,
+            `arn:aws:dynamodb:*:*:table/${locks}/index/*`,
           ],
         },
       ],
@@ -155,43 +163,54 @@ export class LoreService extends pulumi.ComponentResource {
     }, { parent: this });
 
     // ── ECS Task Definition ──────────────────────────────────────────────
-    const callerIdentity = aws.getCallerIdentity({});
-    const executionRoleArn = pulumi.interpolate`arn:aws:iam::${callerIdentity.then(i => i.accountId)}:role/${resourcePrefix}-ecs-task-execution-role`;
+    const executionRoleArn = args.taskExecutionRoleArn;
 
     this.taskDefinition = new aws.ecs.TaskDefinition(`${resourcePrefix}-lore-task`, {
       family: `${resourcePrefix}-lore`,
       networkMode: "awsvpc",
       requiresCompatibilities: ["FARGATE"],
+      runtimePlatform: { cpuArchitecture: args.cpuArchitecture, operatingSystemFamily: "LINUX" },
       cpu: args.cpu,
       memory: args.memory,
       executionRoleArn,
       taskRoleArn: this.taskRole.arn,
       containerDefinitions: pulumi.all([
         args.s3BucketName,
-        args.dynamoDbTableName,
-      ]).apply(([s3BucketName, dynamoDbTableName]) => JSON.stringify([{
+        args.fragmentsTableName,
+        args.metadataTableName,
+        args.mutableTableName,
+        args.locksTableName,
+      ]).apply(([s3BucketName, fragmentsTableName, metadataTableName, mutableTableName, locksTableName]) => JSON.stringify([{
         name: "lore",
         image: args.loreServerImageUri,
         cpu: parseInt(args.cpu),
         memory: parseInt(args.memory),
         essential: true,
         portMappings: [
+          { containerPort: 41337, protocol: "tcp", appProtocol: "grpc" },
+          // Health/readiness is task-local; no security-group rule exposes it.
           { containerPort: 41339, protocol: "tcp" },
-          { containerPort: 41337, protocol: "udp" },
-          { containerPort: 41337, protocol: "tcp" },
         ],
         environment: [
-          { name: "LORE_ENV", value: "prod" },
-          // Immutable store: S3
+          { name: "LORE_ENV", value: args.environment },
+          { name: "LORE_SECURITY_MODE", value: "strict" },
+          { name: "LORE__SERVER__AUTH__JWK__ENDPOINT", value: args.jwksEndpoint },
+          { name: "LORE__SERVER__AUTH__JWT_ISSUER", value: args.jwtIssuer },
+          { name: "LORE_REBAC_URL", value: args.rebacUrl },
+          // Immutable store: S3 + DynamoDB (aws plugin)
           { name: "LORE__IMMUTABLE_STORE__MODE", value: "aws" },
-          // Mutable store: DynamoDB
+          // Mutable store: DynamoDB (aws plugin)
           { name: "LORE__MUTABLE_STORE__MODE", value: "aws" },
-          // Lock store: DynamoDB
+          // Lock store: DynamoDB (aws plugin)
           { name: "LORE__LOCK_STORE__MODE", value: "aws" },
-          // AWS plugin configuration
-          { name: "LORE__PLUGINS__AWS__S3_BUCKET", value: s3BucketName },
-          { name: "LORE__PLUGINS__AWS__DYNAMODB_TABLE", value: dynamoDbTableName },
-          { name: "LORE__PLUGINS__AWS__REGION", value: args.awsRegion },
+          // AWS plugin configuration — the plugin reads store-specific
+          // [plugins.aws.<store>] sections, not flat plugin keys.
+          { name: "LORE__PLUGINS__AWS__IMMUTABLE_STORE__S3_BUCKET", value: s3BucketName },
+          { name: "LORE__PLUGINS__AWS__IMMUTABLE_STORE__S3_REGION", value: args.awsRegion },
+          { name: "LORE__PLUGINS__AWS__IMMUTABLE_STORE__DYNAMODB_FRAGMENTS_TABLE", value: fragmentsTableName },
+          { name: "LORE__PLUGINS__AWS__IMMUTABLE_STORE__DYNAMODB_METADATA_TABLE", value: metadataTableName },
+          { name: "LORE__PLUGINS__AWS__MUTABLE_STORE__DYNAMODB_TABLE", value: mutableTableName },
+          { name: "LORE__PLUGINS__AWS__LOCK_STORE__DYNAMODB_TABLE", value: locksTableName },
         ],
         logConfiguration: {
           logDriver: "awslogs",
@@ -200,6 +219,13 @@ export class LoreService extends pulumi.ComponentResource {
             "awslogs-region": args.awsRegion,
             "awslogs-stream-prefix": "lore",
           },
+        },
+        healthCheck: {
+          command: ["CMD", "/usr/local/bin/loreserver", "healthcheck"],
+          interval: 30,
+          timeout: 5,
+          retries: 3,
+          startPeriod: 60,
         },
       }])),
       tags: {
@@ -226,14 +252,13 @@ export class LoreService extends pulumi.ComponentResource {
         {
           targetGroupArn: args.albTargetGroupArn,
           containerName: "lore",
-          containerPort: 41339,
-        },
-        {
-          targetGroupArn: args.nlbTargetGroupArn,
-          containerName: "lore",
           containerPort: 41337,
         },
       ],
+      serviceConnectConfiguration: {
+        enabled: true,
+        namespace: args.serviceConnectNamespaceArn,
+      },
       tags: {
         Name: `${resourcePrefix}-lore-service`,
         Project: args.projectName,

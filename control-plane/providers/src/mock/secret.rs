@@ -3,8 +3,8 @@ use crate::r#trait::ProviderError;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::time::Duration;
+use tokio::sync::Mutex;
 
 pub struct MockSecretProvider {
     pub secrets: Arc<Mutex<HashMap<SecretKey, SecretValue>>>,
@@ -25,7 +25,12 @@ impl SecretProvider for MockSecretProvider {
         map.get(key).cloned().ok_or(ProviderError::NotFound)
     }
 
-    async fn set(&self, key: &SecretKey, value: SecretValue, _ttl: Option<Duration>) -> Result<(), ProviderError> {
+    async fn set(
+        &self,
+        key: &SecretKey,
+        value: SecretValue,
+        _ttl: Option<Duration>,
+    ) -> Result<(), ProviderError> {
         self.secrets.lock().await.insert(key.clone(), value);
         Ok(())
     }

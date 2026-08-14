@@ -16,13 +16,18 @@ pub struct AppConfig {
     #[arg(long, env = "RECONCILER_SWEEP_INTERVAL_MS", default_value = "5000")]
     pub reconciler_sweep_interval_ms: u64,
 
-    #[arg(long, env = "S3_ENDPOINT", default_value = "http://localhost:9002")]
+    #[arg(long, env = "S3_ENDPOINT", default_value = "")]
     pub s3_endpoint: String,
 
-    #[arg(long, env = "S3_ACCESS_KEY")]
+    #[arg(long, env = "S3_ACCESS_KEY", default_value = "")]
     pub s3_access_key: String,
 
-    #[arg(long, env = "S3_SECRET_KEY", hide_env_values = true)]
+    #[arg(
+        long,
+        env = "S3_SECRET_KEY",
+        default_value = "",
+        hide_env_values = true
+    )]
     pub s3_secret_key: String,
 
     #[arg(long, env = "S3_REGION", default_value = "us-east-1")]
@@ -34,7 +39,7 @@ pub struct AppConfig {
     #[arg(long, env = "ED25519_SIGNING_KEY", hide_env_values = true)]
     pub ed25519_signing_key: String,
 
-    #[arg(long, env = "DP_TOKEN_EXPIRY_SECS", default_value = "3600")]
+    #[arg(long, env = "DP_TOKEN_EXPIRY_SECS", default_value = "300")]
     pub dp_token_expiry_secs: u64,
 
     #[arg(long, env = "EVENT_BRIDGE_ENDPOINT", default_value = "")]
@@ -43,17 +48,25 @@ pub struct AppConfig {
     #[arg(long, env = "SQS_QUEUE_URL", default_value = "")]
     pub sqs_queue_url: String,
 
-    #[arg(long, env = "RUST_LOG", default_value = "info,lorecloud_control_plane=debug,sqlx=warn")]
+    #[arg(
+        long,
+        env = "RUST_LOG",
+        default_value = "info,lorecloud_control_plane=debug,sqlx=warn"
+    )]
     pub log_filter: String,
 
-    /// Comma-separated list of allowed CORS origins. Use "*" for all origins (dev only).
-    #[arg(long, env = "CORS_ALLOWED_ORIGINS", default_value = "*")]
+    /// Comma-separated exact CORS origins. Wildcards are rejected by deployment policy.
+    #[arg(
+        long,
+        env = "CORS_ALLOWED_ORIGINS",
+        default_value = "http://127.0.0.1:8765"
+    )]
     pub cors_allowed_origins: String,
 
     #[arg(long, env = "METRICS_ENABLED", default_value = "true")]
     pub metrics_enabled: bool,
 
-    #[arg(long, env = "JWT_AUTH_ENABLED", default_value = "false")]
+    #[arg(long, env = "JWT_AUTH_ENABLED", default_value = "true")]
     pub jwt_auth_enabled: bool,
 
     #[arg(long, env = "IDEMPOTENCY_ENABLED", default_value = "true")]

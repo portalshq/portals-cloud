@@ -2,19 +2,19 @@
 //!
 //! Phase 1 controller: cross-cutting audit logging.
 
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use async_trait::async_trait;
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
 
-use reconciler::{
-    Controller, Resource, ResourceId, ResourceKind, OwnerReference,
-    ReconcileContext, ReconcileResult, ErrorPolicy, HealthError,
-};
+use events::{AuditContext, AuditEvent, EventBus, PlatformEvent};
 use persistence::StateStore;
-use events::{EventBus, PlatformEvent, AuditEvent, AuditContext};
+use reconciler::{
+    Controller, ErrorPolicy, HealthError, OwnerReference, ReconcileContext, ReconcileResult,
+    Resource, ResourceId, ResourceKind,
+};
 
 /// Audit error types.
 #[derive(Debug, Error)]

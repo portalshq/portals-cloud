@@ -148,10 +148,7 @@ impl WorkflowOrchestrator {
     ) -> Result<WorkflowState, WorkflowError> {
         let row = self
             .store
-            .get_resource_raw(
-                "Workflow",
-                &models::ResourceId::new(workflow_id),
-            )
+            .get_resource_raw("Workflow", &models::ResourceId::new(workflow_id))
             .await
             .map_err(|e| WorkflowError::Persistence(e.to_string()))?
             .ok_or_else(|| WorkflowError::NotFound(workflow_id.to_string()))?;

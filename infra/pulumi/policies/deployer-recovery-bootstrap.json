@@ -1,0 +1,69 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ManagePortalsExternalAccessAnalyzer",
+      "Effect": "Allow",
+      "Action": [
+        "access-analyzer:CreateAnalyzer", "access-analyzer:DeleteAnalyzer",
+        "access-analyzer:GetAnalyzer", "access-analyzer:ListAnalyzers",
+        "access-analyzer:ListTagsForResource", "access-analyzer:TagResource",
+        "access-analyzer:UntagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ManagePortalsBackupLogGroup",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy", "logs:DeleteRetentionPolicy",
+        "logs:TagResource", "logs:UntagResource", "logs:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:logs:us-east-1:907199504810:log-group:/aws/lambda/portals-*"
+    },
+    {
+      "Sid": "ManagePortalsBackupAutomationRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole", "iam:UntagRole", "iam:ListRoleTags",
+        "iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy",
+        "iam:ListRolePolicies"
+      ],
+      "Resource": "arn:aws:iam::907199504810:role/portals-*rds-backup*"
+    },
+    {
+      "Sid": "ManagePortalsBackupLambda",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction", "lambda:DeleteFunction",
+        "lambda:Get*", "lambda:List*", "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration", "lambda:TagResource",
+        "lambda:UntagResource"
+      ],
+      "Resource": "arn:aws:lambda:us-east-1:907199504810:function:portals-*rds-backup*"
+    },
+    {
+      "Sid": "ManagePortalsBackupSchedule",
+      "Effect": "Allow",
+      "Action": [
+        "scheduler:CreateSchedule", "scheduler:DeleteSchedule", "scheduler:GetSchedule",
+        "scheduler:UpdateSchedule", "scheduler:ListTagsForResource",
+        "scheduler:TagResource", "scheduler:UntagResource"
+      ],
+      "Resource": "arn:aws:scheduler:us-east-1:907199504810:schedule/default/portals-*rds-backup*"
+    },
+    {
+      "Sid": "PassOnlyBackupAutomationRoles",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::907199504810:role/portals-*rds-backup*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": ["lambda.amazonaws.com", "scheduler.amazonaws.com"]
+        }
+      }
+    }
+  ]
+}

@@ -35,12 +35,76 @@ config:
     default: "2048"
   loreServiceDesiredCount:
     description: Desired count for Lore service
-    default: "1"
+    default: "0"
   controlPlaneDesiredCount:
     description: Desired count for Control Plane service
-    default: "1"
+    default: "0"
+  authGatewayDesiredCount:
+    description: Desired count for the private Auth Gateway runtime
+    default: "0"
+  authFoundationEnabled:
+    description: Bootstrap switch for Cognito, KMS signing, and gateway secrets; requires the documented deployer permission set
+    default: "false"
+  publicIngressEnabled:
+    description: Fail-closed switch; creates only HTTPS 443 when true
+    default: "false"
+  publicCertificateArn:
+    description: ACM certificate ARN required when public ingress is enabled
+    default: ""
+  loreHostname:
+    description: Public Lore gRPC hostname
+    default: "lore.portals.sh"
+  authHostname:
+    description: Public Auth Gateway hostname on the shared HTTPS edge
+    default: "auth.portals.sh"
+  allowedIngressCidrs:
+    description: Comma-separated CIDRs admitted to HTTPS 443
+    default: "0.0.0.0/0"
+  loreJwksEndpoint:
+    description: HTTPS JWKS URL used by Lore; required before scaling up
+    default: ""
+  loreJwtIssuer:
+    description: Exact JWT issuer used by Lore; required before scaling up
+    default: ""
+  authCallbackUrls:
+    description: Comma-separated OAuth authorization-code callback URLs (PKCE is enforced by the public client)
+    default: "http://127.0.0.1:8765/callback"
+  authLogoutUrls:
+    description: Comma-separated post-logout URLs
+    default: "http://127.0.0.1:8765/logout"
+  authDomainPrefix:
+    description: Optional globally unique Cognito hosted-UI domain prefix
+    default: ""
+  authGatewayReady:
+    description: Release assertion that the authenticated gateway and token exchange are deployed and verified
+    default: "false"
+  jwtRetiredKmsKeyArns:
+    description: Comma-separated retired KMS public-key ARNs retained in JWKS through the longest token lifetime plus cache window
+    default: ""
+  jwtSigningEnabled:
+    description: Publish-before-use gate; enable only after the active JWK is observable and Lore has refreshed it
+    default: "false"
+  securityControlsEnabled:
+    description: Provision the mandatory audit baseline, Access Analyzer, WAF/logging, and targeted alarms
+    default: "false"
+  threatDetectionEnabled:
+    description: Optional paid GuardDuty and Security Hub controls; not required by the free-tier compensating baseline
+    default: "false"
+  securityReviewDate:
+    description: Date of the latest documented production security review (YYYY-MM-DD; must be within 90 days for public ingress)
+    default: ""
+  lowCostRdsSnapshotsEnabled:
+    description: Schedule one native manual RDS snapshot daily when the account limits automated PITR retention
+    default: "false"
+  manualSnapshotRetentionCount:
+    description: Number of daily Portals RDS snapshots to retain (7-35)
+    default: "7"
+  releaseGateApproved:
+    description: Final manual release assertion after staging and production-readiness checks
+    default: "false"
+  credentialRotationEpoch:
+    description: Change only during an approved credential-rotation event
+    default: "2026-08-10-lore-security-rollout"
   loreServerImageUri:
-    description: External Docker image URI for Lore server (e.g. portalshq/lore-server:latest-amd64)
-    default: "portalshq/lore-server:latest-amd64"
-  ed25519SigningKey:
-    description: Ed25519 signing key for data plane JWT tokens (base64-encoded, mark as secret)
+    description: ECR digest URI for Lore server (repository@sha256:...)
+    default: ""

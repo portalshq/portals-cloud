@@ -75,7 +75,11 @@ where
                         };
 
                         let ctx = ReconcileContext::new();
-                        match self.controller.reconcile(resource.clone(), ctx.clone()).await {
+                        match self
+                            .controller
+                            .reconcile(resource.clone(), ctx.clone())
+                            .await
+                        {
                             Ok(ReconcileResult::Ok) => {
                                 debug!(id = %resource.id().as_str(), "reconcile ok");
                             }
@@ -88,10 +92,23 @@ where
                                 });
                             }
                             Err(e) => {
-                                let policy = self.controller.error_policy(resource.clone(), &e, ctx.clone());
+                                let policy =
+                                    self.controller
+                                        .error_policy(resource.clone(), &e, ctx.clone());
                                 match policy {
-                                    ErrorPolicy::Backoff { initial, multiplier, max, jitter } => {
-                                        let delay = compute_backoff(ctx.attempt, initial, multiplier, max, jitter);
+                                    ErrorPolicy::Backoff {
+                                        initial,
+                                        multiplier,
+                                        max,
+                                        jitter,
+                                    } => {
+                                        let delay = compute_backoff(
+                                            ctx.attempt,
+                                            initial,
+                                            multiplier,
+                                            max,
+                                            jitter,
+                                        );
                                         warn!(id = %resource.id().as_str(), error = %e, attempt = ctx.attempt, delay_ms = delay.as_millis() as u64, "reconcile error, backing off");
                                         let pending = self.pending.clone();
                                         tokio::spawn(async move {
@@ -124,7 +141,13 @@ where
     }
 }
 
-pub fn compute_backoff(attempt: u32, initial: Duration, multiplier: f64, max: Duration, jitter: f64) -> Duration {
+pub fn compute_backoff(
+    attempt: u32,
+    initial: Duration,
+    multiplier: f64,
+    max: Duration,
+    jitter: f64,
+) -> Duration {
     let base_ms = initial.as_millis() as f64 * multiplier.powi(attempt as i32 - 1);
     let jitter_range = base_ms * jitter;
     let jitter_offset = (rand::random::<f64>() * 2.0 - 1.0) * jitter_range;
@@ -150,7 +173,13 @@ mod tests {
 
     #[test]
     fn compute_backoff_capped() {
-        let delay = compute_backoff(100, Duration::from_secs(1), 2.0, Duration::from_secs(60), 0.0);
+        let delay = compute_backoff(
+            100,
+            Duration::from_secs(1),
+            2.0,
+            Duration::from_secs(60),
+            0.0,
+        );
         assert_eq!(delay, Duration::from_secs(60));
     }
 }

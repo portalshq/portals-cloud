@@ -1,5 +1,14 @@
 # Lore Cloud Control Plane
 
+> **Production status:** this legacy service is retired and must remain scaled
+> to zero. Pulumi rejects `controlPlaneDesiredCount > 0`. Its unfinished HTTP
+> resource handlers and legacy Ed25519 token path are for local development only
+> and are not a production security boundary. Public authentication, token
+> exchange, repository authorization, and API-key persistence belong to the Auth
+> Gateway, which derives claims server-side. Any successor control plane must be
+> private, use task roles, and call authenticated gateway mutation APIs. See
+> [the production security guide](../docs/security/lore-production-security.md).
+
 An AWS-style control plane for Portals Cloud & Lore VCS server. implementing a Kubernetes-style controller architecture for managing repositories, organizations, and data plane tokens via a Postgres state store with transactional outbox and optimistic concurrency control.
 
 ## Architecture Overview
@@ -72,6 +81,7 @@ control-plane/
 │       ├── lorecloud.smithy     # Core API
 │       ├── events.smithy        # Event definitions
 │       └── README.md
+├── auth-gateway/                 # Cognito/PKCE, KMS/JWKS, ReBAC and API-key exchange
 └── tests/                        # Test suite
     ├── src/unit/                # Unit tests
     ├── src/integration/         # Integration tests
@@ -201,7 +211,6 @@ cargo test --package control-plane-tests --lib e2e --features e2e
 ┌─────────────────────────────────────────────────────────┐
 │                    Axum HTTP API                        │
 │  /healthz  /readyz  /api/v1/repositories  /api/v1/orgs  │
-│  /api/v1/repositories/:id/tokens                       │
 │  /api/v1/repositories/:id/import                       │
 └────────────────────────┬────────────────────────────────┘
                          │
@@ -230,7 +239,7 @@ cargo test --package control-plane-tests --lib e2e --features e2e
 - **Optimistic concurrency**: Every resource write checks `version = $expected`. Concurrent modifications return `STALE_VERSION`.
 - **Transactional outbox**: Events are written to the `outbox_events` table in the same transaction as state changes. The outbox relay polls and publishes them.
 - **Reconciler loop**: Edge-triggered (immediate on change) + level-triggered (periodic sweep). Exponential backoff with jitter on errors.
-- **Ed25519 data plane tokens**: JWTs signed with Ed25519 keys. Tokens encode repo_id and permissions for the data plane to validate.
+- **Gateway-issued data plane tokens**: Production uses KMS-backed RS256 tokens with an exact issuer, environment, audiences, known `kid`, and one repository scope. The legacy in-process Ed25519 signer is non-production only.
 - **Soft-delete with finalizers**: Organizations use a soft-delete pattern with finalizers. Deletion requests mark the resource and the reconciler runs cleanup logic before removal.
 - **JWT authentication middleware**: Optional JWT verification on protected API routes using Ed25519-signed tokens.
 - **Idempotency keys**: Optional idempotency support via `Idempotency-Key` header for safe request retries.
@@ -351,13 +360,13 @@ All configuration is via environment variables (loaded from `.env` via `dotenvy`
 | `S3_ACCESS_KEY` | *required* | S3 access key |
 | `S3_SECRET_KEY` | *required* | S3 secret key |
 | `ED25519_SIGNING_KEY` | *required* | Base64-encoded 32-byte Ed25519 key |
-| `DP_TOKEN_EXPIRY_SECS` | `3600` | Data plane token TTL |
+| `DP_TOKEN_EXPIRY_SECS` | `300` | Repository authorization-token TTL |
 | `OUTBOX_POLL_INTERVAL_MS` | `1000` | Outbox relay poll interval |
 | `RECONCILER_SWEEP_INTERVAL_MS` | `5000` | Reconciler sweep interval |
-| `CORS_ALLOWED_ORIGINS` | `*` | Comma-separated allowed origins |
+| `CORS_ALLOWED_ORIGINS` | `http://127.0.0.1:8765` | Exact comma-separated allowed origins |
 | `RUST_LOG` | `info,...` | Tracing filter |
 | `METRICS_ENABLED` | `true` | Enable Prometheus metrics endpoint |
-| `JWT_AUTH_ENABLED` | `false` | Enable JWT authentication on protected routes |
+| `JWT_AUTH_ENABLED` | `true` | Enable JWT authentication on protected routes |
 | `IDEMPOTENCY_ENABLED` | `true` | Enable idempotency key support |
 | `REDIS_URL` | `""` | Redis URL for idempotency cache (empty = in-memory) |
 
@@ -384,7 +393,7 @@ cargo +1.97.0-aarch64-apple-darwin test -- --ignored
 | `./control-plane/scripts/test.sh` | Run all tests |
 | `./control-plane/scripts/build.sh` | Build release binary |
 | `./control-plane/scripts/docker-build.sh` | Build Docker image locally |
-| `./control-plane/scripts/publish-image.sh` | Build, push to Docker Hub, and pin the image in `infra/lore/versions.yaml` |
+| `./control-plane/scripts/publish-image.sh` | Compatibility wrapper that publishes the Auth Gateway, the active control-plane runtime, to ECR after verification |
 | `./control-plane/scripts/verify-and-update-versions.sh` | Verify ECS runs the pinned image; `--write` fixes drift |
 | `./control-plane/scripts/test-pipeline.sh` | Regression tests for the build/pin/deploy/verify pipeline |
 | `./control-plane/scripts/generate-key.sh` | Generate Ed25519 signing key |
@@ -574,10 +583,10 @@ The control plane integrates with the existing Pulumi infrastructure in `cloud/i
 - **Features**: At-least-once delivery, acknowledgment
 
 ### Service Deployment
-- **Component**: ControlPlaneService in `infra/pulumi/src/components/`
-- **Platform**: ECS Fargate in existing PlatformCluster
-- **Image**: Pre-built and pushed to Docker Hub by `control-plane/scripts/publish-image.sh`; the resulting URI is pinned in `infra/lore/versions.yaml` and read by Pulumi (Pulumi does not build images)
-- **Environment**: DATABASE_URL, ED25519_SIGNING_KEY, AWS_REGION, SQS_QUEUE_URL, PROVIDER_TYPE, feature flags (see Configuration)
+- **Production**: disabled; `controlPlaneDesiredCount` must remain `0`
+- **Replacement boundary**: private Auth Gateway/ReBAC runtime on ECS Fargate
+- **Legacy component**: retained only for local migration work and tests
+- **Prohibited**: publishing the legacy Ed25519 issuer or its resource handlers
 
 ### Local Development
 - **Docker Compose**: PostgreSQL + ElasticMQ (SQS-compatible) + Control Plane
@@ -603,29 +612,23 @@ Migrations run automatically on startup via `include_str!()`.
 docker build -t lorecloud-control-plane -f docker/control-plane/Dockerfile .
 ```
 
-**AWS (ECS via Pulumi):** See `infra/pulumi` for infrastructure as code. Images are
-not built during `pulumi up` — build, push, and pin first, then deploy:
+**AWS production:** deployment is intentionally blocked. Do not publish or
+enable this legacy server. The secure production runtime is the Auth Gateway:
 
 ```bash
-# 1. Build + push to Docker Hub and record the image in infra/lore/versions.yaml
-./scripts/publish-image.sh
-
-# 2. Deploy the pinned image
-cd ../infra/pulumi && pulumi up -s dev
-
-# 3. Confirm ECS is running the pinned image
-../control-plane/scripts/verify-and-update-versions.sh dev
+cd ../infra/pulumi
+pulumi config set controlPlaneDesiredCount 0
+pulumi up -s dev
 ```
 
-`verify-and-update-versions.sh --write` corrects `versions.yaml` after manual
-deploys that don't go through the build script. The ControlPlaneService
-component supports the following optional parameters:
+The legacy component remains in source to support migration work. Its optional
+parameters are not a production deployment contract:
 
 - `jwtAuthEnabled`: Enable JWT authentication (default: "false")
 - `idempotencyEnabled`: Enable idempotency keys (default: "true")
 - `metricsEnabled`: Enable Prometheus metrics (default: "true")
 - `rustLog`: RUST_LOG filter (default: "info")
-- `controlPlaneImageUri`: Pinned image URI from `infra/lore/versions.yaml` (set by the build script)
+- `controlPlaneImageUri`: Active Auth Gateway/control-plane ECR digest from `infra/lore/versions.yaml`; the legacy issuer has no deployable pin
 
 ## Recent Updates
 
@@ -637,7 +640,7 @@ component supports the following optional parameters:
 
 ### Phase 5: JWT Authentication Middleware
 - Added optional JWT authentication middleware for protected API routes
-- Configured via `JWT_AUTH_ENABLED` environment variable (default: false)
+- Configured via `JWT_AUTH_ENABLED` environment variable (default: true)
 - Verifies `Authorization: Bearer <token>` header using Ed25519 signing key
 - Public routes (`/healthz`, `/readyz`) remain unauthenticated
 

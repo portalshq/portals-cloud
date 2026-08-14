@@ -35,7 +35,7 @@ async fn test_repository_full_lifecycle() {
     // - TEST_S3_SECRET_KEY: S3 secret key
     //
     // Skipped by default - requires full infrastructure setup
-    
+
     todo!("Implement full repository lifecycle E2E test with real infrastructure");
 }
 
@@ -47,7 +47,7 @@ async fn test_repository_concurrent_updates() {
     // Verify optimistic concurrency control works correctly
     //
     // Run with: cargo test --features e2e -- --ignored
-    
+
     todo!("Implement concurrent updates E2E test");
 }
 
@@ -59,6 +59,6 @@ async fn test_repository_failure_recovery() {
     // Verify error policy and retry logic
     //
     // Run with: cargo test --features e2e -- --ignored
-    
+
     todo!("Implement failure recovery E2E test");
 }

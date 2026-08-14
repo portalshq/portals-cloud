@@ -1,9 +1,11 @@
 //! Unit tests for circuit breaker logic.
 
-use std::time::Duration;
-use control_plane_provider_trait::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
-use tokio::sync::Mutex;
+use control_plane_provider_trait::circuit_breaker::{
+    CircuitBreaker, CircuitBreakerConfig, CircuitState,
+};
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Mutex;
 
 #[cfg(test)]
 mod test_circuit_breaker {

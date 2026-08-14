@@ -2,20 +2,20 @@
 //!
 //! Phase 3 controller (Horizon B): Entertainment Platform.
 
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use async_trait::async_trait;
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
 
-use reconciler::{
-    Controller, Resource, ResourceId, ResourceKind, OwnerReference,
-    ReconcileContext, ReconcileResult, ErrorPolicy, HealthError,
-};
-use persistence::StateStore;
+use control_plane_provider_trait::{ComputeHandle, ComputeProvider, ComputeSpec};
 use events::EventBus;
-use control_plane_provider_trait::{ComputeProvider, ComputeSpec, ComputeHandle};
+use persistence::StateStore;
+use reconciler::{
+    Controller, ErrorPolicy, HealthError, OwnerReference, ReconcileContext, ReconcileResult,
+    Resource, ResourceId, ResourceKind,
+};
 
 /// Runtime scheduling error types.
 #[derive(Debug, Error)]
