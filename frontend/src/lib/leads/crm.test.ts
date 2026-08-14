@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {finalOperationalList, nextAutomatedLifecycle, qualificationState} from './crm'
+import {
+  ApolloRequestError,
+  finalOperationalList,
+  isDeletedApolloContactError,
+  nextAutomatedLifecycle,
+  qualificationState,
+} from './crm'
 
 const rank = {
   nurture: 0,
@@ -47,4 +53,43 @@ test('pilot requests are treated as qualified sales motions', () => {
     qualificationState({request: {submissionType: 'pilot_request'}, tier: 'low'} as any),
     'qualified',
   )
+})
+
+test('Apollo deleted-contact errors are recognized as stale mappings', () => {
+  const deleted = new ApolloRequestError({
+    method: 'PATCH',
+    path: '/api/v1/contacts/abc',
+    status: 422,
+    bodyText: '{"error":"Cannot update contact as it is deleted.","deleted_contact_ids":["abc"]}',
+  })
+  const gone = new ApolloRequestError({
+    method: 'PATCH',
+    path: '/api/v1/contacts/abc',
+    status: 410,
+    bodyText: '',
+  })
+  const missing = new ApolloRequestError({
+    method: 'PATCH',
+    path: '/api/v1/contacts/abc',
+    status: 404,
+    bodyText: '',
+  })
+  const validation = new ApolloRequestError({
+    method: 'PATCH',
+    path: '/api/v1/contacts/abc',
+    status: 422,
+    bodyText: '{"error":"email is invalid"}',
+  })
+  const accountMissing = new ApolloRequestError({
+    method: 'PATCH',
+    path: '/api/v1/accounts/abc',
+    status: 404,
+    bodyText: '',
+  })
+  assert.equal(isDeletedApolloContactError(deleted, 'abc'), true)
+  assert.equal(isDeletedApolloContactError(gone, 'abc'), true)
+  assert.equal(isDeletedApolloContactError(missing, 'abc'), true)
+  assert.equal(isDeletedApolloContactError(validation, 'abc'), false)
+  assert.equal(isDeletedApolloContactError(accountMissing, 'abc'), false)
+  assert.equal(isDeletedApolloContactError(new Error('rate limit'), 'abc'), false)
 })

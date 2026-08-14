@@ -38,6 +38,7 @@ type ApolloField = {id: string; label: string; modality: FieldModality}
 type ApolloStage = {id: string; name?: string; label?: string}
 type ApolloAccount = {id: string; name?: string; domain?: string; primary_domain?: string}
 type ApolloContact = {id: string; email?: string; web_url?: string; url?: string}
+type ApolloMethod = 'GET' | 'POST' | 'PATCH'
 
 const defaultLists: Record<ListKey, string> = {
   inboundLeads: 'Inbound Leads',
@@ -81,6 +82,28 @@ const founderControlledLifecycle = new Set([
 const dryRunRemoteRecords = new Map<string, {id: string; url?: string}>()
 let cachedApolloSchema: {value: ApolloSchema; expiresAt: number} | undefined
 
+export class ApolloRequestError extends Error {
+  method: ApolloMethod
+  path: string
+  status: number
+  bodyText: string
+  bodyJson?: unknown
+
+  constructor(input: {method: ApolloMethod; path: string; status: number; bodyText: string}) {
+    super(`Apollo ${input.method} ${input.path} failed (${input.status}): ${input.bodyText}`)
+    this.name = 'ApolloRequestError'
+    this.method = input.method
+    this.path = input.path
+    this.status = input.status
+    this.bodyText = input.bodyText
+    try {
+      this.bodyJson = input.bodyText ? JSON.parse(input.bodyText) : undefined
+    } catch {
+      this.bodyJson = undefined
+    }
+  }
+}
+
 function remoteKey(sourceType: SourceType, sourceId: string, remoteType: RemoteType) {
   return `${sourceType}:${sourceId}:${remoteType}`
 }
@@ -99,7 +122,7 @@ function listConfig(): Record<ListKey, string> {
   return {...defaultLists, ...jsonEnvironment<Partial<Record<ListKey, string>>>('APOLLO_LIST_MAP', {})}
 }
 
-async function apolloRequest<T>(path: string, method: 'GET' | 'POST' | 'PATCH', body?: unknown): Promise<T> {
+async function apolloRequest<T>(path: string, method: ApolloMethod, body?: unknown): Promise<T> {
   const apiKey = process.env.APOLLO_API_KEY
   if (!apiKey) throw new Error('APOLLO_API_KEY is required.')
   const response = await fetch(`https://api.apollo.io${path}`, {
@@ -112,14 +135,14 @@ async function apolloRequest<T>(path: string, method: 'GET' | 'POST' | 'PATCH', 
     ...(body === undefined ? {} : {body: JSON.stringify(body)}),
     cache: 'no-store',
   })
-  if (!response.ok) {
-    throw new Error(`Apollo ${method} ${path} failed (${response.status}): ${await response.text()}`)
-  }
   const text = await response.text()
+  if (!response.ok) {
+    throw new ApolloRequestError({method, path, status: response.status, bodyText: text})
+  }
   return (text ? JSON.parse(text) : {}) as T
 }
 
-async function optionalApolloRequest<T>(path: string, method: 'GET' | 'POST' | 'PATCH', body?: unknown): Promise<T | undefined> {
+async function optionalApolloRequest<T>(path: string, method: ApolloMethod, body?: unknown): Promise<T | undefined> {
   try {
     return await apolloRequest<T>(path, method, body)
   } catch (error) {
@@ -223,6 +246,19 @@ async function remoteRecord(sourceType: SourceType, sourceId: string, remoteType
   return row ? {id: row.remote_id, url: row.remote_url || undefined} : null
 }
 
+async function forgetRemoteRecord(sourceType: SourceType, sourceId: string, remoteType: RemoteType, remoteId: string): Promise<void> {
+  if (leadsDryRun()) {
+    const key = remoteKey(sourceType, sourceId, remoteType)
+    if (dryRunRemoteRecords.get(key)?.id === remoteId) dryRunRemoteRecords.delete(key)
+    return
+  }
+  await leadPool().query(
+    `DELETE FROM crm_external_records
+      WHERE source_type = $1 AND source_id = $2 AND remote_type = $3 AND remote_id = $4`,
+    [sourceType, sourceId, remoteType, remoteId],
+  )
+}
+
 async function rememberRemoteRecord(sourceType: SourceType, sourceId: string, remoteType: RemoteType, record: ApolloRecord): Promise<string> {
   // Apollo wraps create/update responses by resource in some API versions:
   // {account:{id}}, {contact:{id}}, or {opportunity:{id}}.
@@ -242,6 +278,30 @@ async function rememberRemoteRecord(sourceType: SourceType, sourceId: string, re
     [sourceType, sourceId, remoteType, id, url || null],
   )
   return id
+}
+
+function deletedContactIds(bodyJson: unknown): string[] {
+  if (!bodyJson || typeof bodyJson !== 'object') return []
+  const value = (bodyJson as {deleted_contact_ids?: unknown}).deleted_contact_ids
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+}
+
+export function isDeletedApolloContactError(error: unknown, contactId: string): boolean {
+  if (error instanceof ApolloRequestError) {
+    const contactPatch = error.method === 'PATCH' && error.path.startsWith('/api/v1/contacts/')
+    if (!contactPatch) return false
+    if (error.status === 404 || error.status === 410) return true
+    if (error.status !== 422) return false
+    return (
+      error.bodyText.includes('Cannot update contact as it is deleted') ||
+      deletedContactIds(error.bodyJson).includes(contactId)
+    )
+  }
+  if (!(error instanceof Error)) return false
+  return (
+    error.message.includes('Cannot update contact as it is deleted') ||
+    error.message.includes(`"deleted_contact_ids":["${contactId}"]`)
+  )
 }
 
 async function copyProfileAccountToCustomer(profileId: string, customerId: string): Promise<void> {
@@ -469,9 +529,21 @@ async function upsertContact(schema: ApolloSchema, submission: StoredSubmission,
     contact_stage_id: contactStageId(schema, submission, Boolean(existing)),
     typed_custom_fields: fieldValues(schema, 'contact', contactFields(submission)),
   })
-  const record = existing
-    ? await apolloRequest<ApolloRecord>(`/api/v1/contacts/${encodeURIComponent(existing.id)}`, 'PATCH', body)
-    : await apolloRequest<ApolloRecord>('/api/v1/contacts', 'POST', body)
+  let record: ApolloRecord
+  if (existing) {
+    try {
+      record = await apolloRequest<ApolloRecord>(`/api/v1/contacts/${encodeURIComponent(existing.id)}`, 'PATCH', body)
+    } catch (error) {
+      if (!isDeletedApolloContactError(error, existing.id)) throw error
+      await forgetRemoteRecord('lead_profile', submission.profile.id, 'contact', existing.id)
+      const recovered = await recoverContactMapping(submission.identity.email)
+      record = recovered
+        ? await apolloRequest<ApolloRecord>(`/api/v1/contacts/${encodeURIComponent(recovered.id)}`, 'PATCH', body)
+        : await apolloRequest<ApolloRecord>('/api/v1/contacts', 'POST', body)
+    }
+  } else {
+    record = await apolloRequest<ApolloRecord>('/api/v1/contacts', 'POST', body)
+  }
   return rememberRemoteRecord('lead_profile', submission.profile.id, 'contact', record)
 }
 
