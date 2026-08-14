@@ -11,7 +11,6 @@ import {
   type Reviewer,
   type ReviewerRole,
 } from '@/lib/leads/pilot'
-import type {RoomToken} from '@/lib/leads/pilot-tokens'
 import type {StoredPilot} from '@/lib/leads/store'
 import {trackEvent} from '@/lib/leads/analytics-client'
 
@@ -103,16 +102,16 @@ function agreementStatus(state: PilotState): ReviewerStatusView {
 
 export function PilotApprovalRoom({
   pilot: initial,
-  token,
-  accessToken,
+  accessRole,
+  userEmail,
   sessionId,
   revisePath,
   founderAccess = false,
   qualificationCalendarUrl,
 }: {
   pilot: StoredPilot
-  token: RoomToken
-  accessToken: string
+  accessRole: 'owner' | 'participant' | 'approver' | 'signer'
+  userEmail: string
   sessionId?: string
   revisePath: string
   founderAccess?: boolean
@@ -140,13 +139,15 @@ export function PilotApprovalRoom({
   const [myNote, setMyNote] = useState('')
 
   const editable = EDITABLE_STATES.includes(pilot.state)
+  const canEdit = accessRole === 'owner'
+  const canSign = accessRole === 'owner' || accessRole === 'signer'
   const invitationsUnlocked = INVITATION_STATES.includes(pilot.state)
   const answers = pilot.answers as Record<string, string | boolean | undefined>
   const value = pilot.proposal?.valueModel
   const reviewers = pilot.reviewers
   const myReviewer = reviewers.find(
     (reviewer) =>
-      reviewer.email.toLowerCase() === token.email.toLowerCase() &&
+      reviewer.email.toLowerCase() === userEmail.toLowerCase() &&
       reviewer.status !== 'revoked',
   )
   const assessmentQualificationPending = pilot.exceptions.some(
@@ -174,15 +175,15 @@ export function PilotApprovalRoom({
   }, [sessionId, pilot.state, pilot.id])
 
   useEffect(() => {
-    if (token.role === 'submitter') return
+    if (accessRole === 'owner') return
     void fetch(`/api/pilot/${pilot.id}/presence`, {
       method: 'POST',
       headers: {'content-type': 'application/json'},
-      body: JSON.stringify({token: accessToken}),
+      body: JSON.stringify({}),
     }).catch(() => {
       // presence recording is best-effort
     })
-  }, [token.role, pilot.id, accessToken])
+  }, [accessRole, pilot.id])
 
   async function patch(body: Record<string, unknown>): Promise<boolean> {
     setBusy(true)
@@ -192,7 +193,7 @@ export function PilotApprovalRoom({
       const response = await fetch(`/api/pilot/${pilot.id}`, {
         method: 'PATCH',
         headers: {'content-type': 'application/json'},
-        body: JSON.stringify({token: accessToken, ...body}),
+        body: JSON.stringify(body),
       })
       const json = (await response.json()) as {
         ok: boolean
@@ -357,7 +358,7 @@ export function PilotApprovalRoom({
       const response = await fetch(`/api/pilot/${pilot.id}/checkout`, {
         method: 'POST',
         headers: {'content-type': 'application/json'},
-        body: JSON.stringify({token: accessToken}),
+        body: JSON.stringify({}),
       })
       const json = (await response.json()) as {
         ok: boolean
@@ -410,6 +411,21 @@ export function PilotApprovalRoom({
   }
 
   const actionButtons = useMemo(() => {
+    if (!canEdit) {
+      if (founderAccess && assessmentQualificationPending && pilot.state === 'exception_review') {
+        return (
+          <>
+            <button onClick={() => onQualificationDecision('qualify')} disabled={busy} className={accentButtonClasses}>
+              qualify for pilot
+            </button>
+            <button onClick={() => onQualificationDecision('disqualify')} disabled={busy} className={plainButtonClasses}>
+              mark not eligible
+            </button>
+          </>
+        )
+      }
+      return null
+    }
     const pendingExceptionReview =
       pilot.route === 'one-call' &&
       pilot.exceptions.some((item) => !item.resolvedAt)
@@ -512,7 +528,7 @@ export function PilotApprovalRoom({
       default:
         return null
     }
-  }, [pilot.state, pilot.route, pilot.exceptions, pilot.proposal?.priceAmount, busy, assessmentQualificationPending, founderAccess])
+  }, [pilot.state, pilot.route, pilot.exceptions, pilot.proposal?.priceAmount, busy, assessmentQualificationPending, founderAccess, canEdit])
 
   const routeBadge =
     pilot.route === 'zero-call'
@@ -575,12 +591,12 @@ export function PilotApprovalRoom({
         <div className="md:text-right w-full md:w-auto">
           <p className="t-p-sm-sans">{routeBadge}</p>
           <p className="mt-4 t-p-sm-sans text-[#52617D]">
-            {token.role} · {token.email}
+            {accessRole} · {userEmail}
           </p>
           <p className="mt-16">
             <a
               className={primaryButtonClasses}
-              href={`/api/leads/documents/pilot-packet?t=${encodeURIComponent(accessToken)}`}
+              href={`/api/leads/documents/pilot-packet?pilot=${encodeURIComponent(pilot.id)}`}
               target="_blank"
               rel="noreferrer"
             >
@@ -604,7 +620,7 @@ export function PilotApprovalRoom({
       ) : null}
 
       {(pilot.state === 'reviewing' || pilot.state === 'revision') &&
-      token.role === 'submitter' ? (
+      accessRole === 'owner' ? (
         <div className="mt-24 rounded border border-[#C9D6EA] bg-[#F3F7FC] px-20 py-16">
           <p className="t-p-sm-sans font-medium">
             your pilot plan is ready. review it for accuracy before inviting your team for review.
@@ -708,7 +724,7 @@ export function PilotApprovalRoom({
             <div>
               <dt className="text-[#52617D]">pilot start date</dt>
               <dd className="mt-2">
-                {editable ? (
+                {editable && canEdit ? (
                   <RoomTextField
                     type="date"
                     value={startDate}
@@ -743,7 +759,7 @@ export function PilotApprovalRoom({
                   <dd className="mt-2">{value.formula}</dd>
                   <dd className="mt-2">range ${value.low.toLocaleString()} – ${value.high.toLocaleString()} · midpoint ${value.midpoint.toLocaleString()}</dd>
                   <dd className="mt-2 text-[#52617D]">{value.frequency.label} · {value.hoursLoss.label} lost · {value.people.label} affected</dd>
-                  {editable ? (
+                  {editable && canEdit ? (
                     <label className="mt-10 flex items-center gap-8">
                       <RoomCheckbox
                         checked={valueConfirmed}
@@ -774,7 +790,7 @@ export function PilotApprovalRoom({
             <div key={criterion.key} className="grid gap-20 rounded border border-[#E5EBF4] p-14 md:grid-cols-[240px_1fr]">
               <div>
                 <p className="t-p-sm-sans font-medium">{criterion.label}</p>
-                {editable ? (
+                {editable && canEdit ? (
                   <RoomSelectField
                     className="mt-8"
                     value={criterion.status}
@@ -798,7 +814,7 @@ export function PilotApprovalRoom({
               <div className="grid gap-8">
                 <label className="t-p-sm-sans text-[#52617D]">
                   measurable target
-                  {editable ? (
+                  {editable && canEdit ? (
                     <RoomTextField
                       className="mt-4"
                       value={criterion.target || ''}
@@ -815,7 +831,7 @@ export function PilotApprovalRoom({
                 </label>
                 <label className="t-p-sm-sans text-[#52617D]">
                   participant
-                  {editable ? (
+                  {editable && canEdit ? (
                     <RoomTextField
                       className="mt-4"
                       value={criterion.participant || ''}
@@ -831,7 +847,7 @@ export function PilotApprovalRoom({
                 </label>
                 <label className="t-p-sm-sans text-[#52617D]">
                   evidence
-                  {editable ? (
+                  {editable && canEdit ? (
                     <RoomTextField
                       className="mt-4"
                       value={criterion.evidence || ''}
@@ -886,7 +902,7 @@ export function PilotApprovalRoom({
         </dl>
       </section>
 
-      {token.role === 'submitter' ? (
+      {accessRole === 'owner' ? (
         <section className="mt-24 rounded border border-[#D9E1EC] p-20">
           <h2 className="t-h3-sans">reviewers</h2>
           <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
@@ -894,7 +910,7 @@ export function PilotApprovalRoom({
             and send invites here. 
             <br />
             each reviewer opens the plan through a
-            personalized link — no account needed.
+            personalized sign-in link and receives a scoped application account.
           </p>
           {!invitationsUnlocked ? (
             <p className="mt-12 t-p-sm-sans text-[#52617D]">
@@ -1083,7 +1099,7 @@ export function PilotApprovalRoom({
         </section>
       ) : null}
 
-      {pilot.state === 'ready_sign' ? (
+      {pilot.state === 'ready_sign' && canSign ? (
         <section className="mt-24 rounded border-2 border-[#07112C] p-20">
           <h2 className="t-h3-sans">sign and fund the pilot</h2>
           <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">

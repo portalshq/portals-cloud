@@ -1,6 +1,7 @@
 import {cookies} from 'next/headers'
 import type {KnownLeadContext} from './contracts'
-import {getProfileByToken, latestQualificationAnswers, PROFILE_COOKIE} from './store'
+import {getProfileById, getProfileByToken, latestQualificationAnswers, PROFILE_COOKIE} from './store'
+import {APP_SESSION_COOKIE, currentApplicationUser} from './application-auth'
 import {emailDomain, isPublicEmailDomain} from './identity'
 import {
   calculateQualification,
@@ -17,8 +18,17 @@ export async function currentProfileToken(): Promise<string | undefined> {
 
 export async function getKnownLeadContext(): Promise<KnownLeadContext> {
   try {
-    const profile = await getProfileByToken(await currentProfileToken())
-    if (!profile) {
+    const cookieStore = await cookies()
+    const profile = await getProfileByToken(cookieStore.get(PROFILE_COOKIE)?.value)
+    const applicationUser = profile
+      ? null
+      : await currentApplicationUser(cookieStore.get(APP_SESSION_COOKIE)?.value)
+    const resolvedProfile = profile || (
+      applicationUser?.profileId
+        ? await getProfileById(applicationUser.profileId)
+        : null
+    )
+    if (!resolvedProfile) {
       return {
         known: false,
         knownFields: [],
@@ -26,19 +36,19 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
       }
     }
     const knownFields: KnownLeadContext['knownFields'] = []
-    if (profile.identity.email) knownFields.push('email')
-    if (profile.identity.name) knownFields.push('name')
-    if (profile.identity.company) knownFields.push('company')
-    if (profile.identity.role) knownFields.push('role')
-    if (profile.identity.website) knownFields.push('website')
-    const fallbackAnswers = profile.qualification
-      ? profile.qualification.answers
-      : await latestQualificationAnswers(profile.id)
+    if (resolvedProfile.identity.email) knownFields.push('email')
+    if (resolvedProfile.identity.name) knownFields.push('name')
+    if (resolvedProfile.identity.company) knownFields.push('company')
+    if (resolvedProfile.identity.role) knownFields.push('role')
+    if (resolvedProfile.identity.website) knownFields.push('website')
+    const fallbackAnswers = resolvedProfile.qualification
+      ? resolvedProfile.qualification.answers
+      : await latestQualificationAnswers(resolvedProfile.id)
     const hasQualification = Object.keys(fallbackAnswers).length > 0
     const fallbackScores = hasQualification
       ? calculateQualification(fallbackAnswers)
       : undefined
-    const qualification = profile.qualification
+    const qualification = resolvedProfile.qualification
     const knownAnswerFields = Object.entries(fallbackAnswers)
       .filter(([, value]) =>
         typeof value === 'string' ? value.trim().length > 0 : value != null,
@@ -58,9 +68,9 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
       knownAnswerFields,
       answerValues,
       requiresWebsite:
-        Boolean(profile.identity.email) &&
-        !profile.identity.website &&
-        isPublicEmailDomain(emailDomain(profile.identity.email || '')),
+        Boolean(resolvedProfile.identity.email) &&
+        !resolvedProfile.identity.website &&
+        isPublicEmailDomain(emailDomain(resolvedProfile.identity.email || '')),
       scores: fallbackScores,
       qualificationTier: tier,
       qualificationOutcome: outcome,
@@ -71,7 +81,7 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
       missingFields:
         outcome === 'clarify' ? missingReadinessFields(fallbackAnswers) : [],
       assessmentCompleted: Boolean(
-        profile.qualification && fallbackAnswers.activeWorkflow,
+        resolvedProfile.qualification && fallbackAnswers.activeWorkflow,
       ),
       recommendedWorkflow:
         qualification?.recommendedWorkflow ||

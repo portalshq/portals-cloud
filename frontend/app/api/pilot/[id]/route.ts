@@ -1,11 +1,11 @@
 import {randomUUID} from 'node:crypto'
+import {cookies} from 'next/headers'
 import {NextResponse} from 'next/server'
 import type {
   PilotAnswers,
   SuccessCriterion,
   SecurityDecision,
 } from '@/lib/leads/contracts'
-import {sendPilotShareEmail} from '@/lib/leads/email'
 import {
   applyTransition,
   buildCommercialSnapshot,
@@ -20,7 +20,8 @@ import {
   type Reviewer,
   type ReviewerRole,
 } from '@/lib/leads/pilot'
-import {verifyRoomToken} from '@/lib/leads/pilot-tokens'
+import {APP_SESSION_COOKIE, currentApplicationUser, invitePilotMember, pilotMembershipRole} from '@/lib/leads/application-auth'
+import {sendApplicationAccessEmail} from '@/lib/leads/account-email'
 import {
   getPilotById,
   enqueuePilotEmail,
@@ -51,7 +52,6 @@ type PatchAction =
   | 'share'
 
 type PatchBody = {
-  token: string
   action: PatchAction
   note?: string
   by?: string
@@ -169,23 +169,27 @@ export async function PATCH(
   } catch {
     return NextResponse.json({ok: false, message: 'invalid request body'}, {status: 400})
   }
-  if (!body.token || !body.action) {
-    return NextResponse.json({ok: false, message: 'token and action are required'}, {status: 400})
+  if (!body.action) {
+    return NextResponse.json({ok: false, message: 'action is required'}, {status: 400})
   }
-  const token = verifyRoomToken(body.token)
-  if (!token || token.pilotId !== id) {
-    return NextResponse.json({ok: false, message: 'invalid or expired room link'}, {status: 401})
+  const user = await currentApplicationUser((await cookies()).get(APP_SESSION_COOKIE)?.value)
+  if (!user) {
+    return NextResponse.json({ok: false, message: 'sign in is required'}, {status: 401})
   }
 
   const pilot = await getPilotById(id)
   if (!pilot) {
     return NextResponse.json({ok: false, message: 'pilot record not found'}, {status: 404})
   }
+  const accessRole = await pilotMembershipRole(pilot.id, user.id)
+  if (!accessRole) {
+    return NextResponse.json({ok: false, message: 'you do not have access to this pilot'}, {status: 403})
+  }
   const hasAssessmentQualification = pilot.exceptions.some(
     (item) => item.kind === 'assessment-qualification' && !item.resolvedAt,
   )
   const founderEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
-  const founderAccess = Boolean(founderEmail) && token.email.toLowerCase() === founderEmail
+  const founderAccess = Boolean(founderEmail) && user.email.toLowerCase() === founderEmail
   if (
     (body.action === 'qualify' ||
       body.action === 'disqualify' ||
@@ -197,20 +201,28 @@ export async function PATCH(
       {status: 403},
     )
   }
+  if (body.action === 'sign' && accessRole !== 'owner' && accessRole !== 'signer') {
+    return NextResponse.json({ok: false, message: 'only an assigned signer can sign the agreement'}, {status: 403})
+  }
 
   try {
     if (body.action === 'share') {
+      if (accessRole !== 'owner') {
+        return NextResponse.json({ok: false, message: 'only the account owner can invite members'}, {status: 403})
+      }
       const share = body.share
       if (!share || !share.email || !['participant', 'approver', 'signer'].includes(share.role)) {
         return NextResponse.json({ok: false, message: 'share role and email are required'}, {status: 400})
       }
-      if (!process.env.PILOT_ROOM_SECRET) {
-        return NextResponse.json(
-          {ok: false, message: 'room links are not configured yet'},
-          {status: 400},
-        )
-      }
-      await sendPilotShareEmail(pilot, share.role, share.email)
+      const invited = await invitePilotMember({pilotId: pilot.id, email: share.email, role: share.role})
+      await sendApplicationAccessEmail({
+        user: invited.user,
+        purpose: 'invite',
+        customerAccountId: invited.customerAccountId,
+        role: 'member',
+        idempotencyKey: `pilot-member-invite:${pilot.id}:${invited.user.id}:${share.role}`,
+        nextPath: `/paid-pilot/room/${pilot.id}`,
+      })
       let updated = pilot
       if (share.role === 'approver') {
         const answers = pilot.answers as Record<string, unknown>
@@ -231,7 +243,7 @@ export async function PATCH(
     }
 
     if (body.action === 'start_team_review') {
-      if (token.role !== 'submitter') {
+      if (accessRole !== 'owner') {
         return NextResponse.json({ok: false, message: 'only the submitter can mark the draft ready for team review'}, {status: 403})
       }
       const stateChange = applyTransition(pilot.state, 'start_team_review')
@@ -250,7 +262,7 @@ export async function PATCH(
     }
 
     if (body.action === 'invite_reviewer') {
-      if (token.role !== 'submitter') {
+      if (accessRole !== 'owner') {
         return NextResponse.json({ok: false, message: 'only the submitter can invite reviewers'}, {status: 403})
       }
       const invite = body.invite
@@ -264,12 +276,6 @@ export async function PATCH(
       if (!INVITATION_STATES.includes(pilot.state)) {
         return NextResponse.json(
           {ok: false, message: 'invitations unlock once the draft is ready for team review'},
-          {status: 400},
-        )
-      }
-      if (!process.env.PILOT_ROOM_SECRET) {
-        return NextResponse.json(
-          {ok: false, message: 'room links are not configured yet'},
           {status: 400},
         )
       }
@@ -308,11 +314,20 @@ export async function PATCH(
         historyNote: `${invite.role.replaceAll('_', ' ')} ${email} invited to the room`,
         by: body.by,
       })
-      try {
-        await sendPilotShareEmail(pilot, reviewerTokenRole(invite.role), email)
-      } catch (cause) {
-        console.error('invitation email failed', cause)
-      }
+      const invited = await invitePilotMember({
+        pilotId: pilot.id,
+        email,
+        displayName: invite.name,
+        role: reviewerTokenRole(invite.role),
+      })
+      await sendApplicationAccessEmail({
+        user: invited.user,
+        purpose: 'invite',
+        customerAccountId: invited.customerAccountId,
+        role: 'member',
+        idempotencyKey: `pilot-reviewer-invite:${pilot.id}:${invited.user.id}:${invite.role}`,
+        nextPath: `/paid-pilot/room/${pilot.id}`,
+      })
       return NextResponse.json({ok: true, pilot: updated})
     }
 
@@ -327,8 +342,8 @@ export async function PATCH(
         return NextResponse.json({ok: false, message: 'reviewer not found'}, {status: 404})
       }
       if (
-        token.role !== 'submitter' &&
-        reviewer.email.toLowerCase() !== token.email.toLowerCase()
+        accessRole !== 'owner' &&
+        reviewer.email.toLowerCase() !== user.email.toLowerCase()
       ) {
         return NextResponse.json({ok: false, message: 'you can only record decisions for your own review'}, {status: 403})
       }
@@ -377,7 +392,7 @@ export async function PATCH(
       if (!reviewer) {
         return NextResponse.json({ok: false, message: 'reviewer not found'}, {status: 404})
       }
-      if (token.role !== 'submitter' && reviewer.email.toLowerCase() !== token.email.toLowerCase()) {
+      if (accessRole !== 'owner' && reviewer.email.toLowerCase() !== user.email.toLowerCase()) {
         return NextResponse.json({ok: false, message: 'you can only add notes to your own review'}, {status: 403})
       }
       const note = String(body.note || '').trim()
@@ -397,7 +412,7 @@ export async function PATCH(
     }
 
     if (body.action === 'remove_reviewer') {
-      if (token.role !== 'submitter') {
+      if (accessRole !== 'owner') {
         return NextResponse.json({ok: false, message: 'only the submitter can remove reviewers'}, {status: 403})
       }
       const reviewer = pilot.reviewers.find((candidate) => candidate.id === body.reviewerId)
@@ -415,7 +430,7 @@ export async function PATCH(
     }
 
     if (body.action === 'reviewer_role') {
-      if (token.role !== 'submitter') {
+      if (accessRole !== 'owner') {
         return NextResponse.json({ok: false, message: 'only the submitter can change reviewer roles'}, {status: 403})
       }
       const reviewer = pilot.reviewers.find((candidate) => candidate.id === body.reviewerId)
@@ -437,7 +452,7 @@ export async function PATCH(
     }
 
     if (body.action === 'claim_role') {
-      if (token.role !== 'submitter') {
+      if (accessRole !== 'owner') {
         return NextResponse.json({ok: false, message: 'only the submitter can claim a proposed role'}, {status: 403})
       }
       const reviewer = pilot.reviewers.find((candidate) => candidate.id === body.reviewerId)
@@ -452,8 +467,8 @@ export async function PATCH(
                 ...candidate,
                 name:
                   String(pilot.answers.productionOwner || '').split(',')[0].trim() ||
-                  token.email,
-                email: token.email.toLowerCase(),
+                  user.email,
+                email: user.email.toLowerCase(),
                 status: 'reviewed' as const,
                 reviewedAt: now,
                 requestedChanges: false,
@@ -526,7 +541,7 @@ export async function PATCH(
     }
 
     if (body.action === 'update') {
-      if (token.role !== 'submitter') {
+      if (accessRole !== 'owner') {
         return NextResponse.json({ok: false, message: 'only the submitter can edit the plan'}, {status: 403})
       }
       const next = recompute(pilot, body)

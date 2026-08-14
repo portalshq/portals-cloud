@@ -5,7 +5,6 @@ process.env.RESEND_API_KEY = 'test-resend-key'
 process.env.LEADS_EMAIL_FROM = 'leads@portals.test'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {sendLeadConfirmation, sendPilotStatusEmail} from './email'
-import {verifyRoomToken} from './pilot-tokens'
 import {leadRequestSchema} from './contracts'
 import {createPilotRecord, persistSubmission, type StoredPilot} from './store'
 import {
@@ -66,7 +65,7 @@ function resendStub(t: TestContext) {
   return calls
 }
 
-test('sendPilotStatusEmail uses the stored submitter email and mints a submitter room link', async (t) => {
+test('sendPilotStatusEmail uses the stored submitter email and directs the user through sign-in', async (t) => {
   const pilot = await createPilot()
   const calls = resendStub(t)
 
@@ -76,15 +75,7 @@ test('sendPilotStatusEmail uses the stored submitter email and mints a submitter
   assert.equal(calls[0].to, 'ava@studio.example')
   assert.match(String(calls[0].subject), /approval room is ready/)
   assert.equal(calls[0].idempotency, `${pilot.id}-status-reviewing-ava@studio.example`)
-  const link = String(calls[0].text).match(
-    /https:\/\/portals\.test\/paid-pilot\/room\/[^?]+\?t=([a-zA-Z0-9._-]+)/,
-  )
-  assert.ok(link, 'the email contains a tokenized room link')
-  assert.deepEqual(verifyRoomToken(link[1]), {
-    pilotId: pilot.id,
-    role: 'submitter',
-    email: 'ava@studio.example',
-  })
+  assert.match(String(calls[0].text), /https:\/\/portals\.test\/auth\/sign-in\?next=/)
 })
 
 test('sendPilotStatusEmail honors an explicit recipient over the answers email', async (t) => {
@@ -98,7 +89,7 @@ test('sendPilotStatusEmail honors an explicit recipient over the answers email',
   assert.equal(calls[0].subject, 'your pilot plan was updated')
 })
 
-test('sendPilotStatusEmail mints a tokenized room link from the recipient even when answers.email is absent', async (t) => {
+test('sendPilotStatusEmail directs an explicit recipient through sign-in when answers.email is absent', async (t) => {
   const pilot = await createPilot({...pilotAnswers, email: ''})
   const calls = resendStub(t)
 
@@ -106,15 +97,7 @@ test('sendPilotStatusEmail mints a tokenized room link from the recipient even w
 
   assert.equal(calls.length, 1)
   assert.equal(calls[0].to, 'ava@studio.example')
-  const link = String(calls[0].text).match(
-    /https:\/\/portals\.test\/paid-pilot\/room\/[^?]+\?t=([a-zA-Z0-9._-]+)/,
-  )
-  assert.ok(link, 'the email must contain a tokenized room link when answers.email is empty')
-  assert.deepEqual(verifyRoomToken(link[1]), {
-    pilotId: pilot.id,
-    role: 'submitter',
-    email: 'ava@studio.example',
-  })
+  assert.match(String(calls[0].text), /https:\/\/portals\.test\/auth\/sign-in\?next=/)
 })
 
 test('sendPilotStatusEmail rejects when no recipient can be resolved', async (t) => {

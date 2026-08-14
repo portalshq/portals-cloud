@@ -8,8 +8,9 @@ import {
 } from '@/components/pdf/PersonalizedLeadPdfDocuments'
 import {leadDownloadUrl} from '@/lib/leads/downloads'
 import {hashValue} from '@/lib/leads/crypto'
-import {verifyRoomToken} from '@/lib/leads/pilot-tokens'
 import {currentProfileToken} from '@/lib/leads/profile'
+import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
+import {cookies} from 'next/headers'
 import {calculateQualification, qualificationTier, recommendedWorkflow} from '@/lib/leads/scoring'
 import {
   consumeRateLimit,
@@ -54,10 +55,14 @@ export async function GET(
   }
 
   const query = new URL(request.url).searchParams
-  const roomAccess = query.get('t') ? verifyRoomToken(query.get('t') as string) : null
-  const roomPilot = roomAccess ? await getPilotById(roomAccess.pilotId) : null
+  const requestedPilotId = query.get('pilot')
+  const roomPilot = requestedPilotId ? await getPilotById(requestedPilotId) : null
 
   if (documentKind === 'pilot-packet' && roomPilot) {
+    const user = await currentApplicationUser((await cookies()).get(APP_SESSION_COOKIE)?.value)
+    if (!user || !(await pilotMembershipRole(roomPilot.id, user.id))) {
+      return Response.json({error: 'sign in is required'}, {status: 401})
+    }
     const generatedAt = new Date().toISOString()
     const pilotBuffer = await renderToBuffer(
       PilotPlanPdfDocument({pilot: roomPilot, generatedAt}),

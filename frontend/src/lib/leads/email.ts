@@ -1,6 +1,5 @@
 import {leadDownloadUrl} from './downloads'
 import {stateLabel, summarizeProposal} from './pilot'
-import {roomToken, type RoomToken} from './pilot-tokens'
 import type {StoredPilot, StoredSubmission} from './store'
 import {getPilotBySubmissionId, getPilotById} from './store'
 
@@ -48,15 +47,6 @@ export function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works').replace(/\/$/, '')
 }
 
-function pilotRoomLink(
-  pilot: StoredPilot,
-  role: RoomToken['role'],
-  email: string,
-): string {
-  const token = roomToken(pilot.id, role, email)
-  return `${siteUrl()}/paid-pilot/room/${pilot.id}?t=${encodeURIComponent(token)}`
-}
-
 function pilotDocuments(
   pilot: StoredPilot,
   submitterEmailOverride?: string,
@@ -65,16 +55,8 @@ function pilotDocuments(
   packetUrl: string
   securityUrl: string
 } {
-  const submitterEmail = String(pilot.answers.email || submitterEmailOverride || '').trim()
-  let roomUrl = `${siteUrl()}/paid-pilot/room/${pilot.id}`
-  if (submitterEmail) {
-    try {
-      const token = roomToken(pilot.id, 'submitter', submitterEmail)
-      roomUrl = `${siteUrl()}/paid-pilot/room/${pilot.id}?t=${encodeURIComponent(token)}`
-    } catch {
-      roomUrl = `${siteUrl()}/paid-pilot/room/${pilot.id}`
-    }
-  }
+  const roomPath = `/paid-pilot/room/${pilot.id}`
+  const roomUrl = `${siteUrl()}/auth/sign-in?next=${encodeURIComponent(roomPath)}`
   return {
     roomUrl,
     packetUrl: `${siteUrl()}/api/leads/documents/pilot-packet`,
@@ -109,7 +91,7 @@ export function pilotCopy(
     '',
     'review your personalized pilot approval room',
     roomUrl,
-    'open the link in the same browser used to complete the form.',
+    'sign in with the email invited to this account to open the room.',
   ]
 
   switch (variant) {
@@ -300,8 +282,8 @@ async function confirmationCopy(
   if (downloadUrl) {
     const labels = {
       guide_download: 'Production Memory Field Guide',
-      security_download: 'Portals Security and Architecture Brief',
-      pilot_brief_download: 'Portals Paid Production Pilot Brief',
+      security_download: 'portals Security and Architecture Brief',
+      pilot_brief_download: 'portals Paid Production Pilot Brief',
     } as const
     return {
       subject: `your ${labels[submissionType as keyof typeof labels].toLowerCase()}`,
@@ -386,36 +368,6 @@ export async function sendPilotStatusEmail(
   })
 }
 
-export async function sendPilotShareEmail(
-  pilot: StoredPilot,
-  role: 'participant' | 'approver' | 'signer',
-  recipient: string,
-): Promise<void> {
-  const link = pilotRoomLink(pilot, role, recipient)
-  const subject =
-    role === 'approver'
-      ? 'you have been asked to approve a portals production pilot'
-      : role === 'signer'
-        ? 'you have been asked to sign a portals production pilot'
-        : 'you have been added to a portals production pilot'
-  await sendEmail({
-    idempotencyKey: `${pilot.id}-share-${role}-${recipient}`,
-    to: recipient,
-    subject,
-    text: [
-      `you have been invited as ${role} on a portals production pilot.`,
-      '',
-      `status: ${stateLabel(pilot.state)}`,
-      // summarizeProposal(pilot.proposal),
-      '',
-      'open the pilot approval room:',
-      link,
-      '',
-      'portals',
-    ].join('\n'),
-  })
-}
-
 export async function sendFounderNotification(
   submission: StoredSubmission,
 ): Promise<void> {
@@ -430,7 +382,7 @@ export async function sendFounderNotification(
     answers.objectionDetail || answers.pilotBlocker || answers.primaryObjection || 'none recorded',
   )
   const founderPilotLink = pilot
-    ? pilotRoomLink(pilot, 'approver', recipient)
+    ? `${siteUrl()}/auth/sign-in?next=${encodeURIComponent(`/paid-pilot/room/${pilot.id}`)}`
     : null
   await sendEmail({
     idempotencyKey: `${submission.id}-founder`,
@@ -466,7 +418,7 @@ export async function sendFounderNotification(
           ]
         : []),
       '',
-      'the complete submission is recorded in attio.',
+      'the complete submission is retained in the application database and projected to apollo.',
     ].join('\n'),
   })
 }

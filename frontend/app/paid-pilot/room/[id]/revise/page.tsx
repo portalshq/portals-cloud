@@ -1,7 +1,9 @@
 import type {Metadata} from 'next'
+import {cookies} from 'next/headers'
+import {redirect} from 'next/navigation'
 import {PilotScopeForm} from '@/components/leads/PilotScopeForm'
 import {getKnownLeadContext} from '@/lib/leads/profile'
-import {resolveRoomAccess} from '@/lib/leads/room-access'
+import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
 import {getPilotById} from '@/lib/leads/store'
 
 export const metadata: Metadata = {
@@ -13,14 +15,11 @@ export const dynamic = 'force-dynamic'
 
 export default async function PilotRevisePage({
   params,
-  searchParams,
 }: {
   params: Promise<{id: string}>
-  searchParams: Promise<{t?: string}>
 }) {
-  const [{id}, query] = await Promise.all([params, searchParams])
+  const {id} = await params
   const pilot = await getPilotById(id)
-  const access = await resolveRoomAccess(pilot, query.t)
 
   if (!pilot) {
     return (
@@ -35,7 +34,10 @@ export default async function PilotRevisePage({
       </main>
     )
   }
-  if (!access) {
+  const user = await currentApplicationUser((await cookies()).get(APP_SESSION_COOKIE)?.value)
+  if (!user) redirect(`/auth/sign-in?next=${encodeURIComponent(`/paid-pilot/room/${id}/revise`)}`)
+  const role = await pilotMembershipRole(pilot.id, user.id)
+  if (role !== 'owner') {
     return (
       <main className="relative z-(--z-main) min-h-screen bg-[#343434] text-white">
         <div className="mx-auto max-w-3xl px-24 py-40">

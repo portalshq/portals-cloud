@@ -7,7 +7,7 @@ process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {POST} from '../../../app/api/leads/route'
 import {processLeadOutbox} from './processor'
-import {verifyRoomToken} from './pilot-tokens'
+import {consumeMagicLink, getApplicationUserByEmail, issueMagicLink} from './application-auth'
 import {
   getProfileByToken,
   getPilotById,
@@ -173,15 +173,7 @@ test('pilot_request through POST delivers the approval-room email to the submitt
   const sent = fetches[0].body
   assert.equal(sent.to, email.toLowerCase())
   assert.match(String(sent.subject), /pilot approval room/)
-  const link = String(sent.text).match(
-    /https:\/\/portals\.test\/paid-pilot\/room\/[^?]+\?t=([a-zA-Z0-9._-]+)/,
-  )
-  assert.ok(link, 'the email carries a tokenized room link')
-  assert.deepEqual(verifyRoomToken(link[1]), {
-    pilotId: pilot.id,
-    role: 'submitter',
-    email: email.toLowerCase(),
-  })
+  assert.match(String(sent.text), /https:\/\/portals\.test\/auth\/sign-in\?next=/)
 
   await processLeadOutbox(20)
   assert.equal(fetches.length, 1, 'the processed row is not replayed')
@@ -222,10 +214,15 @@ test('a revision preserves the submitter email and re-emails the pilot plan', as
   const {pilot} = await pilotForProfile(token)
   assert.ok(pilot)
   const pilotId = pilot.id
+  const user = await getApplicationUserByEmail(email)
+  assert.ok(user, 'pilot applicant has an application user account')
+  const magicLink = await issueMagicLink({userId: user.id, purpose: 'sign_in'})
+  const authenticated = await consumeMagicLink(magicLink)
+  assert.ok(authenticated, 'magic link creates a session')
 
   const revised = await post(
     pilotBody(email, {pilotWorkflow: 'asset variant production'}, {pilotId, name: 'Ava'}),
-    {cookie: `portals_profile=${token}`},
+    {cookie: `portals_profile=${token}; portals_session=${authenticated.sessionToken}`},
   )
   assert.equal(revised.status, 200)
   const json = await revised.json()

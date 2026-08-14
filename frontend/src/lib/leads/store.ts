@@ -50,7 +50,7 @@ export type StoredQualification = {
   updatedAt: string
 }
 
-type StoredProfile = {
+export type StoredProfile = {
   id: string
   identity: LeadIdentity
   identityVerified: boolean
@@ -133,6 +133,11 @@ function pool(): Pool {
   return globalForLeads.portalsLeadPool
 }
 
+/** Shared database handle for app-owned identity and CRM projection tables. */
+export function leadPool(): Pool {
+  return pool()
+}
+
 function memory() {
   globalForLeads.portalsLeadMemory ||= {
     profiles: new Map(),
@@ -148,6 +153,7 @@ function memory() {
 export type StoredPilot = {
   id: string
   profileId: string
+  customerAccountId?: string
   initialSubmissionId: string
   state: PilotState
   route: PilotRoute
@@ -203,6 +209,7 @@ export type PilotPatch = {
 type PilotRow = {
   id: string
   profile_id: string
+  customer_account_id: string | null
   initial_submission_id: string | null
   state: PilotState
   route: PilotRoute
@@ -227,6 +234,7 @@ function pilotFromRow(row: PilotRow): StoredPilot {
   return {
     id: row.id,
     profileId: row.profile_id,
+    customerAccountId: row.customer_account_id || undefined,
     initialSubmissionId: row.initial_submission_id || '',
     state: row.state,
     route: row.route,
@@ -893,7 +901,8 @@ export function outboxActions(
   if (request.submissionType === 'commercial_event') {
     return request.consent.analytics ? ['analytics'] : []
   }
-  const actions = ['crm_sync']
+  const actions = ['apollo_sync']
+  if (request.submissionType === 'pilot_request') actions.push('account_invitation')
   if (request.consent.analytics) actions.push('analytics')
   if (!['assessment', 'pilot_request'].includes(request.submissionType)) {
     actions.push('confirmation_email')

@@ -1,6 +1,8 @@
 import type {Metadata} from 'next'
+import {cookies} from 'next/headers'
+import {redirect} from 'next/navigation'
 import {PilotApprovalRoom} from '@/components/leads/PilotApprovalRoom'
-import {resolveRoomAccess} from '@/lib/leads/room-access'
+import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
 import {getPilotById} from '@/lib/leads/store'
 
 export const metadata: Metadata = {
@@ -15,11 +17,14 @@ export default async function PilotRoomPage({
   searchParams,
 }: {
   params: Promise<{id: string}>
-  searchParams: Promise<{t?: string; session_id?: string}>
+  searchParams: Promise<{session_id?: string}>
 }) {
   const [{id}, query] = await Promise.all([params, searchParams])
   const pilot = await getPilotById(id)
-  const access = await resolveRoomAccess(pilot, query.t)
+  const session = (await cookies()).get(APP_SESSION_COOKIE)?.value
+  const user = await currentApplicationUser(session)
+  if (!user) redirect(`/auth/sign-in?next=${encodeURIComponent(`/paid-pilot/room/${id}`)}`)
+  const accessRole = pilot ? await pilotMembershipRole(pilot.id, user.id) : null
 
   return (
     <main className="relative z-(--z-main) min-h-screen bg-white lowercase text-[#07112C]">
@@ -32,7 +37,7 @@ export default async function PilotRoomPage({
               reply to the email that brought you here.
             </p>
           </div>
-        ) : !access ? (
+        ) : !accessRole ? (
           <div className="max-w-[34em] mx-auto">
             <h1 className="t-h1-sans">this content could not be found.</h1>
             <p className="mt-16 t-p-sans">
@@ -41,15 +46,15 @@ export default async function PilotRoomPage({
             </p>
           </div>
         ) : (
-          <PilotApprovalRoom
+            <PilotApprovalRoom
             pilot={pilot}
-            token={access.token}
-            accessToken={access.accessToken}
+            accessRole={accessRole}
+            userEmail={user.email}
             sessionId={query.session_id}
-            revisePath={`/paid-pilot/room/${id}/revise?t=${encodeURIComponent(access.accessToken)}`}
+            revisePath={`/paid-pilot/room/${id}/revise`}
             founderAccess={
               Boolean(process.env.LEADS_NOTIFICATION_EMAIL) &&
-              access.token.email.toLowerCase() ===
+              user.email.toLowerCase() ===
                 String(process.env.LEADS_NOTIFICATION_EMAIL).trim().toLowerCase()
             }
             qualificationCalendarUrl={process.env.PILOT_CALENDAR_URL}

@@ -13,7 +13,6 @@ import {
   reviewerTokenRole,
   STANDARD_SUCCESS_KEYS,
 } from './pilot'
-import {roomToken, verifyRoomToken} from './pilot-tokens'
 
 const eligible = {
   pilotWorkflow: 'campaign variant production',
@@ -276,21 +275,6 @@ test('reviewer token roles map by responsibility', () => {
   assert.equal(reviewerTokenRole('production_owner'), 'participant')
   assert.equal(reviewerTokenRole('technical_evaluator'), 'participant')
   assert.equal(reviewerTokenRole('signer'), 'signer')
-})
-
-test('room tokens round-trip and reject tampering', () => {
-  const token = roomToken('pilot-1', 'approver', 'Ava@Studio.Example')
-
-  const verified = verifyRoomToken(token)
-  assert.deepEqual(verified, {
-    pilotId: 'pilot-1',
-    role: 'approver',
-    email: 'ava@studio.example',
-  })
-
-  const tampered = token.slice(0, -1) + (token.endsWith('a') ? 'b' : 'a')
-  assert.equal(verifyRoomToken(tampered), null)
-  assert.equal(verifyRoomToken('not-a-token'), null)
 })
 
 test('security decisions mark SSO as an exception when required', () => {
