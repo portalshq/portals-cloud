@@ -2,9 +2,12 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   ApolloRequestError,
+  apolloCustomFieldId,
+  apolloSourceUrl,
   finalOperationalList,
   isDeletedApolloContactError,
   nextAutomatedLifecycle,
+  prospectAccount,
   qualificationState,
 } from './crm'
 
@@ -53,6 +56,30 @@ test('pilot requests are treated as qualified sales motions', () => {
     qualificationState({request: {submissionType: 'pilot_request'}, tier: 'low'} as any),
     'qualified',
   )
+})
+
+test('Apollo typed custom fields use the raw ID from a namespaced Fields response', () => {
+  assert.equal(apolloCustomFieldId('contact.6a7f290879cc0a0014c48989'), '6a7f290879cc0a0014c48989')
+  assert.equal(apolloCustomFieldId('account.6a7f290d749b88001036a9d4'), '6a7f290d749b88001036a9d4')
+  assert.equal(apolloCustomFieldId('6a7f290879cc0a0014c48989'), '6a7f290879cc0a0014c48989')
+})
+
+test('Apollo source fields receive canonical production URLs', () => {
+  const previous = process.env.NEXT_PUBLIC_SITE_URL
+  process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.works'
+  assert.equal(apolloSourceUrl('/assessment?from=guide#scope'), 'https://portals.works/assessment?from=guide#scope')
+  assert.equal(apolloSourceUrl('https://example.com/referrer'), 'https://example.com/referrer')
+  process.env.NEXT_PUBLIC_SITE_URL = previous
+})
+
+test('prospect accounts require a company and non-public company domain', () => {
+  const submission = {
+    identity: {company: 'Example Studio'},
+    profile: {companyDomain: 'example.studio'},
+  } as any
+  assert.deepEqual(prospectAccount(submission), {name: 'Example Studio', domain: 'example.studio'})
+  assert.equal(prospectAccount({...submission, profile: {companyDomain: 'gmail.com'}}), null)
+  assert.equal(prospectAccount({...submission, identity: {company: ''}}), null)
 })
 
 test('Apollo deleted-contact errors are recognized as stale mappings', () => {

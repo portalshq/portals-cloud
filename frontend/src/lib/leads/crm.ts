@@ -1,6 +1,6 @@
 import {assessmentScore} from './scoring'
 import {companyScoreContext, getPilotBySubmissionId, leadPool, leadsDryRun, type StoredSubmission} from './store'
-import {normalizeEmail} from './identity'
+import {isPublicEmailDomain, normalizeEmail} from './identity'
 import schemaSource from '../../../config/apollo-lead-operations.json'
 
 type ListKey =
@@ -230,9 +230,25 @@ function fieldValues(schema: ApolloSchema, modality: FieldTarget, values: Record
       const fieldId = fields[slug]
       if (!fieldId) return []
       const mapped = Array.isArray(value) ? value.join(', ') : value
-      return [[fieldId, mapped]]
+      return [[apolloCustomFieldId(fieldId), mapped]]
     }),
   )
+}
+
+/** The Fields endpoint namespaces IDs; typed_custom_fields accepts the raw ID. */
+export function apolloCustomFieldId(fieldId: string): string {
+  return fieldId.replace(/^(?:contact|account|opportunity)\./, '')
+}
+
+/** Converts app-relative attribution into a durable production URL for Apollo. */
+export function apolloSourceUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
+  try {
+    return new URL(value, origin).toString()
+  } catch {
+    return value
+  }
 }
 
 async function remoteRecord(sourceType: SourceType, sourceId: string, remoteType: RemoteType): Promise<{id: string; url?: string} | null> {
@@ -390,7 +406,7 @@ function contactFields(submission: StoredSubmission): Record<string, unknown> {
   return compact({
     lead_intent: attribution.intent || submission.request.submissionType,
     cta_label: attribution.ctaLabel,
-    source_page: attribution.sourcePage,
+    source_page: apolloSourceUrl(attribution.sourcePage),
     referrer: attribution.referrer,
     use_case_interest: attribution.useCase ? [attribution.useCase] : undefined,
     last_submission_id: submission.id,
@@ -465,13 +481,36 @@ function contactFields(submission: StoredSubmission): Record<string, unknown> {
     utm_content: attribution.utmContent,
     utm_term: attribution.utmTerm,
     operating_system: attribution.os,
-    first_touch_page: submission.profile.firstTouch.sourcePage,
-    last_touch_page: submission.profile.lastTouch.sourcePage,
+    first_touch_page: apolloSourceUrl(submission.profile.firstTouch.sourcePage),
+    last_touch_page: apolloSourceUrl(submission.profile.lastTouch.sourcePage),
     last_cta_clicked: attribution.ctaLabel,
     recommended_next_action: submission.response.nextAction,
     marketing_consent: submission.profile.marketingConsent && !submission.profile.marketingSuppressed,
     analytics_consent: submission.profile.analyticsConsent,
   })
+}
+
+export function prospectAccount(submission: StoredSubmission): {name: string; domain: string} | null {
+  const name = submission.identity.company?.trim()
+  const domain = submission.profile.companyDomain
+  if (!name || !domain || isPublicEmailDomain(domain)) return null
+  return {name, domain}
+}
+
+async function accountValues(schema: ApolloSchema, submission: StoredSubmission): Promise<Record<string, unknown>> {
+  const scores = await companyScoreContext(submission.profile.companyDomain)
+  return {
+    fit_score: scores.fit,
+    pain_score: scores.pain,
+    intent_score: scores.intent,
+    qualification_state: qualificationState(submission),
+    qualification_tier: submission.tier,
+    qualifying_submission_id: submission.tier === 'high' ? submission.id : undefined,
+    first_touch_page: apolloSourceUrl(submission.profile.firstTouch.sourcePage),
+    last_touch_page: apolloSourceUrl(submission.profile.lastTouch.sourcePage),
+    recommended_next_action: submission.response.nextAction,
+    account_stage_id: accountStageId(schema, submission),
+  }
 }
 
 export function desiredOperationalList(submission: StoredSubmission): ListKey | null {
@@ -571,9 +610,6 @@ export async function syncSubmissionToApollo(submission: StoredSubmission): Prom
   if (leadsDryRun()) return
   const schema = await discoverApolloSchema()
   const pilot = await getPilotBySubmissionId(submission.id)
-  if (pilot && !pilot.customerAccountId) {
-    throw new Error(`Pilot ${pilot.id} has no application customer account; create the application account before CRM sync.`)
-  }
   let contactId = await upsertContact(schema, submission)
   const lists = listConfig()
   const contactLists = [lists.inboundLeads]
@@ -582,28 +618,26 @@ export async function syncSubmissionToApollo(submission: StoredSubmission): Prom
   await addToLists('contacts', contactId, contactLists)
 
   let accountId: string | undefined
+  const prospect = prospectAccount(submission)
+  if (prospect) {
+    accountId = await upsertAccount(schema, {
+      sourceType: 'lead_profile',
+      sourceId: submission.profile.id,
+      ...prospect,
+      values: await accountValues(schema, submission),
+    })
+    contactId = await upsertContact(schema, submission, accountId)
+    await reconcileOperationalList(accountId, desiredOperationalList(submission))
+  }
+
   if (pilot?.customerAccountId) {
-    const domain = submission.profile.companyDomain
-    if (!domain) throw new Error('A normalized company domain is required to create an Apollo account.')
+    if (!prospect) throw new Error('A non-free company domain and company name are required to sync a pilot account.')
     await copyProfileAccountToCustomer(submission.profile.id, pilot.customerAccountId)
-    const scores = await companyScoreContext(domain)
     accountId = await upsertAccount(schema, {
       sourceType: 'customer_account',
       sourceId: pilot.customerAccountId,
-      name: submission.identity.company || domain,
-      domain,
-      values: {
-        fit_score: scores.fit,
-        pain_score: scores.pain,
-        intent_score: scores.intent,
-        qualification_state: qualificationState(submission),
-        qualification_tier: submission.tier,
-        qualifying_submission_id: submission.tier === 'high' ? submission.id : undefined,
-        first_touch_page: submission.profile.firstTouch.sourcePage,
-        last_touch_page: submission.profile.lastTouch.sourcePage,
-        recommended_next_action: submission.response.nextAction,
-        account_stage_id: accountStageId(schema, submission),
-      },
+      ...prospect,
+      values: await accountValues(schema, submission),
     })
     contactId = await upsertContact(schema, submission, accountId)
     await reconcileOperationalList(accountId, desiredOperationalList(submission))
