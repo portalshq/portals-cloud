@@ -1,0 +1,8 @@
+.git
+**/target
+**/node_modules
+**/.env*
+infra/lore/certs
+infra/lore/lore/lore-server/src/protocol/test_data/*key.pem
+**/*.key
+**/*.pkey
