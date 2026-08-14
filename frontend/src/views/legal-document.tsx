@@ -150,7 +150,7 @@ export function LegalDocumentView({document}: {document: LegalDocument}) {
                 contact us for privacy, legal, or document questions.
               </p>
               <div className="mt-32">
-                <CTAButton href="/contact?intent=legal-review" analyticsLabel="Contact Portals" analyticsIntent="legal_review">
+                <CTAButton href="/contact?intent=legal-review" analyticsLabel="Contact portals" analyticsIntent="legal_review">
                   <span>Contact us</span>
                   <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
                 </CTAButton>

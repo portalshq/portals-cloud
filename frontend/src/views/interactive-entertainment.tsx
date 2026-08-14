@@ -32,12 +32,12 @@ export default function InteractiveEntertainment() {
               <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
               <span className="font-mono text-xs uppercase text-secondary">Platform Status: Online</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tighter uppercase leading-[0.9]">
-              Build Interactive <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Entertainment</span>
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tighter leading-[0.9]">
+              build interactive <br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">entertainment</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-xl">
-              Portals Cloud is the developer-infrastructure platform for building massive, real-time interactive channels. No servers to manage. Total control.
+              portals Cloud is the developer-infrastructure platform for building massive, real-time interactive channels. No servers to manage. Total control.
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
               <button className="bg-foreground text-background font-mono text-sm uppercase px-6 py-3 hover:bg-foreground/90 transition-colors border-l border-b border-transparent hover:-translate-y-[2px] active:translate-y-0 active:border-b-0 shadow-[2px_2px_0_hsl(var(--primary))] hover:shadow-[4px_4px_0_hsl(var(--primary))] active:shadow-[0px_0px_0_hsl(var(--primary))]">
@@ -158,7 +158,7 @@ export default function InteractiveEntertainment() {
                 </div>
                 
                 <div className="border border-primary/50 p-4 mb-4 relative bg-primary/5">
-                  <div className="absolute -top-3 left-4 bg-background px-2 text-primary uppercase">Portals Edge</div>
+                  <div className="absolute -top-3 left-4 bg-background px-2 text-primary uppercase">portals Edge</div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-background h-16 flex flex-col items-center justify-center border border-primary/30">
                       <span>Gateway</span>

@@ -50,11 +50,11 @@ export function VCS() {
           <div className="flex flex-col justify-center">
 
             <div className="text-lg lowercase tracking-widest text-portals-secondary mb-8">
-              THE PRODUCTION REPOSITORY FOR AI-NATIVE CREATIVE ORGANIZATIONS
+              the production repository for ai-native creative organizations
             </div>
 
             <h1 className="text-5xl lg:text-7xl tracking-[-0.04em] leading-[1.05] mb-8">
-              Stop losing how your best work was made.
+              stop losing how your best work was made.
             </h1>
 
             <p className="text-lg text-portals-on-surface-variant max-w-xl mb-12">
@@ -137,7 +137,7 @@ export function VCS() {
               <br/><br/>
               A week later, the context behind the asset is scattered across prompts, tools, conversations, and folders. Your team can't determine which variation shipped, why it was selected, or how to produce it again.
               <br/><br/>
-              Portals Cloud gives every asset a permanent history — so your organization can preserve ownership, context, and control as AI production scales.
+              portals Cloud gives every asset a permanent history — so your organization can preserve ownership, context, and control as AI production scales.
             </p>
 
           </div>
@@ -279,7 +279,7 @@ export function VCS() {
                   </p>
         
                   <Button>
-                    Start building with Portals Cloud
+                    Start building with portals Cloud
                     <ArrowRight className="ml-2 w-4 h-4"/>
                   </Button>
         

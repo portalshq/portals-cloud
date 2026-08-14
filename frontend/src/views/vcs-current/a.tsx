@@ -8,7 +8,7 @@ import {
 } from '@/lib/package-specifications';
 import { formatNumber, scopeAPilotMailto } from '@/lib/utils';
 import type {PackageSpecification} from '@/types/resource';
-import { type CSSProperties, type RefObject, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 
 type OverviewItem = {
   heading: string;
@@ -34,20 +34,20 @@ const overviewItems: OverviewItem[] = [
     heading: 'Repository',
     iconPath: iconPaths[0],
     textA: ['A canonical home for every production asset.'],
-    textB: ['Every image, video, character, model, prompt, and dataset your team creates lives inside one governed repository, not scattered across tool histories, project folders, chat threads, and personal desktops.'],
-    textC: ['Portals does not replace the tools your team uses to generate work. It becomes the place that work lives once it matters.'],
+    textB: ['Every image, video, character, model, prompt, and dataset your team creates lives inside one governed repository, not scattered across tools and desktops.'],
+    textC: ['portals doesn\'t replace the tools your team uses — it becomes the place that work lives.'],
   },
   {
     heading: 'Identity',
     iconPath: iconPaths[1],
     textA: [
-      'A character is not a folder of PNGs. A campaign is not a stack of final files.',
       'Every asset gets a permanent, stable address.',
+      'A character is not just a folder of PNGs. A campaign is not just a stack of final files.',
     ],
     list: [
-      'Stable identity independent of filename, location, or export format',
-      'Characters, props, styles, and locations become addressable entities',
-      'Search, automation, and integrations can reference assets with certainty',
+      'stable identity independent of filename, location, or export format',
+      'characters, props, styles, and locations become addressable entities',
+      'search, automation, and integrations can reference assets with certainty',
     ],
     textC: ['Without identity, the approved version is a claim. With identity, it is a verifiable fact.'],
   },
@@ -55,26 +55,25 @@ const overviewItems: OverviewItem[] = [
     heading: 'History',
     iconPath: iconPaths[2],
     textA: [
-      'Every edit, regeneration, and approval becomes a new version, not a replacement.',
+      'Every edit and approval is a new version.',
     ],
-    textB: ['History that preserves the full lineage of an asset from first generation to shipped output, so any prior state can be recalled, compared, restored, or branched from in seconds.'],
-    textC: ['Portals takes you from guesswork to institutional memory.'],
+    textB: ['Preserve the history of an asset from first generation to shipped output, so any prior state can be restored, compared, or branched from in seconds.'],
+    textC: ['Move from guesswork to institutional memory.'],
   },
   {
     heading: 'Provenance',
     iconPath: iconPaths[3],
     textA: [
-      // 'The asset and the reasoning behind it.',
-      'Existing tools answer where the file is. Portals answers what it is, where it came from, and how your team can make it again.',
+      'Existing tools answer where the file is. portals answers what it is, where it came from, and how to create it again.',
     ],
-    textB: ['Prompts, model version, reference images, parameters, edits, and approvals along the way. Portals captures the production chain automatically, attached to the asset itself.'],
-    textC: ['Your best results become reproducible, explainable, and reusable.'],
+    textB: ['Capture the production chain, automatically attached to the asset itself.'],
+    textC: ['Your team\'s work becomes reproducible, explainable, and reusable.'],
   },
   {
     heading: 'Collaboration',
     iconPath: iconPaths[0],
-    textA: ['One shared source of truth, not eleven personal copies.'],
-    textB: ['Because every asset lives in one governed repository with history and identity, teams collaborate on shared assets, not on offline folders and hopeful naming conventions.'],
+    textA: ['One shared source of truth.'],
+    textB: ['Teams collaborate on shared assets with history and identity in one governed repository, not in offline folders.'],
     textC: ['Everyone sees the same version, the same history, and the same provenance.'],
   },
 ];
@@ -105,12 +104,12 @@ const problemCards = [
 
 const comparisonRows = [
   {
-    metric: 'Finding the approved version',
+    metric: 'Find the approved version',
     without: 'Guessed from filenames and Slack history',
-    withPortals: 'Known, with certainty, in seconds',
+    withPortals: 'with certainty, in seconds',
   },
   {
-    metric: 'Recreating a shipped asset',
+    metric: 'Recreate a shipped asset',
     without: 'Rebuilt from scratch, often imperfectly',
     withPortals: 'Reproduced exactly from its full recipe',
   },
@@ -125,12 +124,12 @@ const comparisonRows = [
     withPortals: 'Stays in the repository, permanently',
   },
   {
-    metric: 'Reviewing what changed',
+    metric: 'Review what changed',
     without: 'Screenshots and memory',
     withPortals: 'Full diff across every version',
   },
   {
-    metric: 'Team confidence in final',
+    metric: 'confidence in final',
     without: 'Constant double-checking',
     withPortals: 'Trusted by default',
   },
@@ -138,20 +137,20 @@ const comparisonRows = [
 
 const capabilities = [
   {
-    title: 'Every asset type, one system',
-    text: 'Images, video, characters, 3D assets, models, prompts, and datasets are first-class citizens, not edge cases bolted onto a document store.',
+    title: 'Support for all assets',
+    text: 'Images, video, characters, 3D assets, models, prompts, and datasets are first-class citizens.',
   },
   {
-    title: 'Model-agnostic by design',
-    text: 'Generate with OpenAI, Runway, Midjourney, Adobe, or your own fine-tuned models. Portals sits underneath the generation layer and preserves what it creates.',
+    title: 'Model-agnostic',
+    text: 'Generate with OpenAI, Runway, Midjourney, or ComfyUI and preserve the generated assets and context.',
   },
   {
     title: 'API-first',
-    text: 'Every capability, from registry and versioning to provenance and relationships, is available through the API for internal tools and production pipelines.',
+    text: 'Every capability from registry to versioning is available through the API.',
   },
   {
-    title: 'Automatic, not manual',
-    text: 'Provenance capture, version creation, and identity assignment happen at generation time, not through after-the-fact tagging discipline.',
+    title: 'Automatic',
+    text: 'Context capture, version creation, and identity assignment happen at generation time, automatically.',
   },
 ];
 
@@ -215,7 +214,7 @@ const blurEnterDurationMs = 1300;
 const blurExitDurationMs = 200;
 const blurEnterEasing = 'cubic-bezier(0.16, 1, 0.3, 1)';
 const blurExitEasing = 'cubic-bezier(0.55, 0.06, 0.68, 0.19)';
-const overviewBlurStaggerMs = 330;
+const overviewBlurStaggerMs = 165;
 const overviewLayerCount = 4;
 const overviewExitTotalMs = blurExitDurationMs + overviewBlurStaggerMs * (overviewLayerCount - 1);
 const overviewEnterTotalMs = blurEnterDurationMs + overviewBlurStaggerMs * (overviewLayerCount - 1);
@@ -600,7 +599,7 @@ function SectionKicker({ children }: { children: string }) {
   return <p className="t-m2 text-white">{children}</p>;
 }
 
-function ProblemSection({ headingRef }: { headingRef?: RefObject<HTMLHeadingElement | null> }) {
+function ProblemSection() {
   return (
     <section className="saga-problem-section" data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] pb-fluid-[76,106] md:py-fluid-[76,106] md:mt-140 md:mb-80 text-white lg:min-h-screen lg:content-center">
@@ -608,14 +607,13 @@ function ProblemSection({ headingRef }: { headingRef?: RefObject<HTMLHeadingElem
           <SectionKicker>the problem</SectionKicker>
         </div> */}
         <div className="col-span-full space-y-34 lg:col-span-16">
-          <h2 ref={headingRef} className="t-d2-sans max-w-[13.8em]">
-            when a client asks for five more like this, can your team reproduce the approved asset?
+          <h2 className="t-d2-sans max-w-[13.8em]">
+            When a client asks for more assets, does your team reproduce from history, or start from scratch?
           </h2>
-          <p className="t-p-lg-serif max-w-[38em] text-white">
-            AI production teams generate thousands of images and videos, and iterations daily. The client approves it.
-            The final asset ships. Everyone moves on, but your team pays a hidden AI production tax on each project:
+          <p className="t-p-lg-serif max-w-[38em] leading-[1.25] text-white">
+            Your creative teams generate thousands of images, videos, and iterations daily. 
+            When a project ships, everyone moves on, but your department pays a hidden AI production tax on each project:
           </p>
-          <p className="t-h3-sans max-w-[38em] text-white">prompts, references, settings, and production decisions are left scattered, incomplete, or lost.</p>
         </div>
         <div className="col-span-full grid grid-cols-1 lg:grid-cols-3">
           {problemCards.map((card, index) => (
@@ -626,12 +624,11 @@ function ProblemSection({ headingRef }: { headingRef?: RefObject<HTMLHeadingElem
                   <span className="t-m2">{card.label}</span>
                 </div>
                 <h3 className="t-h3-sans mb-[0.4em]">{card.title}</h3>
-                <p className="t-p-sans text-white">{card.text}</p>
-              </article>
-              <blockquote className={`mt-12 col-span-full border-l-2 pl-18 t-p-sans italic text-white ${index === problemCards.length - 1 ? 'border-r-2' : ''}`}>
+              <blockquote className={`mt-12 col-span-full border-l-2 pl-18 t-p-sans leading-[1.25] italic text-white ${index === problemCards.length - 1 ? 'border-r-2' : ''}`}>
                 {card.quote}
                 <cite>{' '}{card.cite}</cite>
               </blockquote>
+              </article>
             </div>
           ))}
         </div>
@@ -645,16 +642,16 @@ function SolutionSection() {
     <section data-header-theme="light">
       <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white min-h-screen">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
-          <h2 className="t-d2-sans mx-auto max-w-[65vw] md:max-w-[13em] lowercase">
+          <h2 className="t-d2-sans mx-auto max-w-[83vw] md:max-w-[13em]">
             The production repository for AI{`\u2011`}native creative organizations
           </h2>
 
-          <p className="t-p-lg-serif max-w-[29em] mx-auto text-white">
-            preserve every version and creative decision behind your production, so your teams can build on previous work, deliver faster, and scale production without losing quality.
-            {/* Portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it. */}
+          <p className="t-p-lg-sans max-w-[30em] mx-auto leading-[1.25] text-white">
+            Preserve every version and creative decision behind your production, so your teams can build on previous work, deliver faster, and scale production without losing quality.
+            {/* portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it. */}
           </p>
-          <p className="t-p-lg-sans max-w-[30em] mx-auto text-white">
-            built for AI creative agencies, studios, game teams, and brand teams producing high-volume AI media.
+          <p className="t-p-lg-sans max-w-[30em] mx-auto leading-[1.25] text-white">
+            Built for creative studios, game teams, and ad agencies producing high-volume AI media.
           </p>
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
@@ -672,26 +669,32 @@ function ComparisonSection() {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-12">
-          <h2 className="t-d2-sans max-w-[12.58em]">What changes when your production has a memory.</h2>
-        </div>
         <div className="col-span-full">
-          <div className="hidden grid-cols-3 t-m2 text-white/80 lg:grid">
+          <h2 className="t-d2-sans max-w-[12.58em]">What changes when your production has a memory?</h2>
+        </div>
+        <div className="hidden md:block col-span-full">
+          <div className="grid-cols-3 t-m2 text-white/80 grid">
             <div className="p-16 col-span-2" />
             {/* <div className="p-16 lowercase">without portals</div> */}
             <div className="p-16 text-white lowercase">with portals</div>
           </div>
           {comparisonRows.map((row) => (
-            <div key={row.metric} className="grid grid-cols-1 border-t border-white/20 lg:grid-cols-3 lowercase">
-              <div className="p-16 t-p-sans col-span-2 text-white w-[26ch] lg:bg-transparent">{row.metric}</div>
-              {/* <div className="border-white/20 p-16 t-p-sans text-white/80 lg:border-t-0 lg:border-l">
+            <div key={row.metric} className="grid grid-cols-1 border-t border-white/50 grid-cols-3 lowercase">
+              <div className="p-16 t-p-sans col-span-2 text-white w-[26ch] bg-transparent">{row.metric}</div>
+              {/* <div className="border-white/50 p-16 t-p-sans text-white/80 border-t-0 border-l">
                 <span className="mb-8 block t-m2 lg:hidden !lowercase">without portals</span>
                 {row.without}
               </div> */}
-              <div className="border-white/20 p-16 col-span-1 t-p-sans text-white lg:border-t-0 lg:border-l">
-                <span className="mb-8 block t-m2 text-white/80 lg:hidden !lowercase">with portals</span>
+              <div className="border-white/50 p-16 col-span-1 t-p-sans text-white border-t-0 border-l">
                 {row.withPortals}
               </div>
+            </div>
+          ))}
+        </div>
+        <div className="md:hidden col-span-full">
+          {comparisonRows.map((row) => (
+            <div key={row.metric} className="grid grid-cols-1 border-t border-white/50 lowercase">
+              <div className="inline-flex p-16 t-p-sans col-span-full text-white">{row.metric} {row.withPortals}</div>
             </div>
           ))}
         </div>
@@ -704,8 +707,8 @@ function CapabilitiesSection() {
   return (
     <section data-header-theme="light" id="docs">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-9">
-          <h2 className="t-d2-sans">Built for AI production workflows.</h2>
+        <div className="col-span-full">
+          <h2 className="t-d2-sans">Built for AI production workflows</h2>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-2">
           {capabilities.map((capability) => (
@@ -714,19 +717,19 @@ function CapabilitiesSection() {
               <p className="t-p-sans text-white">{capability.text}</p>
             </article>
           ))}
-          <div className="p-24 col-span-full flex md:justify-center">
-            <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
-              Assess your workflow
-            </CTAButton>
-          </div>
         </div>
         
         {/* <div className="col-span-full grid gap-y-30 border border-white/20 bg-white/10 p-24 lg:grid-cols-[var(--width)_1fr_1fr]">
           <h3 className="t-h3-sans lg:col-span-1">An open core, honestly</h3>
           <p className="t-p-lg-serif text-white lg:col-span-2">
-            Portals is hosted on an open-source version control foundation. We did not reinvent that layer. We built the layer above it: entity-aware versioning, automatic provenance, and the identity graph that connects every asset your organization creates.
+          portals is hosted on an open-source version control foundation. We did not reinvent that layer. We built the layer above it: entity-aware versioning, automatic provenance, and the identity graph that connects every asset your organization creates.
           </p>
-        </div> */}
+          </div> */}
+        <div className='col-span-full'>
+          <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+            Assess your workflow
+          </CTAButton>
+        </div>
       </div>
     </section>
   );
@@ -737,7 +740,7 @@ function WorkflowSection() {
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full space-y-24 lg:col-span-9">
-          <h2 className="t-d2-sans">One system behind every AI tool.</h2>
+          <h2 className="t-d2-sans">One system behind every AI tool</h2>
           <p className="t-p-lg-serif">
             Continue using the tools your team already depends on. 
           </p>
@@ -760,7 +763,7 @@ function AudienceSection() {
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-14">
-          <h2 className="t-d2-sans max-w-[13.8em]">For organizations producing high-volume media with AI.</h2>
+          <h2 className="t-d2-sans max-w-[13.8em]">For organizations producing high-volume media with AI</h2>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-2">
           {audiences.map((audience) => (
@@ -771,7 +774,7 @@ function AudienceSection() {
           ))}
         </div>
         {/* <p className="col-span-full t-p-sans text-white lg:col-span-12 lg:col-start-7">
-          Common thread: these teams already generate high volumes of AI content, already collaborate across multiple people, and already carry a software budget for the tools that touch production. Portals becomes the layer none of those tools replace.
+          Common thread: these teams already generate high volumes of AI content, already collaborate across multiple people, and already carry a software budget for the tools that touch production. portals becomes the layer none of those tools replace.
         </p> */}
       </div>
     </section>
@@ -804,7 +807,7 @@ function PricingSection({
           <SectionKicker>pricing</SectionKicker>
         </div> */}
         <div className="col-span-full lg:mx-auto">
-          <h2 className="t-d2-sans max-w-[12.58em] lg:text-center">A clear path from adoption to enterprise scale.</h2>
+          <h2 className="t-d2-sans max-w-[12.58em] lg:text-center">A clear path from adoption to enterprise scale</h2>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] lg:mx-auto rounded">
           {pilotTier ? [pilotTier].map((tier) => (
@@ -861,71 +864,32 @@ export function VCS({
 }: {
   packageSpecifications: PackageSpecification[];
 }) {
-  const preserveHeadingRef = useRef<HTMLHeadingElement>(null);
+  const heroHeadingRef = useRef<HTMLHeadingElement>(null);
   const headerBrandRef = useRef<HTMLAnchorElement>(null);
-  const repositoryAnchorRef = useRef<HTMLDivElement>(null);
-  const repositoryCopyRef = useRef<HTMLDivElement>(null);
-  const problemHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     const mobileQuery = window.matchMedia('(max-width: 47.99rem)');
-    let raf = 0;
+    let frame = 0;
 
     const update = () => {
-      raf = 0;
+      frame = 0;
       const brand = headerBrandRef.current;
-      const preserveHeading = preserveHeadingRef.current;
-      const repositoryAnchor = repositoryAnchorRef.current;
-      const repositoryCopy = repositoryCopyRef.current;
-      const problemHeading = problemHeadingRef.current;
+      const heading = heroHeadingRef.current;
 
       if (!mobileQuery.matches) {
         if (brand) brand.style.transform = '';
-        if (repositoryAnchor) repositoryAnchor.style.height = '';
-        if (repositoryCopy) {
-          repositoryCopy.dataset.mobileScrollPhase = 'normal';
-          repositoryCopy.style.removeProperty('--saga-repository-release-offset');
-          repositoryCopy.style.removeProperty('--saga-repository-fixed-left');
-          repositoryCopy.style.removeProperty('--saga-repository-fixed-width');
-        }
         return;
       }
 
-      if (brand && preserveHeading) {
+      if (brand && heading) {
         const brandRestingBottom = 24 + brand.offsetHeight;
-        const brandPush = Math.min(0, preserveHeading.getBoundingClientRect().top - brandRestingBottom);
+        const brandPush = Math.min(0, heading.getBoundingClientRect().top - brandRestingBottom);
         brand.style.transform = `translate3d(0, ${brandPush}px, 0)`;
-      }
-
-      if (repositoryAnchor && repositoryCopy && problemHeading) {
-        const repositoryHeight = repositoryCopy.offsetHeight;
-        repositoryAnchor.style.height = `${repositoryHeight}px`;
-        const repositoryBounds = repositoryAnchor.getBoundingClientRect();
-        repositoryCopy.style.setProperty('--saga-repository-fixed-left', `${repositoryBounds.left}px`);
-        repositoryCopy.style.setProperty('--saga-repository-fixed-width', `${repositoryBounds.width}px`);
-
-        const repositoryCenterTop = (window.innerHeight - repositoryHeight) / 2;
-        const repositoryCenterBottom = repositoryCenterTop + repositoryHeight;
-        const anchorTop = repositoryAnchor.getBoundingClientRect().top;
-        const problemTop = problemHeading.getBoundingClientRect().top;
-        const repositoryProblemGap = 16;
-
-        if (anchorTop > repositoryCenterTop) {
-          repositoryCopy.dataset.mobileScrollPhase = 'normal';
-          repositoryCopy.style.removeProperty('--saga-repository-release-offset');
-        } else if (problemTop > repositoryCenterBottom + repositoryProblemGap) {
-          repositoryCopy.dataset.mobileScrollPhase = 'pinned';
-          repositoryCopy.style.removeProperty('--saga-repository-release-offset');
-        } else {
-          repositoryCopy.dataset.mobileScrollPhase = 'released';
-          repositoryCopy.style.setProperty('--saga-repository-release-offset', `${problemTop - repositoryProblemGap - repositoryCenterBottom}px`);
-
-        }
       }
     };
 
     const requestUpdate = () => {
-      if (!raf) raf = window.requestAnimationFrame(update);
+      if (!frame) frame = window.requestAnimationFrame(update);
     };
 
     update();
@@ -934,7 +898,7 @@ export function VCS({
     mobileQuery.addEventListener('change', requestUpdate);
 
     return () => {
-      if (raf) window.cancelAnimationFrame(raf);
+      if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener('scroll', requestUpdate);
       window.removeEventListener('resize', requestUpdate);
       mobileQuery.removeEventListener('change', requestUpdate);
@@ -963,13 +927,11 @@ export function VCS({
       <section className="saga-front-hero" data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
         <div className="relative ui-grid min-h-screen gap-y-[max(var(--spacing-sgs),12.5svh)] pt-[max(var(--spacing-Header-h),29.5svh)] pb-sms text-white">
           <div className="col-span-full space-y-20">
-            <h1 ref={preserveHeadingRef} className="max-w-[8.725em] t-d1-sans">
-              preserve the
-              <br/>
-              history of your
-              <br/>
-              <strong className="t-d1-serif">best creative work</strong>
+            <h1 ref={heroHeadingRef} className="max-w-[8.725em] t-d2-sans">
+              build from your best{' '}
+              <strong className="t-d2-serif">creative work</strong>.
             </h1>
+            <p className="t-h3-sans max-w-[24ch]">reduce costs, extend successful work, and scale production across teams and tools.</p>
             <div className="saga-hero-assess flex flex-col gap-12 pt-12 sm:flex-row">
               <CTAButton
                 href="/assessment"
@@ -983,11 +945,12 @@ export function VCS({
               </CTAButton>
             </div>
           </div>
-          <div className="saga-hero-repository col-span-full grid grid-cols-subgrid">
+          <div className="saga-hero-repository saga-hero-repository--desktop col-span-full grid grid-cols-subgrid">
             <div className="md:col-span-8 md:col-start-5 flex justify-center md:justify-end items-end col-span-full">
-              <div ref={repositoryAnchorRef} className="saga-hero-repository-anchor w-full md:w-auto md:max-w-[10.85em]">
-                <div ref={repositoryCopyRef} className="saga-hero-repository-copy t-p-sans lowercase!" data-mobile-scroll-phase="normal">
-                  <p>THE PRODUCTION REPOSITORY FOR AI{`\u2011`}NATIVE CREATIVE ORGANIZATIONS</p>
+              <div className="saga-hero-repository-anchor">
+                <div className="saga-hero-repository-copy t-p-sans lowercase!">
+                  <p>THE REPOSITORY FOR
+                    <br/>AI{`\u2011`}NATIVE PRODUCTION</p>
                 </div>
               </div>
             </div>
@@ -995,7 +958,14 @@ export function VCS({
         </div>
       </section>
 
-      <ProblemSection headingRef={problemHeadingRef} />
+      <div className="saga-mobile-repository-transition">
+        <p className="saga-mobile-repository-copy t-p-sans lowercase!">
+          THE REPOSITORY
+          FOR AI{`\u2011`}NATIVE PRODUCTION
+        </p>
+      </div>
+
+      <ProblemSection />
       <SolutionSection />
       <OverviewSection />
       <ComparisonSection />
@@ -1009,9 +979,8 @@ export function VCS({
           <div className="ui-grid flex-1 gap-y-sms py-sms">
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
               <h4 className="t-global-cta_heading max-w-[13em]">Stop losing the history of your best work. <br /> Start building on it.</h4>
-              <p className="t-p-lg-serif max-w-[26em] text-white text-left">
-                Give every asset your team creates a permanent identity and a complete history.
-                Deliver faster and more consistently from first generation through shipped production.
+              <p className="t-p-lg-serif max-w-[25em] md:w-auto text-white text-left">
+                Deliver faster at lower cost with  complete asset history and identity from first generation through shipped production.
               </p>
               <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton>
               {/* <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">

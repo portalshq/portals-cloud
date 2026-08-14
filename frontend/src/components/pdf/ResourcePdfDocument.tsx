@@ -756,7 +756,7 @@ function PdfHeader({
   return (
     <View style={styles.header} fixed>
       <Text>{pdf.headerText || document.shortTitle || document.title}</Text>
-      <Text>{document.publisher || 'Portals'}</Text>
+      <Text>{document.publisher || 'portals'}</Text>
     </View>
   )
 }
@@ -771,7 +771,7 @@ function PdfFooter({
   return (
     <View style={styles.footer} fixed>
       <Text>
-        {pdf.footerText || `Published by ${document.publisher || 'Portals'}`}
+        {pdf.footerText || `Published by ${document.publisher || 'portals'}`}
       </Text>
       {pdf.showPageNumbers !== false ? (
         <Text render={({pageNumber}) => String(pageNumber)} />
@@ -819,7 +819,7 @@ export function ResourcePdfDocument({
   const authorNames =
     document.authors?.map((author) => author.name).join(', ') ||
     document.publisher ||
-    'Portals'
+    'portals'
 
   return (
     <Document

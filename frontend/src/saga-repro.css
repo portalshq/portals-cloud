@@ -73,6 +73,10 @@ body {
   display: none;
 }
 
+.saga-mobile-repository-transition {
+  display: none;
+}
+
 .saga-overview-progress-line {
   transform: translate3d(0, 0, 0) scaleX(0);
   will-change: transform;
@@ -100,25 +104,26 @@ body {
     min-height: 60px;
   }
 
-  .saga-hero-repository-copy[data-mobile-scroll-phase='pinned'],
-  .saga-hero-repository-copy[data-mobile-scroll-phase='released'] {
-    position: fixed;
+  .saga-hero-repository--desktop {
+    display: none;
+  }
+
+  .saga-mobile-repository-transition {
+    display: block;
+    height: calc(50vh + 2.8em);
+    height: calc(50svh + 2.8em);
+    margin-top: -2.8em;
+    padding-inline: var(--spacing-sms);
+  }
+
+  .saga-mobile-repository-copy {
+    position: sticky;
     top: 50vh;
     top: 50svh;
-    left: var(--saga-repository-fixed-left);
     z-index: 200;
-    width: var(--saga-repository-fixed-width);
-    transform: translate3d(0, -50%, 0);
-  }
-
-  .saga-hero-repository-copy[data-mobile-scroll-phase='released'] {
-    transform: translate3d(0, calc(-50% + var(--saga-repository-release-offset)), 0);
-  }
-
-  .saga-problem-section {
-    position: relative;
-    padding-top: 50vh;
-    padding-top: 50svh;
+    width: fit-content;
+    text-align: center;
+    transform: translateY(-50%);
   }
 }
 
@@ -142,7 +147,7 @@ body {
 
   .saga-front-hero .saga-hero-repository-anchor {
     width: auto;
-    max-width: 10.85em;
+    max-width: 16em;
   }
 }
 
@@ -169,10 +174,6 @@ body {
 
   .saga-overview-list {
     visibility: hidden;
-  }
-
-  html {
-    scroll-snap-type: y proximity;
   }
 
   .saga-overview-subsections {

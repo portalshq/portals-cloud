@@ -1,27 +1,27 @@
 'use client'
 
-import {useEffect, useMemo, useRef, useState} from 'react'
-import {ArrowDownToLine, ArrowRight} from 'lucide-react'
-import {CTAButton} from '@/components/CTAButton'
-import {LeadSelectField, LeadTextareaField} from '@/components/mui/fields'
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowDownToLine, ArrowRight } from 'lucide-react'
+import { CTAButton } from '@/components/CTAButton'
+import { LeadSelectField, LeadTextareaField } from '@/components/mui/fields'
 import {
   analyticsConsent,
   buildAttribution,
   qualificationBehavior,
   trackEvent,
 } from '@/lib/leads/analytics-client'
-import {newSubmissionId, publicEmailNeedsWebsite, submitLead} from '@/lib/leads/client'
+import { newSubmissionId, publicEmailNeedsWebsite, submitLead } from '@/lib/leads/client'
 import {
   DISCLOSURE_VERSION,
   type KnownLeadContext,
   type LeadIdentity,
   type LeadResponse,
 } from '@/lib/leads/contracts'
-import {ConditionalReveal} from './ConditionalReveal'
-import {ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback} from './LeadFields'
-import {WorkflowReviewForm} from './WorkflowReviewForm'
-import {useFormDraft} from './useFormDraft'
-import {usePreservedSwap} from './usePreservedSwap'
+import { ConditionalReveal } from './ConditionalReveal'
+import { ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback } from './LeadFields'
+import { WorkflowReviewForm } from './WorkflowReviewForm'
+import { useFormDraft } from './useFormDraft'
+import { usePreservedSwap } from './usePreservedSwap'
 
 const frequencyOptions = ['never', 'quarterly', 'monthly', 'weekly', 'daily'] as const
 
@@ -98,7 +98,7 @@ function AssessmentSelect({
   )
 }
 
-export function AssessmentForm({context}: {context: KnownLeadContext}) {
+export function AssessmentForm({ context, preface }: { context: KnownLeadContext; preface?: ReactNode }) {
   const known = useMemo(() => new Set(context.knownAnswerFields), [context.knownAnswerFields])
   const idempotencyKey = useMemo(() => newSubmissionId('assessment'), [])
   const [email, setEmail] = useState('')
@@ -113,8 +113,8 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [error, setError] = useState('')
   const started = useRef(false)
-  const {ref: swapRef, reservedHeight, reserve} = usePreservedSwap()
-  const {ref: draftRef, restored, flush, clear} = useFormDraft('workflow_assessment')
+  const { ref: swapRef, reservedHeight, reserve } = usePreservedSwap()
+  const { ref: draftRef, restored, flush, clear } = useFormDraft('workflow_assessment')
 
   useEffect(() => {
     if (restored.email) setEmail(restored.email)
@@ -123,7 +123,7 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
   }, [restored.email, restored.recreationFrequency, restored.incidentType])
 
   useEffect(() => {
-    void trackEvent('form_opened', {form_name: 'workflow_assessment'})
+    void trackEvent('form_opened', { form_name: 'workflow_assessment' })
   }, [])
 
   useEffect(() => {
@@ -137,7 +137,7 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
   function onStarted() {
     if (started.current) return
     started.current = true
-    void trackEvent('form_started', {form_name: 'workflow_assessment'})
+    void trackEvent('form_started', { form_name: 'workflow_assessment' })
   }
 
   const incidentEligible =
@@ -222,10 +222,10 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
         ref={swapRef}
         role="status"
         className="space-y-28 transition-[min-height] duration-500 ease-out motion-reduce:transition-none"
-        style={reservedHeight ? {minHeight: reservedHeight} : undefined}
+        style={reservedHeight ? { minHeight: reservedHeight } : undefined}
       >
         <div className="space-y-14">
-          <p className="mt-18 t-p-sm-sans text-white/80">we've evaluated your workflow</p>
+          <p className="t-p-sans">we've evaluated your workflow</p>
           <h2 className="t-d2-sans max-w-[12em]">
             {outcome === 'pilot_candidate'
               ? 'pilot candidate'
@@ -233,31 +233,32 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
                 ? 'complete pilot readiness'
                 : 'explore the workflow'}
           </h2>
-          <p className="max-w-[38em] t-p-lg-serif text-white">{result.message}</p>
+          <p className="max-w-[38em] t-p-sans">{result.message}</p>
         </div>
         {typeof result.workflowRiskScore === 'number' ? (
           <div className="space-y-20">
             <p className="t-p-lg-serif text-white">
-              production-memory risk: <span className="t-h1-sans">{result.workflowRiskScore}/24</span>
+              your production history risk: <span className="t-h1-sans">{result.workflowRiskScore}/24</span>
             </p>
           </div>
         ) : null}
         {reasons.length ? <div className="max-w-[680px] space-y-10">
-          <p className="t-p-sm-sans text-white/70">why this result</p>
           <ul className="space-y-8 t-p-sans text-white">
-            {reasons.map((reason) => <li key={reason}>— {reason}</li>)}
+            {reasons.map((reason) => <li key={reason} className="flex items-center gap-12">
+              <span className="size-8 shrink-0 bg-white" />
+              {reason}</li>)}
           </ul>
         </div> : null}
-        {result.missingFields?.length ? <p className="max-w-[680px] t-p-sans text-white/80">
+        {result.missingFields?.length ? <p className="max-w-[680px] t-p-sans">
           Still needed: {result.missingFields.map((field) => field.replaceAll(/([A-Z])/g, ' $1').toLowerCase()).join(', ')}.
         </p> : null}
         {result.nextAction === 'pilot_scope' ? (
-          <div className="max-w-[680px] space-y-14">
-            <p className="t-p-sans text-white/80">
+          <div className="max-w-[680px] space-y-16">
+            <p className="t-p-sans">
               Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
             </p>
-            <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', {workflow})}>
-              build my customized pilot plan
+            <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
+              Build My Customized Pilot Plan
               <ArrowRight aria-hidden="true" size={18} />
             </CTAButton>
           </div>
@@ -277,25 +278,25 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
               href={`/ai-production-workflow-risks#${workflow}`}
               analyticsLabel="Explore the Relevant Workflow"
               analyticsUseCase={workflow}
-              onClick={() => void trackEvent('education_use_case_clicked', {workflow})}
+              onClick={() => void trackEvent('education_use_case_clicked', { workflow })}
             >
               explore the relevant production use case
               <ArrowRight aria-hidden="true" size={18} />
             </CTAButton>
-            <div className="border-l border-white/30 pl-20">
-              <p className="t-p-lg-serif text-white">
+            <div className="border-l border-white/50 pl-20">
+              <p className="t-p-lg-serif">
                 Think your workflow could benefit from a production repository and memory system? You’re invited to build a customized pilot plan.
               </p>
-              <p className="mt-8 t-p-sans text-white/70">
+              <p className="mt-8 t-p-sans">
                 Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
               </p>
               <CTAButton
                 href="/paid-pilot?from=assessment-override#scope"
                 analyticsLabel="Build a Customized Pilot Plan"
-                onClick={() => void trackEvent('assessment_override_started', {workflow})}
+                onClick={() => void trackEvent('assessment_override_started', { workflow })}
                 className="mt-14"
               >
-                build a customized pilot plan
+                Build a customized pilot plan
                 <ArrowRight aria-hidden="true" size={18} />
               </CTAButton>
             </div>
@@ -304,13 +305,13 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
         {result.downloadUrl ? (
           <CTAButton href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
             <ArrowDownToLine aria-hidden="true" size={18} />
-            download my assessment
+            Download my evaluation
           </CTAButton>
         ) : null}
         {reviewOpen ? (
           <div className="mt-40 max-w-[680px]">
             <WorkflowReviewForm
-              context={{...context, known: true}}
+              context={{ ...context, known: true }}
               recommendedWorkflow={result.recommendedWorkflow}
             />
           </div>
@@ -320,122 +321,125 @@ export function AssessmentForm({context}: {context: KnownLeadContext}) {
   }
 
   return (
-    <form
-      ref={(element) => {
-        swapRef(element)
-        draftRef(element)
-      }}
-      onSubmit={onSubmit}
-      onFocus={onStarted}
-      className="space-y-20"
-    >
-      <IdentityFields
-        context={context}
-        email={email}
-        onEmailChange={(event) => setEmail(event.target.value)}
-        requireWebsite={publicEmailNeedsWebsite(email)}
-        onStarted={onStarted}
-      />
-      {!known.has('teamType') ? (
-        <AssessmentSelect
-          id="teamType"
-          name="teamType"
-          label="team type"
-          required
-          options={['agency', 'creative-studio', 'production-company', 'in-house-creative', 'brand-marketing', 'film-animation', 'game-entertainment', 'independent-creator', 'other']}
+    <>
+      {preface && preface}
+      <form
+        ref={(element) => {
+          swapRef(element)
+          draftRef(element)
+        }}
+        onSubmit={onSubmit}
+        onFocus={onStarted}
+        className="space-y-20"
+      >
+        <IdentityFields
+          context={context}
+          email={email}
+          onEmailChange={(event) => setEmail(event.target.value)}
+          requireWebsite={publicEmailNeedsWebsite(email)}
+          onStarted={onStarted}
         />
-      ) : null}
-      {!known.has('teamSize') ? (
-        <AssessmentSelect id="teamSize" name="teamSize" label="production team size" required options={['1', '2-4', '5-9', '10-24', '25-plus']} />
-      ) : null}
-      {!known.has('workflowCollaborators') ? (
-        <AssessmentSelect id="workflowCollaborators" name="workflowCollaborators" label="people involved in production" required options={['1', '2-4', '5-9', '10-plus']} />
-      ) : null}
-      {!known.has('toolsUsed') ? (
-        <AssessmentSelect id="toolsUsed" name="toolsUsed" label="ai creative tools used" required options={['1', '2', '3-4', '5-plus']} />
-      ) : null}
-      {!known.has('approvedVersionMethod') ? (
-        <AssessmentSelect id="approvedVersionMethod" name="approvedVersionMethod" label="current approved version method" required options={['canonical-system', 'documented-review', 'folder-naming', 'chat-spreadsheet', 'creator-memory', 'inconsistent']} />
-      ) : null}
-      {!known.has('productionContextMethod') ? (
-        <AssessmentSelect id="productionContextMethod" name="productionContextMethod" label="where generation context is stored" required options={['attached-record', 'project-document', 'multiple-tools', 'chat-personal-notes', 'memory-inconsistent']} />
-      ) : null}
-      {!known.has('recreationFrequency') ? (
-        <AssessmentSelect
-          id="recreationFrequency"
-          name="recreationFrequency"
-          label="frequency of rediscovery recreation"
-          required
-          options={frequencyOptions}
-          defaultValue={recreationFrequency}
-          onValueChange={(value) => {
-            onStarted()
-            setRecreationFrequency(value)
-          }}
-        />
-      ) : null}
-      {!known.has('incidentType') ? (
-        <AssessmentSelect
-          id="incidentType"
-          name="incidentType"
-          label="most recent incident"
-          required
-          options={['none', 'version-confusion', 'missing-context', 'failed-reproduction', 'recreated-work', 'other']}
-          defaultValue={incidentType}
-          onValueChange={(value) => {
-            onStarted()
-            setIncidentType(value)
-          }}
-        />
-      ) : null}
-      {incidentType === 'other' ? (
-        <LeadField label="describe the incident *" name="incidentDescription">
-          <LeadTextareaField
-            id="incidentDescription"
-            name="incidentDescription"
-            minRows={3}
-            resizable={false}
+        {!known.has('teamType') ? (
+          <AssessmentSelect
+            id="teamType"
+            name="teamType"
+            label="team type"
             required
-            onChange={onStarted}
+            options={['agency', 'creative-studio', 'production-company', 'in-house-creative', 'brand-marketing', 'film-animation', 'game-entertainment', 'independent-creator', 'other']}
           />
+        ) : null}
+        {!known.has('teamSize') ? (
+          <AssessmentSelect id="teamSize" name="teamSize" label="production team size" required options={['1', '2-4', '5-9', '10-24', '25-plus']} />
+        ) : null}
+        {!known.has('workflowCollaborators') ? (
+          <AssessmentSelect id="workflowCollaborators" name="workflowCollaborators" label="people involved in production" required options={['1', '2-4', '5-9', '10-plus']} />
+        ) : null}
+        {!known.has('toolsUsed') ? (
+          <AssessmentSelect id="toolsUsed" name="toolsUsed" label="ai creative tools used" required options={['1', '2', '3-4', '5-plus']} />
+        ) : null}
+        {!known.has('approvedVersionMethod') ? (
+          <AssessmentSelect id="approvedVersionMethod" name="approvedVersionMethod" label="current approved version method" required options={['canonical-system', 'documented-review', 'folder-naming', 'chat-spreadsheet', 'creator-memory', 'inconsistent']} />
+        ) : null}
+        {!known.has('productionContextMethod') ? (
+          <AssessmentSelect id="productionContextMethod" name="productionContextMethod" label="where generation context is stored" required options={['attached-record', 'project-document', 'multiple-tools', 'chat-personal-notes', 'memory-inconsistent']} />
+        ) : null}
+        {!known.has('recreationFrequency') ? (
+          <AssessmentSelect
+            id="recreationFrequency"
+            name="recreationFrequency"
+            label="frequency of rediscovery recreation"
+            required
+            options={frequencyOptions}
+            defaultValue={recreationFrequency}
+            onValueChange={(value) => {
+              onStarted()
+              setRecreationFrequency(value)
+            }}
+          />
+        ) : null}
+        {!known.has('incidentType') ? (
+          <AssessmentSelect
+            id="incidentType"
+            name="incidentType"
+            label="most recent incident"
+            required
+            options={['none', 'version-confusion', 'missing-context', 'failed-reproduction', 'recreated-work', 'other']}
+            defaultValue={incidentType}
+            onValueChange={(value) => {
+              onStarted()
+              setIncidentType(value)
+            }}
+          />
+        ) : null}
+        {incidentType === 'other' ? (
+          <LeadField label="describe the incident *" name="incidentDescription">
+            <LeadTextareaField
+              id="incidentDescription"
+              name="incidentDescription"
+              minRows={3}
+              resizable={false}
+              required
+              onChange={onStarted}
+            />
+          </LeadField>
+        ) : null}
+        <ConditionalReveal active={incidentEligible}>
+          <div className="space-y-20 py-6">
+            {!known.has('peopleAffected') ? (
+              <AssessmentSelect id="peopleAffected" name="peopleAffected" label="people affected by the last incident" required options={['1', '2-4', '5-9', '10-24', '25-plus']} />
+            ) : null}
+            {!known.has('hoursLost') ? (
+              <AssessmentSelect id="hoursLost" name="hoursLost" label="time lost to the last incident" required options={['none', 'under-1-hour', '1-4-hours', 'one-day', '2-5-days', 'week-plus']} />
+            ) : null}
+            {!known.has('deliveryImpact') ? (
+              <AssessmentSelect id="deliveryImpact" name="deliveryImpact" label="delivery impact of the last incident" required options={['none', 'internal-delay', 'delivery-delayed', 'client-affected', 'revenue-relationship']} />
+            ) : null}
+          </div>
+        </ConditionalReveal>
+        {!known.has('recurringWorkflow') ? (
+          <AssessmentSelect id="recurringWorkflow" name="recurringWorkflow" label="how often the workflow repeats" required options={['one-off', 'quarterly', 'monthly', 'weekly', 'daily']} />
+        ) : null}
+        {!known.has('assetVolume') ? (
+          <AssessmentSelect id="assetVolume" name="assetVolume" label="assets produced per month" required options={['under-25', '25-99', '100-499', '500-plus']} />
+        ) : null}
+        {!known.has('annualAffectedValue') ? (
+          <AssessmentSelect id="annualAffectedValue" name="annualAffectedValue" label="annual value of the affected work" required={false} options={['under-10k', '10k-49k', '50k-99k', '100k-499k', '500k-plus']} />
+        ) : null}
+        {!known.has('activeWorkflow') ? (
+          <LeadField label="active workflow to test *" name="activeWorkflow">
+            <LeadTextareaField id="activeWorkflow" name="activeWorkflow" minRows={4} resizable={false} required />
+          </LeadField>
+        ) : null}
+        <LeadField label="anything else we should know?" name="message">
+          <LeadTextareaField id="message" name="message" minRows={4} resizable={false} onChange={onStarted} />
         </LeadField>
-      ) : null}
-      <ConditionalReveal active={incidentEligible}>
-        <div className="space-y-20 py-6">
-          {!known.has('peopleAffected') ? (
-            <AssessmentSelect id="peopleAffected" name="peopleAffected" label="people affected by the last incident" required options={['1', '2-4', '5-9', '10-24', '25-plus']} />
-          ) : null}
-          {!known.has('hoursLost') ? (
-            <AssessmentSelect id="hoursLost" name="hoursLost" label="time lost to the last incident" required options={['none', 'under-1-hour', '1-4-hours', 'one-day', '2-5-days', 'week-plus']} />
-          ) : null}
-          {!known.has('deliveryImpact') ? (
-            <AssessmentSelect id="deliveryImpact" name="deliveryImpact" label="delivery impact of the last incident" required options={['none', 'internal-delay', 'delivery-delayed', 'client-affected', 'revenue-relationship']} />
-          ) : null}
-        </div>
-      </ConditionalReveal>
-      {!known.has('recurringWorkflow') ? (
-        <AssessmentSelect id="recurringWorkflow" name="recurringWorkflow" label="how often the workflow repeats" required options={['one-off', 'quarterly', 'monthly', 'weekly', 'daily']} />
-      ) : null}
-      {!known.has('assetVolume') ? (
-        <AssessmentSelect id="assetVolume" name="assetVolume" label="assets produced per month" required options={['under-25', '25-99', '100-499', '500-plus']} />
-      ) : null}
-      {!known.has('annualAffectedValue') ? (
-        <AssessmentSelect id="annualAffectedValue" name="annualAffectedValue" label="annual value of the affected work" required={false} options={['under-10k', '10k-49k', '50k-99k', '100k-499k', '500k-plus']} />
-      ) : null}
-      {!known.has('activeWorkflow') ? (
-        <LeadField label="active workflow to test *" name="activeWorkflow">
-          <LeadTextareaField id="activeWorkflow" name="activeWorkflow" minRows={4} resizable={false} required />
-        </LeadField>
-      ) : null}
-      <LeadField label="anything else we should know?" name="message">
-        <LeadTextareaField id="message" name="message" minRows={4} resizable={false} onChange={onStarted} />
-      </LeadField>
-      <ConsentFields onStarted={onStarted} showMarketing={!context.known} />
-      <NoScriptLeadFallback />
-      {status === 'error' ? <p role="alert" className="t-p-sans text-[#ffb4a8]">{error}</p> : null}
-      <CTAButton type="submit" className="js-lead-submit" disabled={status === 'submitting'} analyticsLabel="Assess Your Workflow">
-        {status === 'submitting' ? 'scoring...' : 'score my workflow'}
-      </CTAButton>
-    </form>
+        <ConsentFields onStarted={onStarted} showMarketing={!context.known} />
+        <NoScriptLeadFallback />
+        {status === 'error' ? <p role="alert" className="t-p-sans text-[#ffb4a8]">{error}</p> : null}
+        <CTAButton type="submit" className="js-lead-submit" disabled={status === 'submitting'} analyticsLabel="Assess Your Workflow">
+          {status === 'submitting' ? 'Scoring...' : 'Score my workflow'}
+        </CTAButton>
+      </form>
+    </>
   )
 }

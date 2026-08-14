@@ -50,11 +50,11 @@ const capabilities = [
   },
   {
     title: 'Model-agnostic by design',
-    desc: 'Generate with OpenAI, Runway, Midjourney, Adobe, or your own fine-tuned models. Portals sits underneath the generation layer and doesn\'t care which tool produced the asset.',
+    desc: 'Generate with OpenAI, Runway, Midjourney, Adobe, or your own fine-tuned models. portals sits underneath the generation layer and doesn\'t care which tool produced the asset.',
   },
   {
     title: 'API-first',
-    desc: 'Every capability — registry, versioning, provenance, relationships — is available through the API. Automate ingestion, build internal tools, or wire Portals into your existing pipeline.',
+    desc: 'Every capability — registry, versioning, provenance, relationships — is available through the API. Automate ingestion, build internal tools, or wire portals into your existing pipeline.',
   },
   {
     title: 'Automatic, not manual',
@@ -125,15 +125,15 @@ export function VCS({
           <div className="flex flex-col justify-center">
 
             <div className="text-lg lowercase tracking-widest text-portals-secondary mb-8">
-              THE PRODUCTION REPOSITORY FOR AI-NATIVE CREATIVE ORGANIZATIONS
+              the production repository for ai-native creative organizations
             </div>
 
             <h1 className="text-5xl lg:text-7xl tracking-[-0.04em] leading-[1.05] mb-8">
-              Stop rebuilding AI work you already solved.
+              stop rebuilding ai work you already solved.
             </h1>
 
             <p className="text-lg text-portals-on-surface-variant max-w-xl mb-12">
-              Portals preserves every version, generation, and creative decision behind your best assets — so teams can reuse successful work, deliver faster, and scale production without losing what works.
+              portals preserves every version, generation, and creative decision behind your best assets — so teams can reuse successful work, deliver faster, and scale production without losing what works.
             </p>
 
             <div className="flex gap-4 mb-6">
@@ -191,7 +191,7 @@ export function VCS({
         <section className="py-24">
 
           <div className="text-lg lowercase tracking-widest text-portals-secondary mb-8">
-            THE PROBLEM
+            the problem
           </div>
 
           <div className="max-w-4xl">
@@ -256,7 +256,7 @@ export function VCS({
 
           <div className="max-w-4xl">
             <h2 className="text-4xl lg:text-5xl tracking-[-0.03em] leading-[1.1] mb-8">
-              Portals is the production repository for AI-native creative organizations.
+              portals is the production repository for ai-native creative organizations.
             </h2>
 
             <p className="text-lg text-portals-on-surface-variant leading-relaxed mb-8">
@@ -264,7 +264,7 @@ export function VCS({
             </p>
 
             <p className="text-lg text-portals-on-surface-variant leading-relaxed mb-8">
-              Existing tools answer <em className="text-white">"where is the file?"</em> Portals answers <em className="text-white">"what is this, where did it come from, and can we make it again?"</em>
+              Existing tools answer <em className="text-white">"where is the file?"</em> portals answers <em className="text-white">"what is this, where did it come from, and can we make it again?"</em>
             </p>
 
             <p className="text-lg text-portals-on-surface-variant leading-relaxed">
@@ -284,7 +284,7 @@ export function VCS({
               Five pillars. One production repository.
             </h2>
             <p className="text-lg text-portals-on-surface-variant leading-relaxed">
-              Portals is built around five capabilities that compound into each other. None of them is optional — remove any one and the system degrades back into a file store.
+              portals is built around five capabilities that compound into each other. None of them is optional — remove any one and the system degrades back into a file store.
             </p>
           </div>
 
@@ -320,7 +320,7 @@ export function VCS({
                 Every asset gets a permanent, stable address.
               </p>
               <p className="text-portals-on-surface-variant leading-relaxed mb-8">
-                A character is not a folder of PNGs. A campaign is not a stack of "final" files. In Portals, every asset — and every meaningful <em>entity</em> behind it, like a character, a location, or a brand style — receives a persistent ID the moment it's created. That ID doesn't change when the file is renamed, exported, re-uploaded, or edited by someone else.
+                A character is not a folder of PNGs. A campaign is not a stack of "final" files. In portals, every asset — and every meaningful <em>entity</em> behind it, like a character, a location, or a brand style — receives a persistent ID the moment it's created. That ID doesn't change when the file is renamed, exported, re-uploaded, or edited by someone else.
               </p>
               <p className="text-sm text-portals-on-surface-variant/70 font-medium">
                 Why it matters: Identity is what makes an asset <em>findable and referenceable</em> six months later, by someone who wasn't in the room when it was made. Without it, "the approved version" is a claim. With it, it's a fact.
@@ -348,7 +348,7 @@ export function VCS({
                 Nothing is overwritten. Everything is recoverable.
               </p>
               <p className="text-portals-on-surface-variant leading-relaxed mb-8">
-                Every edit, regeneration, and approval becomes a new version — not a replacement. Portals preserves the full lineage of an asset from first generation to shipped output, so any prior state can be recalled, compared, or restored in seconds.
+                Every edit, regeneration, and approval becomes a new version — not a replacement. portals preserves the full lineage of an asset from first generation to shipped output, so any prior state can be recalled, compared, or restored in seconds.
               </p>
               <p className="text-sm text-portals-on-surface-variant/70 font-medium">
                 Why it matters: History turns "we think this was the approved version" into "here is the approved version, and everything that led to it." It's the difference between institutional memory and institutional guesswork.
@@ -375,7 +375,7 @@ export function VCS({
               The reasoning behind the result, not just the result.
             </p>
             <p className="text-portals-on-surface-variant leading-relaxed mb-10 max-w-3xl">
-              The final export is the least interesting part of an AI-generated asset. The valuable part is what produced it: the prompt, the model and version, the seed, the reference images, the parameters, the edits, and the approvals along the way. Portals captures that chain automatically, attached to the asset itself.
+              The final export is the least interesting part of an AI-generated asset. The valuable part is what produced it: the prompt, the model and version, the seed, the reference images, the parameters, the edits, and the approvals along the way. portals captures that chain automatically, attached to the asset itself.
             </p>
             <div className="grid md:grid-cols-3 gap-px bg-portals-surface-variant">
               <div className="bg-portals-bg p-6">
@@ -433,10 +433,10 @@ export function VCS({
             <div className="grid grid-cols-3 bg-portals-surface-lowest border-b border-portals-surface-variant">
               <div className="p-6 text-sm font-medium text-portals-on-surface-variant"></div>
               <div className="p-6 text-sm font-medium text-portals-on-surface-variant border-l border-portals-surface-variant">
-                Without Portals
+                Without portals
               </div>
               <div className="p-6 text-sm font-medium text-portals-secondary border-l border-portals-surface-variant">
-                With Portals
+                With portals
               </div>
             </div>
             {comparisonRows.map((row, i) => (
@@ -482,7 +482,7 @@ export function VCS({
           <div className="bg-portals-surface-lowest border border-portals-surface-variant p-10">
             <h3 className="text-xl mb-4">An open core, honestly</h3>
             <p className="text-portals-on-surface-variant leading-relaxed mb-8">
-              Portals is hosted on an open-source version control foundation. We didn't reinvent that layer — we built the layer above it: entity-aware versioning, automatic provenance, and the identity graph that connects every asset your organization creates.
+              portals is hosted on an open-source version control foundation. We didn't reinvent that layer — we built the layer above it: entity-aware versioning, automatic provenance, and the identity graph that connects every asset your organization creates.
             </p>
             <Button variant="outline">
               Read Documentation
@@ -515,7 +515,7 @@ export function VCS({
               text-portals-on-surface-variant
             ">
               Continue using the tools your team already depends on.
-              Portals becomes the memory layer connecting them.
+              portals becomes the memory layer connecting them.
             </p>
 
           </div>
@@ -568,7 +568,7 @@ export function VCS({
 
           <div className="mt-12 max-w-3xl">
             <p className="text-portals-on-surface-variant text-sm leading-relaxed">
-              Common thread: these teams already generate high volumes of AI content, already collaborate across multiple people, and already carry a software budget for the tools that touch production. Portals becomes the layer none of those tools replace.
+              Common thread: these teams already generate high volumes of AI content, already collaborate across multiple people, and already carry a software budget for the tools that touch production. portals becomes the layer none of those tools replace.
             </p>
           </div>
 
@@ -580,7 +580,7 @@ export function VCS({
         <section className="py-24 border-t border-portals-surface-variant" id="pricing">
 
           <div className="text-lg lowercase tracking-widest text-portals-secondary mb-8">
-            PRICING
+            pricing
           </div>
 
           <h2 className="text-4xl lg:text-5xl tracking-[-0.03em] leading-[1.1] mb-16 max-w-4xl">
@@ -665,7 +665,7 @@ export function VCS({
           </div>
 
           <p className="text-sm text-portals-on-surface-variant/60">
-            No migration required. Portals sits underneath the tools your team already uses.
+            No migration required. portals sits underneath the tools your team already uses.
           </p>
 
         </section>

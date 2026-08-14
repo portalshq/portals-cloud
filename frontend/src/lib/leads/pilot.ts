@@ -321,7 +321,7 @@ export function classifyPilot(
   if (customIntegration) {
     exceptions.push({
       kind: 'custom-integration',
-      summary: 'Custom integration or Portals engineering work is outside the standard scope.',
+      summary: 'Custom integration or portals engineering work is outside the standard scope.',
       amendment: 'Separately priced amendment or technical review before scope confirmation.',
     })
   }
@@ -476,7 +476,7 @@ export function buildSecurityDecisions(
       key: 'soc2',
       label: 'SOC 2 report',
       decision: 'accept',
-      note: 'Buyer accepts Portals\u2019 standard security posture for the pilot.',
+      note: 'Buyer accepts portals\u2019 standard security posture for the pilot.',
     },
     {
       key: 'residency',
@@ -607,7 +607,7 @@ export function buildCommercialSnapshot(
     annualSlug === 'studio' && !annualSpec
       ? {
           slug: 'studio',
-          name: 'Portals Studio',
+          name: 'portals Studio',
           priceLabel: '$30,000 annually',
           annualTotal: 30000,
           creditNote: annualCredit,

@@ -170,7 +170,7 @@ export function ConsentFields({
             name="marketingConsent"
             onChange={onStarted}
           />
-          <span>Send me occasional portals resources and product updates. unsubscribe anytime.</span>
+          <span>Send me resources and product updates from portals. Unsubscribe anytime.</span>
         </label>
         </>
       ) : null}

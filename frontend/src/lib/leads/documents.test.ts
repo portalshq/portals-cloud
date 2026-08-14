@@ -168,7 +168,7 @@ test('a one-call pilot plan with exceptions stays a two-page record', async () =
     exceptions: [
       {
         kind: 'custom-integration',
-        summary: 'Custom integration or Portals engineering work is outside the standard scope.',
+        summary: 'Custom integration or portals engineering work is outside the standard scope.',
         amendment: 'Separately priced amendment or technical review before scope confirmation.',
       },
     ],

@@ -72,6 +72,8 @@
   --radius-md: 0px;
   --radius-lg: 0px;
   --radius-xl: 0px;
+
+  --width-fit: fit-content;
 }
 
 :root, .dark {

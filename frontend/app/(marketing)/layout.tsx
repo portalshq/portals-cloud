@@ -2,19 +2,19 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'),
-  title: 'The Repository for Creative Production Teams | Portals',
-  description: 'Portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+  title: 'The Repository for Creative Production Teams | portals',
+  description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
   icons: { icon: '/favicon.svg' },
   robots: 'index, follow',
   openGraph: {
-    title: 'Version Control for Creative Production Teams | Portals',
-    description: 'Portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+    title: 'Version Control for Creative Production Teams | portals',
+    description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Version Control for Creative Production Teams | Portals',
-    description: 'Portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+    title: 'Version Control for Creative Production Teams | portals',
+    description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
   },
 }
 
@@ -38,18 +38,18 @@ function Footer() {
         <div className="col-span-full h-full space-y-fluid-[32,40] ui-grid grid-cols-1 grid-rows-[min-content_1fr] lg:grid-cols-5 m-0 p-0">
           <div className='col-span-full lg:col-span-3'>
             <p className="lowercase text-white t-p-sans">
-              The production repository for AI{`\u2011`}native creative organizations
+              The repository for AI{`\u2011`}native production
             </p>
           </div>
 
-          <div className='col-span-full lg:col-span-1 space-y-fluid-[32,40]'>
+          <div className='col-span-full lg:col-span-2 space-y-fluid-[32,40]'>
           {/* <h4 className="font-medium mb-4">Product</h4> */}
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
               <li><a href="/privacy-policy" className="hover:text-white transition-colors">Privacy</a></li>
               <li><a href="/terms-of-service" className="hover:text-white transition-colors">terms of service</a></li>
               <li><a href="/security-and-architecture" className="hover:text-white transition-colors">security</a></li>
               <li><a href="/ai-production-workflow-risks" className="hover:text-white transition-colors">use cases</a></li>
-              <li><a href="/assessment" className="hover:text-white transition-colors">workflow assessment</a></li>
+              <li><a href="/assessment" className="hover:text-white transition-colors">assess your workflow</a></li>
             </ul>
             
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">

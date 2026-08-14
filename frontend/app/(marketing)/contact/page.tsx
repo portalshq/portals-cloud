@@ -22,20 +22,29 @@ export default async function ContactPage({
   ])
   return (
     <main className="relative z-(--z-main) min-h-screen bg-[#343434] text-white">
-      <section data-header-theme="light" className="ui-grid pt-Header-h">
-        <div className="col-span-full max-w-[900px] py-48">
+      <section data-header-theme="light" className="ui-grid pt-Header-h py-fluid-[76,106]">
+        <div className="col-span-full max-w-[900px] flex flex-col gap-y-32 py-48">
           <h1 className="max-w-[12em] t-d2-sans">
-            ready to fix your workflow
+            stop paying the hidden production tax in your AI workflows
           </h1>
-          <p className="mt-24 max-w-[38em] t-p-lg-serif text-white">
-            bring us the production decision in front of you for a direct response.
+          <p className="max-w-[38em] t-p-serif text-white">
+            Ask a question for a direct response, or assess your production workflow.
             <br />
-            <span className="flex mt-12 normal-case items-baseline">to request a commercial evaluation, scope a pilot.</span>
-            <CTAButton className="ml-8" href={scopeAPilotMailto}>Scope a pilot</CTAButton>
+            <span className="flex mt-12 normal-case items-baseline">To request a commercial evaluation, scope a pilot.</span>
           </p>
+          <div className="flex gap-24">
+            <CTAButton
+              href="/assessment"
+              appearance="plain"
+              className="underline underline-offset-4"
+              analyticsLabel="Assess Your AI Creative Production Workflow"
+              analyticsIntent="assessment"
+            >
+              Assess your workflow
+            </CTAButton>
+            <CTAButton href={scopeAPilotMailto}>Scope a pilot</CTAButton>
+          </div>
         </div>
-      </section>
-      <section data-header-theme="light" className="ui-grid py-fluid-[76,106]">
         <div className="col-span-full max-w-[760px]">
           <ContactLeadForm context={context} initialInterest={params.intent || ''} />
         </div>

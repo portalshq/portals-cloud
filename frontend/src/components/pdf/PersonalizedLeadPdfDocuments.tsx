@@ -227,7 +227,7 @@ export function AssessmentResultPdfDocument({
   const risk = timeAtRisk(data)
   return (
     <Document
-      title={`Portals workflow assessment - ${data.identity.company || 'assessment'}`}
+      title={`portals workflow assessment - ${data.identity.company || 'assessment'}`}
       author="portals"
       subject="Personalized AI production workflow assessment"
       creator="portals"
@@ -299,7 +299,7 @@ export function PersonalizedPilotPdfDocument({
 
   return (
     <Document
-      title={`Portals paid pilot brief - ${data.identity.company}`}
+      title={`portals paid pilot brief - ${data.identity.company}`}
       author="portals"
       subject="Draft statement of work for a paid production pilot"
       creator="portals"
@@ -452,7 +452,7 @@ export function PilotPlanPdfDocument({
 
   return (
     <Document
-      title={`Portals paid pilot plan - ${company}`}
+      title={`portals paid pilot plan - ${company}`}
       author="portals"
       subject="Personalized production pilot plan and commercial record"
       creator="portals"

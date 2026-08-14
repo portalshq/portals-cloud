@@ -121,7 +121,7 @@ export function ContactLeadForm({
         requireWebsite={publicEmailNeedsWebsite(email)}
         onStarted={onStarted}
       />
-      <LeadField label="what can portals help with? *" name="interest">
+      <LeadField label="how can we help you? *" name="interest">
         <LeadSelectField
           id="interest"
           name="interest"

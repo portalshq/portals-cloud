@@ -31,10 +31,10 @@ type ButtonProps = SharedProps & {
 type CTAButtonProps = LinkProps | ButtonProps
 
 const defaultClasses =
-  't-button inline-flex justify-center items-center rounded h-48 gap-x-9 px-12 text-white transition-all duration-500 cursor-pointer'
+  't-button inline-flex justify-center items-center rounded h-48 gap-x-9 px-12 text-white transition-backdrop duration-200 cursor-pointer'
 
 const appearanceClasses = {
-  default: `md:min-w-220 w-fit border border-white/10 bg-white/8 backdrop-blur-[32px] hover:bg-white/16`,
+  default: `md:min-w-220 w-fit border border-white/10 bg-white/8 backdrop-blur-[32px] hover:bg-white/16 hover:border-white/80`,
   plain: `gap-x-9 w-fit`
 }
 

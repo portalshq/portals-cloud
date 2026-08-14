@@ -143,9 +143,9 @@ export function ConsoleTextareaField({resizable = false, ...props}: FieldProps) 
 const StyledLeadCheckbox = styled(Checkbox)({
   padding: 0,
   marginTop: '0.1875rem',
-  color: '#5bc4ba',
+  color: '#ccfffa',
   flexShrink: 0,
-  '&.Mui-checked': {color: '#5bc4ba'},
+  '&.Mui-checked': {color: '#ccfffa'},
   '& .MuiSvgIcon-root': {fontSize: 16},
 })
 
@@ -155,9 +155,9 @@ export function LeadCheckbox(props: CheckboxProps) {
 
 const StyledRoomCheckbox = styled(Checkbox)({
   padding: 0,
-  color: '#2F66B5',
+  color: '#ccfffa',
   flexShrink: 0,
-  '&.Mui-checked': {color: '#2F66B5'},
+  '&.Mui-checked': {color: '#ccfffa'},
   '& .MuiSvgIcon-root': {fontSize: 16},
 })
 

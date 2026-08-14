@@ -218,9 +218,9 @@ const comparisons: Comparison[] = [
       "Version stacks show related exports, not necessarily their full production ancestry",
     ],
     portalsDifference:
-      "Portals preserves the production record behind the reviewed file: its source inputs, generation context, derivatives, dependencies, and reusable approved state.",
+      "portals preserves the production record behind the reviewed file: its source inputs, generation context, derivatives, dependencies, and reusable approved state.",
     together:
-      "Use Frame.io as the review surface and Portals as the production record behind the approved asset.",
+      "Use Frame.io as the review surface and portals as the production record behind the approved asset.",
   },
   {
     id: "shotgrid",
@@ -266,9 +266,9 @@ const comparisons: Comparison[] = [
       "Creative users may require specialized interfaces and repository administration",
     ],
     portalsDifference:
-      "Portals versions the production meaning surrounding files: generation recipes, approvals, semantic relationships, lineage, and reproducible creative state.",
+      "portals versions the production meaning surrounding files: generation recipes, approvals, semantic relationships, lineage, and reproducible creative state.",
     together:
-      "Keep Perforce as the underlying source repository while Portals provides the creative-facing production-memory layer above it.",
+      "Keep Perforce as the underlying source repository while portals provides the creative-facing production-memory layer above it.",
   },
   {
     id: "storage",
@@ -814,7 +814,7 @@ export default function PortalsComparisonMatrix() {
                 ["Storage systems", "Preserve the file."],
                 ["Review systems", "Preserve the feedback."],
                 ["Production systems", "Preserve the schedule."],
-                ["Portals", "Preserves the production memory connecting them."],
+                ["portals", "Preserves the production memory connecting them."],
               ].map(([label, statement], index) => (
                 <div
                   key={label}

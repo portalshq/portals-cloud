@@ -3,19 +3,19 @@ import './globals.css'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
-  title: 'The Repository for Creative Production Teams | Portals',
-  description: 'Portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+  title: 'The Repository for Creative Production Teams | portals',
+  description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
   icons: { icon: '/favicon.svg' },
   robots: 'index, follow',
   openGraph: {
-    title: 'Version Control for Creative Production Teams | Portals',
-    description: 'Portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+    title: 'Version Control for Creative Production Teams | portals',
+    description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Version Control for Creative Production Teams | Portals',
-    description: 'Portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+    title: 'Version Control for Creative Production Teams | portals',
+    description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
   },
 }
 
@@ -42,7 +42,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              'function initApollo(){var n=Math.random().toString(36).substring(7),o=document.createElement("script");o.src="https://assets.apollo.io/micro/website-tracker/tracker.iife.js?nocache="+n,o.async=!0,o.defer=!0,o.onload=function(){window.trackingFunctions.onLoad({appId:"6a6666d5074ba80014945990"})},document.head.appendChild(o)}initApollo();',
+              'if(location.hostname==="portals.works"||location.hostname==="www.portals.works"){function initApollo(){var n=Math.random().toString(36).substring(7),o=document.createElement("script");o.src="https://assets.apollo.io/micro/website-tracker/tracker.iife.js?nocache="+n,o.async=!0,o.defer=!0,o.onload=function(){window.trackingFunctions.onLoad({appId:"6a6666d5074ba80014945990"})},document.head.appendChild(o)}initApollo()}',
           }}
         />
       </head>
