@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {finalOperationalList, nextAutomatedLifecycle} from './crm'
+import {finalOperationalList, nextAutomatedLifecycle, qualificationState} from './crm'
 
 const rank = {
   nurture: 0,
@@ -32,4 +32,19 @@ test('automated lifecycle updates only promote pre-commercial stages', () => {
   assert.equal(nextAutomatedLifecycle('Qualified', 'Assessed'), undefined)
   assert.equal(nextAutomatedLifecycle('Paid Pilot', 'Pilot Requested'), undefined)
   assert.equal(nextAutomatedLifecycle('Nurture', 'Qualified'), undefined)
+})
+
+test('qualification state collapses default outcomes into not qualified', () => {
+  const base = {request: {submissionType: 'assessment'}}
+  assert.equal(qualificationState({...base, tier: undefined} as any), 'not_qualified')
+  assert.equal(qualificationState({...base, tier: 'low'} as any), 'not_qualified')
+  assert.equal(qualificationState({...base, tier: 'medium'} as any), 'not_qualified')
+  assert.equal(qualificationState({...base, tier: 'high'} as any), 'qualified')
+})
+
+test('pilot requests are treated as qualified sales motions', () => {
+  assert.equal(
+    qualificationState({request: {submissionType: 'pilot_request'}, tier: 'low'} as any),
+    'qualified',
+  )
 })

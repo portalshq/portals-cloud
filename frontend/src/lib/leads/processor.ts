@@ -1,5 +1,8 @@
 import {trackSubmissionEvents} from './analytics-server'
-import {syncSubmissionToAttio} from './crm'
+import {sendApplicationAccessEmail} from './account-email'
+import {getApplicationUserByEmail} from './application-auth'
+import {syncSubmissionToApollo} from './crm'
+import {processCrmOutbox} from './crm-events'
 import {
   sendDeadLetterNotification,
   sendFounderNotification,
@@ -9,6 +12,7 @@ import {
 import {
   cleanupLeadStore,
   completeOutbox,
+  getPilotBySubmissionId,
   getSubmission,
   markSubmissionSynced,
   retryOutbox,
@@ -20,8 +24,17 @@ export async function processLeadOutbox(limit = 20): Promise<void> {
   for (const row of rows) {
     try {
       const submission = await getSubmission(row.submission_id)
-      if (row.action_type === 'crm_sync') {
-        await syncSubmissionToAttio(submission)
+      if (row.action_type === 'apollo_sync') {
+        await syncSubmissionToApollo(submission)
+      } else if (row.action_type === 'account_invitation') {
+        const user = await getApplicationUserByEmail(submission.identity.email || '')
+        if (!user) throw new Error('Pilot applicant application account is missing.')
+        const pilot = await getPilotBySubmissionId(row.submission_id)
+        await sendApplicationAccessEmail({
+          user,
+          idempotencyKey: `pilot-account-access:${pilot?.id || row.submission_id}:${user.id}`,
+          nextPath: pilot ? `/paid-pilot/room/${pilot.id}` : '/account',
+        })
       } else if (row.action_type === 'confirmation_email') {
         await sendLeadConfirmation(submission)
       } else if (row.action_type === 'founder_notification') {
@@ -52,5 +65,6 @@ export async function processLeadOutbox(limit = 20): Promise<void> {
       }
     }
   }
+  await processCrmOutbox(limit)
   await cleanupLeadStore()
 }

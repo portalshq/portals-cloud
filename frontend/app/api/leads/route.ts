@@ -10,6 +10,7 @@ import {
   type PilotAnswers,
 } from '@/lib/leads/contracts'
 import {hashValue, verifySignature} from '@/lib/leads/crypto'
+import {APP_SESSION_COOKIE, currentApplicationUser, ensurePilotCustomerAccount, pilotMembershipRole} from '@/lib/leads/application-auth'
 import {leadDownloadUrl} from '@/lib/leads/downloads'
 import {normalizeEmail, validateIdentityForCapture} from '@/lib/leads/identity'
 import {extractClientIp, sanitizeIp} from '@/lib/leads/ip-utils'
@@ -60,8 +61,8 @@ function productionConfigurationError(request: LeadRequest): string | null {
     'LEADS_HASH_KEY',
     'LEADS_ENCRYPTION_KEY',
   ]
-  if (request.provider !== 'attio') {
-    required.push('ATTIO_API_KEY')
+  if (request.provider !== 'apollo') {
+    required.push('APOLLO_API_KEY')
   }
   if (request.submissionType !== 'commercial_event') {
     required.push('RESEND_API_KEY', 'LEADS_EMAIL_FROM')
@@ -75,9 +76,6 @@ function productionConfigurationError(request: LeadRequest): string | null {
   }
   if (request.consent.analytics) {
     required.push('MIXPANEL_PROJECT_TOKEN')
-  }
-  if (request.submissionType === 'pilot_request') {
-    required.push('PILOT_ROOM_SECRET')
   }
   const missing = required.filter((name) => !process.env[name])
   return missing.length ? `Lead operations are missing: ${missing.join(', ')}` : null
@@ -360,6 +358,11 @@ async function syncPilotRecord(
     successCriteria,
     securityDecisions,
   })
+  await ensurePilotCustomerAccount({
+    pilotId: pilot.id,
+    profile: await getProfileById(profileId),
+    companyName: leadRequest.identity?.company,
+  })
   await updatePilot(pilot.id, {
     proposal: buildCommercialSnapshot(answers, [], {}),
   })
@@ -577,10 +580,10 @@ export async function POST(request: Request) {
 
   const providerSignature = request.headers.get('x-portals-signature')
   if (providerSignature) {
-    if (!process.env.ATTIO_CALLBACK_SECRET) {
+    if (!process.env.APOLLO_CALLBACK_SECRET) {
       return NextResponse.json({ok: false, error: 'provider callback unavailable'}, {status: 503})
     }
-    if (!verifySignature(rawBody, providerSignature, 'ATTIO_CALLBACK_SECRET')) {
+    if (!verifySignature(rawBody, providerSignature, 'APOLLO_CALLBACK_SECRET')) {
       return NextResponse.json({ok: false, error: 'invalid signature'}, {status: 401})
     }
     let parsedBody: unknown
@@ -593,7 +596,7 @@ export async function POST(request: Request) {
     if (
       !parsed.success ||
       parsed.data.submissionType !== 'commercial_event' ||
-      parsed.data.provider !== 'attio'
+      parsed.data.provider !== 'apollo'
     ) {
       return NextResponse.json({ok: false, error: 'invalid provider event'}, {status: 400})
     }
@@ -659,8 +662,24 @@ export async function POST(request: Request) {
       {status: 400},
     )
   }
-  if (!['browser', 'attio'].includes(parsed.data.provider)) {
+  if (!['browser', 'apollo'].includes(parsed.data.provider)) {
     return NextResponse.json({ok: false, error: 'invalid provider'}, {status: 400})
+  }
+  const applicationSession = request.headers.get('cookie')
+    ?.split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${APP_SESSION_COOKIE}=`))
+    ?.slice(APP_SESSION_COOKIE.length + 1)
+  const applicationUser = await currentApplicationUser(applicationSession)
+  const revisedPilotId = 'pilotId' in parsed.data ? parsed.data.pilotId : undefined
+  if (revisedPilotId) {
+    const role = applicationUser
+      ? await pilotMembershipRole(revisedPilotId, applicationUser.id)
+      : null
+    if (!applicationUser?.profileId || role !== 'owner') {
+      return NextResponse.json({ok: false, error: 'only the pilot account owner can submit a revision'}, {status: 403})
+    }
+    return handleLeadRequest(request, parsed.data, true, applicationUser.profileId)
   }
   return handleLeadRequest(request, parsed.data, true)
 }

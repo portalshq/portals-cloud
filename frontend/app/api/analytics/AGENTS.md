@@ -1,0 +1,12 @@
+# Lead funnel and CRM projection
+
+- The application database is the system of record: lead profiles, application users, customer accounts, pilot rooms, memberships, payment, consent, raw submissions, and audit history live here. Apollo is a sales-facing projection, never the source for application state.
+- A verified lead submission is persisted first, then processed through `lead_outbox`. A successful form response does not prove external work completed; outbox actions retry independently.
+- Apollo sync is Contact-first. Every verified browser lead submission creates or updates the Apollo Contact before any Account or Deal work. The Contact receives standard identity fields, native Contact stage when available, lists, consent, attribution, latest submission metadata, qualification state/tier, fit/pain/intent scores, next action, and current form answers.
+- Apollo Accounts are created or updated only after the app creates a real `customer_account` for a pilot approval room. The Account receives company/customer-level projection only: company domain/name, company-level scores, qualification state/tier, next action, native Account stage when available, and operational account lists. There is no Apollo Account or Deal for an assessment alone.
+- Apollo Deals are created or updated only after Contact and Account sync succeed. The app links the Deal to both records and advances Deal stages from app-owned events: `Pilot Requested`, `Paid Pilot`, and `Customer`.
+- Apollo custom fields, lists, and native stage name assumptions are declared in `frontend/config/apollo-lead-operations.json`; provision/runtime discovery use labels. The config is the definitive list of custom-field values produced by the app.
+- Apollo is updated from durable verified submissions and app events through `lead_outbox` / `crm_outbox`, not directly from analytics page-view events. Analytics can inform future scoring only after becoming app-owned submission or event data.
+- Preserve `crm_external_records` as the local Apollo-ID ledger and `crm_outbox` for retries. Do not query Apollo as reconciliation/source-of-truth and do not dual-write to Attio.
+- Do not enable Apollo `run_dedupe` when creating contacts. It can match on non-email data and overwrite a different person. Application email identity plus the local ID ledger provide the safe deduplication boundary.
+- Mixpanel analytics is consent-gated and separate from CRM. Client identifiers/attribution support analytics only; do not use them as CRM identity.

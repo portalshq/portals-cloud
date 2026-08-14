@@ -1,6 +1,6 @@
 # Pilot room — testing and deployment configuration
 
-This file covers the paid-pilot approval room, the Stripe Checkout payment path, and the configuration needed to test and deploy them. The general intake stack (database, Attio, Resend, Mixpanel, outbox) is documented in `LEAD_OPERATIONS.md`.
+This file covers the paid-pilot approval room, magic-link application accounts, the Stripe Checkout payment path, and the configuration needed to test and deploy them. The general intake stack (database, Apollo, Resend, Mixpanel, outbox) is documented in `LEAD_OPERATIONS.md`.
 
 The pilot flow is: pilot form → `/paid-pilot/room/[id]` approval room → confirm scope → finalize → sign → Stripe Checkout → webhook marks `paid` → kickoff → activate. The one-call route requires a pilot terms review (`exception_review` → `resolve_exceptions`) before `finalize` is allowed.
 
@@ -17,7 +17,8 @@ Everything below is already listed in `.env.example`.
 | `LEADS_ENCRYPTION_KEY` | base64 32-byte AES key for encrypted answers |
 | `LEADS_EMAIL_FROM`, `RESEND_API_KEY` | transactional email delivery |
 | `LEADS_NOTIFICATION_EMAIL` | founder notifications |
-| `PILOT_ROOM_SECRET` | HMAC secret for room links (`?t=` tokens). Missing in production → share/status emails and every room request fail closed |
+| `APOLLO_API_KEY` | Master API key for Apollo list, custom-field, contact, account, and deal access. Field and deal-stage IDs are discovered automatically from the Apollo schema. |
+| `APOLLO_CALLBACK_SECRET` | HMAC secret for signed Apollo workflow callbacks |
 | `PILOT_PRICE_AMOUNT` | fallback fee in USD when the proposal has no price |
 | `PILOT_CALENDAR_URL` | kickoff / pilot-terms-review scheduling link |
 | `NEXT_PUBLIC_SITE_URL` | base for room, email, and Checkout success/cancel URLs |
@@ -54,7 +55,7 @@ npx next build
    - zero-call: submit `/paid-pilot` → room → confirm scope → finalize → sign → pay → `stripe trigger checkout.session.completed` (or complete the hosted Checkout page with card `4242 4242 4242 4242`) → room flips to `paid` → kickoff → activate.
    - one-call: answers that raise an exception (custom integration, SSO, regulated data, >5 participants, …) → `request exception review` → `mark exceptions resolved` → confirm scope → finalize → sign → pay.
    - disqualified: no workflow / no owner / no approval path → `not_eligible` room with the revise CTA.
-5. Open the PDF packet link from the confirmation email in a different browser or device; the tokenized `?t=` link must download the two-page plan ZIP without the profile cookie.
+5. Open the room link from the confirmation email in a different browser or device; it must request a one-time magic-link sign-in and then grant only the invited account and pilot membership. Confirm the packet download works after that session is established.
 6. Complete a test payment and land back on the room URL carrying `session_id=…`; the room shows the processing banner and auto-refreshes (bounded to six attempts via `sessionStorage`) until the webhook lands.
 
 ### 3. Webhook checks
@@ -78,6 +79,6 @@ npx next build
 ## Post-deploy verification
 
 - Submit a pilot on staging, complete a test-card payment through hosted Checkout, and confirm the webhook flips the room to `paid` and the `paid` status email is enqueued.
-- Confirm the `ready_sign` and default packet emails include the tokenized `?t=` packet link and room link.
+- Confirm the `ready_sign` and default packet emails link to the magic-link sign-in flow, never a bearer token in the URL.
 - Confirm the internal retry endpoint processes any interrupted outbox rows (`lead_outbox.last_error` inspection and replay instructions are in `LEAD_OPERATIONS.md`).
 - Confirm a second click on the pay button returns the existing Checkout session (idempotency key `pilot-checkout-<id>-<signedAt>`) instead of creating a duplicate charge.

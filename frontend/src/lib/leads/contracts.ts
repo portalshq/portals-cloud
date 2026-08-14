@@ -57,7 +57,7 @@ const commonSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(180),
   formVersion: z.string().trim().min(1).max(80),
   provider: z
-    .enum(['browser', 'attio'])
+    .enum(['browser', 'apollo'])
     .default('browser'),
   identity: identitySchema.optional(),
   attribution: attributionSchema,
@@ -283,7 +283,7 @@ export const commercialEventNames = [
 
 const commercialEventAnswersSchema = z.object({
   event: z.enum(commercialEventNames),
-  attioRecordId: optionalText(160),
+  apolloRecordId: optionalText(160),
   revenueAmount: z.number().nonnegative().max(100_000_000).optional(),
   currency: z.string().trim().length(3).default('USD'),
   occurredAt: z.string().datetime().optional(),
@@ -321,7 +321,7 @@ export const leadRequestSchema = z.discriminatedUnion('submissionType', [
   }),
   commonSchema.extend({
     submissionType: z.literal('commercial_event'),
-    provider: z.literal('attio'),
+    provider: z.literal('apollo'),
     answers: commercialEventAnswersSchema,
   }),
 ])

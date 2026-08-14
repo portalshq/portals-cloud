@@ -1,4 +1,4 @@
-import {NextResponse} from 'next/server'
+import {after, NextResponse} from 'next/server'
 import Stripe from 'stripe'
 import {applyTransition} from '@/lib/leads/pilot'
 import {
@@ -13,6 +13,8 @@ import {
   createBillingPayment,
   getBillingSubscription,
 } from '@/lib/leads/store'
+import {enqueueCrmEvent, processCrmOutbox} from '@/lib/leads/crm-events'
+import {linkPilotStripeCustomer} from '@/lib/leads/application-auth'
 
 export const runtime = 'nodejs'
 
@@ -49,6 +51,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       const bySession = await getPilotByPaymentSession(sessionId)
       const pilot = bySession || (pilotId ? await getPilotById(pilotId) : null)
       if (pilot) {
+        await linkPilotStripeCustomer(
+          pilot.id,
+          typeof session.customer === 'string' ? session.customer : session.customer?.id,
+        )
         const transition = applyTransition(pilot.state, 'pay')
         if (transition.allowed) {
           await updatePilot(pilot.id, {
@@ -61,6 +67,13 @@ export async function POST(request: Request): Promise<NextResponse> {
             historyNote: `payment received (${session.amount_total ? `$${(session.amount_total / 100).toLocaleString('en-US')}` : 'confirmed'})`,
           })
           await enqueuePilotEmail(pilot.id, 'paid')
+          await enqueueCrmEvent({
+            sourceType: 'pilot',
+            sourceId: pilot.id,
+            eventType: 'pilot_paid',
+            eventKey: `stripe:${event.id}:apollo-paid`,
+          })
+          after(() => processCrmOutbox(10))
         }
       }
     }
