@@ -3,6 +3,8 @@
 This Pulumi program is fail-closed infrastructure for Lore. The canonical
 security and incident runbook is
 [docs/security/lore-production-security.md](../../docs/security/lore-production-security.md).
+The operator-facing release sequence is
+[docs/security/production-release-procedure.md](../../docs/security/production-release-procedure.md).
 
 ## Topology
 
@@ -49,7 +51,9 @@ privately with it false, then use `jwksPublicationEnabled=true` to expose only
 JWKS and health on TLS 443. In that bootstrap mode the callback, Auth gRPC, and
 Lore listener rules do not exist. After the live `kid` is verified, disable
 bootstrap mode and enable signing. The full public edge is rejected while
-signing is false.
+signing is false. This current combination cannot support the intended
+long-running private Lore signed-token test; complete the JWKS-only signed-edge
+change documented in the production release procedure before public release.
 
 `credentialRotationEpoch` deliberately rotates the generated database password
 and service-account API-key pepper. Change it only during an approved rollout
@@ -91,14 +95,15 @@ export PATH="$HOME/.pulumi/bin:$PATH"
 
 ## Immutable image promotion
 
-Build once and push with BuildKit SBOM/provenance, then run
-`scripts/verify-and-promote-image.sh`. The helper resolves the runnable
-platform child, requires clean ECR and Trivy critical/high results, decodes the
-attestations, and only then updates both `infra/lore/versions.yaml` and the
-digest-bound receipt in `infra/lore/verified-images.json`. Pulumi refuses a
-running pin without a matching receipt and refuses public ingress until its
-cosign signature is verified. Mutable architecture/nightly tags may aid
-publishing but are never accepted by the service-count gate.
+Build once and push with BuildKit SBOM/provenance. Production publisher scripts
+require `REQUIRE_SIGNATURE=true` and a dedicated `COSIGN_KEY` reference: they
+sign the resolved immutable digest first, then require clean ECR and Trivy
+critical/high results, decode the attestations, and only then update both
+`infra/lore/versions.yaml` and the digest-bound receipt in
+`infra/lore/verified-images.json`. Pulumi refuses a running pin without a
+matching receipt and refuses public ingress until its cosign signature is
+verified. Mutable architecture/nightly tags may aid publishing but are never
+accepted by the service-count gate.
 
 CI also runs npm/RustSec dependency audits and CodeQL security-extended
 analysis. Those source gates complement, rather than replace, ECR scanning and
@@ -165,11 +170,13 @@ npm run build
 pulumi config set loreJwksEndpoint https://auth.portals.sh/.well-known/jwks.json
 pulumi config set loreJwtIssuer https://auth.portals.sh/
 pulumi config set publicCertificateArn arn:aws:acm:REGION:ACCOUNT:certificate/ID
-pulumi config set loreServerImageUri ACCOUNT.dkr.ecr.REGION.amazonaws.com/lore@sha256:DIGEST
 pulumi config set loreServiceDesiredCount 1
 pulumi preview --diff
 pulumi up
 ```
+
+Do not set an image URI in Pulumi config: deployment reads the reviewed image
+digest from `infra/lore/versions.yaml` only.
 
 Leave public ingress false while private readiness and authenticated staging
 E2E run. After the full checklist in the security guide passes, set the three

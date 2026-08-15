@@ -53,11 +53,11 @@ export function ContactLeadForm({
         provider: 'browser',
         identity: Object.fromEntries(
           Object.entries({
-            email: String(values.email || ''),
-            name: String(values.name || ''),
-            company: String(values.company || ''),
-            role: String(values.role || ''),
-            website: String(values.website || ''),
+            email: String(values.email || context.identity?.email || context.answerValues?.email || ''),
+            name: String(values.name || context.identity?.name || context.answerValues?.name || ''),
+            company: String(values.company || context.identity?.company || context.answerValues?.company || ''),
+            role: String(values.role || context.identity?.role || context.answerValues?.role || ''),
+            website: String(values.website || context.identity?.website || context.answerValues?.website || ''),
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
@@ -118,7 +118,7 @@ export function ContactLeadForm({
         context={context}
         email={email}
         onEmailChange={(event) => setEmail(event.target.value)}
-        requireWebsite={publicEmailNeedsWebsite(email)}
+        requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
         onStarted={onStarted}
       />
       <LeadField label="how can we help you? *" name="interest">
@@ -147,7 +147,7 @@ export function ContactLeadForm({
           placeholder="share the workflow, diligence question, or decision you are working through"
         />
       </LeadField>
-      <ConsentFields onStarted={onStarted} />
+      <ConsentFields onStarted={onStarted} showMarketing={!context.known} />
       <NoScriptLeadFallback />
       {status === 'error' ? <p role="alert" className="t-p-sm-sans text-white">{message}</p> : null}
       <CTAButton type="submit" className="js-lead-submit" disabled={status === 'submitting'} analyticsLabel="Contact Portals">

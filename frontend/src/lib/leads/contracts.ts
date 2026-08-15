@@ -395,6 +395,7 @@ export type KnownLeadContext = {
   known: boolean
   knownFields: Array<'email' | 'name' | 'company' | 'role' | 'website'>
   knownAnswerFields: string[]
+  identity?: Partial<LeadIdentity>
   answerValues?: Record<string, unknown>
   requiresWebsite?: boolean
   scores?: QualificationScores

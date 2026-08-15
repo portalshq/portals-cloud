@@ -2,6 +2,8 @@
 
 This is the canonical deployment and incident-response guide. The accepted
 architecture is [ADR 0006](../architecture-decision-records/0006-lore-production-security-boundary.md).
+The concise operator sequence is in
+[production release procedure](production-release-procedure.md).
 
 ## Rollout status and fail-closed gates
 
@@ -19,11 +21,11 @@ digest-pinned images, rotate and verify live credentials, and pass the
 staging/production gates below. A missing component is a release blocker;
 never bypass it by setting an assertion manually.
 
-The current AWS caller is a long-lived IAM user with a legacy broad managed
-policy. The rollout policy is intentionally additive and temporary; it does not
-make that identity production-safe. Migrate deployment to short-lived
-SSO/OIDC role sessions, remove static access keys, and retire the legacy broad
-policy before reopening production.
+The current AWS caller is the temporary `portals-pulumi-deployer` IAM user.
+Its scoped rollout policies are intentionally temporary; they do not make a
+long-lived access key production-safe. Use it only for this contained cutover,
+then migrate deployment to short-lived role sessions, remove static access
+keys, and retire the user before the identity revision is complete.
 
 ## Non-negotiable invariants
 
@@ -252,12 +254,17 @@ service account or its other keys.
    store-aware health check.
 3. For the initial key, set `jwksPublicationEnabled=true` to expose only HTTPS
    JWKS and health. The callback, Auth gRPC, and Lore routes remain absent, and
-   Pulumi refuses this bootstrap mode if signing is enabled. During later
-   rotations, publish the new JWK alongside the still-active old key.
+   Pulumi currently refuses this bootstrap mode if signing is enabled. This is
+   not sufficient for the intended private Lore signed-token test. Before a
+   production release, change the edge to retain JWKS/health-only TLS routing
+   while signing is enabled, without enabling Lore, callback, or Auth gRPC
+   routes. During later rotations, publish the new JWK alongside the
+   still-active old key.
 4. Verify the live JWKS contains the expected `kid`; wait at least 60 seconds
    and verify every running Lore task fetched the new set.
-5. Disable bootstrap mode and set `jwtSigningEnabled=true` to activate RS256
-   signing. Enable the complete edge only after the release gates pass.
+5. Activate RS256 signing only after the JWKS-only signed-edge correction has
+   passed private Lore tests. Enable the complete edge only after the release
+   gates pass.
 6. Retain the old public JWK for eight hours plus ten minutes.
 7. Disable the old signer, monitor unknown-`kid` failures, then retire the key.
 

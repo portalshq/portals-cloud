@@ -72,22 +72,18 @@ intentionally fail-closed while the release blockers below remain.
 
 ## Certificate and DNS state
 
-The exact-name ACM certificate
+The prior exact-name ACM certificate
 `arn:aws:acm:us-east-1:907199504810:certificate/cdef7138-4653-4719-93bf-8136308ce10b`
-is `PENDING_VALIDATION`. `portals.sh` uses Cloudflare authoritative DNS; no
-Route 53 hosted zone or Cloudflare credentials are available to this rollout.
-Create these records in Cloudflare exactly as CNAMEs (DNS-only is safest during
-ACM validation):
+was rechecked on 2026-08-14 and is `VALIDATION_TIMED_OUT`. It cannot be used
+for production. Its old CNAME validation records are obsolete; do not recreate
+or rely on them.
 
-| Name | Target |
-|---|---|
-| `_77ec6ab5e2f4e374053573014072ac72.lore.portals.sh` | `_1114f1218293031609ca4feda7797b61.jkddzztszm.acm-validations.aws` |
-| `_46db681e0def1029da11c21b868ad7c2.auth.portals.sh` | `_cec46b8df78110f85cd6e15b47473c07.jkddzztszm.acm-validations.aws` |
-
-After ACM issues the certificate, the public `lore.portals.sh` and
-`auth.portals.sh` records must target the ALB. Do not create a direct task/NLB
-record and do not enable Cloudflare proxying until gRPC compatibility and TLS
-ownership are deliberately validated.
+Request a replacement ACM certificate for `lore.portals.sh` and
+`auth.portals.sh`, then create the replacement certificate's two ACM-generated
+CNAMEs in Cloudflare as **DNS-only** records. Update `publicCertificateArn` in
+the target Pulumi stack only after ACM reports `ISSUED`. Then point the two
+hostnames at the ALB—not an ECS task or NLB—and keep Cloudflare proxying off
+until gRPC compatibility and TLS ownership are deliberately validated.
 
 ## Implemented code and verification
 
@@ -153,8 +149,11 @@ ownership are deliberately validated.
    validation, account external-access analyzer, ALB/WAF/VPC logs, targeted
    alarms, ECR/Trivy evidence, and a documented security review no more than 90
    days old. GuardDuty and Security Hub remain optional paid enhancements.
-4. Publish and verify the live JWKS before enabling KMS signing; then deploy
-   Lore privately and confirm all store-aware health gates.
+4. Correct the JWKS bootstrap edge: it currently forbids signing while it is
+   the only public JWKS route. Retain JWKS/health-only TLS routing while KMS
+   signing is enabled, without opening Lore, callback, or Auth Gateway gRPC
+   routes. Then publish and verify the live JWKS, deploy Lore privately, and
+   confirm all store-aware health gates.
 5. Publish a new Nap release with signed checksums and the exact secured
    `portalshq/lore` client pin. First publish signed Lore binary checksums and
    record their digest/bundle in Nap; the Nap release workflow now refuses to

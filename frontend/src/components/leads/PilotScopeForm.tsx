@@ -21,7 +21,7 @@ import {
   writePilotConfirmation,
 } from '@/lib/leads/pilot-confirmation'
 import {analyticsConsent, buildAttribution, trackEvent} from '@/lib/leads/analytics-client'
-import {newSubmissionId, submitLead} from '@/lib/leads/client'
+import {newSubmissionId, publicEmailNeedsWebsite, submitLead} from '@/lib/leads/client'
 import {
   DISCLOSURE_VERSION,
   pilotControlledOptionLists as optionLists,
@@ -267,8 +267,18 @@ export function PilotScopeForm({
     form: HTMLFormElement,
   ): z.infer<typeof pilotRequestAnswersSchema> {
     const data = new FormData(form)
-    const string = (name: string) => String(data.get(name) || '')
-    const checked = (name: string) => Boolean(data.get(name))
+    const string = (name: string) => {
+      const formVal = String(data.get(name) || '').trim()
+      if (formVal) return formVal
+      const carriedVal = carriedAnswers[name]
+      if (typeof carriedVal === 'string' && carriedVal.trim()) return carriedVal.trim()
+      if (typeof carriedVal === 'number') return String(carriedVal)
+      return ''
+    }
+    const checked = (name: string) => {
+      if (data.has(name)) return Boolean(data.get(name))
+      return Boolean(carriedAnswers[name])
+    }
     const choice = <T extends readonly string[]>(
       name: string,
       options: T,
@@ -294,7 +304,7 @@ export function PilotScopeForm({
       assetVolume: string('assetVolume'),
       annualAffectedValue: string('annualAffectedValue'),
       activeWorkflow: string('activeWorkflow'),
-      pilotWorkflow: string('pilotWorkflow'),
+      pilotWorkflow: string('pilotWorkflow') || string('activeWorkflow'),
       productionOwner: string('productionOwner'),
       economicBuyer: string('economicBuyer'),
       economicBuyerEmail: string('economicBuyerEmail'),
@@ -371,11 +381,11 @@ export function PilotScopeForm({
         pilotId: pilotId || '',
         identity: Object.fromEntries(
           Object.entries({
-            email: String(values.email || ''),
-            name: String(values.name || ''),
-            company: String(values.company || ''),
-            role: String(values.role || ''),
-            website: String(values.website || ''),
+            email: String(values.email || context.identity?.email || carriedAnswers.email || ''),
+            name: String(values.name || context.identity?.name || carriedAnswers.name || ''),
+            company: String(values.company || context.identity?.company || carriedAnswers.company || ''),
+            role: String(values.role || context.identity?.role || carriedAnswers.role || ''),
+            website: String(values.website || context.identity?.website || carriedAnswers.website || ''),
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
@@ -580,7 +590,7 @@ export function PilotScopeForm({
             context={context}
             email={email}
             onEmailChange={(event) => setEmail(event.target.value)}
-            requireWebsite
+            requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
             onStarted={onStarted}
           />
         </div>

@@ -1,11 +1,11 @@
 'use client'
 
-import {useEffect, useMemo, useRef, useState} from 'react'
-import {ArrowRight} from 'lucide-react'
-import {CTAButton} from '@/components/CTAButton'
-import {LeadSelectField, LeadTextareaField} from '@/components/mui/fields'
-import {analyticsConsent, buildAttribution, trackEvent} from '@/lib/leads/analytics-client'
-import {newSubmissionId, publicEmailNeedsWebsite, submitLead} from '@/lib/leads/client'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowRight } from 'lucide-react'
+import { CTAButton } from '@/components/CTAButton'
+import { LeadSelectField, LeadTextareaField } from '@/components/mui/fields'
+import { analyticsConsent, buildAttribution, trackEvent } from '@/lib/leads/analytics-client'
+import { newSubmissionId, publicEmailNeedsWebsite, submitLead } from '@/lib/leads/client'
 import {
   commercialReadinessAnswersSchema,
   DISCLOSURE_VERSION,
@@ -13,9 +13,9 @@ import {
   type LeadIdentity,
   type LeadResponse,
 } from '@/lib/leads/contracts'
-import {ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback} from './LeadFields'
-import {useFormDraft} from './useFormDraft'
-import {usePreservedSwap} from './usePreservedSwap'
+import { ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback } from './LeadFields'
+import { useFormDraft } from './useFormDraft'
+import { usePreservedSwap } from './usePreservedSwap'
 
 const readinessFields = [
   'targetStartPeriod',
@@ -46,8 +46,8 @@ export function WorkflowReviewForm({
       ? context.missingFields
       : readinessFields.filter((field) => !known.has(field)),
   )
-  const {ref: swapRef, reservedHeight, reserve} = usePreservedSwap()
-  const {ref: draftRef, restored, flush, clear} = useFormDraft('commercial_readiness')
+  const { ref: swapRef, reservedHeight, reserve } = usePreservedSwap()
+  const { ref: draftRef, restored, flush, clear } = useFormDraft('commercial_readiness')
 
   useEffect(() => {
     if (restored.email) setEmail(restored.email)
@@ -63,7 +63,7 @@ export function WorkflowReviewForm({
   function onStarted() {
     if (started.current) return
     started.current = true
-    void trackEvent('form_started', {form_name: 'commercial_readiness'})
+    void trackEvent('form_started', { form_name: 'commercial_readiness' })
   }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -81,11 +81,11 @@ export function WorkflowReviewForm({
         provider: 'browser',
         identity: Object.fromEntries(
           Object.entries({
-            email: String(values.email || ''),
-            name: String(values.name || ''),
-            company: String(values.company || ''),
-            role: String(values.role || ''),
-            website: String(values.website || ''),
+            email: String(values.email || context.identity?.email || context.answerValues?.email || ''),
+            name: String(values.name || context.identity?.name || context.answerValues?.name || ''),
+            company: String(values.company || context.identity?.company || context.answerValues?.company || ''),
+            role: String(values.role || context.identity?.role || context.answerValues?.role || ''),
+            website: String(values.website || context.identity?.website || context.answerValues?.website || ''),
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
@@ -125,7 +125,7 @@ export function WorkflowReviewForm({
   if (result) {
     const workflow = result.recommendedWorkflow || recommendedWorkflow || 'asset-reproduction'
     return (
-      <div ref={swapRef} role="status" className="space-y-20" style={reservedHeight ? {minHeight: reservedHeight} : undefined}>
+      <div ref={swapRef} role="status" className="space-y-20" style={reservedHeight ? { minHeight: reservedHeight } : undefined}>
         <h3 className="t-h1-sans">
           {result.nextAction === 'pilot_scope' ? 'ready to build your pilot plan.' : 'your next step is clear.'}
         </h3>
@@ -135,14 +135,14 @@ export function WorkflowReviewForm({
             <p className="t-p-sans text-white/80">
               Your assessment answers carry over. There is no fee to scope or receive your plan; the $5,000 fee applies only if you approve and conduct the pilot.
             </p>
-            <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', {workflow})}>
-              build my customized pilot plan
+            <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
+              Build my customized pilot plan
               <ArrowRight aria-hidden="true" size={18} />
             </CTAButton>
           </>
         ) : (
           <CTAButton href={`/ai-production-workflow-risks#${workflow}`} analyticsLabel="Explore the Relevant Workflow">
-            explore the relevant workflow
+            Explore the relevant workflow
             <ArrowRight aria-hidden="true" size={18} />
           </CTAButton>
         )}
@@ -158,7 +158,7 @@ export function WorkflowReviewForm({
           Answer only the practical details the assessment could not establish. Objections travel with your scope; they do not automatically block a pilot plan.
         </p>
       </div>
-      <IdentityFields context={context} email={email} onEmailChange={(event) => setEmail(event.target.value)} requireWebsite={publicEmailNeedsWebsite(email)} onStarted={onStarted} />
+      <IdentityFields context={context} email={email} onEmailChange={(event) => setEmail(event.target.value)} requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)} onStarted={onStarted} />
       {missing.has('targetStartPeriod') ? <LeadField label="target start period *" name="targetStartPeriod">
         <LeadSelectField id="targetStartPeriod" name="targetStartPeriod" required defaultValue="">
           <option value="" disabled>select timing</option>
@@ -203,7 +203,7 @@ export function WorkflowReviewForm({
       <NoScriptLeadFallback />
       {status === 'error' ? <p role="alert" className="t-p-sans text-[#ffb4a8]">{error}</p> : null}
       <CTAButton type="submit" className="js-lead-submit" disabled={status === 'submitting'} analyticsLabel="Complete Pilot Readiness">
-        {status === 'submitting' ? 'checking...' : 'complete pilot readiness'}
+        {status === 'submitting' ? 'checking...' : 'Complete pilot readiness'}
       </CTAButton>
     </form>
   )

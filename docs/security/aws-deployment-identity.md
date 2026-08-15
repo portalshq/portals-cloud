@@ -1,6 +1,6 @@
 # AWS deployment identity runbook
 
-This runbook replaces the long-lived `portals-deployer` IAM user with temporary,
+This runbook replaces the long-lived `portals-pulumi-deployer` IAM user with temporary,
 individually attributable role sessions. It separates routine artifact releases
 from rare infrastructure/bootstrap changes so a compromised CI workflow cannot
 administer IAM, KMS, networking, or recovery controls.
@@ -19,6 +19,27 @@ Do not put deployment access keys in GitHub, Pulumi configuration, developer
 shell profiles, or user groups. IAM user groups organize IAM users; they do not
 make credentials temporary. Use IAM Identity Center groups for humans and role
 trust policies for automation.
+
+## Current temporary operation: IAM Identity Center account instance
+
+The current IAM Identity Center instance is an **account instance**, not an
+AWS Organizations instance. It supports application assignments only; it has no
+AWS-account assignments or permission sets. Therefore the earlier
+Identity-Center group/permission-set procedure does not apply to this account
+today. Do not attach deployment access to that Identity Center group and do not
+use the Applications screen for AWS deployment permissions.
+
+Until an organization instance or another reviewed federation solution exists,
+operate only as the `portals-pulumi-deployer` IAM user with these three
+temporary managed policies attached directly to that user:
+
+- `portals-pulumi-deploy`
+- `portals-security-bootstrap-20260810`
+- `portals-recovery-bootstrap-20260814`
+
+Assign MFA to that IAM user and use a named local AWS CLI profile. Do not add
+policies, user groups, or further access keys. This is a migration exception,
+not a final production identity design.
 
 ## 1. Establish human SSO
 
@@ -208,8 +229,10 @@ destructive action.
 5. Apply one contained infrastructure update and verify CloudTrail attribution.
 6. Inspect the old IAM access-key last-used timestamp and CloudTrail events.
 7. Deactivate—not delete—the old key. Observe one full deployment cycle.
-8. Delete the key, detach `portals-pulumi-deploy` and
-   `portals-security-bootstrap-20260810`, then delete `portals-deployer`.
+8. Delete the key, detach `portals-pulumi-deploy`,
+   `portals-security-bootstrap-20260810`, and
+   `portals-recovery-bootstrap-20260814`, then delete
+   `portals-pulumi-deployer`.
 9. Review Access Analyzer and CloudTrail for unexpected trust or use after the
    cutover.
 

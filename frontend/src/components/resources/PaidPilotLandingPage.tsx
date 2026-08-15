@@ -1,13 +1,13 @@
 'use client'
 
-import {useState} from 'react'
+import { useState } from 'react'
 import {
   ArrowRight,
   Check,
 } from 'lucide-react'
-import {CTAButton} from '@/components/CTAButton'
-import {PilotScopeForm} from '@/components/leads/PilotScopeForm'
-import type {KnownLeadContext} from '@/lib/leads/contracts'
+import { CTAButton } from '@/components/CTAButton'
+import { PilotScopeForm } from '@/components/leads/PilotScopeForm'
+import type { KnownLeadContext } from '@/lib/leads/contracts'
 import type {
   DocumentSection,
   PackageSpecification,
@@ -21,18 +21,18 @@ import {
   packageMilestoneLabel,
   packagePriceLabel,
 } from '@/lib/package-specifications'
-import {getFaqsByCategories} from '@/lib/faqs'
+import { getFaqsByCategories } from '@/lib/faqs'
 
 type SubmitState =
-  | {status: 'idle'}
-  | {status: 'submitting'}
+  | { status: 'idle' }
+  | { status: 'submitting' }
   | {
-      status: 'success'
-      calendarUrl?: string
-      downloadUrl?: string
-      preview?: boolean
-    }
-  | {status: 'error'; message: string}
+    status: 'success'
+    calendarUrl?: string
+    downloadUrl?: string
+    preview?: boolean
+  }
+  | { status: 'error'; message: string }
 
 function paidPilotSpec(document: ResourceDocument): PackageSpecification | undefined {
   return findPackageSpecification(
@@ -115,7 +115,7 @@ function Header() {
   )
 }
 
-function Hero({document}: {document: ResourceDocument}) {
+function Hero({ document }: { document: ResourceDocument }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
   const metrics = [
@@ -160,7 +160,7 @@ function Hero({document}: {document: ResourceDocument}) {
   )
 }
 
-function Objective({document}: {document: ResourceDocument}) {
+function Objective({ document }: { document: ResourceDocument }) {
   const objective = sectionByAnchor(document, 'objective')
   const outcome = sectionByAnchor(document, 'intended-outcome')
 
@@ -191,7 +191,7 @@ function Objective({document}: {document: ResourceDocument}) {
   )
 }
 
-function ScopeAndMilestone({document}: {document: ResourceDocument}) {
+function ScopeAndMilestone({ document }: { document: ResourceDocument }) {
   const scope = sectionByAnchor(document, 'scope')
   const milestone = sectionByAnchor(document, 'first-value')
   const specification = paidPilotSpec(document)
@@ -242,7 +242,7 @@ function ScopeAndMilestone({document}: {document: ResourceDocument}) {
   )
 }
 
-function SuccessCriteria({document}: {document: ResourceDocument}) {
+function SuccessCriteria({ document }: { document: ResourceDocument }) {
   const section = sectionByAnchor(document, 'success-criteria')
   if (!section) return null
 
@@ -272,7 +272,7 @@ function SuccessCriteria({document}: {document: ResourceDocument}) {
   )
 }
 
-function CommercialTerms({document}: {document: ResourceDocument}) {
+function CommercialTerms({ document }: { document: ResourceDocument }) {
   const section = sectionByAnchor(document, 'commercial-terms')
   const specification = paidPilotSpec(document)
   if (!section) return null
@@ -301,7 +301,7 @@ function CommercialTerms({document}: {document: ResourceDocument}) {
   )
 }
 
-function Responsibilities({document}: {document: ResourceDocument}) {
+function Responsibilities({ document }: { document: ResourceDocument }) {
   const portals = sectionByAnchor(document, 'portals-responsibilities')
   const customer = sectionByAnchor(document, 'customer-responsibilities')
   if (!portals || !customer) return null
@@ -311,7 +311,7 @@ function Responsibilities({document}: {document: ResourceDocument}) {
       <div className="ui-grid gap-y-40 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-10">
           <p className="t-d2-sans text-white">responsibilities</p>
-          <h2 className="mt-20 max-w-[10em] t-p-lg-serif">
+          <h2 className="mt-20 t-p-lg-serif">
             both sides know what they are bringing.
           </h2>
         </div>
@@ -393,7 +393,7 @@ function PilotForm({
   )
 }
 
-function PilotFaq({document}: {document: ResourceDocument}) {
+function PilotFaq({ document }: { document: ResourceDocument }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
   const faqs = getFaqsByCategories(
     ['pilot'],
@@ -445,7 +445,7 @@ function PilotFaq({document}: {document: ResourceDocument}) {
   )
 }
 
-function FinalDecision({document}: {document: ResourceDocument}) {
+function FinalDecision({ document }: { document: ResourceDocument }) {
   const review = sectionByAnchor(document, 'final-review')
   if (!review) return null
 

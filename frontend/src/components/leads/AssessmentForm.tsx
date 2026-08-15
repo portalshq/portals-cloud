@@ -99,16 +99,17 @@ function AssessmentSelect({
 }
 
 export function AssessmentForm({ context, preface }: { context: KnownLeadContext; preface?: ReactNode }) {
-  const known = useMemo(() => new Set(context.knownAnswerFields), [context.knownAnswerFields])
+  const [leadContext, setLeadContext] = useState<KnownLeadContext>(context)
+  const known = useMemo(() => new Set(leadContext.knownAnswerFields), [leadContext.knownAnswerFields])
   const idempotencyKey = useMemo(() => newSubmissionId('assessment'), [])
   const [email, setEmail] = useState('')
   const [recreationFrequency, setRecreationFrequency] = useState<string>(
-    () => (context.answerValues?.recreationFrequency as string | undefined) || '',
+    () => (leadContext.answerValues?.recreationFrequency as string | undefined) || '',
   )
   const [incidentType, setIncidentType] = useState<string>(
-    () => (context.answerValues?.incidentType as string | undefined) || '',
+    () => (leadContext.answerValues?.incidentType as string | undefined) || '',
   )
-  const [result, setResult] = useState<LeadResponse | null>(() => restoredResult(context))
+  const [result, setResult] = useState<LeadResponse | null>(() => restoredResult(leadContext))
   const [reviewOpen, setReviewOpen] = useState(false)
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [error, setError] = useState('')
@@ -141,7 +142,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
   }
 
   const incidentEligible =
-    context.incidentFollowUpEligible ??
+    leadContext.incidentFollowUpEligible ??
     (recreationFrequency !== '' && recreationFrequency !== 'never')
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -151,20 +152,42 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
     const values = Object.fromEntries(new FormData(event.currentTarget).entries())
     try {
       const behavior = qualificationBehavior()
+      const submittedIdentity: LeadIdentity = Object.fromEntries(
+        Object.entries({
+          email: String(values.email || leadContext.identity?.email || leadContext.answerValues?.email || ''),
+          name: String(values.name || leadContext.identity?.name || leadContext.answerValues?.name || ''),
+          company: String(values.company || leadContext.identity?.company || leadContext.answerValues?.company || ''),
+          role: String(values.role || leadContext.identity?.role || leadContext.answerValues?.role || ''),
+          website: String(values.website || leadContext.identity?.website || leadContext.answerValues?.website || ''),
+        }).filter(([, value]) => value),
+      ) as LeadIdentity
+      const submittedAnswers = {
+        teamType: String(values.teamType || ''),
+        teamSize: String(values.teamSize || ''),
+        workflowCollaborators: String(values.workflowCollaborators || ''),
+        toolsUsed: String(values.toolsUsed || ''),
+        approvedVersionMethod: String(values.approvedVersionMethod || ''),
+        productionContextMethod: String(values.productionContextMethod || ''),
+        recreationFrequency: String(values.recreationFrequency || ''),
+        incidentType: String(values.incidentType || ''),
+        incidentDescription: String(values.incidentDescription || ''),
+        peopleAffected: String(values.peopleAffected || ''),
+        hoursLost: String(values.hoursLost || ''),
+        deliveryImpact: String(values.deliveryImpact || ''),
+        recurringWorkflow: String(values.recurringWorkflow || ''),
+        assetVolume: String(values.assetVolume || ''),
+        annualAffectedValue: String(values.annualAffectedValue || ''),
+        activeWorkflow: String(values.activeWorkflow || ''),
+        pricingOrPilotViewed: behavior.pricingOrPilotViewed,
+        securityDiligence: behavior.securityDiligence,
+        message: String(values.message || ''),
+      }
       const response = await submitLead({
         submissionType: 'assessment',
         idempotencyKey,
         formVersion: 'assessment.v1',
         provider: 'browser',
-        identity: Object.fromEntries(
-          Object.entries({
-            email: String(values.email || ''),
-            name: String(values.name || ''),
-            company: String(values.company || ''),
-            role: String(values.role || ''),
-            website: String(values.website || ''),
-          }).filter(([, value]) => value),
-        ) as LeadIdentity,
+        identity: submittedIdentity,
         attribution: buildAttribution({
           sourcePage: '/assessment',
           ctaLabel: 'Assess Your Workflow',
@@ -176,28 +199,52 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           analytics: analyticsConsent() === 'accepted',
         },
         companyFax: String(values.companyFax || ''),
-        answers: {
-          teamType: String(values.teamType || ''),
-          teamSize: String(values.teamSize || ''),
-          workflowCollaborators: String(values.workflowCollaborators || ''),
-          toolsUsed: String(values.toolsUsed || ''),
-          approvedVersionMethod: String(values.approvedVersionMethod || ''),
-          productionContextMethod: String(values.productionContextMethod || ''),
-          recreationFrequency: String(values.recreationFrequency || ''),
-          incidentType: String(values.incidentType || ''),
-          incidentDescription: String(values.incidentDescription || ''),
-          peopleAffected: String(values.peopleAffected || ''),
-          hoursLost: String(values.hoursLost || ''),
-          deliveryImpact: String(values.deliveryImpact || ''),
-          recurringWorkflow: String(values.recurringWorkflow || ''),
-          assetVolume: String(values.assetVolume || ''),
-          annualAffectedValue: String(values.annualAffectedValue || ''),
-          activeWorkflow: String(values.activeWorkflow || ''),
-          pricingOrPilotViewed: behavior.pricingOrPilotViewed,
-          securityDiligence: behavior.securityDiligence,
-          message: String(values.message || ''),
-        },
+        answers: submittedAnswers,
       })
+      const newKnownFields = Array.from(
+        new Set([
+          ...(leadContext.knownFields || []),
+          ...(submittedIdentity.email ? ['email' as const] : []),
+          ...(submittedIdentity.name ? ['name' as const] : []),
+          ...(submittedIdentity.company ? ['company' as const] : []),
+          ...(submittedIdentity.role ? ['role' as const] : []),
+          ...(submittedIdentity.website ? ['website' as const] : []),
+        ]),
+      )
+      const newIdentity = {
+        ...(leadContext.identity || {}),
+        ...submittedIdentity,
+      }
+      const newAnswerValues = {
+        ...(leadContext.answerValues || {}),
+        ...newIdentity,
+        ...Object.fromEntries(
+          Object.entries(submittedAnswers).filter(
+            ([, v]) => typeof v === 'string' ? v.trim().length > 0 : v != null,
+          ),
+        ),
+      }
+      const newKnownAnswerFields = Object.keys(newAnswerValues)
+      const updatedContext: KnownLeadContext = {
+        known: true,
+        knownFields: newKnownFields,
+        knownAnswerFields: newKnownAnswerFields,
+        identity: newIdentity,
+        answerValues: newAnswerValues,
+        requiresWebsite:
+          Boolean(newIdentity.email) &&
+          !newIdentity.website &&
+          publicEmailNeedsWebsite(newIdentity.email || ''),
+        scores: response.scores || leadContext.scores,
+        qualificationTier: response.qualificationTier || leadContext.qualificationTier,
+        qualificationOutcome: response.qualificationOutcome || leadContext.qualificationOutcome,
+        reasonCodes: response.reasonCodes || leadContext.reasonCodes,
+        missingFields: response.missingFields || leadContext.missingFields,
+        assessmentCompleted: true,
+        recommendedWorkflow: response.recommendedWorkflow || leadContext.recommendedWorkflow,
+        incidentFollowUpEligible: submittedAnswers.recreationFrequency !== 'never',
+      }
+      setLeadContext(updatedContext)
       reserve()
       clear()
       setResult(response)
@@ -258,7 +305,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
               Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
             </p>
             <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
-              Build My Customized Pilot Plan
+              Build my customized pilot plan
               <ArrowRight aria-hidden="true" size={18} />
             </CTAButton>
           </div>
@@ -269,7 +316,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             analyticsLabel="Complete Pilot Readiness"
             analyticsIntent="commercial_readiness"
           >
-            complete pilot readiness
+            Complete pilot readiness
             <ArrowRight aria-hidden="true" size={18} />
           </CTAButton>
         ) : (
@@ -311,7 +358,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         {reviewOpen ? (
           <div className="mt-40 max-w-[680px]">
             <WorkflowReviewForm
-              context={{ ...context, known: true }}
+              context={leadContext}
               recommendedWorkflow={result.recommendedWorkflow}
             />
           </div>
@@ -333,10 +380,10 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         className="space-y-20"
       >
         <IdentityFields
-          context={context}
+          context={leadContext}
           email={email}
           onEmailChange={(event) => setEmail(event.target.value)}
-          requireWebsite={publicEmailNeedsWebsite(email)}
+          requireWebsite={publicEmailNeedsWebsite(email) || Boolean(leadContext.requiresWebsite)}
           onStarted={onStarted}
         />
         {!known.has('teamType') ? (
@@ -433,7 +480,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         <LeadField label="anything else we should know?" name="message">
           <LeadTextareaField id="message" name="message" minRows={4} resizable={false} onChange={onStarted} />
         </LeadField>
-        <ConsentFields onStarted={onStarted} showMarketing={!context.known} />
+        <ConsentFields onStarted={onStarted} showMarketing={!leadContext.known} />
         <NoScriptLeadFallback />
         {status === 'error' ? <p role="alert" className="t-p-sans text-[#ffb4a8]">{error}</p> : null}
         <CTAButton type="submit" className="js-lead-submit" disabled={status === 'submitting'} analyticsLabel="Assess Your Workflow">

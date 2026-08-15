@@ -41,6 +41,13 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
     if (resolvedProfile.identity.company) knownFields.push('company')
     if (resolvedProfile.identity.role) knownFields.push('role')
     if (resolvedProfile.identity.website) knownFields.push('website')
+    const identity: Partial<KnownLeadContext['identity']> = {
+      email: resolvedProfile.identity.email || undefined,
+      name: resolvedProfile.identity.name || undefined,
+      company: resolvedProfile.identity.company || undefined,
+      role: resolvedProfile.identity.role || undefined,
+      website: resolvedProfile.identity.website || undefined,
+    }
     const fallbackAnswers = resolvedProfile.qualification
       ? resolvedProfile.qualification.answers
       : await latestQualificationAnswers(resolvedProfile.id)
@@ -49,13 +56,17 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
       ? calculateQualification(fallbackAnswers)
       : undefined
     const qualification = resolvedProfile.qualification
-    const knownAnswerFields = Object.entries(fallbackAnswers)
+    const combinedAnswers = {
+      ...resolvedProfile.identity,
+      ...fallbackAnswers,
+    }
+    const knownAnswerFields = Object.entries(combinedAnswers)
       .filter(([, value]) =>
         typeof value === 'string' ? value.trim().length > 0 : value != null,
       )
       .map(([key]) => key)
     const answerValues = Object.fromEntries(
-      Object.entries(fallbackAnswers).filter(([, value]) =>
+      Object.entries(combinedAnswers).filter(([, value]) =>
         typeof value === 'string' ? value.trim().length > 0 : value != null,
       ),
     )
@@ -66,6 +77,7 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
       known: true,
       knownFields,
       knownAnswerFields,
+      identity,
       answerValues,
       requiresWebsite:
         Boolean(resolvedProfile.identity.email) &&

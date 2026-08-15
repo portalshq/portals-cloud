@@ -9,6 +9,7 @@ REPOSITORY="${AUTH_GATEWAY_ECR_REPOSITORY:-${ECR_REGISTRY}/${ECR_NAMESPACE}/auth
 TAG="$(git -C "${ROOT}" rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)"
 TAGGED_IMAGE="${REPOSITORY}:${TAG}"
 TARGETARCH="${TARGETARCH:-arm64}"
+REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-false}"
 SOURCE_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
 PROTOCOL_ROOT="${ROOT}/infra/lore/lore"
 PROTOCOL_COMMIT="$(git -C "${PROTOCOL_ROOT}" rev-parse HEAD)"
@@ -23,6 +24,14 @@ if [[ -n "${ROOT_DIRTY}" || -n "${PROTOCOL_DIRTY}" ]]; then
   exit 2
 fi
 
+# Production pins need a signature bound to this exact immutable digest.  The
+# Auth Gateway's JWT-signing key is a different trust domain and must not sign
+# artifacts.
+if [[ "${ENVIRONMENT:-dev}" == "prod" && "${REQUIRE_SIGNATURE}" != "true" ]]; then
+  echo "Production Auth Gateway publication requires REQUIRE_SIGNATURE=true." >&2
+  exit 2
+fi
+
 docker buildx build --platform "${PLATFORMS:-linux/${TARGETARCH}}" --provenance=true --sbom=true --push \
   --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
   --label "io.portals.protocol-revision=${PROTOCOL_COMMIT}" \
@@ -30,6 +39,12 @@ docker buildx build --platform "${PLATFORMS:-linux/${TARGETARCH}}" --provenance=
 DIGEST="$(docker buildx imagetools inspect "${TAGGED_IMAGE}" | awk '/^Digest:/ {print $2; exit}')"
 [[ "${DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Could not resolve pushed digest" >&2; exit 1; }
 PIN="${REPOSITORY}@${DIGEST}"
+if [[ "${REQUIRE_SIGNATURE}" == "true" ]]; then
+  command -v cosign >/dev/null || { echo "cosign is required when REQUIRE_SIGNATURE=true" >&2; exit 2; }
+  : "${COSIGN_KEY:?Set COSIGN_KEY to the dedicated artifact-signing KMS URI or key reference}"
+  cosign sign --yes --key "${COSIGN_KEY}" "${PIN}"
+fi
 EXPECTED_SOURCE_COMMIT="${SOURCE_COMMIT}" EXPECTED_PROTOCOL_COMMIT="${PROTOCOL_COMMIT}" \
+  REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE}" COSIGN_KEY="${COSIGN_KEY:-}" \
   TRIVY_BIN="${TRIVY_BIN:-trivy}" "${PROMOTE_SCRIPT}" control-plane "${PIN}" "linux/${TARGETARCH}"
 printf 'Auth Gateway image pinned: %s\n' "${PIN}"

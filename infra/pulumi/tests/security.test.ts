@@ -125,6 +125,14 @@ test("image promotion is scan-gated and public release also requires a signature
   assert.match(publisher, /\.Provenance/);
   assert.match(publisher, /EXPECTED_SOURCE_COMMIT/);
   assert.match(publisher, /provenance does not bind source commit/);
+  for (const script of [
+    "infra/lore/scripts/docker-buildx-lore.sh",
+    "control-plane/scripts/publish-auth-gateway.sh",
+  ]) {
+    const source = fs.readFileSync(path.join(repositoryRoot, script), "utf8");
+    assert.match(source, /ENVIRONMENT:-dev.*prod[\s\S]*REQUIRE_SIGNATURE.*true/);
+    assert.match(source, /cosign sign --yes --key/);
+  }
 });
 
 test("Fargate architecture is explicit and publisher target architecture is configurable", () => {
