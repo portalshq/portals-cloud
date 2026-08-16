@@ -238,7 +238,7 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
             options={[
               {value: 'approved-version-retrieval', label: 'approved version confusion'},
               {value: 'asset-reproduction', label: 'failed asset reproduction'},
-              {value: 'five-more-like-this', label: 'five more like this becomes a rebuild'},
+              {value: 'five-more-like-this', label: 'twelve more like this becomes a rebuild'},
               {value: 'character-continuity', label: 'character or visual continuity drift'},
               {value: 'production-handoff', label: 'production knowledge leaves with the creator'},
               {value: 'campaign-variant-control', label: 'variant families become hard to control'},

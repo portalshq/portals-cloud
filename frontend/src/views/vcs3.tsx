@@ -22,7 +22,7 @@ const comparisonRows = [
     withPortals: 'Reproduced exactly from its full recipe',
   },
   {
-    metric: 'Client asks for "five more like this"',
+    metric: 'Client asks for "twelve more like this"',
     without: 'Hours to days of rediscovery work',
     withPortals: 'Extended directly from the original lineage',
   },
@@ -201,7 +201,7 @@ export function VCS({
             </h2>
 
             <p className="text-lg text-portals-on-surface-variant leading-relaxed mb-12">
-              AI production teams generate thousands of images, videos, prompts, and iterations every month. The final asset ships. The client approves it. Everyone moves on. Three months later, someone asks for "five more like this" — and the team that made it can't tell you how.
+              AI production teams generate thousands of images, videos, prompts, and iterations every month. The final asset ships. The client approves it. Everyone moves on. Three months later, someone asks for "twelve more like this" — and the team that made it can't tell you how.
             </p>
 
             <p className="text-lg text-portals-on-surface-variant leading-relaxed mb-16">

@@ -18,7 +18,7 @@ portals is version control infrastructure for AI-native creative organizations. 
 
 portals is not a file store or another DAM. Traditional tools organize static files; portals models living entities and sits beneath the AI tools a team already uses. It treats every AI-generated asset the way software engineering treats source code: with a trusted identity, complete history, and reproducible record of exactly what produced it.
 
-Success looks like a production team being asked for "five more like this" and answering in minutes with confidence, not spending days rediscovering how the original was made.
+Success looks like a production team being asked for "twelve more like this" and answering in minutes with confidence, not spending days rediscovering how the original was made.
 
 ## Customer Problem
 

@@ -114,7 +114,7 @@ const comparisonRows = [
     withPortals: 'Reproduced exactly from its full recipe',
   },
   {
-    metric: 'Client asks for five more like this',
+    metric: 'Client asks for twelve more like this',
     without: 'Hours to days of rediscovery work',
     withPortals: 'Extended directly from the original lineage',
   },
@@ -608,7 +608,7 @@ function ProblemSection() {
         </div> */}
         <div className="col-span-full space-y-34 lg:col-span-16">
           <h2 className="t-d2-sans max-w-[13.8em]">
-            When a client asks for more assets, does your team reproduce from history, or start from scratch?
+            When a client asks for twelve more assets, does your team build from history, or start from scratch?
           </h2>
           <p className="t-p-lg-serif max-w-[38em] leading-[1.25] text-white">
             Your creative teams generate thousands of images, videos, and iterations daily. 
@@ -929,7 +929,7 @@ export function VCS({
           <div className="col-span-full space-y-20">
             <h1 ref={heroHeadingRef} className="max-w-[8.725em] t-d2-sans">
               build from your best{' '}
-              <strong className="t-d2-serif">creative work</strong>.
+              <strong className="t-d2-serif">creative work</strong>
             </h1>
             <p className="t-h3-sans max-w-[24ch]">reduce costs, extend successful work, and scale production across teams and tools.</p>
             <div className="saga-hero-assess flex flex-col gap-12 pt-12 sm:flex-row">

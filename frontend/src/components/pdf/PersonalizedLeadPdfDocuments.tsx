@@ -144,7 +144,7 @@ export type PersonalizedQualification = {
 }
 
 const labels: Record<string, string> = {
-  'five-more-like-this': 'five more like this',
+  'five-more-like-this': 'twelve more like this',
   'approved-version-retrieval': 'approved-version retrieval',
   'character-continuity': 'character continuity',
   'campaign-variant-control': 'campaign variant control',

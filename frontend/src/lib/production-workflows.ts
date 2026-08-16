@@ -8,9 +8,9 @@ export const productionWorkflows: {
 }[] = [
   {
     id: 'five-more-like-this',
-    title: 'five more like this',
+    title: 'twelve more like this',
     problem:
-      'an approved asset performs, but the production context behind it is scattered or gone. "five more like this" demands a rebuild',
+      'an approved asset performs, but the production context behind it is scattered or gone. "twelve more like this" demands a rebuild',
     outcome:
       'recover the complete production record and create new branches without reconstructing the original work.',
   },
