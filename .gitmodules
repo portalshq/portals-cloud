@@ -1,3 +1,4 @@
 [submodule "infra/lore/lore"]
 	path = infra/lore/lore
-	url = https://github.com/EpicGames/lore
+	url = https://github.com/portalshq/lore
+	branch = 0.8.4
