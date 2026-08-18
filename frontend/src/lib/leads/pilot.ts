@@ -51,6 +51,7 @@ export type UnresolvedItem = {
   key: string
   label: string
   resolution: string
+  href: string
 }
 
 export type ExceptionItem = {
@@ -144,7 +145,7 @@ export function recommendedReviewers(
     {
       role: 'production_owner',
       name: name('productionOwner'),
-      email: '',
+      email: email('productionOwnerEmail'),
       required: true,
     },
     {
@@ -652,6 +653,7 @@ export function computeUnresolved(
       key: 'start-date',
       label: 'Choose the pilot start date',
       resolution: 'Pick a start date in the approval room.',
+      href: '#scope'
     })
   }
   if (
@@ -662,6 +664,7 @@ export function computeUnresolved(
       key: 'integration',
       label: 'Choose the import or integration method',
       resolution: 'Select one of the standard integration paths.',
+      href: '#scope',
     })
   }
   if (UNKNOWN_CLASSIFICATION.has(answers.dataClassification || '')) {
@@ -669,6 +672,7 @@ export function computeUnresolved(
       key: 'classification',
       label: 'Confirm how your production data should be classified',
       resolution: 'Select the data classification that applies.',
+      href: '#scope',
     })
   }
   if (!answers.approvalPath || answers.approvalPath === 'not-established') {
@@ -676,6 +680,7 @@ export function computeUnresolved(
       key: 'approval',
       label: 'Confirm the $5,000 approval path',
       resolution: 'Confirm who can approve and fund the pilot.',
+      href: '#scope',
     })
   }
   if (
@@ -686,13 +691,15 @@ export function computeUnresolved(
       key: 'approver',
       label: 'Add the approver\u2019s email so the plan can be shared',
       resolution: 'Share the room with the approver using the share box, or revise the plan to add their email.',
-    })
+      href: '#scope',
+      })
   }
   if (!answers.annualDeploymentOption || answers.annualDeploymentOption === 'not-known') {
     unresolved.push({
       key: 'annual',
       label: 'Choose the proposed annual deployment option',
       resolution: 'Select the annual deployment you are evaluating.',
+      href: '#scope',
     })
   }
   if (!answers.annualPriceAcknowledged) {
@@ -700,6 +707,7 @@ export function computeUnresolved(
       key: 'annual-ack',
       label: 'Acknowledge the proposed annual price',
       resolution: 'Acknowledge the annual price shown in the commercial terms.',
+      href: '#scope',
     })
   }
   if (!(answers.signerName || '').trim() || !(answers.signerEmail || '').trim()) {
@@ -707,6 +715,7 @@ export function computeUnresolved(
       key: 'signer',
       label: 'Identify the authorized signer',
       resolution: 'Enter the signer\u2019s name and email in the approval room.',
+      href: '#scope',
     })
   }
   if (opts.route === 'zero-call') {
@@ -717,6 +726,7 @@ export function computeUnresolved(
           key: `criterion-${criterion.key}`,
           label: `Set a measurable target for: ${criterion.label}`,
           resolution: 'Edit the success criterion and add a target.',
+          href: '#scope',
         })
       }
     }

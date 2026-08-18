@@ -997,10 +997,11 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
         id, idempotency_key, submission_type, provider, form_version,
         profile_id, company_domain, payload_ciphertext, scores,
         qualification_tier, recommended_workflow, qualifying_submission_id,
-        verified, process_status, result, verified_at, payload_delete_after
+        verified, process_status, result, verified_at, payload_delete_after,
+        what_brought_you_here, what_brought_you_here_other, how_did_you_hear_about_portals
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
                 CASE WHEN $13 THEN now() ELSE NULL END,
-                now() + interval '30 days')`,
+                now() + interval '30 days', $16, $17, $18)`,
       [
         id,
         input.request.idempotencyKey,
@@ -1017,6 +1018,9 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
         input.verified,
         input.verified ? 'pending' : 'unverified',
         JSON.stringify(input.response),
+        input.request.whatBroughtYouHere || null,
+        input.request.whatBroughtYouHereOther || null,
+        input.request.howDidYouHearAboutPortals || null,
       ],
     )
 
@@ -1116,13 +1120,28 @@ export async function latestQualificationAnswers(
             submission.request.submissionType,
           ),
       )
-      .reduce(
-        (answers, submission) => ({...answers, ...submission.request.answers}),
-        {},
-      )
+      .reduce((answers, submission) => {
+        const merged = {...answers, ...submission.request.answers} as Record<string, unknown>
+        if (submission.request.whatBroughtYouHere) {
+          merged.whatBroughtYouHere = submission.request.whatBroughtYouHere
+        }
+        if (submission.request.whatBroughtYouHereOther) {
+          merged.whatBroughtYouHereOther = submission.request.whatBroughtYouHereOther
+        }
+        if (submission.request.howDidYouHearAboutPortals) {
+          merged.howDidYouHearAboutPortals = submission.request.howDidYouHearAboutPortals
+        }
+        return merged
+      }, {} as Record<string, unknown>)
   }
-  const result = await pool().query<{payload_ciphertext: string}>(
-    `SELECT payload_ciphertext FROM lead_submissions
+  const result = await pool().query<{
+    payload_ciphertext: string
+    what_brought_you_here: string | null
+    what_brought_you_here_other: string | null
+    how_did_you_hear_about_portals: string | null
+  }>(
+    `SELECT payload_ciphertext, what_brought_you_here, what_brought_you_here_other, how_did_you_hear_about_portals
+      FROM lead_submissions
       WHERE profile_id = $1 AND verified = true
         AND submission_type IN ('assessment', 'workflow_review')
         AND (payload_delete_after >= now() OR synced_at IS NULL)
@@ -1131,8 +1150,18 @@ export async function latestQualificationAnswers(
   )
   return result.rows.reduce<Record<string, unknown>>((answers, row) => {
     const payload = decryptJson<{request: LeadRequest}>(row.payload_ciphertext)
-    return {...answers, ...payload.request.answers}
-  }, {})
+    const merged = {...answers, ...payload.request.answers} as Record<string, unknown>
+    if (row.what_brought_you_here) {
+      merged.whatBroughtYouHere = row.what_brought_you_here
+    }
+    if (row.what_brought_you_here_other) {
+      merged.whatBroughtYouHereOther = row.what_brought_you_here_other
+    }
+    if (row.how_did_you_hear_about_portals) {
+      merged.howDidYouHearAboutPortals = row.how_did_you_hear_about_portals
+    }
+    return merged
+  }, {} as Record<string, unknown>)
 }
 
 export async function getQualificationSnapshot(

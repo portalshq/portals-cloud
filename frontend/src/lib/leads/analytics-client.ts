@@ -204,3 +204,26 @@ export async function trackEvent(
     ...properties,
   })
 }
+
+export async function trackQualificationAnswers(
+  properties: {
+    whatBroughtYouHere?: string
+    whatBroughtYouHereOther?: string
+    howDidYouHearAboutPortals?: string
+  },
+): Promise<void> {
+  await trackEvent('qualification_answers_submitted', properties)
+}
+
+export async function trackDealRoles(
+  properties: {
+    initialContact?: {name: string; email: string}
+    projectManager?: {name: string; email: string}
+    buyer?: {name: string; email: string}
+    evaluator?: {name: string; email: string}
+    decisionMaker?: {name: string; email: string}
+    contractSigner?: {name: string; email: string}
+  },
+): Promise<void> {
+  await trackEvent('deal_roles_identified', properties)
+}

@@ -10,3 +10,32 @@
 - Preserve `crm_external_records` as the local Apollo-ID ledger and `crm_outbox` for retries. Do not query Apollo as reconciliation/source-of-truth and do not dual-write to Attio.
 - Do not enable Apollo `run_dedupe` when creating contacts. It can match on non-email data and overwrite a different person. Application email identity plus the local ID ledger provide the safe deduplication boundary.
 - Mixpanel analytics is consent-gated and separate from CRM. Client identifiers/attribution support analytics only; do not use them as CRM identity.
+
+## Progressive qualification fields
+
+All website forms collect two qualification questions:
+- `whatBroughtYouHere`: Enum value indicating primary motivation (workflow-problem, assess-scaling, evaluating-tools, other)
+- `whatBroughtYouHereOther`: Free-text detail when "other" is selected
+- `howDidYouHearAboutPortals`: Enum value indicating discovery channel (google-search, linkedin, email, someone-company, friend-colleague, article-newsletter-podcast, partner-company, social-media)
+
+These fields are stored at the lead submission level (both in encrypted payload and in dedicated database columns) and projected to Apollo Contact custom fields for sales context.
+
+## Apollo deal role mapping
+
+Pilot submissions map team-member fields to Apollo deal contact roles:
+- Identity name/email → `Initial Contact`
+- Production owner name/email → `Project Manager`
+- Economic buyer name/email → `Buyer`
+- Technical evaluator name/email → `Evaluator`
+- Approver name/email → `Decision Maker`
+- Signer name/email → `Contract Signer`
+
+Role entries are only emitted when both name and email are present. The mapped roles are serialized into the Apollo opportunity custom field `Deal contact roles` as a JSON array until native Apollo contact-role API endpoints are identified and integrated.
+
+## Production owner email
+
+The pilot controlled fields include `productionOwnerEmail` as a required field. This email is persisted in the `lead_pilots` table, used for reviewer invitations, and projected to the Apollo Contact custom field `Production owner email`.
+
+## Apollo provisioning
+
+Run `npx tsx scripts/provision-apollo.ts` after adding or modifying custom fields in `config/apollo-lead-operations.json`. The script reads `.env.local`, requires `APOLLO_API_KEY`, and creates missing labels, custom fields, and deal stages. Existing fields are not modified.

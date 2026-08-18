@@ -100,6 +100,9 @@ export function WorkflowReviewForm({
           analytics: analyticsConsent() === 'accepted',
         },
         companyFax: String(values.companyFax || ''),
+        whatBroughtYouHere: ((values.whatBroughtYouHere || context.answerValues?.whatBroughtYouHere) as 'workflow-problem' | 'assess-scaling' | 'evaluating-tools' | 'other' | undefined),
+        whatBroughtYouHereOther: String(values.whatBroughtYouHereOther || context.answerValues?.whatBroughtYouHereOther || ''),
+        howDidYouHearAboutPortals: ((values.howDidYouHearAboutPortals || context.answerValues?.howDidYouHearAboutPortals) as 'google-search' | 'linkedin' | 'email' | 'someone-company' | 'friend-colleague' | 'article-newsletter-podcast' | 'partner-company' | 'social-media' | undefined),
         answers: commercialReadinessAnswersSchema.parse({
           targetStartPeriod: answer('targetStartPeriod'),
           approvalPath: answer('approvalPath'),
@@ -158,6 +161,48 @@ export function WorkflowReviewForm({
           Answer only the practical details the assessment could not establish. Objections travel with your scope; they do not automatically block a pilot plan.
         </p>
       </div>
+      <LeadField label="What brought you here?" name="whatBroughtYouHere">
+        <LeadSelectField
+          id="whatBroughtYouHere"
+          name="whatBroughtYouHere"
+          required
+          defaultValue={context.answerValues?.whatBroughtYouHere || ''}
+        >
+          <option value="" disabled>select one</option>
+          <option value="workflow-problem">I have a workflow problem I need to solve</option>
+          <option value="assess-scaling">I want to assess whether our current process will scale</option>
+          <option value="evaluating-tools">I'm evaluating production tools</option>
+          <option value="other">Other</option>
+        </LeadSelectField>
+      </LeadField>
+      {context.answerValues?.whatBroughtYouHere === 'other' ? (
+        <LeadField label="Please describe" name="whatBroughtYouHereOther">
+          <LeadTextareaField
+            id="whatBroughtYouHereOther"
+            name="whatBroughtYouHereOther"
+            defaultValue={context.answerValues?.whatBroughtYouHereOther || ''}
+            placeholder="Describe what brought you here"
+          />
+        </LeadField>
+      ) : null}
+      <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
+        <LeadSelectField
+          id="howDidYouHearAboutPortals"
+          name="howDidYouHearAboutPortals"
+          required
+          defaultValue={context.answerValues?.howDidYouHearAboutPortals || ''}
+        >
+          <option value="" disabled>select one</option>
+          <option value="google-search">Google / search</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="email">Email</option>
+          <option value="someone-company">Someone at my company</option>
+          <option value="friend-colleague">Friend or colleague</option>
+          <option value="article-newsletter-podcast">Article / newsletter / podcast</option>
+          <option value="partner-company">Partner / another company</option>
+          <option value="social-media">Social media</option>
+        </LeadSelectField>
+      </LeadField>
       <IdentityFields context={context} email={email} onEmailChange={(event) => setEmail(event.target.value)} requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)} onStarted={onStarted} />
       {missing.has('targetStartPeriod') ? <LeadField label="target start period *" name="targetStartPeriod">
         <LeadSelectField id="targetStartPeriod" name="targetStartPeriod" required defaultValue="">

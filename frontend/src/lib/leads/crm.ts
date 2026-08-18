@@ -388,6 +388,74 @@ export function qualificationState(submission: Pick<StoredSubmission, 'request' 
   return submission.tier === 'high' ? 'qualified' : 'not_qualified'
 }
 
+interface DealRoleContact {
+  role: string
+  name: string
+  email: string
+}
+
+export function mapDealRoles(submission: StoredSubmission): DealRoleContact[] {
+  const answers = submission.request.answers as Record<string, unknown>
+  const identity = submission.identity
+  const roles: DealRoleContact[] = []
+
+  // Initial Contact
+  if (identity.name && identity.email) {
+    roles.push({
+      role: 'Initial Contact',
+      name: identity.name,
+      email: identity.email,
+    })
+  }
+
+  // Project Manager (Production Owner)
+  if (answers.productionOwner && answers.productionOwnerEmail) {
+    roles.push({
+      role: 'Project Manager',
+      name: String(answers.productionOwner),
+      email: String(answers.productionOwnerEmail),
+    })
+  }
+
+  // Buyer (Economic Buyer)
+  if (answers.economicBuyer && answers.economicBuyerEmail) {
+    roles.push({
+      role: 'Buyer',
+      name: String(answers.economicBuyer),
+      email: String(answers.economicBuyerEmail),
+    })
+  }
+
+  // Evaluator (Technical Evaluator)
+  if (answers.technicalEvaluator && answers.technicalEvaluatorEmail) {
+    roles.push({
+      role: 'Evaluator',
+      name: String(answers.technicalEvaluator),
+      email: String(answers.technicalEvaluatorEmail),
+    })
+  }
+
+  // Decision Maker (Approver)
+  if (answers.approverName && answers.approverEmail) {
+    roles.push({
+      role: 'Decision Maker',
+      name: String(answers.approverName),
+      email: String(answers.approverEmail),
+    })
+  }
+
+  // Contract Signer (Signer)
+  if (answers.signerName && answers.signerEmail) {
+    roles.push({
+      role: 'Contract Signer',
+      name: String(answers.signerName),
+      email: String(answers.signerEmail),
+    })
+  }
+
+  return roles
+}
+
 function contactStageId(schema: ApolloSchema, submission: StoredSubmission, existing: boolean): string | undefined {
   if (submission.request.submissionType === 'pilot_request') return schema.contactStages.pilot_requested || schema.contactStages.qualified
   if (qualificationState(submission) === 'qualified') return schema.contactStages.qualified
@@ -444,6 +512,7 @@ function contactFields(submission: StoredSubmission): Record<string, unknown> {
     unresolved_question: answers.unresolvedQuestion,
     stakeholder_involved: answers.stakeholderInvolved,
     production_owner: answers.productionOwner,
+    production_owner_email: answers.productionOwnerEmail,
     approval_path: answers.approvalPath,
     primary_objection: answers.primaryObjection,
     objection_detail: answers.objectionDetail,
@@ -487,6 +556,9 @@ function contactFields(submission: StoredSubmission): Record<string, unknown> {
     recommended_next_action: submission.response.nextAction,
     marketing_consent: submission.profile.marketingConsent && !submission.profile.marketingSuppressed,
     analytics_consent: submission.profile.analyticsConsent,
+    what_brought_you_here: submission.request.whatBroughtYouHere,
+    what_brought_you_here_other: submission.request.whatBroughtYouHereOther,
+    how_did_you_hear_about_portals: submission.request.howDidYouHearAboutPortals,
   })
 }
 
@@ -591,18 +663,26 @@ async function upsertPilotDeal(schema: ApolloSchema, submission: StoredSubmissio
   if (!pilot) return
   const existing = await remoteRecord('pilot', pilot.id, 'deal')
   const stageId = schema.dealStages['Pilot Requested']
+  const dealRoles = mapDealRoles(submission)
   const body = compact({
     name: `paid pilot - ${submission.identity.company || submission.profile.companyDomain}`,
     account_id: accountId,
     contact_ids: [contactId],
     amount: String(pilot.proposal?.priceAmount || Number(process.env.PILOT_PRICE_AMOUNT || 5000)),
     opportunity_stage_id: stageId,
-    typed_custom_fields: fieldValues(schema, 'deal', {portals_submission_id: submission.id}),
+    typed_custom_fields: fieldValues(schema, 'deal', {
+      portals_submission_id: submission.id,
+      // Store deal roles as JSON in custom field until Apollo API endpoint for contact roles is identified
+      deal_contact_roles: dealRoles.length > 0 ? JSON.stringify(dealRoles) : undefined,
+    }),
   })
   const record = existing
     ? await apolloRequest<ApolloRecord>(`/api/v1/opportunities/${encodeURIComponent(existing.id)}`, 'PATCH', body)
     : await apolloRequest<ApolloRecord>('/api/v1/opportunities', 'POST', body)
   await rememberRemoteRecord('pilot', pilot.id, 'deal', record)
+  
+  // TODO: Once Apollo API endpoint for assigning contact roles to deals is identified,
+  // implement the call to associate contacts with their specific roles using dealRoles array
 }
 
 /** Projects verified application data into Apollo. It never reads Apollo as source-of-truth. */

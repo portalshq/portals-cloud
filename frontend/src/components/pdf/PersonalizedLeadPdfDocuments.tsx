@@ -24,6 +24,7 @@ import {
   packageMilestoneLabel,
   packagePriceLabel,
 } from '@/lib/package-specifications'
+import {formatReadableDate} from '@/lib/utils'
 
 const HEADING_SIZE = 22
 const NORMAL_SIZE = 10.5
@@ -448,7 +449,7 @@ export function PilotPlanPdfDocument({
   const signedAt = pilot.signing.signedAt
     ? new Date(String(pilot.signing.signedAt)).toLocaleDateString('en-US')
     : null
-  const started = pilot.resolvedStartDate || pilot.proposal?.termStart || 'not yet chosen'
+  const started = formatReadableDate(pilot.resolvedStartDate || pilot.proposal?.termStart) || 'not yet chosen'
 
   return (
     <Document

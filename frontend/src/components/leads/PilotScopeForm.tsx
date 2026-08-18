@@ -306,6 +306,7 @@ export function PilotScopeForm({
       activeWorkflow: string('activeWorkflow'),
       pilotWorkflow: string('pilotWorkflow') || string('activeWorkflow'),
       productionOwner: string('productionOwner'),
+      productionOwnerEmail: string('productionOwnerEmail'),
       economicBuyer: string('economicBuyer'),
       economicBuyerEmail: string('economicBuyerEmail'),
       technicalEvaluator: string('technicalEvaluator'),
@@ -372,6 +373,10 @@ export function PilotScopeForm({
     const values = Object.fromEntries(new FormData(form).entries())
     const answers = pilotAnswersFrom(form)
 
+    const whatBroughtYouHere = (values.whatBroughtYouHere || context.answerValues?.whatBroughtYouHere) as 'workflow-problem' | 'assess-scaling' | 'evaluating-tools' | 'other' | undefined
+    const whatBroughtYouHereOther = String(values.whatBroughtYouHereOther || context.answerValues?.whatBroughtYouHereOther || '')
+    const howDidYouHearAboutPortals = (values.howDidYouHearAboutPortals || context.answerValues?.howDidYouHearAboutPortals) as 'google-search' | 'linkedin' | 'email' | 'someone-company' | 'friend-colleague' | 'article-newsletter-podcast' | 'partner-company' | 'social-media' | undefined
+
     try {
       const result = await submitLead({
         submissionType: 'pilot_request',
@@ -403,6 +408,9 @@ export function PilotScopeForm({
           analytics: analyticsConsent() === 'accepted',
         },
         companyFax: String(values.companyFax || ''),
+        whatBroughtYouHere,
+        whatBroughtYouHereOther,
+        howDidYouHearAboutPortals,
         answers,
       })
 
@@ -586,6 +594,54 @@ export function PilotScopeForm({
 
       <div data-pilot-stage={0} hidden={stage !== 0} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
+          <LeadField label="What brought you here?" name="whatBroughtYouHere">
+            <LeadSelectField
+              id="whatBroughtYouHere"
+              name="whatBroughtYouHere"
+              required
+              defaultValue={String(initialAnswers?.whatBroughtYouHere || '')}
+            >
+              <option value="" disabled>select one</option>
+              <option value="workflow-problem">I have a workflow problem I need to solve</option>
+              <option value="assess-scaling">I want to assess whether our current process will scale</option>
+              <option value="evaluating-tools">I'm evaluating production tools</option>
+              <option value="other">Other</option>
+            </LeadSelectField>
+          </LeadField>
+        </div>
+        {initialAnswers?.whatBroughtYouHere === 'other' ? (
+          <div className="sm:col-span-2">
+            <LeadField label="Please describe" name="whatBroughtYouHereOther">
+              <LeadTextareaField
+                id="whatBroughtYouHereOther"
+                name="whatBroughtYouHereOther"
+                defaultValue={String(initialAnswers?.whatBroughtYouHereOther || '')}
+                placeholder="Describe what brought you here"
+              />
+            </LeadField>
+          </div>
+        ) : null}
+        <div className="sm:col-span-2">
+          <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
+            <LeadSelectField
+              id="howDidYouHearAboutPortals"
+              name="howDidYouHearAboutPortals"
+              required
+              defaultValue={String(initialAnswers?.howDidYouHearAboutPortals || '')}
+            >
+              <option value="" disabled>select one</option>
+              <option value="google-search">Google / search</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="email">Email</option>
+              <option value="someone-company">Someone at my company</option>
+              <option value="friend-colleague">Friend or colleague</option>
+              <option value="article-newsletter-podcast">Article / newsletter / podcast</option>
+              <option value="partner-company">Partner / another company</option>
+              <option value="social-media">Social media</option>
+            </LeadSelectField>
+          </LeadField>
+        </div>
+        <div className="sm:col-span-2">
           <IdentityFields
             context={context}
             email={email}
@@ -689,6 +745,18 @@ export function PilotScopeForm({
               required
               defaultValue={String(carriedAnswers.productionOwner || '')}
               placeholder="name and title"
+            />
+          </LeadField>
+        ) : null}
+        {missing('productionOwnerEmail') ? (
+          <LeadField label="production-team owner email *" name="productionOwnerEmail">
+            <LeadTextField
+              id="productionOwnerEmail"
+              name="productionOwnerEmail"
+              required
+              type="email"
+              defaultValue={String(carriedAnswers.productionOwnerEmail || '')}
+              placeholder="email"
             />
           </LeadField>
         ) : null}
@@ -927,7 +995,7 @@ export function PilotScopeForm({
           <SummaryRow label="integration" value={optionLists.integrationMethodLabel[summaryAnswer('integrationMethod') as keyof typeof optionLists.integrationMethodLabel] || '—'} />
           <SummaryRow label="data classification" value={optionLists.dataClassificationLabel[summaryAnswer('dataClassification') as keyof typeof optionLists.dataClassificationLabel] || '—'} />
           <SummaryRow label="approval path" value={summaryAnswer('approvalPath').replaceAll('-', ' ') || '—'} />
-          <SummaryRow label="production owner" value={summaryAnswer('productionOwner') || '—'} />
+          <SummaryRow label="production owner" value={[summaryAnswer('productionOwner'), summaryAnswer('productionOwnerEmail')].filter(Boolean).join(' · ') || '—'} />
           <SummaryRow label="economic buyer" value={[summaryAnswer('economicBuyer'), summaryAnswer('economicBuyerEmail')].filter(Boolean).join(' · ') || '—'} />
           <SummaryRow label="technical evaluator" value={[summaryAnswer('technicalEvaluator'), summaryAnswer('technicalEvaluatorEmail')].filter(Boolean).join(' · ') || '—'} />
           {summaryAnswer('approverName') ? <SummaryRow label="approver" value={[summaryAnswer('approverName'), summaryAnswer('approverEmail')].filter(Boolean).join(' · ')} /> : null}

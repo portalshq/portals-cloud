@@ -6,6 +6,7 @@ import {
   apolloSourceUrl,
   finalOperationalList,
   isDeletedApolloContactError,
+  mapDealRoles,
   nextAutomatedLifecycle,
   prospectAccount,
   qualificationState,
@@ -119,4 +120,124 @@ test('Apollo deleted-contact errors are recognized as stale mappings', () => {
   assert.equal(isDeletedApolloContactError(validation, 'abc'), false)
   assert.equal(isDeletedApolloContactError(accountMissing, 'abc'), false)
   assert.equal(isDeletedApolloContactError(new Error('rate limit'), 'abc'), false)
+})
+
+test('deal role mapping includes identity as Initial Contact when present', () => {
+  const submission = {
+    identity: {name: 'Jane Doe', email: 'jane@example.com'},
+    request: {answers: {}},
+  } as any
+  const roles = mapDealRoles(submission)
+  assert.equal(roles.length, 1)
+  assert.equal(roles[0].role, 'Initial Contact')
+  assert.equal(roles[0].name, 'Jane Doe')
+  assert.equal(roles[0].email, 'jane@example.com')
+})
+
+test('deal role mapping includes production owner as Project Manager when email present', () => {
+  const submission = {
+    identity: {name: 'Jane Doe', email: 'jane@example.com'},
+    request: {
+      answers: {
+        productionOwner: 'John Smith',
+        productionOwnerEmail: 'john@example.com',
+      },
+    },
+  } as any
+  const roles = mapDealRoles(submission)
+  assert.equal(roles.length, 2)
+  assert.equal(roles[1].role, 'Project Manager')
+  assert.equal(roles[1].name, 'John Smith')
+  assert.equal(roles[1].email, 'john@example.com')
+})
+
+test('deal role mapping excludes production owner without email', () => {
+  const submission = {
+    identity: {name: 'Jane Doe', email: 'jane@example.com'},
+    request: {
+      answers: {
+        productionOwner: 'John Smith',
+      },
+    },
+  } as any
+  const roles = mapDealRoles(submission)
+  assert.equal(roles.length, 1)
+  assert.equal(roles[0].role, 'Initial Contact')
+})
+
+test('deal role mapping includes economic buyer as Buyer when email present', () => {
+  const submission = {
+    identity: {name: 'Jane Doe', email: 'jane@example.com'},
+    request: {
+      answers: {
+        economicBuyer: 'Sarah Johnson',
+        economicBuyerEmail: 'sarah@example.com',
+      },
+    },
+  } as any
+  const roles = mapDealRoles(submission)
+  assert.equal(roles.length, 2)
+  assert.equal(roles[1].role, 'Buyer')
+  assert.equal(roles[1].name, 'Sarah Johnson')
+  assert.equal(roles[1].email, 'sarah@example.com')
+})
+
+test('deal role mapping includes technical evaluator as Evaluator when email present', () => {
+  const submission = {
+    identity: {name: 'Jane Doe', email: 'jane@example.com'},
+    request: {
+      answers: {
+        technicalEvaluator: 'Mike Chen',
+        technicalEvaluatorEmail: 'mike@example.com',
+      },
+    },
+  } as any
+  const roles = mapDealRoles(submission)
+  assert.equal(roles.length, 2)
+  assert.equal(roles[1].role, 'Evaluator')
+  assert.equal(roles[1].name, 'Mike Chen')
+  assert.equal(roles[1].email, 'mike@example.com')
+})
+
+test('deal role mapping includes approver as Decision Maker when email present', () => {
+  const submission = {
+    identity: {name: 'Jane Doe', email: 'jane@example.com'},
+    request: {
+      answers: {
+        approverName: 'Alex Turner',
+        approverEmail: 'alex@example.com',
+      },
+    },
+  } as any
+  const roles = mapDealRoles(submission)
+  assert.equal(roles.length, 2)
+  assert.equal(roles[1].role, 'Decision Maker')
+  assert.equal(roles[1].name, 'Alex Turner')
+  assert.equal(roles[1].email, 'alex@example.com')
+})
+
+test('deal role mapping includes signer as Contract Signer when email present', () => {
+  const submission = {
+    identity: {name: 'Jane Doe', email: 'jane@example.com'},
+    request: {
+      answers: {
+        signerName: 'Pat Wilson',
+        signerEmail: 'pat@example.com',
+      },
+    },
+  } as any
+  const roles = mapDealRoles(submission)
+  assert.equal(roles.length, 2)
+  assert.equal(roles[1].role, 'Contract Signer')
+  assert.equal(roles[1].name, 'Pat Wilson')
+  assert.equal(roles[1].email, 'pat@example.com')
+})
+
+test('deal role mapping returns empty array when no identity', () => {
+  const submission = {
+    identity: {},
+    request: {answers: {}},
+  } as any
+  const roles = mapDealRoles(submission)
+  assert.equal(roles.length, 0)
 })

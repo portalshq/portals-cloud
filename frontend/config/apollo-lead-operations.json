@@ -50,6 +50,7 @@
     {"key":"unresolved_question","label":"Unresolved question","modalities":["contact"],"type":"textarea"},
     {"key":"stakeholder_involved","label":"Stakeholder involved","modalities":["contact"],"type":"boolean"},
     {"key":"production_owner","label":"Production owner","modalities":["contact"],"type":"string"},
+    {"key":"production_owner_email","label":"Production owner email","modalities":["contact"],"type":"string"},
     {"key":"approval_path","label":"Approval path","modalities":["contact"],"type":"string"},
     {"key":"primary_objection","label":"Primary objection","modalities":["contact"],"type":"string"},
     {"key":"objection_detail","label":"Objection detail","modalities":["contact"],"type":"textarea"},
@@ -94,6 +95,10 @@
     {"key":"recommended_next_action","label":"Recommended next action","modalities":["contact","account"],"type":"string","inputKind":"select","allowedValues":["download","pilot_scope","pilot_room","assessment_review","commercial_clarification","use_case","calendar","follow_up"]},
     {"key":"marketing_consent","label":"Marketing consent","modalities":["contact"],"type":"boolean"},
     {"key":"analytics_consent","label":"Analytics consent","modalities":["contact"],"type":"boolean"},
+    {"key":"what_brought_you_here","label":"What brought you here","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["workflow-problem","assess-scaling","evaluating-tools","other"]},
+    {"key":"what_brought_you_here_other","label":"What brought you here (other)","modalities":["contact"],"type":"textarea"},
+    {"key":"how_did_you_hear_about_portals","label":"How did you hear about portals","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["google-search","linkedin","email","someone-company","friend-colleague","article-newsletter-podcast","partner-company","social-media"]},
+    {"key":"deal_contact_roles","label":"Deal contact roles","modalities":["opportunity"],"type":"textarea"},
     {"key":"portals_submission_id","label":"Pilot submission ID","modalities":["opportunity"],"type":"string","unique":true}
   ],
   "nativeStages": {

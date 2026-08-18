@@ -13,6 +13,7 @@ import {
 } from '@/lib/leads/pilot'
 import type {StoredPilot} from '@/lib/leads/store'
 import {trackEvent} from '@/lib/leads/analytics-client'
+import {formatReadableDate} from '@/lib/utils'
 
 const EDITABLE_STATES: PilotState[] = [
   'reviewing',
@@ -532,9 +533,9 @@ export function PilotApprovalRoom({
 
   const routeBadge =
     pilot.route === 'zero-call'
-      ? 'no call required'
+      ? 'no call required to proceed'
       : pilot.route === 'one-call'
-        ? 'one pilot terms review'
+        ? 'one pilot terms review required'
         : 'needs clarification'
 
   const consolidatedRows: Array<{section: string; view: ReviewerStatusView}> = [
@@ -587,9 +588,9 @@ export function PilotApprovalRoom({
         <div className='w-full md:w-auto'>
           <p className="t-p-sm-sans">pilot approval room {pilot.answers?.company ? `· ${pilot.answers.company}` : ''}</p>
           <h1 className="mt-8 t-h3-sans">{stateLabel(pilot.state)}</h1>
+          <p className="t-p-sm-sans">{routeBadge}</p>
         </div>
         <div className="md:text-right w-full md:w-auto">
-          <p className="t-p-sm-sans">{routeBadge}</p>
           <p className="mt-4 t-p-sm-sans text-[#52617D]">
             {accessRole} · {userEmail}
           </p>
@@ -659,7 +660,7 @@ export function PilotApprovalRoom({
           <ul className="mt-12 grid gap-20">
             {pilot.unresolved.map((item) => (
               <li key={item.key} className="t-p-sm-sans text-[#52617D]">
-                <span className="text-[#07112C]">{item.label}.</span>{' '}
+                <a href={item.href} className="inline text-[#07112C]">{item.label}.</a>{' '}
                 {item.resolution}
               </li>
             ))}
@@ -672,10 +673,12 @@ export function PilotApprovalRoom({
           <p className="t-p-sm-sans font-medium">terms outside the standard scope</p>
           <ul className="mt-12 grid gap-20">
             {pilot.exceptions.map((item, index) => (
-              <li key={item.kind + index} className="t-p-sm-sans text-[#52617D]">
-                <span className="text-[#07112C]">{item.summary}.</span>{' '}
-                {item.amendment}
-                {item.resolvedAt ? <span className="text-[#2F66B5]"> resolved</span> : null}
+              <li key={item.kind + index} className="t-p-sm-sans">
+                <span className="text-[#07112C]">{item.summary}</span>{' '}
+                <div className="flex items-center justify-between">
+                  {item.amendment}
+                  {item.resolvedAt ? <span className="text-[#2F66B5]"> resolved</span> : null}
+                </div>
               </li>
             ))}
           </ul>
@@ -709,7 +712,7 @@ export function PilotApprovalRoom({
         </div>
       ) : null}
 
-      <section className="mt-32 grid gap-20 md:grid-cols-2">
+      <section id="scope" className="mt-32 grid gap-20 md:grid-cols-2">
         <div className="rounded border border-[#D9E1EC] p-20">
           <h2 className="t-h3-sans">scope</h2>
           <dl className="mt-12 grid gap-20 t-p-sm-sans">
@@ -731,7 +734,7 @@ export function PilotApprovalRoom({
                     onChange={(event) => setStartDate(event.target.value)}
                   />
                 ) : (
-                  pilot.resolvedStartDate || 'not yet chosen'
+                  formatReadableDate(pilot.resolvedStartDate) || 'not yet chosen'
                 )}
               </dd>
             </div>
@@ -882,7 +885,7 @@ export function PilotApprovalRoom({
 
       <section className="mt-24 rounded border border-[#D9E1EC] p-20">
         <h2 className="t-h3-sans">review status</h2>
-        <dl className="mt-12 grid gap-20 md:grid-cols-2 t-p-sm-sans">
+        <dl className="mt-12 grid gap-20 t-p-sm-sans">
           {consolidatedRows.map((row) => (
             <div key={row.section} className="grid grid-cols-[1fr_auto] gap-12 items-baseline border-b border-[#E5EBF4] pb-10">
               <dt className="text-[#52617D]">{row.section}</dt>
@@ -1124,7 +1127,7 @@ export function PilotApprovalRoom({
               checked={signerConsent}
               onChange={(event) => setSignerConsent(event.target.checked)}
             />
-            <span className="t-p-sm-sans text-[#52617D]">
+            <span className="t-p-sm-sans">
               I confirm the information in this plan is accurate, that I am
               authorized to bind the customer, and that I understand the pilot
               fee becomes due on signature.
@@ -1180,9 +1183,10 @@ export function PilotApprovalRoom({
           <ul className="mt-12 grid gap-8">
             {[...pilot.history].reverse().map((entry, index) => (
               <li key={entry.at + index} className="t-p-sm-sans text-[#52617D]">
-                <span className="capitalize">{entry.action.replaceAll('_', ' ')}</span> — {stateLabel(entry.state)}
-                {entry.note ? <span> · {entry.note}</span> : null}
-                <span className="text-[#AEB9CA]"> · {new Date(entry.at).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'})}</span>
+                <span className="capitalize">{entry.action.replaceAll('_', ' ')}</span>
+                 {/* — {stateLabel(entry.state)} */}
+                <span className="text-[#AEB9CA]"> {new Date(entry.at).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'})}</span>
+                {entry.note ? <span> — {entry.note}</span> : null}
               </li>
             ))}
           </ul>

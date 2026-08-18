@@ -199,6 +199,9 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           analytics: analyticsConsent() === 'accepted',
         },
         companyFax: String(values.companyFax || ''),
+        whatBroughtYouHere: ((values.whatBroughtYouHere || leadContext.answerValues?.whatBroughtYouHere) as 'workflow-problem' | 'assess-scaling' | 'evaluating-tools' | 'other' | undefined),
+        whatBroughtYouHereOther: String(values.whatBroughtYouHereOther || leadContext.answerValues?.whatBroughtYouHereOther || ''),
+        howDidYouHearAboutPortals: ((values.howDidYouHearAboutPortals || leadContext.answerValues?.howDidYouHearAboutPortals) as 'google-search' | 'linkedin' | 'email' | 'someone-company' | 'friend-colleague' | 'article-newsletter-podcast' | 'partner-company' | 'social-media' | undefined),
         answers: submittedAnswers,
       })
       const newKnownFields = Array.from(
@@ -379,6 +382,48 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         onFocus={onStarted}
         className="space-y-20"
       >
+        <LeadField label="What brought you here?" name="whatBroughtYouHere">
+          <LeadSelectField
+            id="whatBroughtYouHere"
+            name="whatBroughtYouHere"
+            required
+            defaultValue={leadContext.answerValues?.whatBroughtYouHere || ''}
+          >
+            <option value="" disabled>select one</option>
+            <option value="workflow-problem">I have a workflow problem I need to solve</option>
+            <option value="assess-scaling">I want to assess whether our current process will scale</option>
+            <option value="evaluating-tools">I'm evaluating production tools</option>
+            <option value="other">Other</option>
+          </LeadSelectField>
+        </LeadField>
+        {leadContext.answerValues?.whatBroughtYouHere === 'other' ? (
+          <LeadField label="Please describe" name="whatBroughtYouHereOther">
+            <LeadTextareaField
+              id="whatBroughtYouHereOther"
+              name="whatBroughtYouHereOther"
+              defaultValue={leadContext.answerValues?.whatBroughtYouHereOther || ''}
+              placeholder="Describe what brought you here"
+            />
+          </LeadField>
+        ) : null}
+        <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
+          <LeadSelectField
+            id="howDidYouHearAboutPortals"
+            name="howDidYouHearAboutPortals"
+            required
+            defaultValue={leadContext.answerValues?.howDidYouHearAboutPortals || ''}
+          >
+            <option value="" disabled>select one</option>
+            <option value="google-search">Google / search</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="email">Email</option>
+            <option value="someone-company">Someone at my company</option>
+            <option value="friend-colleague">Friend or colleague</option>
+            <option value="article-newsletter-podcast">Article / newsletter / podcast</option>
+            <option value="partner-company">Partner / another company</option>
+            <option value="social-media">Social media</option>
+          </LeadSelectField>
+        </LeadField>
         <IdentityFields
           context={leadContext}
           email={email}

@@ -64,6 +64,13 @@ const commonSchema = z.object({
   consent: consentSchema,
   companyFax: z.string().max(200).optional().default(''),
   anonAnalyticsId: z.string().trim().max(64).optional(),
+  whatBroughtYouHere: z
+    .enum(['workflow-problem', 'assess-scaling', 'evaluating-tools', 'other'])
+    .optional(),
+  whatBroughtYouHereOther: optionalText(500),
+  howDidYouHearAboutPortals: z
+    .enum(['google-search', 'linkedin', 'email', 'someone-company', 'friend-colleague', 'article-newsletter-podcast', 'partner-company', 'social-media'])
+    .optional(),
 })
 
 const resourceAnswersSchema = z.object({
@@ -187,6 +194,7 @@ export const pilotControlledFields = {
   integrationMethod: controlledChoice(pilotControlledOptionLists.integrationMethod),
   integrationSystemsJson: optionalText(6000),
   dataClassification: controlledChoice(pilotControlledOptionLists.dataClassification),
+  productionOwnerEmail: optionalText(254),
   successCriterionKeysJson: optionalText(600),
   participantsRange: controlledChoice(pilotControlledOptionLists.participantsRange),
   approvalPath: controlledChoice(pilotControlledOptionLists.approvalPath),
