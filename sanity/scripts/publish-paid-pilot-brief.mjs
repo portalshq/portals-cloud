@@ -182,7 +182,7 @@ const document = {
       anchor: 'objective',
       title: 'objective',
       summary:
-        'apply portals to one real workflow and determine whether it materially improves retrieval, production-context recovery, reuse, and knowledge transfer.',
+        'apply portals to one generative AI workflow to determine whether it materially improves context recovery, reduces wasted generation costs, speeds up creative retrieval, and preserves institutional production knowledge.',
       paragraphs: [
         'the pilot is not a general product trial. it is a focused commercial evaluation using real production work.',
         'by the final review, the team should know the approved version, understand who changed it and why, recover the prompts and source context behind it, trace its lineage, and determine whether another team member can continue the work.',
@@ -192,7 +192,7 @@ const document = {
       anchor: 'scope',
       title: 'pilot scope',
       summary:
-        'the pilot scope is controlled by the referenced paid-pilot package specification.',
+        'A paid pilot follows a standard, customizable specification.',
       references: [
         packageSpecReference({
           title: 'paid pilot participant cap',
@@ -268,8 +268,8 @@ const document = {
         }),
       ],
       paragraphs: [
-        'before launch, portals and the customer agree on the start date, end date, pilot owner, participating users, included projects, integrations, success criteria, annual deployment scope, annual deployment price, and final decision date.',
-        'if the pilot meets the agreed success criteria and the customer signs an annual agreement within the agreed decision window, the pilot fee is credited toward the first annual deployment under the written pilot terms.',
+        'before launch, specify the start date, end date, pilot owner, participating users, included projects, integrations, success criteria, annual deployment scope, final decision date, and annual deployment price*.',
+        '* the pilot fee is credited toward the first annual deployment if the customer signs an annual agreement within the agreed decision window, under the written pilot terms.',
       ],
     }),
     section({

@@ -7,6 +7,8 @@ import {
   trackEvent,
 } from './analytics-client'
 import {emailDomain, isPublicEmailDomain, normalizeDomain} from './identity'
+import {clearAllFormDrafts} from './form-draft'
+import {clearPilotConfirmation} from './pilot-confirmation'
 
 export function newSubmissionId(prefix: string): string {
   if (globalThis.crypto?.randomUUID) {
@@ -55,12 +57,43 @@ export async function submitLead(request: LeadRequest): Promise<LeadResponse> {
   return result
 }
 
-export function useFormEvent(name: string) {
-  let started = false
-  void trackEvent('form_opened', {form_name: name})
-  return () => {
-    if (started) return
-    started = true
-    void trackEvent('form_started', {form_name: name})
+export function clearLeadProfileStorage() {
+  if (typeof window === 'undefined') return
+  clearAllFormDrafts()
+  clearPilotConfirmation()
+  try {
+    window.localStorage.removeItem('portals_analytics_person_id')
+    window.localStorage.removeItem('portals_company_domain')
+    window.localStorage.removeItem('portals_qualification_behavior')
+    window.localStorage.removeItem('portals_analytics_alias_sent')
+    window.localStorage.removeItem('portals_first_touch')
+  } catch {
+    // Storage cleanup must never throw
   }
 }
+
+export async function resetKnownProfile(): Promise<void> {
+  try {
+    await fetch('/api/leads', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'reset_profile'}),
+    })
+  } catch (error) {
+    console.error('Failed to reset profile on server:', error)
+  }
+  clearLeadProfileStorage()
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('form').forEach((form) => {
+      try {
+        form.reset()
+      } catch {
+        // ignore
+      }
+    })
+  }
+  if (typeof window !== 'undefined') {
+    window.location.replace(window.location.href)
+  }
+}
+

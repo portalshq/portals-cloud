@@ -4,7 +4,7 @@ import type {ChangeEvent, ReactNode} from 'react'
 import {CTAButton} from '@/components/CTAButton'
 import {LeadCheckbox, LeadSelectField, LeadTextField} from '@/components/mui/fields'
 import type {KnownLeadContext} from '@/lib/leads/contracts'
-import {clearAllFormDrafts} from '@/lib/leads/form-draft'
+import {resetKnownProfile} from '@/lib/leads/client'
 import {ConditionalReveal} from './ConditionalReveal'
 
 export function LeadField({
@@ -36,13 +36,7 @@ export function KnownProfileNotice({context}: {context: KnownLeadContext}) {
         appearance="plain"
         className="!min-w-0 underline underline-offset-4"
         onClick={async () => {
-          await fetch('/api/leads', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({action: 'reset_profile'}),
-          })
-          clearAllFormDrafts()
-          window.location.reload()
+          await resetKnownProfile()
         }}
       >
         not you?

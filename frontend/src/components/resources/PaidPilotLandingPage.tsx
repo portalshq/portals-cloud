@@ -141,7 +141,7 @@ function Hero({ document }: { document: ResourceDocument }) {
           </p>
           <div className="mt-32 flex flex-col gap-12 sm:flex-row">
             <CTAButton href="#scope">
-              <span>Scope a pilot</span>
+              <span>Build My Pilot Brief</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           </div>
@@ -170,7 +170,6 @@ function Objective({ document }: { document: ResourceDocument }) {
     <section data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-10">
-          <p className="t-p-sans text-white">the objective</p>
           <h2 className="mt-20 max-w-[10em] t-d2-sans">
             preserve one workflow well enough to recover and extend it.
           </h2>
@@ -182,9 +181,9 @@ function Objective({ document }: { document: ResourceDocument }) {
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
-          <p className="mt-32 max-w-[38em] t-h3-sans text-white">
+          {/* <p className="mt-32 max-w-[38em] t-h3-sans text-white">
             {outcome.summary}
-          </p>
+          </p> */}
         </div>
       </div>
     </section>
@@ -230,8 +229,8 @@ function ScopeAndMilestone({ document }: { document: ResourceDocument }) {
           <p className="mt-20 t-d2-sans text-white">{firstValue}</p>
         </div>
         <div className="col-span-full lg:mt-24 lg:col-span-12 lg:col-start-13">
-          <h3 className="t-p-lg-serif">{milestone.summary}</h3>
-          <div className="mt-20 space-y-16 t-p-sans text-white">
+          {/* <h3 className="t-p-lg-serif">{milestone.summary}</h3> */}
+          <div className="space-y-16 t-p-sans text-white">
             {sectionParagraphs(milestone).map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
@@ -284,12 +283,10 @@ function CommercialTerms({ document }: { document: ResourceDocument }) {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-10">
+        <div className="col-span-full">
           <h2 className="max-w-[8em] t-d2-sans">commercial terms before launch.</h2>
           {/* <p className="mt-12 t-d2-sans text-white">{commercialValue}</p> */}
-        </div>
-        <div className="col-span-full lg:col-span-10 lg:col-start-14">
-          <p className="t-p-lg-serif text-white">{section.summary}</p>
+          {/* <p className="t-p-lg-serif text-white">{section.summary}</p> */}
           <div className="mt-24 space-y-16 t-p-sans text-white">
             {sectionParagraphs(section).map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
@@ -365,24 +362,20 @@ function PilotForm({
           <h2 className="mt-20 t-d2-sans">
             put one production workflow under test
           </h2>
-          <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
+          {/* <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
             five short stages: eligibility, scope, success, approval, and
             confirmation. building and receiving the customized pilot plan and
             security details is free. the $5,000 fee applies only after you approve the plan and conduct the pilot.
-          </p>
+          </p> */}
           <p className="mt-24 max-w-[36em] t-p-lg-sans text-white">
-            the plan covers objectives, scope, milestones, success criteria,
-            commercial terms, and security information. once confirmed, the
-            standard pilot agreement is generated for signature and funding.
+            your pilot plan covers technical contracts, project scope, milestones, success criteria,
+            commercial terms, and security information under a customizable, standard pilot agreement.
           </p>
-          {assessmentOrigin === 'assessment_override' ? (
+          {/* {assessmentOrigin === 'assessment_override' ? (
             <p className="mt-18 max-w-[36em] t-p-sans text-white/80">
               You are continuing despite an educational assessment outcome. Complete the scope so one qualification call can definitively confirm or decline the pilot.
             </p>
-          ) : null}
-          <p className="mt-18 t-p-sans text-white/80">
-            Not ready to scope? <a className="underline underline-offset-4" href="/assessment">Assess your AI creative production workflow first.</a>
-          </p>
+          ) : null} */}
         </div>
 
         <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
@@ -452,19 +445,19 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-13">
-          <p className="t-p-sans text-white">the final decision</p>
+        <div className="col-span-full mx-auto">
           <h2 className="mt-20 max-w-[11em] t-d2-sans">
             deploy, extend under defined terms, or stop.
           </h2>
-        </div>
-        <div className="col-span-full lg:col-span-9 lg:col-start-16">
           <p className="t-p-lg-serif text-white">{review.summary}</p>
-          <div className="mt-28 flex flex-col gap-12">
+          <div className="mt-28 flex flex-col gap-18">
             <CTAButton href="#scope">
               <span>Scope a paid pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
+            <p className="t-p-sans text-white/80">
+              Not ready to scope? <a className="underline underline-offset-4" href="/assessment">Assess your AI creative production workflow first.</a>
+            </p>
           </div>
         </div>
       </div>

@@ -147,8 +147,7 @@ export default async function WorkflowAssessmentPage() {
                 Is your creative team paying the hidden AI production tax?
               </h1>
               <p className="mt-28 max-w-[38em] t-p-serif text-white">
-                Assess how your team preserves approved versions, input context, 
-                production handoffs, and cost-effective best-practices for reproducibility.
+                Assess how well your team preserves approved work, production context, handoffs, continuity, and reproducibility.
               </p>
               <p className="mt-20 max-w-[28em] t-p-serif text-white">
                 For agencies, creative studios, production companies, in-house brand and marketing teams, film and animation teams, game and entertainment teams.
@@ -214,8 +213,7 @@ export default async function WorkflowAssessmentPage() {
               <NumberLabel index={1} />
             </div> 
             <p className="col-span-full max-w-[28em] lg:col-span-14 lg:col-start-9 t-p-lg-serif text-white">
-              Assess how your team preserves approved versions, input context, 
-              production handoffs, continuity, campaign variants, and cost-effective best-practices for reproducibility.
+              Assess how well your team preserves approved work, production context, handoffs, continuity, and reproducibility.
             </p>
             <section className="col-span-full scroll-mt-24 lg:col-span-14 lg:col-start-9">
               <div className="max-w-[42em] space-y-5 text-white">

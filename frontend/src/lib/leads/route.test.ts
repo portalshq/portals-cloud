@@ -293,3 +293,30 @@ test('the API guards reject a foreign origin and an incomplete pilot form', asyn
   const incomplete = await post(pilotBody(email, {pilotWorkflow: ''}))
   assert.equal(incomplete.status, 400)
 })
+
+test('reset_profile clears both profile and session cookies with complete attributes', async () => {
+  const response = await post({action: 'reset_profile'})
+  assert.equal(response.status, 200)
+  const json = await response.json()
+  assert.equal(json.ok, true)
+
+  const cookies = response.headers.getSetCookie()
+  assert.ok(cookies.length >= 2, 'should set deletion headers for both profile and session cookies')
+
+  const profileCookie = cookies.find((c) => c.startsWith('portals_profile='))
+  assert.ok(profileCookie, 'portals_profile deletion cookie must be present')
+  assert.match(profileCookie, /Max-Age=0/i)
+  assert.match(profileCookie, /Expires=Thu, 01 Jan 1970/i)
+  assert.match(profileCookie, /HttpOnly/i)
+  assert.match(profileCookie, /SameSite=lax/i)
+  assert.match(profileCookie, /Path=\//i)
+
+  const sessionCookie = cookies.find((c) => c.startsWith('portals_session='))
+  assert.ok(sessionCookie, 'portals_session deletion cookie must be present')
+  assert.match(sessionCookie, /Max-Age=0/i)
+  assert.match(sessionCookie, /Expires=Thu, 01 Jan 1970/i)
+  assert.match(sessionCookie, /HttpOnly/i)
+  assert.match(sessionCookie, /SameSite=lax/i)
+  assert.match(sessionCookie, /Path=\//i)
+})
+

@@ -145,7 +145,6 @@ const StyledLeadCheckbox = styled(Checkbox)({
   marginTop: '0.1875rem',
   color: '#ccfffa',
   flexShrink: 0,
-  '&.Mui-checked': {color: '#ccfffa'},
   '& .MuiSvgIcon-root': {fontSize: 16},
 })
 
@@ -157,7 +156,6 @@ const StyledRoomCheckbox = styled(Checkbox)({
   padding: 0,
   color: '#ccfffa',
   flexShrink: 0,
-  '&.Mui-checked': {color: '#ccfffa'},
   '& .MuiSvgIcon-root': {fontSize: 16},
 })
 

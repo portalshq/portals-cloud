@@ -622,6 +622,27 @@ export async function POST(request: Request) {
   if (!validBrowserOrigin(request)) {
     return NextResponse.json({ok: false, error: 'invalid origin'}, {status: 403})
   }
+  let json: unknown
+  try {
+    json = JSON.parse(rawBody)
+  } catch {
+    return NextResponse.json({ok: false, error: 'invalid request body'}, {status: 400})
+  }
+  const reset = profileResetSchema.safeParse(json)
+  if (reset.success) {
+    const response = NextResponse.json({ok: true, nextAction: 'follow_up'})
+    const cookieOptions = {
+      path: '/',
+      maxAge: 0,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      expires: new Date(0),
+    }
+    response.cookies.set(PROFILE_COOKIE, '', cookieOptions)
+    response.cookies.set(APP_SESSION_COOKIE, '', cookieOptions)
+    return response
+  }
   if (
     !leadsDryRun() &&
     (!process.env.LEADS_DATABASE_URL || !process.env.LEADS_HASH_KEY)
@@ -642,18 +663,6 @@ export async function POST(request: Request) {
   )
   if (!allowed) {
     return NextResponse.json({ok: false, error: 'too many requests'}, {status: 429})
-  }
-  let json: unknown
-  try {
-    json = JSON.parse(rawBody)
-  } catch {
-    return NextResponse.json({ok: false, error: 'invalid request body'}, {status: 400})
-  }
-  const reset = profileResetSchema.safeParse(json)
-  if (reset.success) {
-    const response = NextResponse.json({ok: true, nextAction: 'follow_up'})
-    response.cookies.set(PROFILE_COOKIE, '', {path: '/', maxAge: 0})
-    return response
   }
   const parsed = leadRequestSchema.safeParse(json)
   if (!parsed.success) {

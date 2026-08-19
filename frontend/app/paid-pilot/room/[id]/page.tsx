@@ -46,6 +46,14 @@ export default async function PilotRoomPage({
             </p>
           </div>
         ) : (
+          <>
+            <header className="absolute inset-x-0 top-0 z-(--z-header)">
+              <div className="flex h-Header-h items-center justify-between px-sms">
+                <span className="t-h3-sans !font-medium text-white">
+                  portals
+                </span>
+              </div>
+            </header>
             <PilotApprovalRoom
             pilot={pilot}
             accessRole={accessRole}
@@ -59,6 +67,7 @@ export default async function PilotRoomPage({
             }
             qualificationCalendarUrl={process.env.PILOT_CALENDAR_URL}
           />
+        </>
         )}
       </section>
     </main>
