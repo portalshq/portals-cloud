@@ -153,11 +153,11 @@ export function pilotCopy(
     }
     case 'paid': {
       return {
-        subject: 'payment received — schedule your pilot kickoff',
+        subject: 'payment received — schedule your pilot launch',
         text: [
           'your pilot payment is confirmed.',
           '',
-          'schedule the pilot kickoff, or review the plan:',
+          'schedule the pilot launch, or review the plan:',
           roomUrl,
           '',
           'portals',
@@ -170,7 +170,7 @@ export function pilotCopy(
         text: [
           'your production pilot is live.',
           '',
-          'the kickoff session, participants, and the plan are in your approval room:',
+          'the launch session, participants, and the plan are in your approval room:',
           roomUrl,
           '',
           'portals',

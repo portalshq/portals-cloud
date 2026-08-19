@@ -18,7 +18,8 @@ nap-client:
   source_commit: "28fd29d4e02e013eff1b1fb671cd8d7e45638775"
   release_tag: "v0.5.8"
   security_contract: "legacy"
-  artifact_manifest_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.5.8/SHA256SUMS"
+  artifact_manifest_url: "https://github.com/portalshq/narrativeengine/releases/d\
+    ownload/v0.5.8/SHA256SUMS"
   artifact_manifest_sha256: ""
   signature_bundle_url: ""
   # Nap must install this exact top-level Lore client release. Its artifacts
@@ -30,17 +31,19 @@ nap-client:
 # patch is committed to portalshq/lore; source_commit deliberately remains
 # empty while that fork commit and signed release do not yet exist.
 lore-client:
-  version: "0.8.4"
+  version: "0.8.4-portals.5"
   source_repository: "https://github.com/portalshq/lore"
-  source_commit: ""
+  source_commit: "1c0de969560779d55966152715a909eea45241e8"
   upstream_repository: "https://github.com/EpicGames/lore"
   upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
-  release_tag: ""
+  release_tag: "v0.8.4-portals.5"
   security_contract: "lore-auth-v1"
-  installer_sha256: "ed2254daa16fe9eee9ef457b4059ce4c0d953c14c9660697746d796df729b435"
-  artifact_manifest_url: ""
-  artifact_manifest_sha256: ""
-  signature_bundle_url: ""
+  installer_sha256: "8e7cc96d1b9100610af6c1bd15ec2febbcb48d26cc7f19de3862496897810b74"
+  artifact_manifest_url: "https://github.com/portalshq/lore/releases/download/v0.\
+    8.4-portals.5/SHA256SUMS"
+  artifact_manifest_sha256: "sha256:6285c50ff490870a8417db442f75ab73d53578f52eacacd31011cd350b957457"
+  signature_bundle_url: "https://github.com/portalshq/lore/releases/download/v0.8\
+    .4-portals.5/SHA256SUMS.sigstore.json"
 
 lore:
   # source_commit and packaging_commit remain empty until the security changes
@@ -51,8 +54,10 @@ lore:
   upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
   upstream_tag: ""
   security_contract: "lore-auth-v1"
-  base_image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/lore@sha256:f6c88af0455227f592e6f369c5bf8356a3ebd03849594346621a3863cdfb44bc"
-  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/lore@sha256:69d4bf5f77e94879d5a919eee7f3e2aecf2508294479fa54124a412deeef9bcb"
+  base_image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/lore@sha2\
+    56:f6c88af0455227f592e6f369c5bf8356a3ebd03849594346621a3863cdfb44bc"
+  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/lore@sha256:69\
+    d4bf5f77e94879d5a919eee7f3e2aecf2508294479fa54124a412deeef9bcb"
 
 # The active control-plane runtime is the private Auth Gateway. The old
 # caller-selected-claims issuer is separately and permanently retired below.
@@ -62,7 +67,8 @@ control-plane:
   source_commit: ""
   protocol_commit: ""
   security_contract: "lore-auth-v1"
-  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/auth-gateway@sha256:aa7945dacf559884fc7b526701621da7972b48b1a60846a63c2436588a2cd4db"
+  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/auth-gateway@s\
+    ha256:aa7945dacf559884fc7b526701621da7972b48b1a60846a63c2436588a2cd4db"
 
 legacy-control-plane:
   status: "retired"

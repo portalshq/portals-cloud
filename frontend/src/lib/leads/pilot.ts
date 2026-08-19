@@ -370,7 +370,7 @@ export function classifyPilot(
     exceptions.push({
       kind: 'procurement',
       summary: 'Procurement review is required before the pilot can be funded.',
-      amendment: 'Procurement process run in parallel; funding must precede kickoff.',
+      amendment: 'Procurement process run in parallel; funding must precede launch.',
     })
   }
   const securityText = (answers.securityRequirements || '')

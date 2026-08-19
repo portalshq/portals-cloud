@@ -368,8 +368,8 @@ export function PersonalizedPilotPdfDocument({
             <View>
               <Text style={styles.sectionTitle}>commercial terms</Text>
               <Text>the pilot fee is {price} upfront for a {periodModifier} focused commercial evaluation.</Text>
-              <Text style={styles.body}>before kickoff, portals and the customer will agree in writing on the annual deployment scope, annual deployment price, pilot-fee credit window, final decision date, included users, included projects, and integrations. the pilot fee is credited toward the first annual deployment only if the customer signs within the agreed conversion window.</Text>
-              <Text style={styles.body}><Text style={styles.label}>budget owner:</Text> executive approval required before kickoff</Text>
+              <Text style={styles.body}>before launch, portals and the customer will agree in writing on the annual deployment scope, annual deployment price, pilot-fee credit window, final decision date, included users, included projects, and integrations. the pilot fee is credited toward the first annual deployment only if the customer signs within the agreed conversion window.</Text>
+              <Text style={styles.body}><Text style={styles.label}>budget owner:</Text> executive approval required before launch</Text>
               <Text style={styles.body}><Text style={styles.label}>budget status:</Text> to be confirmed during pilot scoping</Text>
             </View>
             <View style={styles.section}>
@@ -398,7 +398,7 @@ export function PersonalizedPilotPdfDocument({
             </View>
           </View>
         </View>
-        <Text style={styles.footer}>draft statement of work — customized from the information supplied by {data.identity.company}. final scope and commitments require written agreement before kickoff.</Text>
+        <Text style={styles.footer}>draft statement of work — customized from the information supplied by {data.identity.company}. final scope and commitments require written agreement before launch.</Text>
       </Page>
     </Document>
   )
@@ -607,7 +607,7 @@ export function PilotPlanPdfDocument({
           ) : null}
         </View>
 
-        <Text style={styles.footer}>personalized plan record — generated from the pilot approval room on {new Date(generatedAt).toLocaleDateString('en-US')}. scope changes require a revision and re-agreement before kickoff.</Text>
+        <Text style={styles.footer}>personalized plan record — generated from the pilot approval room on {new Date(generatedAt).toLocaleDateString('en-US')}. scope changes require a revision and re-agreement before launch.</Text>
       </Page>
     </Document>
   )

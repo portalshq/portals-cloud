@@ -105,12 +105,6 @@ export async function getPackageSpecifications(): Promise<
   return sanityClient.fetch<PackageSpecification[]>(
     PACKAGE_SPECIFICATIONS_QUERY,
     {},
-    {
-      next: {
-        revalidate: 3600,
-        tags: ['package-specifications'],
-      },
-    },
   )
 }
 

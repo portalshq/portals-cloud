@@ -142,7 +142,7 @@ const document = {
     enabled: true,
     headline: 'prove production memory on real work.',
     description:
-      'turn active creative work into a complete, searchable production record. Run a 21-day pilot to eliminate rework, lock in continuity, and decide if Portals belongs in your production stack.',
+      'prove that a historic production record makes your team faster, cheaper, and infinitely more collaborative.',
     primaryCta: {
       _type: 'cta',
       label: 'scope a paid pilot',
@@ -174,7 +174,7 @@ const document = {
     footerText: 'portals / version 1.0 / july 2026',
     accentColor: '#79C7DA',
     legalNote:
-      'pilot scope, integrations, annual deployment price, credit terms, and final decision date must be agreed in writing before kickoff. this brief is informational and is not a binding order form.',
+      'pilot scope, integrations, annual deployment price, credit terms, and final decision date must be agreed in writing before launch. this brief is informational and is not a binding order form.',
   },
   packageSpecifications: [paidPilotPackage],
   sections: [
@@ -182,10 +182,9 @@ const document = {
       anchor: 'objective',
       title: 'objective',
       summary:
-        'apply portals to one generative AI workflow to determine whether it materially improves context recovery, reduces wasted generation costs, speeds up creative retrieval, and preserves institutional production knowledge.',
+        'run a 21-day pilot to eliminate rework, lock in continuity, and decide if Portals belongs in your production stack.',
       paragraphs: [
-        'the pilot is not a general product trial. it is a focused commercial evaluation using real production work.',
-        'by the final review, the team should know the approved version, understand who changed it and why, recover the prompts and source context behind it, trace its lineage, and determine whether another team member can continue the work.',
+        'by the final review, any team member will be able to locate the exact approved version instantly, recover the exact prompts and source context, and seamlessly hand off the work to another creator.',
       ],
     }),
     section({
@@ -214,7 +213,7 @@ const document = {
         'referenced participant cap',
         'integrations agreed before launch',
         'workflow review, onboarding, and final evaluation',
-        'success criteria agreed before kickoff',
+        'success criteria agreed before launch',
       ],
     }),
     section({
@@ -231,28 +230,28 @@ const document = {
         }),
       ],
       paragraphs: [
-        'the team should be able to locate the approved asset, understand how it was produced, and identify what is required to reproduce or extend it.',
-        'where available, the record includes the approved asset, prior versions, alternate generations, source prompts, model and tool context, references, production notes, approval state, decisions, lineage, and reusable context.',
+        'within 48 hours, your pilot repository will capture your first complete production record. where available, this includes approved assets & prior versions, alternate generations & source prompts, model configurations, references, approval states, lineage, & decisions',
       ],
     }),
     section({
       anchor: 'success-criteria',
       title: 'success criteria',
       summary:
-        'the pilot succeeds when the workflow becomes faster to retrieve, explain, reproduce, and extend.',
+        'the pilot is a success when your creative workflow becomes drastically faster to retrieve, explain, reproduce, and extend. We track 6 specific metrics:',
       bullets: [
-        'a designated team member locates the approved asset in under one minute',
-        'the relevant generation context is recovered where available',
-        'at least one asset is reproduced, extended, or used as a new branch',
-        'a team member who did not create the asset can understand its history',
-        'the team measures reduced rediscovery or recreation effort',
+        'instant retrieval — A team member locates an approved asset in under 60 seconds.',
+        'unified context — Prompts, models, and revisions live in one place, not across fragmented systems.',
+        'infinite continuity — A creator reproduces or meaningfully extends a selected asset without starting over.',
+        'seamless handoff — A creator who did not build the asset can understand its history.',
+        'proven ROI — The team measures reduced rediscovery and recreation effort enough to justify the annual price.',
+        'active adoption — At least three team members actively use Portals during the pilot duration.',
       ],
     }),
     section({
       anchor: 'commercial-terms',
       title: 'commercial terms',
       summary:
-        'the pilot price and annual-credit window are controlled by the referenced paid-pilot package specification.',
+        'before launch, we agree on exact dates, pilot owners, included projects, and annual deployment scope.',
       references: [
         packageSpecReference({
           title: 'paid pilot price',
@@ -268,8 +267,7 @@ const document = {
         }),
       ],
       paragraphs: [
-        'before launch, specify the start date, end date, pilot owner, participating users, included projects, integrations, success criteria, annual deployment scope, final decision date, and annual deployment price*.',
-        '* the pilot fee is credited toward the first annual deployment if the customer signs an annual agreement within the agreed decision window, under the written pilot terms.',
+        'the pilot credit: if the pilot meets the success criteria and you transition to an annual agreement within the decision window, the $5,000 fee is credited 100% toward your first annual contract.',
       ],
     }),
     section({
@@ -278,14 +276,12 @@ const document = {
       summary:
         'portals configures the pilot, aligns the workflow, onboards participants, supports the evaluation, and documents the outcome.',
       bullets: [
-        'kickoff and workflow alignment',
         'pilot repository configuration',
-        'participating-user onboarding',
-        'agreed integration setup where applicable',
-        'active and historical project structure',
-        'guidance on history, versioning, lineage, and context capture',
-        'support during the referenced pilot period',
-        'final review and annual deployment recommendation',
+        'workflow alignment & onboarding',
+        'pre-agreed integration setup',
+        'guidance on context, and lineage capture',
+        'ongoing support during the pilot duration',
+        'final review and annual recommendation',
       ],
     }),
     section({
@@ -294,20 +290,19 @@ const document = {
       summary:
         'the customer provides real production work, a named owner, participating users, system access, timely feedback, and a decision sponsor.',
       bullets: [
-        'one named pilot owner',
-        'access to the selected active and historical projects',
-        'relevant assets, prompts, references, decisions, and notes',
-        'access to agreed systems or exports',
-        'timely implementation feedback',
-        'attendance at kickoff and final review',
-        'participation from the economic buyer before the decision date',
+        'one named, dedicated pilot owner',
+        'access to the selected active/historical projects',
+        'relevant assets, prompts, references, & notes',
+        'timely feedback during the pilot',
+        'attendance at launch and final review',
+        'participation from the economic buyer',
       ],
     }),
     section({
       anchor: 'final-review',
       title: 'final pilot review',
       summary:
-        'the review produces a clear decision: deploy portals, extend under defined terms, or conclude that it is not the right fit.',
+        'The review produces a clear decision: deploy portals, extend under defined terms, or conclude that it is not the right fit.',
       bullets: [
         'confirm whether the 48-hour milestone was achieved',
         'score the agreed success criteria',

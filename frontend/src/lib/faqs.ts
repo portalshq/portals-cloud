@@ -83,37 +83,37 @@ export const faqs: FaqItem[] = [
   {
     question: 'how is this different from a free trial?',
     answer:
-      'this is a focused commercial evaluation using real production work, agreed success criteria, named participants, and a final decision date. it is built to prove an operational outcome, not encourage indefinite product exploration.',
+      'this is a focused commercial evaluation built to prove an operational ROI using live production work, clearly-defined success criteria, and a final decision date.',
     categories: ['pilot'],
   },
   {
     question: 'what should happen {firstValuePhrase|at first value}?',
     answer:
-      'one active project and one historical project become structured, searchable production records that preserve the available history and reveal what is missing. your team should be able to find the approved asset, understand how it was produced, and see what is required to reproduce or extend it.',
+      'your repository is configured, your team is onboarded, and your first live production asset is successfully mapped with full prompt, model, and approval context.',
     categories: ['pilot'],
   },
   {
     question: 'what does the {pricePhrase|pilot fee} cover?',
     answer:
-      'the fee covers workflow alignment, pilot repository configuration, {participantsPhrase|participant onboarding}, agreed integration setup where applicable, active and historical project structure, support, and the final evaluation. One agreed standard integration or export path is included. Custom integration development is separately scoped.',
+      'it covers full repository configuration, integration alignment, team onboarding, dedicated engineering support for 21 days, and the final operational ROI evaluation. custom integration development is separately scoped.',
     categories: ['pilot'],
   },
   {
-    question: 'which projects should we choose?',
+    question: 'which projects should we choose for the pilot?',
     answer:
-      'choose one active project with current production behavior and one historical project whose decisions, prompts, versions, or source context are valuable enough to recover and reuse.',
+      'select one active workflow with high iteration cycles (e.g., active ad campaigns, recurring social assets) and one completed historical project that you frequently need to reference or extend.',
     categories: ['pilot'],
   },
   {
     question: 'does the pilot fee apply to an annual agreement?',
     answer:
-      'yes, when the agreed success criteria and written conversion terms are met. the annual deployment scope, price, credit terms, and decision window are defined before kickoff.',
+      'yes. when you transition to an annual contract or pilot extension within the agreed decision window, the $5,000 fee is fully credited toward your annual deployment. the annual deployment scope, price, credit terms, and decision window are defined before the pilot starts.',
     categories: ['pilot'],
   },
   {
     question: 'what happens after {periodPhrase|the pilot}?',
     answer:
-      'the final review produces a clear decision: deploy portals, extend the pilot under a defined scope, or conclude that portals is not the right fit at this time.',
+      'we review the metrics together and make a clear choice: deploy portals, extend the pilot under defined terms, or conclude it is not the right fit.',
     categories: ['pilot'],
   },
   {

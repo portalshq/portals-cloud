@@ -141,16 +141,16 @@ function Hero({ document }: { document: ResourceDocument }) {
           </p>
           <div className="mt-32 flex flex-col gap-12 sm:flex-row">
             <CTAButton href="#scope">
-              <span>Build my pilot brief</span>
+              <span>Build my pilot plan</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           </div>
         </div>
 
-        <dl className="col-span-full grid grid-cols-2 gap-x-20 gap-y-28 lg:col-span-8 lg:col-start-18">
+        <dl className="col-span-full grid grid-cols-2 gap-x-20 gap-y-28 lg:col-span-11 lg:col-start-15">
           {metrics.map(([value, label]) => (
             <div key={label}>
-              <dd className="t-h1-sans text-white">{value}</dd>
+              <dd className="t-h1-sans text-white whitespace-nowrap">{value}</dd>
               <dt className="mt-6 t-p-sm-sans text-white">{label}</dt>
             </div>
           ))}
@@ -171,11 +171,17 @@ function Objective({ document }: { document: ResourceDocument }) {
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-10">
           <h2 className="mt-20 max-w-[10em] t-d2-sans">
-            preserve one workflow well enough to recover and extend it.
+            one workflow, one fully preserved production history.
           </h2>
         </div>
         <div className="col-span-full lg:col-span-10 lg:col-start-14">
           <p className="t-p-lg-serif text-white">{objective.summary}</p>
+          <div className="mt-24 rounded lg:rounded-[10px] border bg-white/10 px-16 py-8 backdrop-blur-[20px] flex items-start gap-x-16 t-p-sans leading-[1.2em]">
+            <span className="flex h-[1.364em] items-center">
+              <span className="size-8 shrink-0 bg-current" />
+            </span>
+            this pilot is not an open-ended free trial. it is a focused commercial evaluation using real production work.
+          </div>
           <div className="mt-24 space-y-16 t-p-sans text-white">
             {sectionParagraphs(objective).map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
@@ -204,7 +210,7 @@ function ScopeAndMilestone({ document }: { document: ResourceDocument }) {
         <div className="col-span-full lg:col-span-11">
           <p className="t-p-sans text-white">a deliberately narrow scope</p>
           <h2 className="mt-20 max-w-[9em] t-d2-sans">
-            real work, real people, one decision.
+            real work, real teams, one decision.
           </h2>
           {/* <p className="mt-24 max-w-[36em] t-p-lg-serif text-white">
             {scope.summary}
@@ -248,7 +254,7 @@ function SuccessCriteria({ document }: { document: ResourceDocument }) {
   return (
     <section data-header-theme="light">
       <div className="px-sms py-fluid-[76,106]">
-      <div className="ui-grid gap-y-40 py-sms !text-black bg-white rounded-[2em]">
+      <div className="ui-grid gap-y-40 py-sms !text-black bg-white rounded-[1em] lg:rounded-[2em]">
         <div className="col-span-full lg:col-span-10">
           <h2 className="max-w-[9em] t-d2-sans">
             success criteria
@@ -286,9 +292,9 @@ function CommercialTerms({ document }: { document: ResourceDocument }) {
     <section data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full max-w-[60ch] lg:max-w-[80ch] lg:mx-auto">
-          <h2 className="max-w-[8em] t-d2-sans">commercial terms before launch.</h2>
+          <h2 className="max-w-[8em] t-d2-sans">commercial terms</h2>
           {/* <p className="mt-12 t-d2-sans text-white">{commercialValue}</p> */}
-          {/* <p className="t-p-lg-serif text-white">{section.summary}</p> */}
+          <p className="mt-20 t-p-lg-serif text-white">{section.summary}</p>
           <div className="mt-24 space-y-16 t-p-sans text-white">
             {sectionParagraphs(section).map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
@@ -308,10 +314,10 @@ function Responsibilities({ document }: { document: ResourceDocument }) {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-40 py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-10">
-          <p className="t-d2-sans text-white">responsibilities</p>
+        <div className="col-span-full xl:col-span-10 xl:col-start-3">
+          <p className="t-d2-sans text-white">mutual responsibilities</p>
           <h2 className="mt-20 t-p-lg-serif">
-            both sides know what they are bringing.
+            Both sides know what they are bringing to the table.
           </h2>
         </div>
 
@@ -321,12 +327,12 @@ function Responsibilities({ document }: { document: ResourceDocument }) {
         ].map(([section, label], index) => (
           <div
             key={(section as DocumentSection)._key}
-            className={`col-span-full lg:col-span-10 ${index === 0 ? 'lg:col-start-3' : 'lg:col-start-14'}`}
+            className={`col-span-full lg:col-span-10 ${index === 0 ? 'xl:col-start-3' : 'lg:col-start-14'}`}
           >
             <h3 className="t-h1-sans text-white">{label as string}</h3>
-            <p className="mt-16 t-p-sans text-white">
+            {/* <p className="mt-16 t-p-sans text-white">
               {(section as DocumentSection).summary}
-            </p>
+            </p> */}
             <ul className="mt-24 space-y-14">
               {sectionBullets(section as DocumentSection).map((item) => (
                 <li key={item} className="flex items-start gap-12 t-p-sans text-white">
@@ -364,14 +370,12 @@ function PilotForm({
           <h2 className="mt-20 t-d2-sans">
             put one production workflow under test
           </h2>
-          {/* <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
-            five short stages: eligibility, scope, success, approval, and
-            confirmation. building and receiving the customized pilot plan and
-            security details is free. the $5,000 fee applies only after you approve the plan and conduct the pilot.
-          </p> */}
+          <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
+            our onboarding moves through five short stages: eligibility, scope, success, approval, and confirmation.
+          </p>
           <p className="mt-24 max-w-[36em] t-p-lg-sans text-white">
             your pilot plan covers technical contracts, project scope, milestones, success criteria,
-            commercial terms, and security information under a customizable, standard pilot agreement.
+            building your customized pilot plan and security profile is completely free. The $5,000 fee applies only after you approve the finalized plan and formally launch the pilot.
           </p>
           {/* {assessmentOrigin === 'assessment_override' ? (
             <p className="mt-18 max-w-[36em] t-p-sans text-white/80">
@@ -458,7 +462,7 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
             <p className="t-p-sans text-white/80">
-              Not ready to scope? <br/><a className="underline underline-offset-4" href="/assessment">Assess your AI creative production workflow first.</a>
+              Not ready to scope? <br/><a className="underline underline-offset-4" href="/assessment">Assess your creative production workflow first.</a>
             </p>
           </div>
         </div>
