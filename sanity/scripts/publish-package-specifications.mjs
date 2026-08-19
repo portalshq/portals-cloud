@@ -18,7 +18,7 @@ const specs = [
       amount: 5000,
       currency: 'USD',
       periodLabel: 'once',
-      billingNote: 'upfront',
+      billingNote: 'upfront pilot fee',
     },
     limits: {
       _type: 'packageLimits',
@@ -48,7 +48,7 @@ const specs = [
         label: 'participants',
         displayValue: 'up to 5',
         numericValue: 5,
-        unit: 'participants',
+        unit: 'active team participants',
         qualifier: 'up to',
       },
     },

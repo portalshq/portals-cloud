@@ -8,12 +8,12 @@ export async function getResourceDocument(
   return sanityClient.fetch<ResourceDocument | null>(
     RESOURCE_BY_SLUG_QUERY,
     {slug},
-    {
-      next: {
-        revalidate: 3600,
-        tags: [`resource:${slug}`, 'resources'],
-      },
-    },
+    // {
+    //   next: {
+    //     revalidate: 3600,
+    //     tags: [`resource:${slug}`, 'resources'],
+    //   },
+    // },
   )
 }
 

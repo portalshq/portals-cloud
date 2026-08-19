@@ -142,7 +142,7 @@ const document = {
     enabled: true,
     headline: 'prove production memory on real work.',
     description:
-      'turn selected active and historical work into complete, searchable production records, then decide whether portals deserves a place in your production stack.',
+      'turn active creative work into a complete, searchable production record. Run a 21-day pilot to eliminate rework, lock in continuity, and decide if Portals belongs in your production stack.',
     primaryCta: {
       _type: 'cta',
       label: 'scope a paid pilot',
@@ -231,8 +231,8 @@ const document = {
         }),
       ],
       paragraphs: [
-        'where available, the record includes the approved asset, prior versions, alternate generations, source prompts, model and tool context, references, production notes, approval state, decisions, lineage, and reusable context.',
         'the team should be able to locate the approved asset, understand how it was produced, and identify what is required to reproduce or extend it.',
+        'where available, the record includes the approved asset, prior versions, alternate generations, source prompts, model and tool context, references, production notes, approval state, decisions, lineage, and reusable context.',
       ],
     }),
     section({

@@ -119,9 +119,9 @@ function Hero({ document }: { document: ResourceDocument }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
   const metrics = [
-    [packageMilestoneLabel(specification, 'pilot period'), 'pilot period'],
+    [packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
     [packagePriceLabel(specification), specification?.price?.billingNote || 'price'],
-    [packageMilestoneLabel(specification, 'first value'), 'first value'],
+    [packageMilestoneLabel(specification, 'first value'), 'time to first value'],
     [packageLimitLabel(specification, 'participants'), 'participants'],
   ].filter(([value]) => Boolean(value))
 
@@ -141,7 +141,7 @@ function Hero({ document }: { document: ResourceDocument }) {
           </p>
           <div className="mt-32 flex flex-col gap-12 sm:flex-row">
             <CTAButton href="#scope">
-              <span>Build My Pilot Brief</span>
+              <span>Build my pilot brief</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           </div>
@@ -206,9 +206,9 @@ function ScopeAndMilestone({ document }: { document: ResourceDocument }) {
           <h2 className="mt-20 max-w-[9em] t-d2-sans">
             real work, real people, one decision.
           </h2>
-          <p className="mt-24 max-w-[36em] t-p-lg-serif text-white">
+          {/* <p className="mt-24 max-w-[36em] t-p-lg-serif text-white">
             {scope.summary}
-          </p>
+          </p> */}
         </div>
         <ul className="col-span-full grid gap-x-24 gap-y-18 sm:grid-cols-2 lg:col-span-11 lg:col-start-14">
           {sectionBullets(scope).map((item) => (
@@ -247,25 +247,27 @@ function SuccessCriteria({ document }: { document: ResourceDocument }) {
 
   return (
     <section data-header-theme="light">
-      <div className="ui-grid gap-y-40 py-fluid-[76,106] text-white">
+      <div className="px-sms py-fluid-[76,106]">
+      <div className="ui-grid gap-y-40 py-sms !text-black bg-white rounded-[2em]">
         <div className="col-span-full lg:col-span-10">
-          <h2 className="mt-20 max-w-[9em] t-d2-sans">
+          <h2 className="max-w-[9em] t-d2-sans">
             success criteria
           </h2>
-          <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
+          <p className="mt-24 max-w-[35em] t-p-lg-serif">
             {section.summary}
           </p>
         </div>
         <ol className="col-span-full space-y-24 lg:col-span-11 lg:col-start-14">
           {sectionBullets(section).map((item, index) => (
-            <li key={item} className="grid grid-cols-[48px_1fr] gap-12">
-              <span className="t-h2-sans text-white">
+            <li key={item} className="grid grid-cols-[48px_1fr] gap-12 items-baseline">
+              <span className="t-p-sans">
                 {String(index + 1).padStart(2, '0')}
               </span>
-              <span className="t-p-lg-serif text-white">{item}</span>
+              <span className="t-p-lg-sans">{item}</span>
             </li>
           ))}
         </ol>
+      </div>
       </div>
     </section>
   )
@@ -283,7 +285,7 @@ function CommercialTerms({ document }: { document: ResourceDocument }) {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-        <div className="col-span-full">
+        <div className="col-span-full max-w-[60ch] lg:max-w-[80ch] lg:mx-auto">
           <h2 className="max-w-[8em] t-d2-sans">commercial terms before launch.</h2>
           {/* <p className="mt-12 t-d2-sans text-white">{commercialValue}</p> */}
           {/* <p className="t-p-lg-serif text-white">{section.summary}</p> */}
@@ -445,18 +447,18 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-        <div className="col-span-full mx-auto">
+        <div className="col-span-full lg:mx-auto max-w-[50ch] lg:max-w-[70ch] 2xl:max-w-[100ch]">
           <h2 className="mt-20 max-w-[11em] t-d2-sans">
             deploy, extend under defined terms, or stop.
           </h2>
-          <p className="t-p-lg-serif text-white">{review.summary}</p>
-          <div className="mt-28 flex flex-col gap-18">
+          <p className="mt-28 t-p-lg-serif text-white">{review.summary}</p>
+          <div className="mt-28 flex flex-col gap-18 ">
             <CTAButton href="#scope">
               <span>Scope a paid pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
             <p className="t-p-sans text-white/80">
-              Not ready to scope? <a className="underline underline-offset-4" href="/assessment">Assess your AI creative production workflow first.</a>
+              Not ready to scope? <br/><a className="underline underline-offset-4" href="/assessment">Assess your AI creative production workflow first.</a>
             </p>
           </div>
         </div>

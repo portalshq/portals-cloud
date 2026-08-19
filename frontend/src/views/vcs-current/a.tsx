@@ -618,16 +618,16 @@ function ProblemSection() {
         <div className="col-span-full grid grid-cols-1 lg:grid-cols-3">
           {problemCards.map((card, index) => (
             <div key={card.title}>
-              <article className="min-h-194 p-24 pb-0 text-white">
+              <article className="min-h-194 lg:pr-24 text-white">
                 <div className="mb-20 flex items-center gap-x-8">
                   <span className="size-8 bg-white" />
                   <span className="t-m2">{card.label}</span>
                 </div>
                 <h3 className="t-h3-sans mb-[0.4em]">{card.title}</h3>
-              <blockquote className={`mt-12 col-span-full border-l-2 pl-18 t-p-sans leading-[1.25] italic text-white ${index === problemCards.length - 1 ? 'border-r-2' : ''}`}>
-                {card.quote}
-                <cite>{' '}{card.cite}</cite>
-              </blockquote>
+                <blockquote className={`mt-12 col-span-full border-l-2 pl-18 t-p-sans leading-[1.25] italic text-white ${index === problemCards.length - 1 ? 'border-r-2' : ''}`}>
+                  {card.quote}
+                  <cite>{' '}{card.cite}</cite>
+                </blockquote>
               </article>
             </div>
           ))}
