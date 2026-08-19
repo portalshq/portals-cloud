@@ -154,9 +154,8 @@ if (publicIngressEnabled && !jwtSigningEnabled) {
 if (jwksPublicationEnabled && publicIngressEnabled) {
   throw new Error("jwksPublicationEnabled is a bootstrap mode and cannot be combined with publicIngressEnabled");
 }
-if (jwksPublicationEnabled && jwtSigningEnabled) {
-  throw new Error("JWKS bootstrap publication requires JWT signing to remain disabled");
-}
+// Allow JWT signing with JWKS publication for private Lore signed-token testing
+// The LoadBalancers component restricts routes based on publicIngressEnabled
 if (jwksPublicationEnabled && authGatewayDesiredCount < 1) {
   throw new Error("JWKS bootstrap publication requires a running Auth Gateway");
 }
