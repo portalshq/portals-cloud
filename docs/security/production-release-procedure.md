@@ -5,6 +5,8 @@ the detailed [production security guide](lore-production-security.md) and does
 not contain credentials, private keys, account passwords, or mutable image
 tags.
 
+For detailed build instructions including local and cloud build options, see the [Build Guide](BUILD_GUIDE.md).
+
 ## First: what needs a new release?
 
 Yes: build a new **Lore server image** and a new **Auth Gateway image**. The

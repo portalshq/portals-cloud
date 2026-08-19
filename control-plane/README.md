@@ -393,11 +393,13 @@ cargo +1.97.0-aarch64-apple-darwin test -- --ignored
 | `./control-plane/scripts/test.sh` | Run all tests |
 | `./control-plane/scripts/build.sh` | Build release binary |
 | `./control-plane/scripts/docker-build.sh` | Build Docker image locally |
-| `./control-plane/scripts/publish-image.sh` | Compatibility wrapper that publishes the Auth Gateway, the active control-plane runtime, to ECR after verification |
+| `./control-plane/scripts/publish-auth-gateway.sh` | Publish Auth Gateway image to ECR with verification and signing |
 | `./control-plane/scripts/verify-and-update-versions.sh` | Verify ECS runs the pinned image; `--write` fixes drift |
 | `./control-plane/scripts/test-pipeline.sh` | Regression tests for the build/pin/deploy/verify pipeline |
 | `./control-plane/scripts/generate-key.sh` | Generate Ed25519 signing key |
 | `./control-plane/scripts/dev.sh` | Start dev environment and run server |
+
+For production builds, see the [Build Guide](../docs/BUILD_GUIDE.md) for detailed instructions on local and cloud build options.
 
 ### Configuration
 
