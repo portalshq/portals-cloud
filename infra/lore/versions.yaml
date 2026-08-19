@@ -24,7 +24,7 @@ nap-client:
   signature_bundle_url: ""
   # Nap must install this exact top-level Lore client release. Its artifacts
   # and source provenance are recorded once under lore-client below.
-  lore_client_version: "0.8.4"
+  lore_client_version: "0.8.4-portals.5"
 
 # Lore CLI is a separately published binary dependency of Nap. Keep the
 # checked-out submodule pinned to upstream_commit until the minimal security
