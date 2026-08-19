@@ -288,9 +288,9 @@ export function PersonalizedPilotPdfDocument({
     document.packageSpecifications,
     PACKAGE_SPEC_SLUGS.paidPilot,
   )
-  const price = packagePriceLabel(specification) || '$5,000'
-  const period = packageMilestoneLabel(specification, 'pilot period') || '21 days'
-  const firstValue = packageMilestoneLabel(specification, 'first value') || '48 hours'
+  const price = packagePriceLabel(specification)
+  const period = packageMilestoneLabel(specification, 'pilot period')
+  const firstValue = packageMilestoneLabel(specification, 'first value')
   const valueStatement = pilotValueStatement(data)
   const periodModifier = period.replace(/\s*days$/i, '-day')
   const workflow = clipped(

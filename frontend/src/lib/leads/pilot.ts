@@ -8,6 +8,7 @@ import type {
 import {
   pilotControlledOptionLists as optionLists,
 } from './contracts'
+import {packagePriceLabel, packageTermDays} from '../package-specifications'
 
 export type PilotRoute = 'zero-call' | 'one-call' | 'disqualified'
 
@@ -584,9 +585,9 @@ export function buildCommercialSnapshot(
     Number(process.env.PILOT_PRICE_AMOUNT) ||
     pilotSpec?.price?.amount ||
     5000
-  const priceLabel = pilotSpec?.price?.displayValue || `$${priceAmount.toLocaleString()}`
+  const priceLabel = packagePriceLabel(pilotSpec) || `$${priceAmount.toLocaleString()}`
   const currency = opts.currency || pilotSpec?.price?.currency || 'USD'
-  const termDays = opts.termDays || 21
+  const termDays = opts.termDays || packageTermDays(pilotSpec)
   const start = opts.startDate
   const end = start ? new Date(new Date(start).getTime() + (termDays - 1) * 86_400_000) : undefined
   const decisionDate = start

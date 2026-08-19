@@ -1,4 +1,4 @@
-import { getPackageSpecifications } from '@/sanity/lib/package-specifications'
+import { getPackageSpecifications, PACKAGE_SPEC_SLUGS } from '@/lib/package-specifications'
 import { VCS } from '@/views/vcs3'
 
 export default async function V3Page() {

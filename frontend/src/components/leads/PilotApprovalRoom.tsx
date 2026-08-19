@@ -14,6 +14,7 @@ import {
 import type {StoredPilot} from '@/lib/leads/store'
 import {trackEvent} from '@/lib/leads/analytics-client'
 import {formatReadableDate} from '@/lib/utils'
+import {packageTermDays} from '@/lib/package-specifications'
 
 const EDITABLE_STATES: PilotState[] = [
   'reviewing',
@@ -1107,8 +1108,8 @@ export function PilotApprovalRoom({
           <h2 className="t-h3-sans">sign and fund the pilot</h2>
           <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
             by signing, {String(answers.company || 'the customer')} agrees to
-            the confirmed scope, the {pilot.proposal?.priceLabel || '$5,000'} pilot
-            fee due on signature, and the {pilot.proposal?.termDays || 21}-day
+            the confirmed scope, the {pilot.proposal?.priceLabel} pilot
+            fee due on signature, and the {pilot.proposal?.termDays}-day
             pilot term.
           </p>
           <FieldLabel>authorized signer name</FieldLabel>
