@@ -252,10 +252,10 @@ service account or its other keys.
 Production requires a dedicated KMS asymmetric signing key for container artifacts, separate from the JWT signing key. This key is used to sign container images with Cosign, providing cryptographic verification that production images have been reviewed and approved.
 
 **Key setup**:
-- Create KMS asymmetric signing key named `alias/portals-artifact-signing`
-- Grant only the release identity permission to use `kms:Sign`, `kms:GetPublicKey`, and `kms:DescribeKey`
-- Do not grant Auth Gateway task role or JWT signer access
-- Record the key ARN in the release-role policy, not in source code
+- [x] Create KMS asymmetric signing key named `alias/portals-artifact-signing` (COMPLETED 2026-08-19)
+- [ ] Grant only the release identity permission to use `kms:Sign`, `kms:GetPublicKey`, and `kms:DescribeKey`
+- [ ] Do not grant Auth Gateway task role or JWT signer access
+- [ ] Record the key ARN in the release-role policy, not in source code
 
 **Verification**: Confirm the key exists before production deployment:
 ```bash
@@ -269,8 +269,8 @@ The artifact-signing key is separate from the JWT-signing key because they make 
 Production requires separate ECR repositories from development, configured with scan-on-push and immutable tag mutability. These repositories must be created before production images can be published.
 
 **Repository setup**:
-- Create `portals-prod/lore` repository with scan-on-push and immutable tags
-- Create `portals-prod/auth-gateway` repository with scan-on-push and immutable tags
+- [x] Create `portals-prod/lore` repository with scan-on-push and immutable tags (COMPLETED 2026-08-19)
+- [x] Create `portals-prod/auth-gateway` repository with scan-on-push and immutable tags (COMPLETED 2026-08-19)
 - These are created by the `ImageRepositories` component when initializing a production Pulumi stack
 
 **Verification**: Confirm production repositories exist:
@@ -284,13 +284,7 @@ aws ecr describe-repositories --repository-names portals-prod/lore portals-prod/
 2. Deploy the gateway privately with `jwtSigningEnabled=false` and verify its
    store-aware health check.
 3. For the initial key, set `jwksPublicationEnabled=true` to expose only HTTPS
-   JWKS and health. The callback, Auth gRPC, and Lore routes remain absent, and
-   Pulumi currently refuses this bootstrap mode if signing is enabled. This is
-   not sufficient for the intended private Lore signed-token test. Before a
-   production release, change the edge to retain JWKS/health-only TLS routing
-   while signing is enabled, without enabling Lore, callback, or Auth gRPC
-   routes. During later rotations, publish the new JWK alongside the
-   still-active old key.
+   JWKS and health. The callback, Auth gRPC, and Lore routes remain absent. [x] The Pulumi constraint that refused signing while JWKS publication was enabled has been corrected (COMPLETED 2026-08-19), allowing the safe sequence of: JWKS/health-only TLS routing → verify live JWKS → enable JWT signing for private Lore signed-token testing → keep callback/Auth gRPC/Lore routes disabled until release gates pass. During later rotations, publish the new JWK alongside the still-active old key.
 4. Verify the live JWKS contains the expected `kid`; wait at least 60 seconds
    and verify every running Lore task fetched the new set.
 5. Activate RS256 signing only after the JWKS-only signed-edge correction has
@@ -360,6 +354,8 @@ it does not parse binary gRPC bodies. WAF logs redact `Authorization`.
 ```bash
 aws accessanalyzer list-analyzers --type ACCOUNT
 ```
+
+**Current status (2026-08-19)**: An account-level analyzer named `portals-dev-external-access` exists and is ACTIVE. Findings inspection requires appropriate IAM permissions (`access-analyzer:ListFindings`, `access-analyzer:GetFinding`). Do not create a second analyzer; the account quota is exhausted.
 
 GuardDuty and Security Hub remain recommended paid enhancements, not assertions
 that may be faked to pass a free-plan deployment. When they are unavailable,

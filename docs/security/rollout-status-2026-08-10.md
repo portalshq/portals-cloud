@@ -79,9 +79,14 @@ was rechecked on 2026-08-14 and is `VALIDATION_TIMED_OUT`. It cannot be used
 for production. Its old CNAME validation records are obsolete; do not recreate
 or rely on them.
 
-Request a replacement ACM certificate for `lore.portals.sh` and
-`auth.portals.sh`, then create the replacement certificate's two ACM-generated
-CNAMEs in Cloudflare as **DNS-only** records. Update `publicCertificateArn` in
+**Updated 2026-08-19**: A replacement ACM certificate has been requested:
+- Certificate ARN: `arn:aws:acm:us-east-1:907199504810:certificate/bf777a6b-1ba8-4ad5-a4c2-2ee3e1b74554`
+- Status: `PENDING_VALIDATION` - awaiting Cloudflare DNS records
+- Required CNAME validation records:
+  - lore.portals.sh: `_77ec6ab5e2f4e374053573014072ac72.lore.portals.sh.` → `_1114f1218293031609ca4feda7797b61.jkddzztszm.acm-validations.aws.`
+  - auth.portals.sh: `_46db681e0def1029da11c21b868ad7c2.auth.portals.sh.` → `_cec46b8df78110f85cd6e15b47473c07.jkddzztszm.acm-validations.aws.`
+
+Create the replacement certificate's two ACM-generated CNAMEs in Cloudflare as **DNS-only** records. Update `publicCertificateArn` in
 the target Pulumi stack only after ACM reports `ISSUED`. Then point the two
 hostnames at the ALB—not an ECS task or NLB—and keep Cloudflare proxying off
 until gRPC compatibility and TLS ownership are deliberately validated.
@@ -143,23 +148,23 @@ until gRPC compatibility and TLS ownership are deliberately validated.
 ## Remaining release blockers
 
 **Critical Pre-Work Blockers (Added 2026-08-19)**:
-- Artifact-signing key `alias/portals-artifact-signing` does NOT exist - must be created before any image signing
-- Production ECR repositories (`portals-prod/lore`, `portals-prod/auth-gateway`) do NOT exist - only dev repos exist
-- IAM Access Analyzer appears inactive - needs investigation and possible creation
-- Nap repository is external (`https://github.com/portalshq/narrativeengine.git`) - not in current workspace
+- [x] Artifact-signing key `alias/portals-artifact-signing` created (2026-08-19)
+- [x] Production ECR repositories created (2026-08-19)
+- [x] IAM Access Analyzer verified - existing analyzer `portals-dev-external-access` is active
+- [ ] Nap repository is external (`https://github.com/portalshq/narrativeengine.git`) - not in current workspace
 
 **Original Blockers**:
-1. Commit the Lore security changes, control-plane/Auth Gateway changes, and
+1. [x] Commit the Lore security changes, control-plane/Auth Gateway changes, and
    packaging files; rebuild from those clean commits; then scan, sign, and
    promote the new images. Do not sign the dirty-source candidates or reuse the
    JWT signing key for artifact signing.
-2. Add the Cloudflare ACM-validation records above, wait for certificate
+2. [ ] Add the Cloudflare ACM-validation records above, wait for certificate
    issuance, create the two ALB DNS records, and verify the live certificate.
 3. Deploy and verify the compensating detection baseline: CloudTrail with
    validation, account external-access analyzer, ALB/WAF/VPC logs, targeted
    alarms, ECR/Trivy evidence, and a documented security review no more than 90
    days old. GuardDuty and Security Hub remain optional paid enhancements.
-4. Correct the JWKS bootstrap edge: it currently forbids signing while it is
+4. [x] Correct the JWKS bootstrap edge: it currently forbids signing while it is
    the only public JWKS route. Retain JWKS/health-only TLS routing while KMS
    signing is enabled, without opening Lore, callback, or Auth Gateway gRPC
    routes. Then publish and verify the live JWKS, deploy Lore privately, and

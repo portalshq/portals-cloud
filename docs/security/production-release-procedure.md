@@ -36,6 +36,8 @@ Create a separate `prod` Pulumi stack before building production images: its
 aws ecr describe-repositories --repository-names portals-prod/lore portals-prod/auth-gateway --region us-east-1
 ```
 
+**Current status (2026-08-19)**: Production ECR repositories have been created. The production Pulumi stack configuration exists, but a preview has not yet been successfully run due to a local Pulumi Node.js plugin issue.
+
 Use non-overlapping production network ranges and leave all public/service
 switches closed for this first apply:
 
@@ -239,7 +241,7 @@ return an actionable login error.
 
 The browser login requires the public Auth Gateway callback route and a valid
 certificate. It cannot be tested against the current contained stack until the
-JWKS-edge correction and certificate replacement are complete.
+certificate replacement is complete.
 
 ## JWKS: no separate server
 
@@ -248,15 +250,7 @@ You do **not** deploy a separate JWKS server. The Auth Gateway publishes
 the dedicated JWT KMS key and signs tokens only when explicitly enabled. Lore
 downloads and caches that public key set to verify tokens.
 
-There is one implementation blocker before public release: the current
-`jwksPublicationEnabled` mode prohibits `jwtSigningEnabled`. That prevents the
-planned private Lore signed-token test from running for longer than its JWKS
-cache. Correct this by keeping JWKS/health available over the TLS ALB while
-signing is enabled, but keep the Lore gRPC route, browser callback, and Auth
-Gateway gRPC route disabled until their separate release gates pass. Do not
-work around this by opening full public ingress early.
-
-The safe sequence after that change is:
+**Current status (2026-08-19)**: The implementation blocker that prohibited `jwtSigningEnabled` when `jwksPublicationEnabled` was true has been corrected. The safe sequence is now:
 
 1. Deploy Auth Gateway privately and pass readiness.
 2. Publish JWKS/health only on `auth.portals.sh:443`.
