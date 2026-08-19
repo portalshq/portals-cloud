@@ -13,18 +13,18 @@ test('business email determines company identity without a website', () => {
   assert.equal(companyDomain(identity), 'studio.example')
 })
 
-test('public email requires and uses a company website', () => {
-  const missingWebsite = {
+test('public email domains are rejected', () => {
+  const publicEmail = {
     email: 'person@gmail.com',
     company: 'Studio',
     role: 'producer',
     website: '',
   }
-  assert.match(validateIdentityForCapture(missingWebsite) || '', /website is required/)
+  assert.match(validateIdentityForCapture(publicEmail) || '', /company email domain is required/)
 
-  const identity = {...missingWebsite, website: 'https://www.studio.example/work'}
-  assert.equal(validateIdentityForCapture(identity), null)
-  assert.equal(companyDomain(identity), 'studio.example')
+  // Even with a website, public email is now rejected
+  const withWebsite = {...publicEmail, website: 'https://www.studio.example/work'}
+  assert.match(validateIdentityForCapture(withWebsite) || '', /company email domain is required/)
 })
 
 test('domain normalization strips only the conventional www prefix', () => {

@@ -708,6 +708,11 @@ export async function syncSubmissionToApollo(submission: StoredSubmission): Prom
     })
     contactId = await upsertContact(schema, submission, accountId)
     await reconcileOperationalList(accountId, desiredOperationalList(submission))
+    
+    // Create deal immediately for pilot requests using the prospect account
+    if (submission.request.submissionType === 'pilot_request' && accountId) {
+      await upsertPilotDeal(schema, submission, contactId, accountId)
+    }
   }
 
   if (pilot?.customerAccountId) {
@@ -721,7 +726,8 @@ export async function syncSubmissionToApollo(submission: StoredSubmission): Prom
     })
     contactId = await upsertContact(schema, submission, accountId)
     await reconcileOperationalList(accountId, desiredOperationalList(submission))
-    await upsertPilotDeal(schema, submission, contactId, accountId)
+    // Deal was already created with prospect account, so we don't need to recreate it here
+    // If needed, we could update the deal's account linkage in the future
   }
 }
 

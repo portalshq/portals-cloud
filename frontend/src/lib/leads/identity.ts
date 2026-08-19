@@ -59,8 +59,8 @@ export function validateIdentityForCapture(identity: LeadIdentity): string | nul
   }
 
   const domain = emailDomain(identity.email)
-  if (isPublicEmailDomain(domain) && !identity.website) {
-    return 'company website is required when using a public email address'
+  if (isPublicEmailDomain(domain)) {
+    return 'a company email domain is required (personal email domains like gmail.com are not accepted)'
   }
 
   try {
