@@ -1,4 +1,4 @@
-# Lore security rollout status — through 2026-08-14
+# Lore security rollout status — through 2026-08-19
 
 This is an execution record, not an authorization to reopen production. The
 canonical requirements remain in
@@ -32,9 +32,10 @@ intentionally fail-closed while the release blockers below remain.
   invitation-only administration, passkeys on the actual Cognito managed-login
   relying-party domain, and TOTP recovery. It is a user pool only and grants no
   AWS credentials or application-network access.
-- KMS has a dedicated asymmetric RS256 signing key. Secrets Manager holds the
+- KMS has a dedicated asymmetric RS256 signing key for JWT signing (`arn:aws:kms:us-east-1:907199504810:key/ebf2eceb-25a2-427e-b38c-0148dff7602c`). Secrets Manager holds the
   versioned API-key pepper and private internal-service secret. JWT signing is
   deliberately disabled until the public JWKS is reachable and verified.
+- **Critical**: Artifact-signing key `alias/portals-artifact-signing` does NOT exist - must be created for production image signing.
 - The private Auth Gateway is running one healthy Fargate task with no public
   IP, no ALB attachment, no inbound ALB rule, scoped task/execution roles, and
   store-aware readiness. The task uses the immutable image
@@ -53,8 +54,8 @@ intentionally fail-closed while the release blockers below remain.
   `ACTIVE` with successful delivery and records accepted and rejected traffic.
   ALB access logging, deletion protection, invalid-header dropping, CloudWatch
   alarms, and the audit bucket are enabled.
-- The account-level external-access IAM Access Analyzer is `ACTIVE`. Target
-  health, edge 4xx/5xx, WAF block, and RDS-backup alarms are deployed.
+- **Critical**: IAM Access Analyzer appears inactive - returns empty results. Needs investigation and possible creation.
+- Target health, edge 4xx/5xx, WAF block, and RDS-backup alarms are deployed.
 - The current AWS account rejected both GuardDuty detector creation and
   Security Hub enrollment with `SubscriptionRequiredException`. They remain
   optional paid enhancements; the documented free/low-cost baseline and a
@@ -105,6 +106,7 @@ until gRPC compatibility and TLS ownership are deliberately validated.
   committed together. Released Nap `v0.5.8` predates this security contract and
   is therefore recorded as `legacy` in `versions.yaml`; it cannot approve a
   public deployment.
+- **Critical**: Nap repository is external (`https://github.com/portalshq/narrativeengine.git`) and not in the current workspace - requires separate development workflow.
 - Pulumi TypeScript builds. All 25 Pulumi/policy tests and the publisher
   pipeline pass. `npm audit --omit=dev` reports zero vulnerabilities. Auth
   Gateway unit tests pass (7 pass, 1 real-PostgreSQL test ignored in that local
@@ -128,6 +130,7 @@ until gRPC compatibility and TLS ownership are deliberately validated.
   BuildKit SBOM/provenance. ECR and Trivy both report zero critical/high
   findings. It is pinned and receipt-bound but remains scaled to zero and
   unsigned.
+- **Critical**: Production ECR repositories (`portals-prod/lore`, `portals-prod/auth-gateway`) do NOT exist - only dev repos are available.
 - Publishers now push first, resolve the runnable platform digest, require
   successful ECR and Trivy scans, decode SBOM/provenance, and only then update
   `versions.yaml` plus `verified-images.json`. Pulumi rejects a running service
@@ -139,6 +142,13 @@ until gRPC compatibility and TLS ownership are deliberately validated.
 
 ## Remaining release blockers
 
+**Critical Pre-Work Blockers (Added 2026-08-19)**:
+- Artifact-signing key `alias/portals-artifact-signing` does NOT exist - must be created before any image signing
+- Production ECR repositories (`portals-prod/lore`, `portals-prod/auth-gateway`) do NOT exist - only dev repos exist
+- IAM Access Analyzer appears inactive - needs investigation and possible creation
+- Nap repository is external (`https://github.com/portalshq/narrativeengine.git`) - not in current workspace
+
+**Original Blockers**:
 1. Commit the Lore security changes, control-plane/Auth Gateway changes, and
    packaging files; rebuild from those clean commits; then scan, sign, and
    promote the new images. Do not sign the dirty-source candidates or reuse the
@@ -180,3 +190,15 @@ Until every item is evidenced, keep `publicIngressEnabled`,
 The 2026-08-13 containment scan resolved both `lore.portals.sh` and
 `auth.portals.sh` externally and found TCP `443`, `8083`, `41337`, and `41339`
 closed on both names, as expected before release.
+
+**Verified Infrastructure State (2026-08-19)**:
+- Only `dev` Pulumi stack exists (119 resources, no `prod` stack)
+- ACM certificate is `VALIDATION_TIMED_OUT` (requires replacement)
+- Production ECR repositories do NOT exist (only `portals-dev/*` repos)
+- Artifact-signing key does NOT exist (`alias/portals-artifact-signing` not found)
+- IAM Access Analyzer appears inactive (empty results)
+- Auth Gateway running healthy (1 task, ARM64, zero vulnerabilities)
+- Lore and control plane at zero desired count
+- Security controls partially active (CloudTrail, VPC logs, ALB logs enabled)
+- Low-cost RDS snapshot bridge enabled (7-day manual retention)
+- IAM user `portals-pulumi-deployer` exists with bootstrap policies attached

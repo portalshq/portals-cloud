@@ -31,6 +31,11 @@ Create a separate `prod` Pulumi stack before building production images: its
 `ImageRepositories` component creates the `portals-prod/lore` and
 `portals-prod/auth-gateway` repositories that the production publishers use.
 
+**Verification step**: Confirm production ECR repositories exist after stack creation:
+```bash
+aws ecr describe-repositories --repository-names portals-prod/lore portals-prod/auth-gateway --region us-east-1
+```
+
 Use non-overlapping production network ranges and leave all public/service
 switches closed for this first apply:
 
@@ -78,6 +83,11 @@ private signing key.
 
 These are separate protections for different failures:
 
+**Pre-requisites**: 
+- Artifact-signing key `alias/portals-artifact-signing` must exist
+- Production ECR repositories must be created
+- Clean source commits must be available
+
 | Gate | Stops | If omitted |
 |---|---|---|
 | Clean committed source | A release that cannot be reproduced or audited | The image may contain unreviewed local changes. |
@@ -93,6 +103,8 @@ not automatically compromise the other.
 
 ### One-time artifact-signing-key bootstrap
 
+**Critical**: This key must be created before any production image signing can proceed. The key `alias/portals-artifact-signing` does not exist by default.
+
 Create one KMS asymmetric signing key for container artifacts and give only the
 release identity permission to use `kms:Sign`, `kms:GetPublicKey`, and
 `kms:DescribeKey` on that key. Name it `alias/portals-artifact-signing`. Do not
@@ -100,6 +112,11 @@ grant the Auth Gateway task role access to it, and do not grant this key access
 to the JWT signer. Record the key ARN in the release-role policy, not in source
 code. The CLI example below refers to the alias only; it does not require a
 private-key file.
+
+**Verification step**: Confirm the key exists before proceeding:
+```bash
+aws kms describe-key --key-id alias/portals-artifact-signing --region us-east-1
+```
 
 ## Build, scan, sign, and promote production images
 
@@ -250,10 +267,17 @@ The safe sequence after that change is:
 
 ## Run the real release tests
 
+**Pre-requisite**: Ensure IAM Access Analyzer is active before running release tests.
+
 Run these against the isolated production candidate before public Lore gRPC is
 enabled. Record the command output, image digests, release tags, timestamp, and
 operator in the release issue or change record; never record tokens, API keys,
 or database URLs.
+
+**Verification step**: Confirm IAM Access Analyzer is active:
+```bash
+aws accessanalyzer list-analyzers --type ACCOUNT
+```
 
 | Test | Expected result |
 |---|---|

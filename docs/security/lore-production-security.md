@@ -247,6 +247,37 @@ token exchanges immediately. Already-issued repository tokens remain usable
 for no more than five minutes. A single-key revocation does not disable the
 service account or its other keys.
 
+## Artifact-signing key for production releases
+
+Production requires a dedicated KMS asymmetric signing key for container artifacts, separate from the JWT signing key. This key is used to sign container images with Cosign, providing cryptographic verification that production images have been reviewed and approved.
+
+**Key setup**:
+- Create KMS asymmetric signing key named `alias/portals-artifact-signing`
+- Grant only the release identity permission to use `kms:Sign`, `kms:GetPublicKey`, and `kms:DescribeKey`
+- Do not grant Auth Gateway task role or JWT signer access
+- Record the key ARN in the release-role policy, not in source code
+
+**Verification**: Confirm the key exists before production deployment:
+```bash
+aws kms describe-key --key-id alias/portals-artifact-signing --region us-east-1
+```
+
+The artifact-signing key is separate from the JWT-signing key because they make different promises. The JWT key signs short-lived user credentials; the artifact key approves deployable software. Compromise or rotation of one must not automatically compromise the other.
+
+## Production ECR repositories
+
+Production requires separate ECR repositories from development, configured with scan-on-push and immutable tag mutability. These repositories must be created before production images can be published.
+
+**Repository setup**:
+- Create `portals-prod/lore` repository with scan-on-push and immutable tags
+- Create `portals-prod/auth-gateway` repository with scan-on-push and immutable tags
+- These are created by the `ImageRepositories` component when initializing a production Pulumi stack
+
+**Verification**: Confirm production repositories exist:
+```bash
+aws ecr describe-repositories --repository-names portals-prod/lore portals-prod/auth-gateway --region us-east-1
+```
+
 ## Signing-key rotation
 
 1. Create a new asymmetric KMS RSA key and `kid`.
@@ -324,6 +355,11 @@ store-readiness alarms, and backup-age alarms. Logs must redact tokens, API-key
 secrets, cookies, authorization headers, database URLs, and signing material.
 WAF common HTTP inspection is scoped to the small callback/JWKS/health routes;
 it does not parse binary gRPC bodies. WAF logs redact `Authorization`.
+
+**Verification**: Confirm IAM Access Analyzer is active before release:
+```bash
+aws accessanalyzer list-analyzers --type ACCOUNT
+```
 
 GuardDuty and Security Hub remain recommended paid enhancements, not assertions
 that may be faked to pass a free-plan deployment. When they are unavailable,

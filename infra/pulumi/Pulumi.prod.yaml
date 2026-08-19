@@ -1,0 +1,11 @@
+config:
+  portals-platform:environment: prod
+  portals-platform:vpcCidr: 10.1.0.0/16
+  portals-platform:publicIngressEnabled: "false"
+  portals-platform:loreServiceDesiredCount: "0"
+  portals-platform:controlPlaneDesiredCount: "0"
+  portals-platform:authGatewayDesiredCount: "0"
+  portals-platform:authFoundationEnabled: "true"
+  portals-platform:securityControlsEnabled: "true"
+  portals-platform:recoveryControlsEnabled: "true"
+  portals-platform:lowCostRdsSnapshotsEnabled: "true"
