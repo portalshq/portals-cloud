@@ -1,6 +1,7 @@
 import {renderToBuffer} from '@react-pdf/renderer'
 import {zipSync} from 'fflate'
 import {
+  ASSESSMENT_PDF_FILE_NAME,
   AssessmentResultPdfDocument,
   PersonalizedPilotPdfDocument,
   PilotPlanPdfDocument,
@@ -133,9 +134,8 @@ export async function GET(
       profile.qualification?.recommendedWorkflow ||
       recommendedWorkflow(fallbackAnswers),
     generatedAt: new Date().toISOString(),
+    reasonCodes,
   }
-  // Attach reasonCodes for PDF generation (not in type but used by PDF)
-  ;(data as any).reasonCodes = reasonCodes
   const company = filePart(profile.identity.company || 'company') || 'company'
 
   if (documentKind === 'assessment-result') {
@@ -146,7 +146,7 @@ export async function GET(
     const buffer = await renderToBuffer(
       AssessmentResultPdfDocument({data, document: pilotDocument}),
     )
-    return pdfResponse(buffer, `${company}-workflow-evaluation-${data.tier}.pdf`)
+    return pdfResponse(buffer, ASSESSMENT_PDF_FILE_NAME)
   }
 
   const requiredPilotFields = [

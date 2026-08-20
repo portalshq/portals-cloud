@@ -382,6 +382,13 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         onFocus={onStarted}
         className="space-y-20"
       >
+        <IdentityFields
+          context={leadContext}
+          email={email}
+          onEmailChange={(event) => setEmail(event.target.value)}
+          requireWebsite={publicEmailNeedsWebsite(email) || Boolean(leadContext.requiresWebsite)}
+          onStarted={onStarted}
+        />
         <LeadField label="What brought you here?" name="whatBroughtYouHere">
           <LeadSelectField
             id="whatBroughtYouHere"
@@ -424,13 +431,6 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             <option value="social-media">Social media</option>
           </LeadSelectField>
         </LeadField>
-        <IdentityFields
-          context={leadContext}
-          email={email}
-          onEmailChange={(event) => setEmail(event.target.value)}
-          requireWebsite={publicEmailNeedsWebsite(email) || Boolean(leadContext.requiresWebsite)}
-          onStarted={onStarted}
-        />
         {!known.has('teamType') ? (
           <AssessmentSelect
             id="teamType"

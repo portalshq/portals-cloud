@@ -523,6 +523,13 @@ const HOURS_RANGES: Record<string, [number, number]> = {
 }
 
 const PEOPLE_RANGES: Record<string, [number, number]> = {
+  '1': [1, 1],
+  '2-4': [2, 4],
+  '5-9': [5, 9],
+  '10-24': [10, 24],
+  '25-plus': [25, 40],
+  // Preserve value estimates for assessments completed before the option labels
+  // were aligned with the live assessment form.
   '1-2-people': [1, 2],
   '2-5-people': [2, 5],
   '6-10-people': [6, 10],

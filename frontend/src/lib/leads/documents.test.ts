@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {renderToBuffer} from '@react-pdf/renderer'
 import {
+  ASSESSMENT_PDF_FILE_NAME,
   AssessmentResultPdfDocument,
   PersonalizedPilotPdfDocument,
   PilotPlanPdfDocument,
@@ -71,7 +72,9 @@ test('personalized assessment and pilot documents render as PDFs', async () => {
   assert.equal(pilot.subarray(0, 4).toString(), '%PDF')
   assert.ok(assessment.length > 1_000)
   assert.ok(pilot.length > 1_000)
+  assert.equal(assessment.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length, 5)
   assert.equal(pilot.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length, 2)
+  assert.equal(ASSESSMENT_PDF_FILE_NAME, 'portals-production-workflow-evaluation.pdf')
 })
 
 test('maximum-length pilot answers remain a two-page brief', async () => {
@@ -96,6 +99,27 @@ test('maximum-length pilot answers remain a two-page brief', async () => {
   )
 
   assert.equal(pilot.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length, 2)
+})
+
+test('long assessment inputs remain a five-page evaluation', async () => {
+  const longData: PersonalizedQualification = {
+    ...data,
+    identity: {
+      ...data.identity,
+      name: 'Assessment Sponsor '.repeat(8),
+      company: 'International Production Organization '.repeat(5),
+      role: 'Global Production Operations Director '.repeat(4),
+    },
+    answers: {
+      ...answers,
+      activeWorkflow: 'Recurring campaign production workflow '.repeat(50),
+      incidentDescription: 'Missing production context delayed delivery. '.repeat(50),
+      message: 'Additional production detail. '.repeat(100),
+    },
+  }
+  const assessment = await renderToBuffer(AssessmentResultPdfDocument({data: longData}))
+
+  assert.equal(assessment.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length, 5)
 })
 
 const pilotAnswers = {

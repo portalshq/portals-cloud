@@ -157,10 +157,11 @@ export function WorkflowReviewForm({
     <form ref={(element) => { swapRef(element); draftRef(element) }} onSubmit={onSubmit} onFocus={onStarted} className="space-y-20">
       <div>
         <h3 className="t-h1-sans">complete pilot readiness</h3>
-        <p className="mt-14 t-p-lg-serif text-white">
+        {/* <p className="mt-14 t-p-lg-serif text-white">
           Answer only the practical details the assessment could not establish. Objections travel with your scope; they do not automatically block a pilot plan.
-        </p>
+        </p> */}
       </div>
+      <IdentityFields context={context} email={email} onEmailChange={(event) => setEmail(event.target.value)} requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)} onStarted={onStarted} />
       <LeadField label="What brought you here?" name="whatBroughtYouHere">
         <LeadSelectField
           id="whatBroughtYouHere"
@@ -203,7 +204,6 @@ export function WorkflowReviewForm({
           <option value="social-media">Social media</option>
         </LeadSelectField>
       </LeadField>
-      <IdentityFields context={context} email={email} onEmailChange={(event) => setEmail(event.target.value)} requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)} onStarted={onStarted} />
       {missing.has('targetStartPeriod') ? <LeadField label="target start period *" name="targetStartPeriod">
         <LeadSelectField id="targetStartPeriod" name="targetStartPeriod" required defaultValue="">
           <option value="" disabled>select timing</option>

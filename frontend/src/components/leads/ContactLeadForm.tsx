@@ -117,6 +117,13 @@ export function ContactLeadForm({
       onFocus={onStarted}
       onSubmit={onSubmit}
     >
+      <IdentityFields
+        context={context}
+        email={email}
+        onEmailChange={(event) => setEmail(event.target.value)}
+        requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
+        onStarted={onStarted}
+      />
       <LeadField label="What brought you here?" name="whatBroughtYouHere">
         <LeadSelectField
           id="whatBroughtYouHere"
@@ -159,13 +166,6 @@ export function ContactLeadForm({
           <option value="social-media">Social media</option>
         </LeadSelectField>
       </LeadField>
-      <IdentityFields
-        context={context}
-        email={email}
-        onEmailChange={(event) => setEmail(event.target.value)}
-        requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
-        onStarted={onStarted}
-      />
       <LeadField label="how can we help you? *" name="interest">
         <LeadSelectField
           id="interest"

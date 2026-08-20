@@ -181,6 +181,13 @@ export function ResourceLeadForm({
         </>
       ) : (
         <>
+          <IdentityFields
+            context={context}
+            email={email}
+            onEmailChange={(event) => setEmail(event.target.value)}
+            requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
+            onStarted={onStarted}
+          />
           <LeadField label="What brought you here?" name="whatBroughtYouHere">
             <LeadSelectField
               id="whatBroughtYouHere"
@@ -223,13 +230,6 @@ export function ResourceLeadForm({
               <option value="social-media">Social media</option>
             </LeadSelectField>
           </LeadField>
-          <IdentityFields
-            context={context}
-            email={email}
-            onEmailChange={(event) => setEmail(event.target.value)}
-            requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
-            onStarted={onStarted}
-          />
           <LeadField label={`${interestLabel} *`} name="interest">
             <LeadSelectField
               id="interest"

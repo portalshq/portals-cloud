@@ -594,6 +594,15 @@ export function PilotScopeForm({
 
       <div data-pilot-stage={0} hidden={stage !== 0} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
+          <IdentityFields
+            context={context}
+            email={email}
+            onEmailChange={(event) => setEmail(event.target.value)}
+            requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
+            onStarted={onStarted}
+          />
+        </div>
+        <div className="sm:col-span-2">
           <LeadField label="What brought you here?" name="whatBroughtYouHere">
             <LeadSelectField
               id="whatBroughtYouHere"
@@ -640,15 +649,6 @@ export function PilotScopeForm({
               <option value="social-media">Social media</option>
             </LeadSelectField>
           </LeadField>
-        </div>
-        <div className="sm:col-span-2">
-          <IdentityFields
-            context={context}
-            email={email}
-            onEmailChange={(event) => setEmail(event.target.value)}
-            requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
-            onStarted={onStarted}
-          />
         </div>
         <div className="sm:col-span-2">
           <LeadField label="which production workflow would the pilot cover? *" name="pilotWorkflow">

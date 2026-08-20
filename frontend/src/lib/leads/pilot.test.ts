@@ -145,6 +145,14 @@ test('value model computes auditable low/high bounds', () => {
   assert.ok(model.midpoint <= model.high && model.midpoint >= model.low)
 })
 
+test('value model accepts the live assessment people ranges', () => {
+  const model = buildValueModel('weekly', '1-4-hours', '5-9')
+
+  assert.equal(model?.low, 260)
+  assert.equal(model?.high, 1872)
+  assert.equal(model?.midpoint, 1066)
+})
+
 test('commercial snapshot prices from the pilot spec amount and composes the annual credit', () => {
   const snapshot = buildCommercialSnapshot(
     {...eligible, targetStartPeriod: 'asap'},

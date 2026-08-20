@@ -29,6 +29,7 @@ import {
 } from '@/lib/package-specifications'
 import { formatReadableDate } from '@/lib/utils'
 import { buildValueModel, type ValueModel } from '@/lib/leads/pilot'
+import { productionWorkflows } from '@/lib/production-workflows'
 
 const HEADING_SIZE = 22
 const SUB_HEADING_SIZE = 16
@@ -49,6 +50,7 @@ Font.register({
     { src: path.join(FONT_ROOT, 'DieGroteskC-Light.ttf'), fontWeight: 300 },
   ],
 })
+Font.registerHyphenationCallback((word) => [word])
 
 const colors = {
   ink: '#07112C',
@@ -83,7 +85,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 28,
   },
-  wordmark: { fontWeight: 500 },
+  wordmark: { width: 80, fontWeight: 500 },
   heading: {
     fontFamily: 'DieGroteskC',
     fontSize: HEADING_SIZE,
@@ -113,31 +115,6 @@ const styles = StyleSheet.create({
     fontSize: SUB_HEADING_SIZE,
     fontWeight: 300,
     lineHeight: 1.1,
-  },
-  metrics: { marginTop: 24, flexDirection: 'row', gap: 10 },
-  metric: { width: 154, padding: 12, backgroundColor: colors.cardDark },
-  lightMetric: { width: 154, padding: 12, backgroundColor: colors.pale },
-  metricValue: {
-    fontFamily: 'DieGroteskC',
-    fontSize: HEADING_SIZE,
-    fontWeight: 300,
-    color: colors.lightBlue,
-  },
-  lightMetricValue: {
-    fontFamily: 'DieGroteskC',
-    fontSize: HEADING_SIZE,
-    fontWeight: 300,
-    color: colors.blue,
-  },
-  metricLabel: {
-    marginTop: 4,
-    fontSize: SMALL_SIZE,
-    color: colors.lightBlue,
-  },
-  lightMetricLabel: {
-    marginTop: 4,
-    fontSize: SMALL_SIZE,
-    color: colors.blue,
   },
   columns: { flexDirection: 'row', gap: 24 },
   column: { width: 250 },
@@ -175,42 +152,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.ink,
   },
-  // New card styles for problem-solution mapping
-  card: {
-    marginTop: 14,
-    padding: 16,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 4,
-  },
-  cardDark: {
-    marginTop: 14,
-    padding: 16,
-    backgroundColor: colors.cardDark,
-    color: colors.white,
-    borderRadius: 4,
-  },
-  cardTitle: {
-    fontWeight: 500,
-    fontSize: NORMAL_SIZE,
-    marginBottom: 6,
-  },
-  cardTitleWhite: {
-    fontWeight: 500,
-    fontSize: NORMAL_SIZE,
-    marginBottom: 6,
-    color: colors.lightBlue,
-  },
-  cardBody: {
-    fontSize: SMALL_SIZE,
-    lineHeight: 1.3,
-  },
-  cardBodyWhite: {
-    fontSize: SMALL_SIZE,
-    lineHeight: 1.3,
-    color: colors.lightBlue,
-  },
   tierBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -218,35 +159,203 @@ const styles = StyleSheet.create({
     fontWeight: 500,
     fontSize: SMALL_SIZE,
   },
-  roiBanner: {
-    marginTop: 18,
-    padding: 16,
-    backgroundColor: colors.pale,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.blue,
+  reportTitle: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 30,
+    fontWeight: 300,
+    lineHeight: 1.02,
+    maxWidth: 430,
   },
-  roiBannerText: {
+  reportLead: {
+    marginTop: 12,
+    maxWidth: 430,
+    fontFamily: 'DieGroteskC',
+    fontSize: 13.5,
+    fontWeight: 300,
+    lineHeight: 1.3,
+    color: colors.muted,
+  },
+  kicker: {
+    marginBottom: 10,
+    fontSize: 8,
     fontWeight: 500,
+    letterSpacing: 1.4,
+    color: colors.blue,
+    textTransform: 'uppercase',
+  },
+  coverTitle: {
+    marginTop: 52,
+    maxWidth: 500,
+    fontFamily: 'DieGroteskC',
+    fontSize: 36,
+    fontWeight: 300,
+    lineHeight: 0.98,
+  },
+  coverCompany: {
+    marginTop: 16,
+    fontSize: 14,
+    color: colors.lightBlue,
+  },
+  coverRoi: { marginTop: 54, maxWidth: 430 },
+  coverRoiValue: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 34,
+    fontWeight: 300,
+    lineHeight: 1,
+    color: colors.white,
+  },
+  coverRoiLabel: {
+    marginTop: 8,
+    maxWidth: 390,
+    fontSize: 11,
+    lineHeight: 1.35,
+    color: colors.lightBlue,
+  },
+  coverRule: {
+    marginTop: 26,
+    borderBottomWidth: 1,
+    borderBottomColor: '#344260',
+  },
+  coverSummary: {
+    marginTop: 24,
+    flexDirection: 'row',
+    gap: 28,
+  },
+  coverSummaryItem: { width: 145 },
+  coverSummaryValue: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 17,
+    fontWeight: 300,
+    color: colors.white,
+  },
+  coverSummaryLabel: { marginTop: 5, fontSize: 8.5, color: colors.lightBlue },
+  reportSection: { marginTop: 23 },
+  split: { flexDirection: 'row', gap: 36 },
+  mainPane: { width: 336 },
+  rightRail: { width: 132, paddingTop: 2 },
+  railItem: { marginBottom: 22 },
+  railValue: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 18,
+    fontWeight: 300,
+    lineHeight: 1.05,
+    color: colors.ink,
+  },
+  railLabel: { marginTop: 5, fontSize: 8.5, lineHeight: 1.3, color: colors.muted },
+  equation: {
+    marginTop: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    backgroundColor: colors.pale,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  equationFactor: { width: 72 },
+  equationValue: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 17,
+    fontWeight: 300,
     color: colors.blue,
   },
-  divider: {
-    marginTop: 16,
-    marginBottom: 16,
+  equationLabel: { marginTop: 4, fontSize: 7.5, lineHeight: 1.25, color: colors.muted },
+  equationOperator: { width: 10, fontSize: 14, color: colors.blue, textAlign: 'center' },
+  valueRange: { marginTop: 20 },
+  valueRangeNumber: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 27,
+    fontWeight: 300,
+    lineHeight: 1.12,
+    color: colors.blue,
+  },
+  valueRangeLabel: { marginTop: 9, color: colors.muted },
+  scenarioRow: {
+    flexDirection: 'row',
+    paddingVertical: 11,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  bulletList: { marginTop: 8 },
-  bulletItem: {
-    flexDirection: 'row',
-    marginBottom: 6,
-    gap: 8,
+  scenarioPercent: { width: 66, fontWeight: 500, color: colors.blue },
+  scenarioHours: { width: 112 },
+  scenarioValue: { flex: 1, textAlign: 'right', fontWeight: 500 },
+  workflowCard: {
+    marginTop: 18,
+    padding: 19,
+    backgroundColor: colors.cardLight,
+    borderRadius: 2,
   },
-  bulletDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.blue,
-    marginTop: 4,
+  workflowCardTitle: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 19,
+    fontWeight: 300,
+    lineHeight: 1.05,
+  },
+  workflowCardBody: { marginTop: 11, fontSize: 10, lineHeight: 1.32 },
+  workflowCardOutcome: { marginTop: 9, fontSize: 10, lineHeight: 1.32, color: colors.blue },
+  evidenceRow: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 14,
+  },
+  evidenceSignal: { width: 112, fontWeight: 500 },
+  evidenceMeaning: { width: 166, color: colors.muted },
+  evidenceResponse: { flex: 1, color: colors.blue },
+  outcomeGrid: { marginTop: 18, flexDirection: 'row', gap: 16 },
+  outcomeItem: { width: 116 },
+  outcomeTitle: { fontWeight: 500, color: colors.blue },
+  outcomeBody: { marginTop: 6, fontSize: 8.5, lineHeight: 1.3, color: colors.muted },
+  pilotHero: {
+    marginTop: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    backgroundColor: colors.ink,
+    color: colors.white,
+    flexDirection: 'row',
+    gap: 22,
+  },
+  pilotHeroItem: { flex: 1 },
+  pilotHeroValue: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 19,
+    fontWeight: 300,
+    color: colors.white,
+  },
+  pilotHeroLabel: { marginTop: 5, fontSize: 8.5, lineHeight: 1.25, color: colors.lightBlue },
+  cleanListItem: { flexDirection: 'row', marginBottom: 9, gap: 9 },
+  cleanListIndex: { width: 16, fontSize: 8, fontWeight: 500, color: colors.blue },
+  cleanListText: { flex: 1, fontSize: 9.5, lineHeight: 1.3 },
+  measureHeader: {
+    flexDirection: 'row',
+    paddingBottom: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.ink,
+  },
+  measureRow: {
+    flexDirection: 'row',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  measureName: { width: 145, paddingRight: 10 },
+  measureTarget: { width: 150, paddingRight: 10, color: colors.blue },
+  measureEvidence: { flex: 1, color: colors.muted },
+  scoreRow: { marginBottom: 17 },
+  scoreLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  scoreTrack: { height: 5, backgroundColor: colors.cardLight },
+  scoreFill: { height: 5, backgroundColor: colors.blue },
+  profileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
+  profileItem: { width: 150, marginBottom: 8 },
+  profileLabel: { marginBottom: 4, fontSize: 8, color: colors.muted },
+  profileValue: { fontSize: 10, lineHeight: 1.25 },
+  decisionBlock: { marginTop: 20, padding: 18, backgroundColor: colors.pale },
+  decisionAsk: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 19,
+    fontWeight: 300,
+    lineHeight: 1.12,
+    color: colors.blue,
   },
 })
 
@@ -264,18 +373,11 @@ export type PersonalizedQualification = {
   reasonCodes?: QualificationReasonCode[]
 }
 
+export const ASSESSMENT_PDF_FILE_NAME = 'portals-production-workflow-evaluation.pdf'
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-const labels: Record<string, string> = {
-  'five-more-like-this': 'twelve more like this',
-  'approved-version-retrieval': 'approved-version retrieval',
-  'character-continuity': 'character continuity',
-  'campaign-variant-control': 'campaign variant control',
-  'production-handoff': 'production handoff',
-  'asset-reproduction': 'asset reproduction',
-}
 
 const workflowLabels: Record<string, string> = {
   'approved-version-retrieval': 'Approved Version Retrieval',
@@ -323,7 +425,9 @@ function answer(data: PersonalizedQualification, key: string): string {
 }
 
 function readable(value: string): string {
-  return value ? value.replaceAll('-', ' ') : 'not provided'
+  return value
+    ? value.replace(/(\d)-(\d)/g, '$1–$2').replaceAll('-', ' ')
+    : 'not provided'
 }
 
 function clipped(value: string, maximum: number): string {
@@ -337,47 +441,28 @@ function briefAnswer(data: PersonalizedQualification, key: string, maximum: numb
   return clipped(answer(data, key), maximum)
 }
 
-function annualExposureHours(data: PersonalizedQualification): number | null {
-  const occurrences: Record<string, number> = {
-    quarterly: 4,
-    monthly: 12,
-    weekly: 52,
-    daily: 220,
-  }
-  const hours: Record<string, number> = {
-    'under-1-hour': 0.5,
-    '1-4-hours': 2.5,
-    'one-day': 8,
-    '2-5-days': 28,
-    'week-plus': 40,
-  }
-  const frequency = occurrences[answer(data, 'recreationFrequency')]
-  const incidentHours = hours[answer(data, 'hoursLost')]
-  if (!frequency || !incidentHours) return null
-  return Math.round(frequency * incidentHours)
-}
-
-function annualExposureWithPeople(data: PersonalizedQualification): number | null {
-  const baseHours = annualExposureHours(data)
-  if (!baseHours) return null
-  const people: Record<string, number> = {
-    '1-2-people': 1.5,
-    '2-5-people': 3.5,
-    '6-10-people': 8,
-    '11-plus-people': 15,
-  }
-  const multiplier = people[answer(data, 'peopleAffected')] || 1
-  return Math.round(baseHours * multiplier)
-}
-
-function formatHours(hours: number | null): string {
-  if (!hours) return 'Not calculated'
+function formatHours(hours: number | undefined): string {
+  if (hours === undefined) return 'baseline in pilot'
   return hours.toLocaleString('en-US')
 }
 
-function formatCurrency(hours: number | null, rate = 100): string {
-  if (!hours) return 'Not calculated'
-  return `$${(hours * rate).toLocaleString('en-US')}`
+function formatCurrencyValue(value: number | undefined): string {
+  if (value === undefined) return 'baseline in pilot'
+  return `$${value.toLocaleString('en-US')}`
+}
+
+function formatRange(low: number, high: number, formatter: (value: number) => string): string {
+  return low === high ? formatter(low) : `${formatter(low)}–${formatter(high)}`
+}
+
+function valueModelHours(model: ValueModel | undefined): string {
+  return model ? formatRange(model.low, model.high, (value) => value.toLocaleString('en-US')) : 'baseline in pilot'
+}
+
+function valueModelCost(model: ValueModel | undefined, rate = 100): string {
+  return model
+    ? formatRange(model.low * rate, model.high * rate, (value) => `$${value.toLocaleString('en-US')}`)
+    : 'baseline in pilot'
 }
 
 function getValueModel(data: PersonalizedQualification): ValueModel | undefined {
@@ -404,629 +489,547 @@ function getReasonCodeLabels(codes: QualificationReasonCode[]): string[] {
   return codes.map((code) => reasonCodeLabels[code] || code)
 }
 
-function getPilotSpec(document: ResourceDocument) {
-  return findPackageSpecification(document.packageSpecifications, PACKAGE_SPEC_SLUGS.paidPilot)
+function getPilotSpec(document?: ResourceDocument) {
+  return findPackageSpecification(document?.packageSpecifications, PACKAGE_SPEC_SLUGS.paidPilot)
 }
 
 function Header({ title, page }: { title: string; page?: number }) {
   return (
     <View style={styles.header}>
       <Text style={styles.wordmark}>portals</Text>
-      <Text>{page ? `${title} / ${page}` : title}</Text>
+      <Text style={{ flex: 1, textAlign: 'right' }}>{page ? `${title} / ${page}` : title}</Text>
     </View>
   )
 }
 
 // ============================================================================
-// Reusable Components
+// Assessment report components
 // ============================================================================
 
-function MetricCard({ label, value, light = false }: { label: string; value: string; light?: boolean }) {
-  return (
-    <View style={light ? styles.lightMetric : styles.metric}>
-      <Text style={light ? styles.lightMetricValue : styles.metricValue}>{value}</Text>
-      <Text style={light ? styles.lightMetricLabel : styles.metricLabel}>{label}</Text>
-    </View>
-  )
+const annualAffectedValueLabels: Record<string, string> = {
+  'under-10k': 'under $10K',
+  '10k-49k': '$10K–$49K',
+  '50k-99k': '$50K–$99K',
+  '100k-499k': '$100K–$499K',
+  '500k-plus': '$500K+',
+}
+
+function assessmentOutcome(tier: QualificationTier): QualificationOutcome {
+  if (tier === 'high') return 'pilot_candidate'
+  if (tier === 'medium' || tier === 'incomplete') return 'clarify'
+  return 'education'
+}
+
+function companyName(data: PersonalizedQualification): string {
+  return data.identity.company || 'your organization'
+}
+
+function companyDisplay(data: PersonalizedQualification, maximum = 64): string {
+  return clipped(companyName(data), maximum)
+}
+
+function preparedFor(data: PersonalizedQualification): string {
+  const contact = [data.identity.name, data.identity.role && readable(data.identity.role)]
+    .filter(Boolean)
+    .join(' · ')
+  return clipped(contact || 'production leadership', 80)
+}
+
+function recommendedWorkflow(data: PersonalizedQualification) {
+  const workflowId = data.recommendedWorkflow === 'twelve-more-like-this'
+    ? 'five-more-like-this'
+    : data.recommendedWorkflow
+  return productionWorkflows.find((workflow) => workflow.id === workflowId)
+    || productionWorkflows.find((workflow) => workflow.id === 'asset-reproduction')!
+}
+
+function recommendationStatement(data: PersonalizedQualification): string {
+  switch (assessmentOutcome(data.tier)) {
+    case 'pilot_candidate':
+      return 'Proceed to a bounded paid pilot on one active workflow. Measure reclaimed time, retrieval speed, handoff quality, and delivery confidence before any wider deployment.'
+    case 'clarify':
+      return 'Complete the ownership, timing, and approval details, then use the same bounded pilot structure to validate value on one active workflow.'
+    default:
+      return 'Establish a workflow baseline first. Revisit a paid pilot when the team can name a repeatable workflow and measurable production-memory cost.'
+  }
 }
 
 function TierBadge({ tier }: { tier: QualificationTier }) {
   const { bg, text } = getTierBadgeStyle(tier)
   return (
-    <View style={[styles.tierBadge, { backgroundColor: bg }]}>
+    <View style={[styles.tierBadge, { backgroundColor: bg, alignSelf: 'flex-start' }]}>
       <Text style={{ color: text }}>{tierLabels[tier]}</Text>
     </View>
   )
 }
 
-function ROIStatement({ text }: { text: string }) {
-  return (
-    <View style={styles.roiBanner}>
-      <Text style={styles.roiBannerText}>ROI: </Text>
-      <Text style={{ ...styles.roiBannerText, fontWeight: 400 }}>{text}</Text>
-    </View>
-  )
+function ReportHeader({ page }: { page: number }) {
+  return <Header title={`your production workflow evaluation · ${page} / 5`} />
 }
 
-function ProblemSolutionCard({
-  problem,
-  solution,
-  dark = false,
-}: {
-  problem: string
-  solution: string
-  dark?: boolean
-}) {
-  const isDark = dark
-  return (
-    <View style={isDark ? styles.cardDark : styles.card}>
-      <Text style={isDark ? styles.cardTitleWhite : styles.cardTitle}>Problem: </Text>
-      <Text style={isDark ? styles.cardBodyWhite : styles.cardBody}>{problem}</Text>
-      <Text style={{ ...(isDark ? styles.cardTitleWhite : styles.cardTitle), marginTop: 8 }}>Solution: </Text>
-      <Text style={isDark ? styles.cardBodyWhite : styles.cardBody}>{solution}</Text>
-    </View>
-  )
+function Kicker({ children }: { children: React.ReactNode }) {
+  return <Text style={styles.kicker}>{children}</Text>
 }
 
-function SectionDivider() {
-  return <View style={styles.divider} />
-}
-
-function BulletItem({ text }: { text: string }) {
+function CleanList({ items }: { items: string[] }) {
   return (
-    <View style={styles.bulletItem}>
-      <View style={styles.bulletDot} />
-      <Text style={{ flex: 1, fontSize: SMALL_SIZE, lineHeight: 1.3 }}>{text}</Text>
-    </View>
-  )
-}
-
-function MetricRow({ metrics }: { metrics: Array<{ label: string; value: string }> }) {
-  return (
-    <View style={styles.metrics}>
-      {metrics.map((m, i) => (
-        <MetricCard key={i} label={m.label} value={m.value} light={i % 2 === 1} />
+    <View>
+      {items.map((item, index) => (
+        <View key={item} style={styles.cleanListItem} wrap={false}>
+          <Text style={styles.cleanListIndex}>{String(index + 1).padStart(2, '0')}</Text>
+          <Text style={styles.cleanListText}>{item}</Text>
+        </View>
       ))}
     </View>
   )
 }
 
-// ============================================================================
-// Page Components (in order: 1,2,5,4,3,6)
-// ============================================================================
+function RailMetric({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={styles.railItem} wrap={false}>
+      <Text style={styles.railValue}>{value}</Text>
+      <Text style={styles.railLabel}>{label}</Text>
+    </View>
+  )
+}
 
-function Page1_ExecutiveSummary({ data }: { data: PersonalizedQualification }) {
-  const totalHours = annualExposureWithPeople(data)
-  const valueModel = getValueModel(data)
-  const tier = data.tier
-  const outcome = tier === 'high' ? 'pilot_candidate' : tier === 'medium' ? 'clarify' : 'education'
+function ScoreBar({ label, score, coverage }: { label: string; score: number; coverage: number }) {
+  return (
+    <View style={styles.scoreRow} wrap={false}>
+      <View style={styles.scoreLabelRow}>
+        <Text style={{ fontWeight: 500 }}>{label}</Text>
+        <Text>{score}% · {coverage}% response coverage</Text>
+      </View>
+      <View style={styles.scoreTrack}>
+        <View style={[styles.scoreFill, { width: `${Math.max(0, Math.min(100, score))}%` }]} />
+      </View>
+    </View>
+  )
+}
+
+function ProfileItem({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.profileItem} wrap={false}>
+      <Text style={styles.profileLabel}>{label}</Text>
+      <Text style={styles.profileValue}>{value}</Text>
+    </View>
+  )
+}
+
+function WorkflowCard({ data }: { data: PersonalizedQualification }) {
+  const workflow = recommendedWorkflow(data)
+  return (
+    <View style={styles.workflowCard} wrap={false}>
+      <Text style={styles.workflowCardTitle}>{workflow.title}</Text>
+      <Text style={styles.workflowCardBody}>{workflow.problem}</Text>
+      <Text style={styles.workflowCardOutcome}>instead, {workflow.outcome}</Text>
+    </View>
+  )
+}
+
+function ReportFooter({ data, note }: { data: PersonalizedQualification; note?: string }) {
+  return (
+    <Text style={styles.footer} fixed>
+        {note || `Prepared for ${companyDisplay(data)} from assessment responses submitted ${new Date(data.generatedAt).toLocaleDateString('en-US')}.`}
+    </Text>
+  )
+}
+
+function Page1ExecutiveSummary({ data }: { data: PersonalizedQualification }) {
+  const model = getValueModel(data)
+  const workflow = getRecommendedWorkflowLabel(data)
+  const reasons = getReasonCodeLabels(data.reasonCodes || []).slice(0, 3)
 
   return (
     <Page size="LETTER" style={[styles.page, styles.cover]}>
-      <Header title="production workflow evaluation" />
-      <Text style={styles.heading}>production workflow evaluation</Text>
-      <Text style={styles.coverMuted}>
-        {data.identity.company} / {readable(data.identity.role || '')} / {new Date(data.generatedAt).toLocaleDateString('en-US')}
+      <Header title="prepared by portals" />
+      <Text style={[styles.kicker, { color: colors.lightBlue, marginTop: 18 }]}>prepared for {companyDisplay(data)}</Text>
+      <Text style={styles.coverTitle}>your production workflow evaluation</Text>
+      <Text style={styles.coverCompany}>
+        {companyDisplay(data)} · {preparedFor(data)} · {new Date(data.generatedAt).toLocaleDateString('en-US')}
       </Text>
-      <TierBadge tier={tier} />
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>your result at a glance</Text>
-        <MetricRow
-          metrics={[
-            { label: 'assessment score', value: `${data.scores.assessmentScore}/24` },
-            { label: 'workflow risk', value: `${data.scores.workflowRiskScore}/24` },
-            { label: 'annual hours at risk', value: formatHours(totalHours) },
-            { label: 'estimated annual cost', value: formatCurrency(totalHours) },
-          ]}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>verdict</Text>
-        <Text style={styles.body}>{outcomeLabels[outcome]}</Text>
-        <Text style={styles.muted}>
-          {tier === 'high' && 'Your workflow shows strong fit, measurable risk, and clear intent. A paid pilot is the recommended next step.'}
-          {tier === 'medium' && 'Your workflow has potential but needs clarification on scope, timeline, or commercial path before a pilot.'}
-          {tier === 'low' && 'Current risk is low or workflow is not yet defined. Start with our field guide and assessment workshop.'}
-          {(tier === 'incomplete') && 'Some answers are missing. Complete the assessment for an accurate evaluation.'}
+      <View style={styles.coverRoi}>
+        <Text style={styles.coverRoiValue}>{valueModelCost(model)}</Text>
+        <Text style={styles.coverRoiLabel}>
+          estimated annual capacity exposure at a $100 blended hourly planning rate · {valueModelHours(model)} contributor-hours
         </Text>
       </View>
 
-      {totalHours && (
-        <ROIStatement
-          text={`Based on your answers, approximately ${formatHours(totalHours)} working hours per year are exposed to rediscovery, recreation, or avoidable search. At $100/hour, that's ${formatCurrency(totalHours)} in annual risk. The pilot tests whether portals can reduce that exposure in your selected workflow.`}
-        />
-      )}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>top reasons</Text>
-        {data.scores && data.scores.assessmentScore && (
-          <View style={styles.bulletList}>
-            {getReasonCodeLabels(
-              (data as any).reasonCodes || []
-            ).map((reason, i) => (
-              <BulletItem key={i} text={reason} />
-            ))}
-          </View>
-        )}
+      <View style={styles.coverRule} />
+      <View style={styles.coverSummary}>
+        <View style={styles.coverSummaryItem}>
+          <Text style={styles.coverSummaryValue}>{data.scores.workflowRiskScore}/24</Text>
+          <Text style={styles.coverSummaryLabel}>production-memory risk</Text>
+        </View>
+        <View style={styles.coverSummaryItem}>
+          <Text style={styles.coverSummaryValue}>{workflow}</Text>
+          <Text style={styles.coverSummaryLabel}>recommended workflow focus</Text>
+        </View>
+        <View style={styles.coverSummaryItem}>
+          <Text style={styles.coverSummaryValue}>{outcomeLabels[assessmentOutcome(data.tier)]}</Text>
+          <Text style={styles.coverSummaryLabel}>recommended decision path</Text>
+        </View>
       </View>
 
-      <View style={styles.darkPanel}>
-        <Text style={styles.sectionTitle}>recommended workflow</Text>
-        <Text style={{ fontSize: SUB_HEADING_SIZE, marginBottom: 8 }}>{getRecommendedWorkflowLabel(data)}</Text>
-        <Text style={styles.body}>
-          This workflow type maps directly to a portals pilot scope. The pilot will test whether portals can preserve and recover the complete production history so your team can find, understand, reproduce, and extend valuable work.
+      <View style={{ marginTop: 30 }}>
+        <TierBadge tier={data.tier} />
+        <Text style={{ marginTop: 16, maxWidth: 455, fontSize: 11, lineHeight: 1.35 }}>
+          {recommendationStatement(data)}
         </Text>
+        {reasons.length ? (
+          <Text style={{ marginTop: 12, maxWidth: 455, fontSize: 8.5, lineHeight: 1.35, color: colors.lightBlue }}>
+            Assessment signals: {reasons.join(' · ')}
+          </Text>
+        ) : null}
       </View>
 
-      <Text style={styles.footer}>
-        draft evaluation — generated from your assessment responses. not a benchmark or guaranteed savings forecast.
+      <Text style={[styles.footer, { color: colors.lightBlue }]}>
+        Confidential evaluation for {companyDisplay(data)} · portals.works
       </Text>
     </Page>
   )
 }
 
-function Page2_RiskExposure({ data }: { data: PersonalizedQualification }) {
-  const totalHours = annualExposureWithPeople(data)
-  const valueModel = getValueModel(data)
-  const recreationFreq = readable(answer(data, 'recreationFrequency'))
-  const hoursLost = readable(answer(data, 'hoursLost'))
-  const peopleAffected = readable(answer(data, 'peopleAffected'))
-  const incidentType = readable(answer(data, 'incidentType'))
-  const deliveryImpact = readable(answer(data, 'deliveryImpact'))
-  const approvedVersion = readable(answer(data, 'approvedVersionMethod'))
-  const contextMethod = readable(answer(data, 'productionContextMethod'))
+function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
+  const model = getValueModel(data)
+  const rate = 100
+  const scenarios = model
+    ? [0.25, 0.5].map((share) => ({
+        share,
+        hours: Math.round(model.midpoint * share),
+        value: Math.round(model.midpoint * share * rate),
+      }))
+    : []
+  const affectedValue = annualAffectedValueLabels[answer(data, 'annualAffectedValue')] || 'not provided'
 
   return (
     <Page size="LETTER" style={styles.page}>
-      <Header title="production workflow evaluation" page={2} />
-      <Text style={styles.heading}>risk & exposure quantification</Text>
+      <ReportHeader page={2} />
+      <Kicker>01 · quantified opportunity</Kicker>
+      <Text style={styles.reportTitle}>the business case for production memory</Text>
+      <Text style={styles.reportLead}>
+        A planning range built from the reported frequency, time loss, and affected team size.
+      </Text>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>annual exposure calculation</Text>
-        <View style={styles.lightPanel}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
-            <View style={{ width: 120 }}>
-              <Text style={styles.label}>frequency</Text>
-              <Text>{recreationFreq}</Text>
+      <View style={[styles.split, styles.reportSection]}>
+        <View style={styles.mainPane}>
+          <Text style={styles.sectionTitleSmall}>annual exposure equation</Text>
+          {model ? (
+            <View style={styles.equation} wrap={false}>
+              <View style={styles.equationFactor}>
+                <Text style={styles.equationValue}>{model.frequency.label}</Text>
+                <Text style={styles.equationLabel}>{model.frequency.annualized} incidents / year</Text>
+              </View>
+              <Text style={styles.equationOperator}>×</Text>
+              <View style={styles.equationFactor}>
+                <Text style={styles.equationValue}>{model.hoursLoss.label}</Text>
+                <Text style={styles.equationLabel}>lost / incident</Text>
+              </View>
+              <Text style={styles.equationOperator}>×</Text>
+              <View style={styles.equationFactor}>
+                <Text style={styles.equationValue}>{model.people.label}</Text>
+                <Text style={styles.equationLabel}>contributors affected</Text>
+              </View>
             </View>
-            <View style={{ width: 120 }}>
-              <Text style={styles.label}>hours lost / incident</Text>
-              <Text>{hoursLost}</Text>
+          ) : (
+            <View style={styles.decisionBlock}>
+              <Text style={styles.decisionAsk}>Establish the missing baseline during pilot scoping.</Text>
+              <Text style={styles.muted}>Frequency, time loss, and affected contributors are all required for an auditable annual range.</Text>
             </View>
-            <View style={{ width: 120 }}>
-              <Text style={styles.label}>people affected</Text>
-              <Text>{peopleAffected}</Text>
-            </View>
-          </View>
-          {totalHours && (
-            <Text style={{ marginTop: 12, fontWeight: 500 }}>
-              = {formatHours(totalHours)} working hours per year exposed to rediscovery or recreation
-            </Text>
           )}
-        </View>
-      </View>
 
-      {valueModel && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>value model (auditable)</Text>
-          <View style={styles.lightPanel}>
-            <Text style={styles.body}>
-              formula: {valueModel.formula}
-            </Text>
-            <Text style={{ marginTop: 8, fontWeight: 500 }}>
-              range: {formatHours(valueModel.low)} – {formatHours(valueModel.high)} hours/year · midpoint: {formatHours(valueModel.midpoint)} hours/year
-            </Text>
-            <Text style={styles.muted}>
-              {valueModel.frequency.label} recreation frequency · {valueModel.hoursLoss.label} lost per incident · {valueModel.people.label} affected
-            </Text>
-            <Text style={styles.muted}>
-              this estimate is based on self-reported ranges and is not a guaranteed savings claim.
-            </Text>
+          <View style={styles.valueRange}>
+            <Text style={styles.valueRangeNumber}>{valueModelHours(model)} hours / year</Text>
+            <Text style={styles.valueRangeLabel}>{valueModelCost(model, rate)} gross capacity exposure at $100/hour</Text>
+          </View>
+
+          {scenarios.length ? (
+            <View style={{ marginTop: 24 }}>
+              <Text style={styles.sectionTitleSmall}>illustrative recovery scenarios</Text>
+              {scenarios.map((scenario) => (
+                <View key={scenario.share} style={styles.scenarioRow} wrap={false}>
+                  <Text style={styles.scenarioPercent}>{scenario.share * 100}% recovered</Text>
+                  <Text style={styles.scenarioHours}>{formatHours(scenario.hours)} hours returned</Text>
+                  <Text style={styles.scenarioValue}>{formatCurrencyValue(scenario.value)} capacity value</Text>
+                </View>
+              ))}
+              <Text style={[styles.muted, { fontSize: 8.5, lineHeight: 1.3 }]}>
+                Scenarios are planning cases, not savings promises. The pilot measures the achievable reduction against a real baseline.
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.reportSection}>
+            <Text style={styles.sectionTitleSmall}>where the return can compound</Text>
+            <CleanList items={[
+              'Budget: less paid search, reconstruction, and avoidable rework.',
+              'Collaboration: one production record for employees, vendors, and approvers.',
+              'Consistency: approved state, source inputs, context, and lineage stay connected.',
+              'Delivery: faster handoffs with fewer preventable version or context delays.',
+            ]} />
           </View>
         </View>
-      )}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>risk breakdown</Text>
-        <View style={styles.columns}>
-          <View style={styles.column}>
-            <ProblemSolutionCard
-              problem={`Approved version method: ${approvedVersion}. Risk of using wrong asset or missing approvals.`}
-              solution="Canonical asset registry with immutable approval state. One source of truth for every approved deliverable."
-            />
-            <ProblemSolutionCard
-              problem={`Production context: ${contextMethod}. Decisions, references, and rationale scattered across tools.`}
-              solution="Unified production record that captures decisions, references, versions, and lineage in one searchable place."
-            />
-          </View>
-          <View style={styles.column}>
-            <ProblemSolutionCard
-              problem={`Recreation frequency: ${recreationFreq}. {hoursLost} per incident affecting ${peopleAffected}.`}
-              solution="AI-powered search and reproduction across projects. Find and reuse work instead of rebuilding."
-            />
-            <ProblemSolutionCard
-              problem={`Incident type: ${incidentType}. Delivery impact: ${deliveryImpact}.`}
-              solution="Variant control and continuity tracking. Know what changed, why, and by whom — before it affects delivery."
-            />
-          </View>
+        <View style={styles.rightRail}>
+          <Kicker>at a glance</Kicker>
+          <RailMetric value={`${data.scores.workflowRiskScore}/24`} label="workflow risk score" />
+          <RailMetric value={readable(answer(data, 'deliveryImpact'))} label="reported delivery impact" />
+          <RailMetric value={affectedValue} label="annual value of affected work" />
+          <RailMetric value={readable(answer(data, 'assetVolume'))} label="assets produced per month" />
+          <RailMetric value={readable(answer(data, 'workflowCollaborators'))} label="people in the production workflow" />
         </View>
       </View>
-
-      <View style={styles.panel}>
-        <Text style={styles.sectionTitle}>what this means for your budget</Text>
-        <Text>
-          {totalHours
-            ? `${formatHours(totalHours)} hours at risk × $100/hr = ${formatCurrency(totalHours)} annual exposure. The 21-day pilot tests real reduction on one active workflow.`
-            : 'Complete the frequency, hours lost, and people affected fields to calculate your exposure.'}
-        </Text>
-      </View>
-
-      <Text style={styles.footer}>draft evaluation — generated from your assessment responses</Text>
+      <ReportFooter data={data} note="Planning model: self-reported ranges · $100 blended hourly rate · validate with observed pilot data." />
     </Page>
   )
 }
 
-function Page3_PortalsSolvesYourProblems({ data }: { data: PersonalizedQualification }) {
-  const workflow = getRecommendedWorkflowLabel(data)
-  const reasonCodes = data.reasonCodes || []
-  const hasApprovedVersionRisk = reasonCodes.includes('approved-version-risk')
-  const hasContextFragmented = reasonCodes.includes('production-context-fragmented')
-  const hasReworkRisk = reasonCodes.includes('measurable-rework-risk')
-  const hasRepeatableProduction = reasonCodes.includes('repeatable-production')
-  const hasStrongFit = reasonCodes.includes('strong-workflow-fit')
+function Page3WorkflowDiagnosis({ data }: { data: PersonalizedQualification }) {
+  const activeWorkflow = clipped(
+    answer(data, 'activeWorkflow') || answer(data, 'pilotWorkflow') || 'No active workflow description was supplied.',
+    200,
+  )
 
   return (
     <Page size="LETTER" style={styles.page}>
-      <Header title="production workflow evaluation" page={3} />
-      <Text style={styles.heading}>how portals solves your specific problems</Text>
+      <ReportHeader page={3} />
+      <Kicker>02 · workflow diagnosis</Kicker>
+      <Text style={styles.reportTitle}>from scattered context to reusable production memory</Text>
+      <Text style={styles.reportLead}>
+        portals connects prompts, source files, decisions, approvals, and lineage so AI output becomes reusable production infrastructure—not a disposable final file.
+      </Text>
 
-      <ROIStatement
-        text={`We help you validate whether portals reduces rediscovery, improves collaboration, ensures consistency, and protects delivery timelines — on your actual production work.`}
-      />
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>your workflow: {workflow}</Text>
-        <Text style={styles.body}>
-          {answer(data, 'activeWorkflow') || answer(data, 'pilotWorkflow') || 'Described in your assessment responses.'}
-        </Text>
+      <View style={styles.reportSection}>
+        <Text style={styles.sectionTitleSmall}>workflow nominated by {companyDisplay(data, 30)}</Text>
+        <Text style={{ fontSize: 11, lineHeight: 1.35 }}>{activeWorkflow}</Text>
+        <WorkflowCard data={data} />
       </View>
 
-      {hasApprovedVersionRisk && (
-        <ProblemSolutionCard
-          problem="Approved assets are tracked in folders, chats, or memory. Teams use wrong versions, miss approvals, or recreate work that already exists."
-          solution="Portals creates a canonical asset registry. Every approved deliverable has a single, immutable record with approval state, version history, and lineage. Search returns the right asset instantly."
-        />
-      )}
-
-      {hasContextFragmented && (
-        <ProblemSolutionCard
-          problem="Production context — decisions, references, feedback, rationale — lives in scattered tools, personal notes, and conversations. New team members can't reconstruct why choices were made."
-          solution="Portals captures the complete production record: decisions, references, source files, approvals, and variants. Context stays attached to the asset, not lost in Slack or email."
-        />
-      )}
-
-      {hasReworkRisk && (
-        <ProblemSolutionCard
-          problem="Teams recreate assets, redo work, or search extensively because they can't find what was already built. This wastes hours and delays delivery."
-          solution="Portols enables search across all production history — visual, semantic, and by metadata. Find similar assets, reproduce work, and extend from proven foundations instead of starting from zero."
-        />
-      )}
-
-      {hasRepeatableProduction && (
-        <ProblemSolutionCard
-          problem="Your workflow runs repeatedly (monthly, weekly, daily) but each run starts from scratch. Templates, brand guidelines, and past decisions aren't systematically reused."
-          solution="Portols supports campaign variant control, character continuity, and 'twelve more like this' workflows. Reuse approved structures, swap assets, and maintain consistency across every iteration."
-        />
-      )}
-
-      {hasStrongFit && (
-        <ProblemSolutionCard
-          problem="Your team structure, tools, and production volume align with what portals is built for — but you're managing it with general-purpose tools that weren't designed for creative production."
-          solution="Portols replaces the patchwork of cloud storage, spreadsheets, and chat with a purpose-built production memory. One system for assets, context, versions, and handoffs."
-        />
-      )}
-
-      <View style={styles.panel}>
-        <Text style={styles.sectionTitle}>ai capabilities that apply to your workflow</Text>
-        <View style={styles.bulletList}>
-          <BulletItem text="Semantic search across all production assets — find by visual similarity, description, or context" />
-          <BulletItem text="Auto-tagging and metadata extraction — reduce manual organization" />
-          <BulletItem text="Variant generation — create 'twelve more like this' from approved assets" />
-          <BulletItem text="Continuity tracking — maintain character, brand, and narrative consistency across episodes or campaigns" />
-          <BulletItem text="Production summarization — auto-generate handoff notes, status reports, and decision logs" />
+      <View style={styles.reportSection}>
+        <Text style={styles.sectionTitleSmall}>what your answers indicate</Text>
+        <View style={[styles.evidenceRow, { paddingTop: 7 }]}>
+          <Text style={[styles.evidenceSignal, styles.label]}>current signal</Text>
+          <Text style={[styles.evidenceMeaning, styles.label]}>production consequence</Text>
+          <Text style={[styles.evidenceResponse, styles.label]}>what portals makes testable</Text>
+        </View>
+        <View style={styles.evidenceRow} wrap={false}>
+          <Text style={styles.evidenceSignal}>{readable(answer(data, 'approvedVersionMethod'))}</Text>
+          <Text style={styles.evidenceMeaning}>Approval state lives in conventions or disconnected records.</Text>
+          <Text style={styles.evidenceResponse}>Canonical approved state with version history.</Text>
+        </View>
+        <View style={styles.evidenceRow} wrap={false}>
+          <Text style={styles.evidenceSignal}>{readable(answer(data, 'productionContextMethod'))}</Text>
+          <Text style={styles.evidenceMeaning}>Prompts, references, and source files are hard to recover.</Text>
+          <Text style={styles.evidenceResponse}>One structured record connected to the asset.</Text>
+        </View>
+        <View style={styles.evidenceRow} wrap={false}>
+          <Text style={styles.evidenceSignal}>{readable(answer(data, 'incidentType'))} · {readable(answer(data, 'recreationFrequency'))}</Text>
+          <Text style={styles.evidenceMeaning}>The team repays for work it already completed.</Text>
+          <Text style={styles.evidenceResponse}>Retrieve, reproduce, and branch from proven work.</Text>
         </View>
       </View>
 
-      <Text style={styles.footer}>draft evaluation — generated from your assessment responses</Text>
+      <View style={styles.reportSection}>
+        <Text style={styles.sectionTitleSmall}>the operational improvement to validate</Text>
+        <View style={styles.outcomeGrid}>
+          <View style={styles.outcomeItem}>
+            <Text style={styles.outcomeTitle}>budget</Text>
+            <Text style={styles.outcomeBody}>Less search and avoidable rework.</Text>
+          </View>
+          <View style={styles.outcomeItem}>
+            <Text style={styles.outcomeTitle}>collaboration</Text>
+            <Text style={styles.outcomeBody}>A record shared across teams and vendors.</Text>
+          </View>
+          <View style={styles.outcomeItem}>
+            <Text style={styles.outcomeTitle}>consistency</Text>
+            <Text style={styles.outcomeBody}>Approved state and lineage stay connected.</Text>
+          </View>
+          <View style={styles.outcomeItem}>
+            <Text style={styles.outcomeTitle}>delivery</Text>
+            <Text style={styles.outcomeBody}>Faster retrieval and clearer handoffs.</Text>
+          </View>
+        </View>
+      </View>
+      <ReportFooter data={data} />
     </Page>
   )
 }
 
-function Page4_PilotPathway({ data, document }: { data: PersonalizedQualification; document: ResourceDocument }) {
+function Page4PilotCase({ data, document }: { data: PersonalizedQualification; document?: ResourceDocument }) {
   const spec = getPilotSpec(document)
-  const workflow = getRecommendedWorkflowLabel(data)
   const price = packagePriceLabel(spec)
   const period = packageMilestoneLabel(spec, 'pilot period')
   const firstValue = packageMilestoneLabel(spec, 'first value')
+  const periodModifier = period.replace(/\s*days$/i, '-day')
   const participants = packageLimitLabel(spec, 'participants')
   const historicalProjects = packageLimitLabel(spec, 'historicalProjects')
+  const model = getValueModel(data)
+  const pilotPrice = spec?.price?.amount || 5000
+  const breakEvenHours = Math.ceil(pilotPrice / 100)
+
+  const measures = [
+    ['approved retrieval', 'under 1 minute', 'timed retrieval test'],
+    ['context + reuse', 'record recovered and reused once', 'record review + completed artifact'],
+    ['time + handoff', 'improvement against baseline', 'time log + participant walkthrough'],
+  ]
 
   return (
     <Page size="LETTER" style={styles.page}>
-      <Header title="production workflow evaluation" page={4} />
-      <Text style={styles.heading}>pilot pathway</Text>
+      <ReportHeader page={4} />
+      <Kicker>03 · sponsor-ready validation</Kicker>
+      <Text style={styles.reportTitle}>a bounded paid pilot with a clear decision gate</Text>
+      <Text style={styles.reportLead}>
+        Prove or disprove value on one active {getRecommendedWorkflowLabel(data).toLowerCase()} workflow before wider deployment.
+      </Text>
 
-      <ROIStatement
-        text={`A ${period} paid pilot on your ${workflow.toLowerCase()} workflow. First value in ${firstValue}. ${price} upfront, credited to annual deployment if you proceed.`}
+      <View style={styles.pilotHero} wrap={false}>
+        <View style={styles.pilotHeroItem}>
+          <Text style={styles.pilotHeroValue}>{price}</Text>
+          <Text style={styles.pilotHeroLabel}>upfront pilot fee</Text>
+        </View>
+        <View style={styles.pilotHeroItem}>
+          <Text style={styles.pilotHeroValue}>{periodModifier}</Text>
+          <Text style={styles.pilotHeroLabel}>focused evaluation window</Text>
+        </View>
+        <View style={styles.pilotHeroItem}>
+          <Text style={styles.pilotHeroValue}>{firstValue}</Text>
+          <Text style={styles.pilotHeroLabel}>to first complete production record</Text>
+        </View>
+        <View style={styles.pilotHeroItem}>
+          <Text style={styles.pilotHeroValue}>{breakEvenHours} hrs</Text>
+          <Text style={styles.pilotHeroLabel}>pilot-fee equivalent at the planning rate</Text>
+        </View>
+      </View>
+
+      <View style={[styles.split, styles.reportSection]}>
+        <View style={styles.mainPane}>
+          <Text style={styles.sectionTitleSmall}>what the pilot includes</Text>
+          <CleanList items={[
+            `One active workflow: ${getRecommendedWorkflowLabel(data)}.`,
+            `One active project and ${historicalProjects} historical project for comparison and continuity.`,
+            `${participants} participants onboarded around the same production record.`,
+            'Agreed data path, baseline, configured production record, participant validation, and final findings review.',
+          ]} />
+        </View>
+        <View style={styles.rightRail}>
+          <Kicker>value to prove</Kicker>
+          <RailMetric value={valueModelHours(model)} label="annual hours currently exposed" />
+          <RailMetric value={model ? `${Math.round(model.midpoint * 0.25).toLocaleString('en-US')} hrs` : 'measure first'} label="25% midpoint recovery case" />
+          <RailMetric value={readable(answer(data, 'deliveryImpact'))} label="delivery risk to reduce" />
+        </View>
+      </View>
+
+      <View style={styles.reportSection}>
+        <Text style={styles.sectionTitleSmall}>how success will be evidenced</Text>
+        <View style={styles.measureHeader}>
+          <Text style={[styles.measureName, styles.label]}>measure</Text>
+          <Text style={[styles.measureTarget, styles.label]}>target</Text>
+          <Text style={[styles.measureEvidence, styles.label]}>evidence</Text>
+        </View>
+        {measures.map(([name, target, evidence]) => (
+          <View key={name} style={styles.measureRow} wrap={false}>
+            <Text style={styles.measureName}>{name}</Text>
+            <Text style={styles.measureTarget}>{target}</Text>
+            <Text style={styles.measureEvidence}>{evidence}</Text>
+          </View>
+        ))}
+      </View>
+
+      <ReportFooter data={data} note={`Sponsor control: scope, data access, success measures, and the decision date are confirmed before launch. ${companyDisplay(data)} may deploy, extend, or stop at the decision gate.`} />
+    </Page>
+  )
+}
+
+function Page5DecisionRecord({ data, document }: { data: PersonalizedQualification; document?: ResourceDocument }) {
+  const spec = getPilotSpec(document)
+  const price = packagePriceLabel(spec)
+  const period = packageMilestoneLabel(spec, 'pilot period')
+  const periodModifier = period.replace(/\s*days$/i, '-day')
+  const outcome = assessmentOutcome(data.tier)
+  const decisionAsk = outcome === 'pilot_candidate'
+    ? `Authorize ${price} for a ${periodModifier} pilot to validate one workflow before wider deployment.`
+    : outcome === 'clarify'
+      ? `Authorize completion of pilot readiness; proceed with the ${price} pilot once owner, scope, and approval path are confirmed.`
+      : 'Do not authorize a paid pilot yet. Establish a repeatable workflow and measurable baseline, then reassess.'
+  return (
+    <Page size="LETTER" style={styles.page}>
+      <ReportHeader page={5} />
+      <Kicker>04 · decision record</Kicker>
+      <Text style={styles.reportTitle}>a manager-ready decision brief</Text>
+      <Text style={styles.reportLead}>
+        The recommendation, supporting evidence, and decision requested from a production sponsor.
+      </Text>
+
+      <View style={styles.decisionBlock} wrap={false}>
+        <Text style={styles.kicker}>recommended sponsor decision</Text>
+        <Text style={styles.decisionAsk}>{decisionAsk}</Text>
+        <Text style={{ marginTop: 10, fontSize: 9.5, lineHeight: 1.35 }}>
+          Why now: {valueModelCost(getValueModel(data))} in annual capacity is exposed by the reported pattern, while the pilot contains the evaluation to one workflow and a defined decision window.
+        </Text>
+      </View>
+
+      <View style={[styles.split, styles.reportSection]}>
+        <View style={styles.mainPane}>
+          <Text style={styles.sectionTitleSmall}>assessment evidence</Text>
+          <ScoreBar label="production fit" score={data.scores.fit.normalized} coverage={data.scores.fit.coverage} />
+          <ScoreBar label="workflow pain" score={data.scores.pain.normalized} coverage={data.scores.pain.coverage} />
+          <ScoreBar label="pilot readiness" score={data.scores.intent.normalized} coverage={data.scores.intent.coverage} />
+
+          <View style={{ marginTop: 12 }}>
+            <Text style={styles.sectionTitleSmall}>organization and workflow profile</Text>
+            <View style={styles.profileGrid}>
+              <ProfileItem label="team type" value={readable(answer(data, 'teamType'))} />
+              <ProfileItem label="production team" value={readable(answer(data, 'teamSize'))} />
+              <ProfileItem label="AI creative tools" value={readable(answer(data, 'toolsUsed'))} />
+              <ProfileItem label="workflow cadence" value={readable(answer(data, 'recurringWorkflow'))} />
+              <ProfileItem label="asset volume / month" value={readable(answer(data, 'assetVolume'))} />
+              <ProfileItem label="latest incident" value={readable(answer(data, 'incidentType'))} />
+            </View>
+          </View>
+
+        </View>
+
+        <View style={styles.rightRail}>
+          <Kicker>next actions</Kicker>
+          <CleanList items={outcome === 'pilot_candidate' ? [
+            'Name the production owner, economic buyer, and technical evaluator.',
+            'Confirm the workflow, integrations, data classification, and success targets.',
+            'Approve the pilot plan, launch, and review evidence at the final decision gate.',
+          ] : outcome === 'clarify' ? [
+            'Confirm the production owner and budget approval path.',
+            'Set a target start and measurable workflow outcome.',
+            'Build the customized pilot plan for sponsor approval.',
+          ] : [
+            'Select one recurring workflow.',
+            'Measure retrieval, rework, and handoff time.',
+            'Reassess when the value hypothesis is testable.',
+          ]} />
+          <Text style={[styles.profileLabel, { marginTop: 18 }]}>continue</Text>
+          <Text style={{ fontSize: 10, color: colors.blue, textDecoration: 'underline' }}>portals.works/paid-pilot</Text>
+          <Text style={[styles.profileLabel, { marginTop: 14 }]}>questions</Text>
+          <Text style={{ fontSize: 10, color: colors.blue, textDecoration: 'underline' }}>portals.works/contact</Text>
+        </View>
+      </View>
+
+      <ReportFooter
+        data={data}
+        note="Method: fit 40% · workflow pain 35% · pilot readiness 25%. Capacity range uses self-reported frequency, time-loss, and affected-contributor ranges. Validate all planning assumptions before purchase."
       />
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>pilot scope</Text>
-        <View style={styles.lightPanel}>
-          <View style={styles.bulletList}>
-            <BulletItem text={`one active workflow: ${workflow}`} />
-            <BulletItem text={`${period} evaluation window`} />
-            <BulletItem text={`${firstValue} to first complete, searchable production record`} />
-            <BulletItem text={`${participants} onboarded`} />
-            <BulletItem text={`${historicalProjects} imported for continuity`} />
-            <BulletItem text="standard integrations (manual upload, cloud storage import, or API)" />
-            <BulletItem text="SOC 2 posture, encryption, tenant isolation, no training on your data" />
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>success criteria</Text>
-        <View style={styles.lightPanel}>
-          <View style={styles.bulletList}>
-            <BulletItem text="Approved asset retrieval in under 1 minute" />
-            <BulletItem text="Production context recovered (decisions, references, versions)" />
-            <BulletItem text="One meaningful reproduction or extension from prior work" />
-            <BulletItem text="Knowledge transfer demonstrated to a new team member" />
-            <BulletItem text="Variant lineage tracked (what changed, why, by whom)" />
-            <BulletItem text="Continuity preserved across workflow runs" />
-            <BulletItem text="Measured reduction in rediscovery or recreation time" />
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>your responsibilities</Text>
-        <View style={styles.lightPanel}>
-          <View style={styles.bulletList}>
-            <BulletItem text="Named production owner who runs the workflow daily" />
-            <BulletItem text="Real active and historical work for the pilot" />
-            <BulletItem text="Participating users available for onboarding" />
-            <BulletItem text="Available production context (briefs, feedback, decisions)" />
-            <BulletItem text="System access or exports for agreed integrations" />
-            <BulletItem text="Timely feedback during the pilot" />
-            <BulletItem text="Economic buyer engaged before final decision date" />
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>commercial terms</Text>
-        <View style={styles.lightPanel}>
-          <Text style={styles.body}>
-            The pilot fee is ${price} upfront for a ${period} focused commercial evaluation.
-          </Text>
-          <Text style={styles.muted}>
-            Before launch, portals and the customer agree in writing on: annual deployment scope, annual price, pilot-fee credit window, final decision date, included users, included projects, and integrations. The pilot fee is credited toward the first annual deployment only if the customer signs within the agreed conversion window (typically 14 days after pilot ends).
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.darkPanel}>
-        <Text style={styles.sectionTitle}>value to validate</Text>
-        <Text>{pilotValueStatement(data)}</Text>
-        <Text style={styles.body}>This estimate is based on self-reported ranges and is not a guaranteed savings claim or ROI forecast.</Text>
-      </View>
-
-      <Text style={styles.footer}>draft evaluation — generated from your assessment responses</Text>
     </Page>
   )
 }
 
 function pilotValueStatement(data: PersonalizedQualification): string {
-  const hours = annualExposureWithPeople(data)
-  if (hours) {
-    return `Based on the self-reported frequency and time-loss range, approximately ${hours.toLocaleString('en-US')} working hours per year may be exposed to rediscovery, recreation, or avoidable production search. The pilot will test whether portals can reduce that exposure in the selected workflow.`
+  const model = getValueModel(data)
+  if (model) {
+    return `Based on the self-reported ranges, ${valueModelHours(model)} contributor-hours per year may be exposed to rediscovery, recreation, or avoidable production search. The pilot tests how much of that exposure can be reduced in the selected workflow.`
   }
   return 'The pilot will establish the current retrieval, recreation, and handoff baseline before measuring whether portals can reduce the exposure.'
 }
 
-function Page5_QualificationDeepDive({ data }: { data: PersonalizedQualification }) {
-  const fit = data.scores.fit
-  const pain = data.scores.pain
-  const intent = data.scores.intent
-
-  return (
-    <Page size="LETTER" style={styles.page}>
-      <Header title="production workflow evaluation" page={5} />
-      <Text style={styles.heading}>qualification deep dive</Text>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>fit dimension (40% weight)</Text>
-        <Text style={styles.body}>Normalized: {fit.normalized}% · Coverage: {fit.coverage}%</Text>
-        <View style={styles.columns}>
-          <View style={styles.column}>
-            <BulletItem text={`Team type: ${readable(answer(data, 'teamType'))}`} />
-            <BulletItem text={`Team size: ${readable(answer(data, 'teamSize'))}`} />
-            <BulletItem text={`Collaborators: ${readable(answer(data, 'workflowCollaborators'))}`} />
-          </View>
-          <View style={styles.column}>
-            <BulletItem text={`Tools used: ${readable(answer(data, 'toolsUsed'))}`} />
-            <BulletItem text={`Workflow repeatability: ${readable(answer(data, 'recurringWorkflow'))}`} />
-            <BulletItem text={`Asset volume: ${readable(answer(data, 'assetVolume'))}`} />
-          </View>
-        </View>
-        <Text style={styles.muted}>
-          High fit = agency, creative studio, production company, in-house creative, brand marketing, film/animation, or game entertainment teams with repeatable workflows and multiple tools.
-        </Text>
-      </View>
-
-      <SectionDivider />
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>pain dimension (35% weight)</Text>
-        <Text style={styles.body}>Normalized: {pain.normalized}% · Coverage: {pain.coverage}%</Text>
-        <View style={styles.columns}>
-          <View style={styles.column}>
-            <BulletItem text={`Incident type: ${readable(answer(data, 'incidentType'))}`} />
-            <BulletItem text={`Recreation frequency: ${readable(answer(data, 'recreationFrequency'))}`} />
-            <BulletItem text={`Hours lost: ${readable(answer(data, 'hoursLost'))}`} />
-          </View>
-          <View style={styles.column}>
-            <BulletItem text={`People affected: ${readable(answer(data, 'peopleAffected'))}`} />
-            <BulletItem text={`Approved version method: ${readable(answer(data, 'approvedVersionMethod'))}`} />
-            <BulletItem text={`Context method: ${readable(answer(data, 'productionContextMethod'))}`} />
-          </View>
-        </View>
-        <Text style={styles.muted}>
-          High pain = frequent recreation, manual version tracking, fragmented context, delivery delays, or client-facing impact.
-        </Text>
-      </View>
-
-      <SectionDivider />
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>intent dimension (25% weight)</Text>
-        <Text style={styles.body}>Normalized: {intent.normalized}% · Coverage: {intent.coverage}%</Text>
-        <View style={styles.columns}>
-          <View style={styles.column}>
-            <BulletItem text={`Active workflow defined: ${answer(data, 'activeWorkflow') !== 'no' ? 'Yes' : 'No'}`} />
-            <BulletItem text={`Timeline: ${readable(answer(data, 'timeline'))}`} />
-            <BulletItem text={`Target start: ${readable(answer(data, 'targetStartPeriod'))}`} />
-          </View>
-          <View style={styles.column}>
-            <BulletItem text={`Pilot/pricing viewed: ${answer(data, 'pricingOrPilotViewed') ? 'Yes' : 'No'}`} />
-            <BulletItem text={`Proof completed: ${answer(data, 'productProofCompleted') ? 'Yes' : 'Not yet'}`} />
-            <BulletItem text={`Stakeholders involved: ${answer(data, 'stakeholderInvolved') ? 'Yes' : 'No'}`} />
-            <BulletItem text={`Security diligence: ${answer(data, 'securityDiligence') ? 'Yes' : 'No'}`} />
-          </View>
-        </View>
-        <Text style={styles.muted}>
-          High intent = defined workflow, near-term timeline, stakeholder engagement, and commercial readiness signals.
-        </Text>
-      </View>
-
-      <View style={styles.panel}>
-        <Text style={styles.sectionTitle}>how to improve your score</Text>
-        {fit.coverage < 60 && <BulletItem text="Complete team details (type, size, collaborators, tools) for better fit accuracy" />}
-        {pain.coverage < 60 && <BulletItem text="Add incident details (type, frequency, hours, people, impact) for accurate risk quantification" />}
-        {intent.coverage < 60 && <BulletItem text="Define your active workflow, timeline, and stakeholder involvement for stronger intent signal" />}
-        {!answer(data, 'activeWorkflow') && <BulletItem text="Describe your active workflow — this is the strongest pilot readiness signal" />}
-        {answer(data, 'targetStartPeriod') === 'later' && <BulletItem text="Move target start to 'this quarter' or sooner to show commercial readiness" />}
-      </View>
-
-      <Text style={styles.footer}>draft evaluation — generated from your assessment responses</Text>
-    </Page>
-  )
-}
-
-function Page6_DecisionFramework({ data }: { data: PersonalizedQualification }) {
-  const tier = data.tier
-  const outcome = tier === 'high' ? 'pilot_candidate' : tier === 'medium' ? 'clarify' : 'education'
-
-  return (
-    <Page size="LETTER" style={styles.page}>
-      <Header title="production workflow evaluation" page={6} />
-      <Text style={styles.heading}>decision framework & next steps</Text>
-
-      <ROIStatement
-        text={`Your tier: ${tierLabels[tier]}. Recommended path: ${outcomeLabels[outcome]}.`}
-      />
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>recommended next step</Text>
-        <View style={styles.lightPanel}>
-          {outcome === 'pilot_candidate' && (
-            <>
-              <Text style={{ fontWeight: 500, marginBottom: 8 }}>Start a paid pilot</Text>
-              <View style={styles.bulletList}>
-                <BulletItem text="Complete commercial readiness: confirm budget owner, technical evaluator, timeline, approval path" />
-                <BulletItem text="Define success criteria for your specific workflow" />
-                <BulletItem text="Identify integrations and data classification" />
-                <BulletItem text="Schedule pilot terms review (zero-call or one-call based on scope)" />
-                <BulletItem text="Launch pilot — first value in 48 hours" />
-              </View>
-              <Text style={styles.muted}><Text style={{ textDecoration: 'underline' }}>portals.works/paid-pilot</Text> to begin</Text>
-            </>
-          )}
-          {outcome === 'clarify' && (
-            <>
-              <Text style={{ fontWeight: 500, marginBottom: 8 }}>Complete commercial readiness</Text>
-              <View style={styles.bulletList}>
-                <BulletItem text="Confirm $5,000 approval path (self, other, or procurement)" />
-                <BulletItem text="Set target start within 60 days" />
-                <BulletItem text="Name production owner and economic buyer" />
-                <BulletItem text="Define success criteria for your workflow" />
-                <BulletItem text="Schedule a workflow review call to clarify scope" />
-              </View>
-              <Text style={styles.muted}><Text style={{ textDecoration: 'underline' }}>portals.works/assessment</Text> to deepen</Text>
-            </>
-          )}
-          {outcome === 'education' && (
-            <>
-              <Text style={{ fontWeight: 500, marginBottom: 8 }}>Start with education</Text>
-              <View style={styles.bulletList}>
-                <BulletItem text="Download the Production Memory Field Guide" />
-                <BulletItem text="Attend a portals assessment workshop" />
-                <BulletItem text="Re-assess when you have a defined workflow and measurable pain" />
-              </View>
-              <Text style={styles.muted}><Text style={{ textDecoration: 'underline' }}>portals.works/guide</Text> for the field guide</Text>
-            </>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>decision checklist</Text>
-        <View style={styles.columns}>
-          <View style={styles.column}>
-            <BulletItem text={`Budget owner identified: ${readable(answer(data, 'budgetOwner')) || 'Not yet'}`} />
-            <BulletItem text={`Production owner: ${readable(answer(data, 'productionOwner')) || 'Not yet'}`} />
-            <BulletItem text={`Technical evaluator: ${readable(answer(data, 'technicalEvaluator')) || 'Not yet'}`} />
-          </View>
-          <View style={styles.column}>
-            <BulletItem text={`Approval path: ${readable(answer(data, 'approvalPath'))}`} />
-            <BulletItem text={`Target start: ${readable(answer(data, 'targetStartPeriod'))}`} />
-            <BulletItem text={`Security review needed: ${readable(answer(data, 'securityRequirements')) ? 'Yes' : 'Not specified'}`} />
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>what happens after the pilot</Text>
-        <View style={styles.lightPanel}>
-          <View style={styles.bulletList}>
-            <BulletItem text="Deploy portals — pilot fee credited to annual deployment" />
-            <BulletItem text="Extend pilot under defined scope if more validation needed" />
-            <BulletItem text="Conclude portals is not the right fit at this time — no further obligation" />
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>contact</Text>
-        <Text style={styles.body}>
-          Questions about this evaluation or the pilot process? Reply to this email or visit <Text style={{ textDecoration: 'underline' }}>portals.works/contact</Text>.
-        </Text>
-      </View>
-
-      <Text style={styles.footer}>
-        personalized evaluation — generated from your assessment on {new Date(data.generatedAt).toLocaleDateString('en-US')}.
-        {data.identity.company && ` prepared for ${data.identity.company}.`}
-      </Text>
-    </Page>
-  )
-}
-
 // ============================================================================
-// Main Document Export
+// Main assessment document export
 // ============================================================================
 
 export function AssessmentResultPdfDocument({
@@ -1034,30 +1037,21 @@ export function AssessmentResultPdfDocument({
   document,
 }: {
   data: PersonalizedQualification
-  document: ResourceDocument
+  document?: ResourceDocument
 }): ReactElement<DocumentProps> {
-  const totalHours = annualExposureWithPeople(data)
-  const companySlug = (data.identity.company || 'assessment')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 60)
-  const fileName = `${companySlug}-workflow-evaluation-${data.tier}.pdf`
-
   return (
     <Document
-      title={`portals workflow evaluation - ${data.identity.company || 'assessment'} - ${data.tier}`}
+      title={`Your production workflow evaluation - ${companyName(data)}`}
       author="portals"
-      subject="Personalized AI production workflow evaluation"
+      subject={`Sponsor-ready production workflow evaluation for ${companyName(data)}`}
       creator="portals"
       producer="portals"
     >
-      <Page1_ExecutiveSummary data={data} />
-      <Page2_RiskExposure data={data} />
-      <Page3_PortalsSolvesYourProblems data={data} />
-      <Page4_PilotPathway data={data} document={document} />
-      <Page5_QualificationDeepDive data={data} />
-      <Page6_DecisionFramework data={data} />
+      <Page1ExecutiveSummary data={data} />
+      <Page2BusinessCase data={data} />
+      <Page3WorkflowDiagnosis data={data} />
+      <Page4PilotCase data={data} document={document} />
+      <Page5DecisionRecord data={data} document={document} />
     </Document>
   )
 }
