@@ -8,7 +8,8 @@ ECR_NAMESPACE="${ECR_NAMESPACE:-portals-${ENVIRONMENT:-dev}}"
 REPOSITORY="${AUTH_GATEWAY_ECR_REPOSITORY:-${ECR_REGISTRY}/${ECR_NAMESPACE}/auth-gateway}"
 TAG="$(git -C "${ROOT}" rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)"
 TAGGED_IMAGE="${REPOSITORY}:${TAG}"
-TARGETARCH="${TARGETARCH:-arm64}"
+TARGETARCH="${AUTH_TARGETARCH:-${TARGETARCH:-arm64}}"
+PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-false}"
 SOURCE_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
 PROTOCOL_ROOT="${ROOT}/infra/lore/lore"
@@ -32,7 +33,7 @@ if [[ "${ENVIRONMENT:-dev}" == "prod" && "${REQUIRE_SIGNATURE}" != "true" ]]; th
   exit 2
 fi
 
-docker buildx build --platform "${PLATFORMS:-linux/${TARGETARCH}}" --provenance=true --sbom=true --push \
+docker buildx build --platform "${PLATFORMS}" --provenance=true --sbom=true --push \
   --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
   --label "io.portals.protocol-revision=${PROTOCOL_COMMIT}" \
   -t "${TAGGED_IMAGE}" -f "${ROOT}/docker/auth-gateway/Dockerfile" "${ROOT}"

@@ -14,7 +14,17 @@ REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-true}"
 COSIGN_KEY="${COSIGN_KEY:-aws-kms://alias/portals-artifact-signing}"
 ECR_NAMESPACE="${ECR_NAMESPACE:-portals-prod}"
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
-TARGETARCH="${TARGETARCH:-arm64}"
+
+# Separate architecture configuration for each service
+LORE_TARGETARCH="${LORE_TARGETARCH:-arm64}"
+AUTH_TARGETARCH="${AUTH_TARGETARCH:-arm64}"
+
+# For backward compatibility, if TARGETARCH is set, use it for both
+if [[ -n "${TARGETARCH:-}" ]]; then
+  echo "TARGETARCH is deprecated; use LORE_TARGETARCH and AUTH_TARGETARCH instead"
+  LORE_TARGETARCH="${TARGETARCH}"
+  AUTH_TARGETARCH="${TARGETARCH}"
+fi
 
 # Export environment variables
 export ECR_REGISTRY
@@ -23,14 +33,17 @@ export REQUIRE_SIGNATURE
 export COSIGN_KEY
 export ECR_NAMESPACE
 export PLATFORMS
-export TARGETARCH
+export LORE_TARGETARCH
+export AUTH_TARGETARCH
+export TARGETARCH  # For backward compatibility
 
 echo "=== Production Image Build Configuration ==="
 echo "ECR Registry: ${ECR_REGISTRY}"
 echo "Environment: ${ENVIRONMENT}"
 echo "ECR Namespace: ${ECR_NAMESPACE}"
 echo "Platforms: ${PLATFORMS}"
-echo "Target Architecture: ${TARGETARCH}"
+echo "Lore Target Architecture: ${LORE_TARGETARCH}"
+echo "Auth Gateway Target Architecture: ${AUTH_TARGETARCH}"
 echo "Require Signature: ${REQUIRE_SIGNATURE}"
 echo "Cosign Key: ${COSIGN_KEY}"
 echo ""

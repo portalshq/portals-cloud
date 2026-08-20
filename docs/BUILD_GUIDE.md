@@ -36,7 +36,8 @@ export COSIGN_KEY=aws-kms://alias/portals-artifact-signing
 # Optional environment variables
 export ECR_NAMESPACE=portals-prod          # Defaults to portals-${ENVIRONMENT}
 export PLATFORMS=linux/amd64,linux/arm64  # Defaults to linux/amd64,linux/arm64
-export TARGETARCH=arm64                    # Target architecture for verification
+export LORE_TARGETARCH=arm64               # Lore target architecture (default: arm64)
+export AUTH_TARGETARCH=arm64              # Auth Gateway target architecture (default: arm64)
 
 # Build and publish
 ./infra/lore/scripts/docker-buildx-lore.sh
@@ -65,8 +66,8 @@ export COSIGN_KEY=aws-kms://alias/portals-artifact-signing
 
 # Optional environment variables
 export ECR_NAMESPACE=portals-prod          # Defaults to portals-${ENVIRONMENT}
-export PLATFORMS=linux/arm64               # Defaults to linux/${TARGETARCH}
-export TARGETARCH=arm64                    # Target architecture for verification
+export PLATFORMS=linux/amd64,linux/arm64  # Defaults to linux/amd64,linux/arm64
+export AUTH_TARGETARCH=arm64              # Auth Gateway target architecture (default: arm64)
 
 # Build and publish
 ./scripts/publish-auth-gateway.sh
@@ -74,7 +75,7 @@ export TARGETARCH=arm64                    # Target architecture for verificatio
 
 The script will:
 1. Check for uncommitted source/packaging changes (fails if dirty)
-2. Build image with provenance and SBOM
+2. Build image with provenance and SBOM for `AUTH_TARGETARCH`
 3. Push to ECR
 4. Sign the image with the artifact-signing KMS key (if `REQUIRE_SIGNATURE=true`)
 5. Run ECR and Trivy scans
@@ -88,6 +89,36 @@ For production builds (`ENVIRONMENT=prod`), the scripts enforce:
 - Clean source trees - no uncommitted changes allowed
 - ECR and Trivy zero critical/high findings
 - SBOM and provenance verification
+
+#### Architecture Configuration
+
+The build system supports separate CPU architectures for Lore and Auth Gateway:
+
+**Default Configuration** (both ARM64):
+```bash
+export LORE_TARGETARCH=arm64    # Default for Lore
+export AUTH_TARGETARCH=arm64   # Default for Auth Gateway
+```
+
+**Mixed Architecture Example**:
+```bash
+export LORE_TARGETARCH=arm64    # Lore on ARM64 (cost-optimized)
+export AUTH_TARGETARCH=amd64   # Auth Gateway on AMD64 (compatibility)
+```
+
+**Platform Configuration**:
+- `PLATFORMS=linux/amd64,linux/arm64` - Build multi-architecture manifests
+- Individual services verify only their target architecture
+- Pulumi deployment uses matching architecture per service
+
+**Pulumi Configuration**:
+```bash
+cd cloud/infra/pulumi
+pulumi config set loreCpuArchitecture ARM64        # Lore Fargate architecture
+pulumi config set authGatewayCpuArchitecture ARM64 # Auth Gateway Fargate architecture
+```
+
+Build and deployment architectures must match for each service.
 
 ### Option 2: Cloud Build (GitHub Actions - Recommended for Production)
 
@@ -116,6 +147,22 @@ on:
         options:
           - dev
           - prod
+      lore_architecture:
+        description: 'Lore CPU architecture'
+        required: false
+        default: 'arm64'
+        type: choice
+        options:
+          - arm64
+          - amd64
+      auth_architecture:
+        description: 'Auth Gateway CPU architecture'
+        required: false
+        default: 'arm64'
+        type: choice
+        options:
+          - arm64
+          - amd64
 
 jobs:
   build-lore:
@@ -151,6 +198,7 @@ jobs:
           ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
           REQUIRE_SIGNATURE: ${{ github.event.inputs.environment == 'prod' && 'true' || 'false' }}
           COSIGN_KEY: ${{ github.event.inputs.environment == 'prod' && 'aws-kms://alias/portals-artifact-signing' || '' }}
+          LORE_TARGETARCH: ${{ github.event.inputs.lore_architecture || 'arm64' }}
         run: |
           ./infra/lore/scripts/docker-buildx-lore.sh
 
@@ -192,6 +240,7 @@ jobs:
           ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
           REQUIRE_SIGNATURE: ${{ github.event.inputs.environment == 'prod' && 'true' || 'false' }}
           COSIGN_KEY: ${{ github.event.inputs.environment == 'prod' && 'aws-kms://alias/portals-artifact-signing' || '' }}
+          AUTH_TARGETARCH: ${{ github.event.inputs.auth_architecture || 'arm64' }}
         run: |
           ./control-plane/scripts/publish-auth-gateway.sh
 
@@ -230,6 +279,8 @@ phases:
       - export ENVIRONMENT=$ENVIRONMENT
       - export REQUIRE_SIGNATURE=$REQUIRE_SIGNATURE
       - export COSIGN_KEY=$COSIGN_KEY
+      - export LORE_TARGETARCH=${LORE_TARGETARCH:-arm64}
+      - export AUTH_TARGETARCH=${AUTH_TARGETARCH:-arm64}
       - ./infra/lore/scripts/docker-buildx-lore.sh
       - ./control-plane/scripts/publish-auth-gateway.sh
 artifacts:

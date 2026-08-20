@@ -61,11 +61,30 @@ const databaseAllocatedStorage = parseInt(config.require("databaseAllocatedStora
 // ECS
 const ecsFargateCpu = config.require("ecsFargateCpu");
 const ecsFargateMemory = config.require("ecsFargateMemory");
-const ecsCpuArchitectureValue = config.get("ecsCpuArchitecture") ?? "ARM64";
-if (ecsCpuArchitectureValue !== "ARM64" && ecsCpuArchitectureValue !== "X86_64") {
-  throw new Error("ecsCpuArchitecture must be ARM64 or X86_64");
+
+// Separate architecture configuration for each service
+// For backward compatibility, if old ecsCpuArchitecture is set, use it as default
+const legacyCpuArchitecture = config.get("ecsCpuArchitecture");
+const defaultArchitecture = legacyCpuArchitecture || "ARM64";
+
+if (legacyCpuArchitecture) {
+  console.warn("ecsCpuArchitecture is deprecated; use loreCpuArchitecture and authGatewayCpuArchitecture instead");
+  if (legacyCpuArchitecture !== "ARM64" && legacyCpuArchitecture !== "X86_64") {
+    throw new Error("ecsCpuArchitecture must be ARM64 or X86_64");
+  }
 }
-const ecsCpuArchitecture = ecsCpuArchitectureValue as "ARM64" | "X86_64";
+
+const loreCpuArchitectureValue = config.get("loreCpuArchitecture") ?? defaultArchitecture;
+if (loreCpuArchitectureValue !== "ARM64" && loreCpuArchitectureValue !== "X86_64") {
+  throw new Error("loreCpuArchitecture must be ARM64 or X86_64");
+}
+const loreCpuArchitecture = loreCpuArchitectureValue as "ARM64" | "X86_64";
+
+const authGatewayCpuArchitectureValue = config.get("authGatewayCpuArchitecture") ?? defaultArchitecture;
+if (authGatewayCpuArchitectureValue !== "ARM64" && authGatewayCpuArchitectureValue !== "X86_64") {
+  throw new Error("authGatewayCpuArchitecture must be ARM64 or X86_64");
+}
+const authGatewayCpuArchitecture = authGatewayCpuArchitectureValue as "ARM64" | "X86_64";
 
 // Service counts
 const loreServiceDesiredCount = parseInt(config.require("loreServiceDesiredCount"));
@@ -93,13 +112,17 @@ function assertDigestPinned(name: string, image: string, desiredCount: number): 
 
 assertDigestPinned("Lore image", loreServerImageUri, loreServiceDesiredCount);
 assertDigestPinned("Control Plane/Auth Gateway image", authGatewayImageUri, authGatewayDesiredCount);
-const imagePlatform = ecsCpuArchitecture === "ARM64" ? "linux/arm64" : "linux/amd64";
+
+// Use separate architecture platforms for each service
+const loreImagePlatform = loreCpuArchitecture === "ARM64" ? "linux/arm64" : "linux/amd64";
+const authGatewayImagePlatform = authGatewayCpuArchitecture === "ARM64" ? "linux/arm64" : "linux/amd64";
+
 assertVersionPinVerified(
-  "lore", loreServerImageUri, loreServiceDesiredCount, imagePlatform,
+  "lore", loreServerImageUri, loreServiceDesiredCount, loreImagePlatform,
   publicIngressEnabled, versionPins.release.lore,
 );
 assertVersionPinVerified(
-  "control-plane", authGatewayImageUri, authGatewayDesiredCount, imagePlatform,
+  "control-plane", authGatewayImageUri, authGatewayDesiredCount, authGatewayImagePlatform,
   publicIngressEnabled, versionPins.release.controlPlane,
 );
 if (publicIngressEnabled) {
@@ -286,7 +309,7 @@ if (authGatewayDesiredCount > 0) {
     desiredCount: authGatewayDesiredCount,
     cpu: ecsFargateCpu,
     memory: ecsFargateMemory,
-    cpuArchitecture: ecsCpuArchitecture,
+    cpuArchitecture: authGatewayCpuArchitecture,
     imageUri: authGatewayImageUri,
     databaseUrlSecretArn: platformDataStore.databaseUrlSecret.arn,
     apiKeyPepperSecretArn: auth.apiKeyPepperSecret.arn,
@@ -324,7 +347,7 @@ if (loreServiceDesiredCount > 0) {
     desiredCount: loreServiceDesiredCount,
     cpu: ecsFargateCpu,
     memory: ecsFargateMemory,
-    cpuArchitecture: ecsCpuArchitecture,
+    cpuArchitecture: loreCpuArchitecture,
     loreServerImageUri,
     s3BucketName: platformStorage.loreChunksBucket.bucket,
     s3BucketArn: platformStorage.loreChunksBucket.arn,
