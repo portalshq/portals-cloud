@@ -20,6 +20,7 @@ Build images locally using Docker BuildKit and push to ECR. This is the fastest 
 - AWS credentials configured for ECR push access
 - `cosign` CLI installed (for production signing)
 - Access to the artifact-signing KMS key
+- `trivy` CLI installed (optional - will use Docker container if not available)
 
 #### Lore Server Build
 
@@ -349,4 +350,24 @@ git commit -m "chore: prepare for production build"
 Ensure QEMU is installed for cross-platform builds:
 ```bash
 docker run --privileged --rm tonistiigi/binfmt --install all
+```
+
+### Trivy not installed
+
+The build scripts will automatically use trivy via Docker if not available locally. If you want to install trivy locally:
+
+```bash
+# macOS
+brew install trivy
+
+# Linux
+wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+sudo apt-get update
+sudo apt-get install trivy
+```
+
+To force using Docker for trivy even when installed locally:
+```bash
+export TRIVY_BIN="docker run --rm -v ~/.aws:/root/.aws:ro -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN -e AWS_REGION aquasec/trivy:latest"
 ```

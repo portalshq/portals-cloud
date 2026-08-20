@@ -38,7 +38,21 @@ echo ""
 # Check prerequisites
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
 command -v cosign >/dev/null || { echo "cosign is required (install: https://docs.sigstore.dev/cosign/installation/)" >&2; exit 1; }
-command -v trivy >/dev/null || { echo "trivy is required (install: https://aquasecurity.github.io/trivy/latest/getting-started/installation/)" >&2; exit 1; }
+
+# Use trivy via Docker if not available locally
+if command -v trivy >/dev/null 2>&1; then
+  export TRIVY_BIN="trivy"
+else
+  echo "trivy not found locally, using Docker container for vulnerability scanning"
+  # Mount AWS credentials and region for ECR access
+  export TRIVY_BIN="docker run --rm \
+    -v ~/.aws:/root/.aws:ro \
+    -e AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY \
+    -e AWS_SESSION_TOKEN \
+    -e AWS_REGION \
+    aquasec/trivy:latest"
+fi
 
 # Check AWS credentials
 aws sts get-caller-identity >/dev/null 2>&1 || { echo "AWS credentials not configured" >&2; exit 1; }

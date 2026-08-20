@@ -28,7 +28,18 @@ fi
 command -v aws >/dev/null || { echo "aws CLI is required" >&2; exit 2; }
 command -v docker >/dev/null || { echo "docker with buildx is required" >&2; exit 2; }
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
-command -v "${TRIVY_BIN}" >/dev/null || { echo "Trivy is required; refusing to promote without an independent scan" >&2; exit 2; }
+
+# Handle trivy check - support both local binary and Docker container
+if [[ "${TRIVY_BIN}" == "trivy" ]]; then
+  command -v trivy >/dev/null || { echo "Trivy is required; refusing to promote without an independent scan (install: https://aquasecurity.github.io/trivy/latest/getting-started/installation/)" >&2; exit 2; }
+elif [[ "${TRIVY_BIN}" == docker* ]]; then
+  # Verify docker is available (already checked above) and the trivy image can be pulled
+  echo "Using trivy via Docker container"
+  docker pull aquasec/trivy:latest >/dev/null 2>&1 || { echo "Failed to pull trivy Docker image" >&2; exit 2; }
+else
+  # Custom TRIVY_BIN path provided
+  command -v "${TRIVY_BIN}" >/dev/null || { echo "Trivy is required; refusing to promote without an independent scan" >&2; exit 2; }
+fi
 
 REGISTRY="${IMAGE%%/*}"
 REPOSITORY_AND_DIGEST="${IMAGE#*/}"
@@ -87,8 +98,20 @@ ECR_HIGH="$(jq -r '.imageScanFindings.findingSeverityCounts.HIGH // 0' <<<"${SCA
 
 # Do not use --ignore-unfixed: an unfixed critical/high remains an unresolved
 # release risk and needs an explicit, reviewed exception rather than hiding it.
-"${TRIVY_BIN}" image --platform "${PLATFORM}" --scanners vuln \
-  --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}"
+if [[ "${TRIVY_BIN}" == docker* ]]; then
+  # When using Docker, add AWS credential environment variables
+  docker run --rm \
+    -v ~/.aws:/root/.aws:ro \
+    -e AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY \
+    -e AWS_SESSION_TOKEN \
+    -e AWS_REGION \
+    aquasec/trivy:latest image --platform "${PLATFORM}" --scanners vuln \
+    --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}"
+else
+  "${TRIVY_BIN}" image --platform "${PLATFORM}" --scanners vuln \
+    --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}"
+fi
 
 SBOM="$(docker buildx imagetools inspect --format '{{json .SBOM}}' "${IMAGE}")"
 PROVENANCE="$(docker buildx imagetools inspect --format '{{json .Provenance}}' "${IMAGE}")"
@@ -117,7 +140,12 @@ if [[ "${REQUIRE_SIGNATURE}" == "true" ]]; then
 fi
 
 ECR_COMPLETED_AT="$(jq -r '.imageScanFindings.imageScanCompletedAt' <<<"${SCAN_JSON}")"
-TRIVY_VERSION="$(${TRIVY_BIN} --version | awk 'NR == 1 { print $2 }')"
+# Get trivy version - handle both local binary and Docker container
+if [[ "${TRIVY_BIN}" == docker* ]]; then
+  TRIVY_VERSION="$(docker run --rm aquasec/trivy:latest --version | awk 'NR == 1 { print $2 }')"
+else
+  TRIVY_VERSION="$(${TRIVY_BIN} --version | awk 'NR == 1 { print $2 }')"
+fi
 node "${SCRIPT_DIR}/record-verified-image.mjs" "${SERVICE}" "${IMAGE}" "${PLATFORM}" \
   "${PLATFORM_DIGEST}" "${ECR_COMPLETED_AT}" "${TRIVY_VERSION}" "${SIGNATURE_VERIFIED}" \
   "${EXPECTED_SOURCE_COMMIT}" true "${EXPECTED_PACKAGING_COMMIT}" "${EXPECTED_PROTOCOL_COMMIT}"
