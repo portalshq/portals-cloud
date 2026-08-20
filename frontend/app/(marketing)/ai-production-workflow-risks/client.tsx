@@ -87,7 +87,7 @@ function ResourceHero({
           </p>
           <div className="flex flex-col sm:flex-row mx-auto gap-16 items-center justify-center">
             <CTAButton href="#download">
-              {'Download the production history guide'}
+              {'Download the production memory guide'}
             </CTAButton>
           </div>
         </div>
@@ -232,8 +232,8 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
           <ResourceLeadForm
             context={context}
             submissionType="guide_download"
-            title="Download the production history guide"
-            description="Learn how to diagnose and address the production history risks behind ai-native creative work."
+            title="Download the production memory guide"
+            description="Learn how to diagnose and address the production risks behind ai-native creative work."
             interestLabel="which workflow risk is most relevant?"
             options={[
               {value: 'approved-version-retrieval', label: 'approved version confusion'},

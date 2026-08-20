@@ -808,13 +808,7 @@ export function ResourcePdfDocument({
     (section) => section.surfaces?.tableOfContents !== false,
   )
 
-  const publicationDate = document.publishedAt
-    ? new Intl.DateTimeFormat('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      }).format(new Date(document.publishedAt))
-    : undefined
+  const publicationDate = document.publishedAt ? new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(document.publishedAt)) : undefined
 
   const authorNames =
     document.authors?.map((author) => author.name).join(', ') ||
@@ -866,15 +860,15 @@ export function ResourcePdfDocument({
 
           <View style={styles.coverMeta}>
             <Text>
-              {[document.publisher, publicationDate, document.edition]
+              {[document.publisher, publicationDate, 'Edition']
                 .filter(Boolean)
-                .join('  \u2022  ')}
+                .join(' ')}
             </Text>
-            {document.audience?.length ? (
+            {/* {document.audience?.length ? (
               <Text style={{marginTop: 7}}>
                 For: {document.audience.join(', ')}
               </Text>
-            ) : null}
+            ) : null} */}
           </View>
         </Page>
       ) : null}

@@ -288,7 +288,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         {typeof result.workflowRiskScore === 'number' ? (
           <div className="space-y-20">
             <p className="t-p-lg-serif text-white">
-              your production history risk: <span className="t-h1-sans">{result.workflowRiskScore}/24</span>
+              your production memory risk: <span className="t-h1-sans">{result.workflowRiskScore}/24</span>
             </p>
           </div>
         ) : null}

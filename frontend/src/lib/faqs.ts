@@ -17,7 +17,7 @@ export const faqs: FaqItem[] = [
   {
     question: 'What does a production workflow assessment measure?',
     answer:
-      'It evaluates the operational cost of missing production history in one production workflow.',
+      'It evaluates the operational cost of missing production memory in one production workflow.',
     categories: ['assessment'],
   },
   {
@@ -39,7 +39,7 @@ export const faqs: FaqItem[] = [
     categories: ['assessment'],
   },
   {
-    question: 'Who is the production history guide for?',
+    question: 'Who is the production memory guide for?',
     answer:
       'It is for creative organizations producing high volumes of AI-assisted work across multiple people, tools, clients, projects, or production cycles.',
     categories: ['general'],
@@ -63,9 +63,9 @@ export const faqs: FaqItem[] = [
     categories: ['general'],
   },
   {
-    question: 'What is production history?',
+    question: 'What is production memory?',
     answer:
-      'Production history is the complete, recoverable organizational record behind an important asset: its approved version, previous versions, creation context, decisions, and recovery information.',
+      'It\'s the system that organizes the record behind an important asset: its approved version, previous versions, and creation context.',
     categories: ['general'],
   },
   {
@@ -77,7 +77,7 @@ export const faqs: FaqItem[] = [
   {
     question: 'What does a production pilot prove?',
     answer:
-      'A pilot tests whether preserving production history creates measurable value on one real workflow through faster retrieval, stronger reproducibility, controlled extension, better knowledge transfer, or reduced production risk.',
+      'A pilot proves that portals makes your team faster, cheaper, and infinitely more collaborative through faster retrieval, stronger reproducibility, controlled extensions, better knowledge transfer, and reduced production risk.',
     categories: ['general'],
   },
   {
