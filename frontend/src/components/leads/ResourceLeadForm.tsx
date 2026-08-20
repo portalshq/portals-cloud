@@ -138,7 +138,7 @@ export function ResourceLeadForm({
           {state.result.message ||
             'Download the field guide, then assess how reliably your team preserves approved versions, production context, and reusable creative knowledge.'}
         </p>
-        <div className="flex flex-col gap-12 sm:flex-row lg:justify-center">
+        <div className="flex flex-col gap-16 sm:flex-row lg:justify-center">
           {state.result.downloadUrl ? (
             <CTAButton
               href={state.result.downloadUrl}
@@ -152,7 +152,7 @@ export function ResourceLeadForm({
             </CTAButton>
           ) : null}
           <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow">
-            Assess your workflow
+            Assess production workflow
             <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
           </CTAButton>
         </div>

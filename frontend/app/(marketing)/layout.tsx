@@ -34,8 +34,8 @@ function Footer() {
         }}
       />
       <div className="col-span-full relative z-10 flex flex-col gap-y-fluid-[32,40] mb-12">
-        <a href="/" className="w-fit t-d1-sans mb-4 !font-medium">portals</a>
         <div className="col-span-full h-full space-y-fluid-[32,40] ui-grid grid-cols-1 grid-rows-[min-content_1fr] lg:grid-cols-5 m-0 p-0">
+          <a href="/" className="col-span-full mb-40 t-d1-sans !font-medium">portals</a>
           <div className='col-span-full lg:col-span-3'>
             <p className="lowercase text-white t-p-sans">
               The repository for AI{`\u2011`}native production
@@ -49,7 +49,7 @@ function Footer() {
               <li><a href="/terms-of-service" className="hover:text-white transition-colors">terms of service</a></li>
               <li><a href="/security-and-architecture" className="hover:text-white transition-colors">security</a></li>
               <li><a href="/ai-production-workflow-risks" className="hover:text-white transition-colors">use cases</a></li>
-              <li><a href="/assessment" className="hover:text-white transition-colors">assess your workflow</a></li>
+              <li><a href="/assessment" className="hover:text-white transition-colors">assess production workflow</a></li>
             </ul>
             
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
@@ -58,8 +58,8 @@ function Footer() {
           </div>
           
         </div>
-        <div className="relative z-10 flex flex-col lg:items-center pt-12 t-p-sans text-[1.2em] text-white col-span-full row-start-last">
-          <div>© 2026 portals.works</div>
+        <div className="relative z-10 flex flex-col lg:items-center pt-12 t-p-sm-sans text-white col-span-full row-start-last">
+          <span>© 2026 portals.works</span>
         </div>
       </div>
     </footer>

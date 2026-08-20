@@ -656,7 +656,7 @@ function SolutionSection() {
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
             <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
-              Assess your workflow
+              Assess production workflow
             </CTAButton>
           </div>
         </div>
@@ -718,16 +718,9 @@ function CapabilitiesSection() {
             </article>
           ))}
         </div>
-        
-        {/* <div className="col-span-full grid gap-y-30 border border-white/20 bg-white/10 p-24 lg:grid-cols-[var(--width)_1fr_1fr]">
-          <h3 className="t-h3-sans lg:col-span-1">An open core, honestly</h3>
-          <p className="t-p-lg-serif text-white lg:col-span-2">
-          portals is hosted on an open-source version control foundation. We did not reinvent that layer. We built the layer above it: entity-aware versioning, automatic provenance, and the identity graph that connects every asset your organization creates.
-          </p>
-          </div> */}
         <div className='col-span-full'>
           <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
-            Assess your workflow
+            Assess production workflow
           </CTAButton>
         </div>
       </div>
@@ -938,7 +931,7 @@ export function VCS({
                 analyticsLabel="Assess Your Workflow"
                 analyticsIntent="assessment"
               >
-                Assess your workflow
+                Assess production workflow
               </CTAButton>
               <CTAButton className="!hidden" href="/ai-production-workflow-risks" analyticsLabel="Explore Use Cases" analyticsIntent="education">
                 Explore use cases
@@ -982,10 +975,12 @@ export function VCS({
               <p className="t-p-lg-serif max-w-[25em] md:w-auto text-white text-left">
                 Deliver faster at lower cost with  complete asset history and identity from first generation through shipped production.
               </p>
-              <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton>
-              {/* <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
-                Assess your workflow
-              </CTAButton> */}
+              <div className="flex items-center gap-16">
+                <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton>
+                <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+                  Assess production workflow
+                </CTAButton>
+              </div>
             </div>
           </div>
           <div className="absolute inset-0 z-10" />

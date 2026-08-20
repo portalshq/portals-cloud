@@ -190,7 +190,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         identity: submittedIdentity,
         attribution: buildAttribution({
           sourcePage: '/assessment',
-          ctaLabel: 'Assess Your Workflow',
+          ctaLabel: 'Assess production workflow',
           intent: 'workflow_assessment',
         }),
         consent: {

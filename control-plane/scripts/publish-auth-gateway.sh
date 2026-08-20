@@ -33,18 +33,51 @@ if [[ "${ENVIRONMENT:-dev}" == "prod" && "${REQUIRE_SIGNATURE}" != "true" ]]; th
   exit 2
 fi
 
-docker buildx build --platform "${PLATFORMS}" --provenance=true --sbom=true --push \
-  --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
-  --label "io.portals.protocol-revision=${PROTOCOL_COMMIT}" \
-  -t "${TAGGED_IMAGE}" -f "${ROOT}/docker/auth-gateway/Dockerfile" "${ROOT}"
+# Determine build strategy: single-arch (cross-compile) or multi-arch (manifest merge)
+if [[ "${PLATFORMS}" == *","* ]]; then
+  # Multi-arch mode: build each arch separately, then create manifest list
+  BUILD_STRATEGY="multiarch"
+  IFS=',' read -ra ARCHS <<< "${PLATFORMS}"
+else
+  # Single-arch mode: cross-compile natively on host (no --platform)
+  BUILD_STRATEGY="single"
+  ARCHS=("${PLATFORMS#linux/}")
+fi
+
+# Build image for each architecture
+for arch in "${ARCHS[@]}"; do
+  ARCH_TAG="${TAG}-${arch}"
+  if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
+    docker buildx build --platform "linux/${arch}" --provenance=true --sbom=true --push \
+      --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
+      --label "io.portals.protocol-revision=${PROTOCOL_COMMIT}" \
+      -t "${REPOSITORY}:${ARCH_TAG}" -f "${ROOT}/docker/auth-gateway/Dockerfile" "${ROOT}"
+  else
+    # Single-arch: cross-compile natively (Dockerfile handles target)
+    docker buildx build --provenance=true --sbom=true --push \
+      --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
+      --label "io.portals.protocol-revision=${PROTOCOL_COMMIT}" \
+      -t "${REPOSITORY}:${ARCH_TAG}" -f "${ROOT}/docker/auth-gateway/Dockerfile" "${ROOT}"
+  fi
+done
+
+# Create multi-arch manifest if needed
+if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
+  docker buildx imagetools create -t "${TAGGED_IMAGE}" \
+    "${REPOSITORY}:${TAG}-amd64" \
+    "${REPOSITORY}:${TAG}-arm64"
+fi
+
 DIGEST="$(docker buildx imagetools inspect "${TAGGED_IMAGE}" | awk '/^Digest:/ {print $2; exit}')"
 [[ "${DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Could not resolve pushed digest" >&2; exit 1; }
 PIN="${REPOSITORY}@${DIGEST}"
+
 if [[ "${REQUIRE_SIGNATURE}" == "true" ]]; then
   command -v cosign >/dev/null || { echo "cosign is required when REQUIRE_SIGNATURE=true" >&2; exit 2; }
   : "${COSIGN_KEY:?Set COSIGN_KEY to the dedicated artifact-signing KMS URI or key reference}"
   cosign sign --yes --key "${COSIGN_KEY}" "${PIN}"
 fi
+
 EXPECTED_SOURCE_COMMIT="${SOURCE_COMMIT}" EXPECTED_PROTOCOL_COMMIT="${PROTOCOL_COMMIT}" \
   REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE}" COSIGN_KEY="${COSIGN_KEY:-}" \
   TRIVY_BIN="${TRIVY_BIN:-trivy}" "${PROMOTE_SCRIPT}" control-plane "${PIN}" "linux/${TARGETARCH}"

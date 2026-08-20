@@ -40,7 +40,7 @@ export default async function ContactPage({
               analyticsLabel="Assess Your AI Creative Production Workflow"
               analyticsIntent="assessment"
             >
-              Assess your workflow
+              Assess production workflow
             </CTAButton>
             <CTAButton href={scopeAPilotMailto}>Scope a pilot</CTAButton>
           </div>

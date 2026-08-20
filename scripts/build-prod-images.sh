@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
 # Build and publish production Lore and Auth Gateway images
 # This script sets all required environment variables and runs both build scripts
+#
+# Usage: ./build-prod-images.sh [--prod|--multiarch]
+#   --prod      : Single-arch (arm64) cross-compiled build for production (default)
+#   --multiarch : Multi-arch (amd64 + arm64) build for CI/testing
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Parse build mode argument
+BUILD_MODE="${1:-prod}"
+if [[ "${BUILD_MODE}" != "prod" && "${BUILD_MODE}" != "multiarch" ]]; then
+  echo "Usage: $0 [--prod|--multiarch]" >&2
+  exit 1
+fi
 
 # Default values
 ECR_REGISTRY="${ECR_REGISTRY:-907199504810.dkr.ecr.us-east-1.amazonaws.com}"
@@ -13,7 +24,6 @@ ENVIRONMENT="${ENVIRONMENT:-prod}"
 REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-true}"
 COSIGN_KEY="${COSIGN_KEY:-aws-kms://alias/portals-artifact-signing}"
 ECR_NAMESPACE="${ECR_NAMESPACE:-portals-prod}"
-PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 
 # Separate architecture configuration for each service
 LORE_TARGETARCH="${LORE_TARGETARCH:-arm64}"
@@ -26,6 +36,17 @@ if [[ -n "${TARGETARCH:-}" ]]; then
   AUTH_TARGETARCH="${TARGETARCH}"
 fi
 
+# Set platforms based on build mode
+if [[ "${BUILD_MODE}" == "prod" ]]; then
+  PLATFORMS="linux/${LORE_TARGETARCH}"
+  AUTH_PLATFORMS="linux/${AUTH_TARGETARCH}"
+  echo "=== PRODUCTION MODE: Single-arch cross-compiled (${LORE_TARGETARCH}) ==="
+else
+  PLATFORMS="linux/amd64,linux/arm64"
+  AUTH_PLATFORMS="linux/amd64,linux/arm64"
+  echo "=== MULTI-ARCH MODE: ${PLATFORMS} ==="
+fi
+
 # Export environment variables
 export ECR_REGISTRY
 export ENVIRONMENT
@@ -33,6 +54,7 @@ export REQUIRE_SIGNATURE
 export COSIGN_KEY
 export ECR_NAMESPACE
 export PLATFORMS
+export AUTH_PLATFORMS
 export LORE_TARGETARCH
 export AUTH_TARGETARCH
 export TARGETARCH  # For backward compatibility

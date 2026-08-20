@@ -42,24 +42,79 @@ if [[ "${ENVIRONMENT:-dev}" == "prod" && "${REQUIRE_SIGNATURE}" != "true" ]]; th
   exit 2
 fi
 
-docker buildx build --platform "${PLATFORMS}" \
-  -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver.base" \
-  --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
-  --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
-  -t "${BASE_REPOSITORY}:${BASE_TAG}" --provenance=true --sbom=true --push \
-  "${SOURCE_ROOT}"
+# Determine build strategy: single-arch (cross-compile) or multi-arch (manifest merge)
+if [[ "${PLATFORMS}" == *","* ]]; then
+  # Multi-arch mode: build each arch separately, then create manifest list
+  BUILD_STRATEGY="multiarch"
+  IFS=',' read -ra ARCHS <<< "${PLATFORMS}"
+else
+  # Single-arch mode: cross-compile natively on host (no --platform)
+  BUILD_STRATEGY="single"
+  ARCHS=("${PLATFORMS#linux/}")
+fi
+
+# Build base image for each architecture
+for arch in "${ARCHS[@]}"; do
+  ARCH_TAG="${BASE_TAG}-${arch}"
+  if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
+    docker buildx build --platform "linux/${arch}" \
+      -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver.base" \
+      --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
+      --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
+      -t "${BASE_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
+      "${SOURCE_ROOT}"
+  else
+    # Single-arch: cross-compile natively (Dockerfile handles target)
+    docker buildx build \
+      -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver.base" \
+      --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
+      --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
+      -t "${BASE_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
+      "${SOURCE_ROOT}"
+  fi
+done
+
+# Create multi-arch manifest for base image if needed
+if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
+  docker buildx imagetools create -t "${BASE_REPOSITORY}:${BASE_TAG}" \
+    "${BASE_REPOSITORY}:${BASE_TAG}-amd64" \
+    "${BASE_REPOSITORY}:${BASE_TAG}-arm64"
+fi
 
 BASE_DIGEST="$(docker buildx imagetools inspect "${BASE_REPOSITORY}:${BASE_TAG}" | awk '/^Digest:/ {print $2; exit}')"
 [[ "${BASE_DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Could not resolve base digest" >&2; exit 1; }
 BASE_PIN="${BASE_REPOSITORY}@${BASE_DIGEST}"
 
-docker buildx build --platform "${PLATFORMS}" \
-  --build-arg "BASE_IMAGE=${BASE_PIN}" \
-  -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver" \
-  --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
-  --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
-  -t "${SERVER_REPOSITORY}:${SERVER_TAG}" --provenance=true --sbom=true --push \
-  "${REPO_ROOT}"
+# Build server image for each architecture
+for arch in "${ARCHS[@]}"; do
+  ARCH_TAG="${SERVER_TAG}-${arch}"
+  BASE_ARCH_TAG="${BASE_TAG}-${arch}"
+  if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
+    docker buildx build --platform "linux/${arch}" \
+      --build-arg "BASE_IMAGE=${BASE_REPOSITORY}:${BASE_ARCH_TAG}" \
+      -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver" \
+      --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
+      --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
+      -t "${SERVER_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
+      "${REPO_ROOT}"
+  else
+    # Single-arch: cross-compile natively
+    docker buildx build \
+      --build-arg "BASE_IMAGE=${BASE_PIN}" \
+      -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver" \
+      --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
+      --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
+      -t "${SERVER_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
+      "${REPO_ROOT}"
+  fi
+done
+
+# Create multi-arch manifest for server image if needed
+if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
+  docker buildx imagetools create -t "${SERVER_REPOSITORY}:${SERVER_TAG}" \
+    "${SERVER_REPOSITORY}:${SERVER_TAG}-amd64" \
+    "${SERVER_REPOSITORY}:${SERVER_TAG}-arm64"
+fi
 
 SERVER_DIGEST="$(docker buildx imagetools inspect "${SERVER_REPOSITORY}:${SERVER_TAG}" | awk '/^Digest:/ {print $2; exit}')"
 [[ "${SERVER_DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Could not resolve server digest" >&2; exit 1; }
