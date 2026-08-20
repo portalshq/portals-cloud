@@ -66,6 +66,9 @@ if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
   docker buildx imagetools create -t "${TAGGED_IMAGE}" \
     "${REPOSITORY}:${TAG}-amd64" \
     "${REPOSITORY}:${TAG}-arm64"
+else
+  # Single-arch: create base tag pointing to the arch-specific manifest
+  docker buildx imagetools create -t "${TAGGED_IMAGE}" "${REPOSITORY}:${TAG}-${ARCHS[0]}"
 fi
 
 DIGEST="$(docker buildx imagetools inspect "${TAGGED_IMAGE}" | awk '/^Digest:/ {print $2; exit}')"

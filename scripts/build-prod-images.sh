@@ -95,14 +95,38 @@ aws sts get-caller-identity >/dev/null 2>&1 || { echo "AWS credentials not confi
 # Check KMS key access
 aws kms describe-key --key-id alias/portals-artifact-signing --region us-east-1 >/dev/null 2>&1 || { echo "Cannot access artifact-signing KMS key" >&2; exit 1; }
 
+# ECR login (guarded, idempotent; tokens expire ~12h)
+echo "=== Logging into ECR ==="
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+
+# Retry wrapper: 3 attempts, 10s backoff
+retry() {
+  local max_attempts=3
+  local attempt=1
+  local cmd=("$@")
+  while true; do
+    if "${cmd[@]}"; then
+      return 0
+    fi
+    local rc=$?
+    if (( attempt >= max_attempts )); then
+      echo "Command failed after ${max_attempts} attempts: ${cmd[*]}" >&2
+      return ${rc}
+    fi
+    echo "Attempt ${attempt} failed (rc=${rc}); retrying in 10s..." >&2
+    sleep 10
+    ((attempt++))
+  done
+}
+
 echo "=== Building Lore Server Image ==="
 cd "${REPO_ROOT}"
-./infra/lore/scripts/docker-buildx-lore.sh
+retry ./infra/lore/scripts/docker-buildx-lore.sh
 echo ""
 
 echo "=== Building Auth Gateway Image ==="
 cd "${REPO_ROOT}/control-plane"
-./scripts/publish-auth-gateway.sh
+retry ./scripts/publish-auth-gateway.sh
 echo ""
 
 echo "=== Build Complete ==="

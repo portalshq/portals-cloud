@@ -79,6 +79,9 @@ if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
   docker buildx imagetools create -t "${BASE_REPOSITORY}:${BASE_TAG}" \
     "${BASE_REPOSITORY}:${BASE_TAG}-amd64" \
     "${BASE_REPOSITORY}:${BASE_TAG}-arm64"
+else
+  # Single-arch: create base tag pointing to the arch-specific manifest
+  docker buildx imagetools create -t "${BASE_REPOSITORY}:${BASE_TAG}" "${BASE_REPOSITORY}:${BASE_TAG}-${ARCHS[0]}"
 fi
 
 BASE_DIGEST="$(docker buildx imagetools inspect "${BASE_REPOSITORY}:${BASE_TAG}" | awk '/^Digest:/ {print $2; exit}')"
@@ -114,6 +117,9 @@ if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
   docker buildx imagetools create -t "${SERVER_REPOSITORY}:${SERVER_TAG}" \
     "${SERVER_REPOSITORY}:${SERVER_TAG}-amd64" \
     "${SERVER_REPOSITORY}:${SERVER_TAG}-arm64"
+else
+  # Single-arch: create base tag pointing to the arch-specific manifest
+  docker buildx imagetools create -t "${SERVER_REPOSITORY}:${SERVER_TAG}" "${SERVER_REPOSITORY}:${SERVER_TAG}-${ARCHS[0]}"
 fi
 
 SERVER_DIGEST="$(docker buildx imagetools inspect "${SERVER_REPOSITORY}:${SERVER_TAG}" | awk '/^Digest:/ {print $2; exit}')"
