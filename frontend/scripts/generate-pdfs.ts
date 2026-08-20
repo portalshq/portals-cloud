@@ -1,156 +1,47 @@
-import crypto from 'crypto'
-import fs from 'fs'
-import path from 'path'
-import {fileURLToPath} from 'url'
-import {pdf} from '@react-pdf/renderer'
-import React from 'react'
-import {PaidPilotPdfDocument} from '../src/components/pdf/PaidPilotPdfDocument.js'
-import {ResourcePdfDocument} from '../src/components/pdf/ResourcePdfDocument.js'
-import {resolvePdfFileName} from '../src/lib/resource-pdf.js'
-import {
-  getPublishedResourceForPdf,
-  getResourceSlugs,
-} from '../src/sanity/lib/resources.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-type ManifestEntry =
-  | string
-  | {
-      hash: string
-      fileName: string
-    }
-
-type Manifest = Record<string, ManifestEntry>
-
-const FIELD_GUIDE_COVER_IMAGE = path.resolve(
-  __dirname,
-  '../public/images/pdf/production-memory-cover.png',
-)
-
-const GENERATION_FINGERPRINT_FILES = [
-  __filename,
-  path.resolve(__dirname, '../src/components/pdf/PaidPilotPdfDocument.tsx'),
-  path.resolve(__dirname, '../src/components/pdf/ResourcePdfDocument.tsx'),
-  path.resolve(__dirname, '../src/pdf-templates/ResourceTemplate.tsx'),
-  path.resolve(__dirname, '../src/lib/package-specifications.ts'),
-  path.resolve(__dirname, '../src/lib/resource-pdf.ts'),
-  FIELD_GUIDE_COVER_IMAGE,
-  path.resolve(__dirname, '../public/fonts/pdf/DieGroteskC-Light.ttf'),
-  path.resolve(__dirname, '../public/fonts/pdf/DieGroteskC-Regular.ttf'),
-  path.resolve(__dirname, '../public/fonts/pdf/DieGroteskB-Regular.ttf'),
-  path.resolve(__dirname, '../public/fonts/pdf/DieGroteskB-Medium.ttf'),
-]
-
-const PDF_RESOURCE_PRESETS: Record<
-  string,
-  {
-    pdf: Partial<NonNullable<Awaited<ReturnType<typeof getPublishedResourceForPdf>>['pdf']>>
-    coverBackgroundImagePath?: string
-  }
-> = {
-  'production-memory-field-guide': {
-    pdf: {
-      coverStyle: 'fullPageArtwork',
-      includeDocumentCoverImage: false,
-    },
-    coverBackgroundImagePath: FIELD_GUIDE_COVER_IMAGE,
-  },
-}
-
-function hashFiles(filePaths: string[]): string {
-  const hash = crypto.createHash('sha256')
-
-  for (const filePath of filePaths) {
-    hash.update(filePath)
-    hash.update(fs.readFileSync(filePath))
-  }
-
-  return hash.digest('hex')
-}
-
-function readManifest(manifestPath: string): Manifest {
-  if (!fs.existsSync(manifestPath)) {
-    return {}
-  }
-
-  return JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
-}
-
-function getManifestHash(entry: ManifestEntry | undefined): string | undefined {
-  return typeof entry === 'string' ? entry : entry?.hash
-}
+import fs from 'node:fs'
+import path from 'node:path'
+import { getResourceSlugs } from '../src/sanity/lib/resources.js'
+import { generateForSlugs } from '../src/lib/pdf/generate.js'
+import { writePdfsToDisk } from '../src/lib/pdf/github.js'
+import { getGenerationFingerprint } from '../src/lib/pdf/fingerprint.js'
+import { readManifest } from '../src/lib/pdf/manifest.js'
 
 async function main() {
-  const slugs = await getResourceSlugs()
-  const assetsDir = path.resolve(__dirname, '../../generated-assets')
-  const pdfsDir = path.join(assetsDir, 'pdfs')
-  const manifestPath = path.join(assetsDir, 'manifest.json')
-  const generationFingerprint = hashFiles(GENERATION_FINGERPRINT_FILES)
+  const cliSlugs = process.argv.includes('--slugs')
+    ? (process.argv[process.argv.indexOf('--slugs') + 1] || '').split(',').map((s) => s.trim()).filter(Boolean)
+    : []
 
-  if (!fs.existsSync(pdfsDir)) {
-    fs.mkdirSync(pdfsDir, {recursive: true})
+  const slugs = cliSlugs.length ? cliSlugs : (await getResourceSlugs()).map((s) => s.slug)
+
+  const assetsDir = path.resolve(process.cwd(), '../generated-assets')
+  const altAssetsDir = path.resolve(process.cwd(), 'generated-assets')
+  const resolvedAssetsDir = fs.existsSync(assetsDir) ? assetsDir : altAssetsDir
+  const pdfsDir = path.join(resolvedAssetsDir, 'pdfs')
+  const manifestPath = path.join(resolvedAssetsDir, 'manifest.json')
+  const generationFingerprint = getGenerationFingerprint()
+
+  if (!fs.existsSync(pdfsDir)) fs.mkdirSync(pdfsDir, { recursive: true })
+
+  const manifest = readManifest(manifestPath) as Record<string, { hash: string; fileName: string }>
+
+  console.log(`Generation fingerprint: ${generationFingerprint.slice(0, 8)}...`)
+  console.log(`Checking ${slugs.length} slug(s): ${slugs.join(', ') || '(none)'}`)
+
+  const results = await generateForSlugs(slugs, { manifest, generationFingerprint })
+
+  for (const r of results) {
+    if (r.skipped) console.log(`Skipping ${r.slug}: ${r.reason}`)
+    else console.log(`Generating ${r.fileName}...`)
   }
 
-  const manifest = readManifest(manifestPath)
+  writePdfsToDisk(pdfsDir, manifestPath, results, manifest)
 
-  for (const {slug} of slugs) {
-    console.log(`Checking ${slug}...`)
-    const doc = await getPublishedResourceForPdf(slug)
-    if (!doc) continue
-
-    if (doc.pdf?.enabled === false) {
-      console.log(`Skipping ${slug}, PDF generation is disabled.`)
-      continue
-    }
-
-    const fileName = resolvePdfFileName(doc)
-    const preset = PDF_RESOURCE_PRESETS[slug]
-    const pdfDocument = preset
-      ? {
-          ...doc,
-          pdf: {
-            ...doc.pdf,
-            ...preset.pdf,
-          },
-        }
-      : doc
-    const contentHash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify({document: doc, generationFingerprint, fileName}))
-      .digest('hex')
-
-    if (getManifestHash(manifest[slug]) === contentHash) {
-      console.log(`Skipping ${slug}, no changes.`)
-      continue
-    }
-
-    console.log(`Generating ${fileName}...`)
-    const docElement =
-      slug === 'paid-pilot'
-        ? React.createElement(PaidPilotPdfDocument, {
-            document: pdfDocument,
-          })
-        : React.createElement(ResourcePdfDocument, {
-            document: pdfDocument,
-            assets: {
-              coverBackgroundImage: preset?.coverBackgroundImagePath,
-            },
-          })
-    const blob = await pdf(docElement).toBlob()
-    const buffer = Buffer.from(await blob.arrayBuffer())
-
-    fs.writeFileSync(path.join(pdfsDir, fileName), buffer)
-
-    manifest[slug] = {hash: contentHash, fileName}
-  }
-
-  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
+  // Cleanup stale entries: slugs that no longer exist as published docs
+  // Already handled for disabled/not-found via writePdfsToDisk; also prune manifest entries not in current slugs
   console.log('PDF generation complete.')
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(err)
   process.exit(1)
 })

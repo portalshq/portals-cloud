@@ -13,17 +13,18 @@ import type {
   ResourceDocument,
 } from '@/types/resource'
 
-const FONT_ROOT = new URL('../../../public/fonts/', import.meta.url)
+import path from 'node:path'
+const FONT_ROOT = path.resolve(process.cwd(), 'public/fonts/pdf')
 
 Font.register({
   family: 'DieGroteskB',
   fonts: [
     {
-      src: new URL('pdf/DieGroteskB-Regular.ttf', FONT_ROOT).pathname,
+      src: path.join(FONT_ROOT, 'DieGroteskB-Regular.ttf'),
       fontWeight: 400,
     },
     {
-      src: new URL('pdf/DieGroteskB-Medium.ttf', FONT_ROOT).pathname,
+      src: path.join(FONT_ROOT, 'DieGroteskB-Medium.ttf'),
       fontWeight: 500,
     },
   ],
@@ -33,7 +34,7 @@ Font.register({
   family: 'DieGroteskC',
   fonts: [
     {
-      src: new URL('pdf/DieGroteskC-Light.ttf', FONT_ROOT).pathname,
+      src: path.join(FONT_ROOT, 'DieGroteskC-Light.ttf'),
       fontWeight: 300,
     },
   ],

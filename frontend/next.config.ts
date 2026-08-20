@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || '/',
   },
+  outputFileTracingIncludes: {
+    '/*': ['./public/fonts/pdf/*', './public/images/pdf/*'],
+  },
   typescript: {
     ignoreBuildErrors: false,
   },
