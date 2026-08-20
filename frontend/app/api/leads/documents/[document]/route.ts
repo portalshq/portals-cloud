@@ -11,7 +11,7 @@ import {hashValue} from '@/lib/leads/crypto'
 import {currentProfileToken} from '@/lib/leads/profile'
 import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
 import {cookies} from 'next/headers'
-import {calculateQualification, qualificationTier, recommendedWorkflow} from '@/lib/leads/scoring'
+import {calculateQualification, qualificationTier, recommendedWorkflow, qualificationReasonCodes, qualificationOutcome} from '@/lib/leads/scoring'
 import {
   consumeRateLimit,
   getPilotById,
@@ -121,23 +121,32 @@ export async function GET(
   }
 
   const fallbackScores = calculateQualification(fallbackAnswers)
+  const tier = profile.qualification?.tier || qualificationTier(fallbackScores)
+  const outcome = qualificationOutcome(tier)
+  const reasonCodes = qualificationReasonCodes(fallbackAnswers, fallbackScores, outcome)
   const data: PersonalizedQualification = {
     identity: profile.identity,
     answers: fallbackAnswers,
     scores: profile.qualification?.scores || fallbackScores,
-    tier: profile.qualification?.tier || qualificationTier(fallbackScores),
+    tier,
     recommendedWorkflow:
       profile.qualification?.recommendedWorkflow ||
       recommendedWorkflow(fallbackAnswers),
     generatedAt: new Date().toISOString(),
   }
+  // Attach reasonCodes for PDF generation (not in type but used by PDF)
+  ;(data as any).reasonCodes = reasonCodes
   const company = filePart(profile.identity.company || 'company') || 'company'
 
   if (documentKind === 'assessment-result') {
+    const pilotDocument = await getResourceDocument('paid-pilot')
+    if (!pilotDocument) {
+      return Response.json({error: 'pilot brief content is unavailable'}, {status: 503})
+    }
     const buffer = await renderToBuffer(
-      AssessmentResultPdfDocument({data}),
+      AssessmentResultPdfDocument({data, document: pilotDocument}),
     )
-    return pdfResponse(buffer, `${company}-production-workflow-evaluation.pdf`)
+    return pdfResponse(buffer, `${company}-workflow-evaluation-${data.tier}.pdf`)
   }
 
   const requiredPilotFields = [
