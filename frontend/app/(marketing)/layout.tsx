@@ -34,7 +34,7 @@ function Footer() {
         }}
       />
       <div className="col-span-full relative z-10 flex flex-col gap-y-fluid-[32,40] mb-12">
-        <div className="col-span-full h-full space-y-fluid-[32,40] ui-grid grid-cols-1 grid-rows-[min-content_1fr] lg:grid-cols-5 m-0 p-0">
+        <div className="col-span-full h-full space-y-fluid-[32,40] ui-grid grid-cols-1 grid-rows-[min-content_min-content_1fr] lg:grid-rows-[min-content_1fr] lg:grid-cols-5 m-0 p-0">
           <a href="/" className="col-span-full mb-40 t-d1-sans !font-medium">portals</a>
           <div className='col-span-full lg:col-span-3'>
             <p className="lowercase text-white t-p-sans">
@@ -42,7 +42,7 @@ function Footer() {
             </p>
           </div>
 
-          <div className='col-span-full lg:col-span-2 space-y-fluid-[32,40]'>
+          <div className='col-span-full lg:col-span-2 h-full space-y-fluid-[32,40]'>
           {/* <h4 className="font-medium mb-4">Product</h4> */}
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
               <li><a href="/privacy-policy" className="hover:text-white transition-colors">Privacy</a></li>
