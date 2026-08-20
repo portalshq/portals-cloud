@@ -13,17 +13,36 @@ export const maxDuration = 10
 
 function isValidSignature(rawBody: string, signature: string | null, secret: string): boolean {
   if (!signature || !secret) return false
-  // Sanity sends "t=...,v1=..." or plain hex. Support both.
   const sig = signature.trim()
-  // Extract v1 if present
-  const v1 = sig.includes('v1=') ? sig.split('v1=')[1]?.split(',')[0]?.trim() : sig
-  if (!v1) return false
-  const hmac = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
+  // Sanity format is `t=timestamp,v1=base64url(HMAC(timestamp.payload))` — see @sanity/webhook
+  const match = sig.match(/^t=(\d+)[, ]+v1=([^, ]+)$/)
+  if (!match) {
+    // Fallback: try plain hex HMAC for backwards compat / manual curl tests
+    const hmacHex = crypto.createHmac('sha256', secret.trim()).update(rawBody).digest('hex')
+    try {
+      // signature may be hex directly
+      if (sig.length === hmacHex.length) {
+        return crypto.timingSafeEqual(Buffer.from(hmacHex, 'hex'), Buffer.from(sig, 'hex'))
+      }
+    } catch {}
+    return false
+  }
+  const timestamp = match[1]
+  const v1 = match[2]
+  const payload = `${timestamp}.${rawBody}`
+  const hmacBase64Url = crypto
+    .createHmac('sha256', secret.trim())
+    .update(payload)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
   try {
-    return crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(v1, 'hex'))
+    // timingSafeEqual requires same length
+    if (hmacBase64Url.length !== v1.length) return false
+    return crypto.timingSafeEqual(Buffer.from(hmacBase64Url), Buffer.from(v1))
   } catch {
-    // fallback to raw string compare for base64 signatures
-    return hmac === v1
+    return false
   }
 }
 
