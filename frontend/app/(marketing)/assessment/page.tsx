@@ -63,8 +63,8 @@ function NumberLabel({index}: {index: number}) {
 }
 
 const pageLinks = [
-  {href: '#the-assessment', label: 'start the assessment'},
   {href: '#what-happens-next', label: 'what happens next'},
+  {href: '#the-assessment', label: 'start the assessment'},
 ]
 
 const nextSteps = [
@@ -158,7 +158,7 @@ export default async function WorkflowAssessmentPage() {
             </div>
             <nav
               aria-label="assessment sections"
-              className="col-span-full lg:col-span-6 lg:col-start-19 lg:self-start"
+              className="col-span-full lg:col-span-6 lg:col-start-19 lg:self-end"
             >
               <ol className="mt-18 space-y-12 border-t border-white/20 pt-16">
                 {pageLinks.map((link, index) => (
@@ -207,26 +207,10 @@ export default async function WorkflowAssessmentPage() {
           </div>
         </section>
 
-        <section id="the-assessment" className="relative">
-          <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-            <div className="col-span-2">
-              <NumberLabel index={1} />
-            </div> 
-            <p className="col-span-full max-w-[28em] lg:col-span-14 lg:col-start-9 t-p-lg-serif text-white">
-              Assess how well your team preserves approved work, production context, handoffs, continuity, and reproducibility.
-            </p>
-            <section className="col-span-full scroll-mt-24 lg:col-span-14 lg:col-start-9">
-              <div className="max-w-[42em] space-y-5 text-white">
-                <AssessmentForm context={context} />
-              </div>
-            </section>
-          </div>
-        </section>
-
         <section id="what-happens-next" className="relative">
           <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
             <div className="col-span-full lg:col-span-4">
-              <NumberLabel index={2} />
+              <NumberLabel index={1} />
             </div>
             <section className="col-span-full scroll-mt-24 lg:col-span-14 lg:col-start-9">
               <h2 className="max-w-[12em] t-h3-sans">what happens next</h2>
@@ -246,6 +230,22 @@ export default async function WorkflowAssessmentPage() {
           </div>
         </section>
 
+        <section id="the-assessment" className="relative">
+          <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
+            <div className="col-span-2">
+              <NumberLabel index={2} />
+            </div> 
+            <p className="col-span-full max-w-[28em] lg:col-span-14 lg:col-start-9 t-p-lg-serif text-white">
+              Assess how well your team preserves approved work, production context, handoffs, continuity, and reproducibility.
+            </p>
+            <section className="col-span-full scroll-mt-24 lg:col-span-14 lg:col-start-9">
+              <div className="max-w-[42em] space-y-5 text-white">
+                <AssessmentForm context={context} />
+              </div>
+            </section>
+          </div>
+        </section>
+
         <section className="relative" id="assessment-faq">
           <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
             <div className="col-span-full mx-auto lg:mx-0 lg:col-span-14 lg:col-start-9"><h2 className="t-d2-sans">assessment FAQs</h2></div>
@@ -260,7 +260,7 @@ export default async function WorkflowAssessmentPage() {
             <div className="col-span-full lg:col-span-3">
               <NumberLabel index={3} />
             </div>
-            <div className="col-span-full lg:col-span-13">
+            <div className="col-span-full lg:col-span-13 lg:col-start-8">
               <h2 className="max-w-[10em] t-d2-sans">
                 make your production workflow cost-effective
               </h2>
@@ -272,7 +272,6 @@ export default async function WorkflowAssessmentPage() {
               <div className="mt-32 flex flex-wrap items-center gap-16">
                 <CTAButton href="#the-assessment" analyticsLabel="View My Recommended Next Step" analyticsIntent="workflow_assessment">
                   <span>View my recommended next step</span>
-                  <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
                 </CTAButton>
                 <CTAButton
                   href="/contact?intent=workflow-assessment"
