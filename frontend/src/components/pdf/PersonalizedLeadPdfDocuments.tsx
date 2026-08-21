@@ -1,11 +1,20 @@
 import React, { type ReactElement } from 'react'
 import path from 'node:path'
 import {
+  Defs,
   Document,
   type DocumentProps,
   Font,
+  G,
+  LinearGradient,
+  Link,
   Page,
+  Path,
+  RadialGradient,
+  Rect,
+  Stop,
   StyleSheet,
+  Svg,
   Text,
   View,
 } from '@react-pdf/renderer'
@@ -36,6 +45,9 @@ const SUB_HEADING_SIZE = 16
 const NORMAL_SIZE = 10.5
 const SMALL_SIZE = 9
 const FONT_ROOT = path.resolve(process.cwd(), 'public/fonts/pdf')
+const CSS_PIXEL_TO_PDF_POINT = 0.75
+const COVER_COLOR_BAND_HEIGHT = 756 * CSS_PIXEL_TO_PDF_POINT
+const PAGE_COLOR_BAND_HEIGHT = 378 * CSS_PIXEL_TO_PDF_POINT
 
 Font.register({
   family: 'DieGroteskB',
@@ -60,9 +72,9 @@ const colors = {
   white: '#FFFFFF',
   muted: '#52617D',
   border: '#E5EBF4',
-  green: '#1E8A49',
-  amber: '#C47A00',
-  red: '#C0392B',
+  green: '#116B36',
+  amber: '#7A4900',
+  red: '#9C2E26',
   cardDark: '#17264A',
   cardLight: '#F0F5FA',
 }
@@ -175,13 +187,11 @@ const styles = StyleSheet.create({
     lineHeight: 1.3,
     color: colors.muted,
   },
-  kicker: {
+  sectionLabel: {
     marginBottom: 10,
-    fontSize: 8,
+    fontSize: 9.5,
     fontWeight: 500,
-    letterSpacing: 1.4,
     color: colors.blue,
-    textTransform: 'uppercase',
   },
   coverTitle: {
     marginTop: 52,
@@ -279,8 +289,8 @@ const styles = StyleSheet.create({
   scenarioHours: { width: 112 },
   scenarioValue: { flex: 1, textAlign: 'right', fontWeight: 500 },
   workflowCard: {
-    marginTop: 18,
-    padding: 19,
+    marginTop: 14,
+    padding: 15,
     backgroundColor: colors.cardLight,
     borderRadius: 2,
   },
@@ -290,8 +300,8 @@ const styles = StyleSheet.create({
     fontWeight: 300,
     lineHeight: 1.05,
   },
-  workflowCardBody: { marginTop: 11, fontSize: 10, lineHeight: 1.32 },
-  workflowCardOutcome: { marginTop: 9, fontSize: 10, lineHeight: 1.32, color: colors.blue },
+  workflowCardBody: { marginTop: 8, fontSize: 10, lineHeight: 1.3 },
+  workflowCardOutcome: { marginTop: 7, fontSize: 10, lineHeight: 1.3, color: colors.blue },
   evidenceRow: {
     flexDirection: 'row',
     paddingVertical: 12,
@@ -302,27 +312,35 @@ const styles = StyleSheet.create({
   evidenceSignal: { width: 112, fontWeight: 500 },
   evidenceMeaning: { width: 166, color: colors.muted },
   evidenceResponse: { flex: 1, color: colors.blue },
-  outcomeGrid: { marginTop: 18, flexDirection: 'row', gap: 16 },
-  outcomeItem: { width: 116 },
-  outcomeTitle: { fontWeight: 500, color: colors.blue },
-  outcomeBody: { marginTop: 6, fontSize: 8.5, lineHeight: 1.3, color: colors.muted },
-  pilotHero: {
+  mechanismRow: { marginTop: 9, flexDirection: 'row', gap: 14 },
+  mechanismItem: {
+    width: 164,
+    paddingTop: 7,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  mechanismTitle: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 14,
+    fontWeight: 300,
+    color: colors.blue,
+  },
+  mechanismBody: { marginTop: 5, fontSize: 8.2, lineHeight: 1.25, color: colors.muted },
+  pilotSummary: {
     marginTop: 22,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     backgroundColor: colors.ink,
     color: colors.white,
-    flexDirection: 'row',
-    gap: 22,
   },
-  pilotHeroItem: { flex: 1 },
-  pilotHeroValue: {
+  pilotSummaryTitle: {
     fontFamily: 'DieGroteskC',
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: 300,
+    lineHeight: 1.15,
     color: colors.white,
   },
-  pilotHeroLabel: { marginTop: 5, fontSize: 8.5, lineHeight: 1.25, color: colors.lightBlue },
+  pilotSummaryDetail: { marginTop: 9, fontSize: 9.5, lineHeight: 1.35, color: colors.lightBlue },
   cleanListItem: { flexDirection: 'row', marginBottom: 9, gap: 9 },
   cleanListIndex: { width: 16, fontSize: 8, fontWeight: 500, color: colors.blue },
   cleanListText: { flex: 1, fontSize: 9.5, lineHeight: 1.3 },
@@ -343,6 +361,7 @@ const styles = StyleSheet.create({
   measureEvidence: { flex: 1, color: colors.muted },
   scoreRow: { marginBottom: 17 },
   scoreLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  scoreMeta: { fontSize: 8.5, color: colors.muted, textAlign: 'right' },
   scoreTrack: { height: 5, backgroundColor: colors.cardLight },
   scoreFill: { height: 5, backgroundColor: colors.blue },
   profileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
@@ -356,6 +375,95 @@ const styles = StyleSheet.create({
     fontWeight: 300,
     lineHeight: 1.12,
     color: colors.blue,
+  },
+  colorBand: {
+    position: 'relative',
+    height: PAGE_COLOR_BAND_HEIGHT,
+    marginTop: 18,
+    overflow: 'hidden',
+    color: colors.white,
+  },
+  coverColorBand: {
+    position: 'absolute',
+    top: -42,
+    left: -44,
+    width: 612,
+    height: COVER_COLOR_BAND_HEIGHT,
+    overflow: 'hidden',
+  },
+  colorBandArtwork: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  colorBandContent: {
+    position: 'absolute',
+    top: 22,
+    right: 24,
+    bottom: 20,
+    left: 24,
+  },
+  colorBandLabel: {
+    marginBottom: 9,
+    fontSize: 8.5,
+    fontWeight: 500,
+    color: '#D9F7FF',
+  },
+  colorBandTitle: {
+    maxWidth: 430,
+    fontFamily: 'DieGroteskC',
+    fontSize: 22,
+    fontWeight: 300,
+    lineHeight: 1.04,
+    color: colors.white,
+  },
+  colorBandBody: {
+    marginTop: 8,
+    maxWidth: 440,
+    fontSize: 9.5,
+    lineHeight: 1.32,
+    color: '#E9F8FF',
+  },
+  colorBandMetric: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 28,
+    fontWeight: 300,
+    lineHeight: 1,
+    color: colors.white,
+  },
+  colorBandMetricLabel: {
+    marginTop: 5,
+    fontSize: 8.2,
+    lineHeight: 1.25,
+    color: '#D9F7FF',
+  },
+  colorBandColumns: {
+    position: 'absolute',
+    right: 24,
+    bottom: 20,
+    left: 24,
+    flexDirection: 'row',
+    gap: 18,
+  },
+  colorBandColumn: {
+    flex: 1,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#A9E6F3',
+  },
+  colorBandColumnTitle: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 13,
+    fontWeight: 300,
+    color: colors.white,
+  },
+  colorBandColumnBody: {
+    marginTop: 4,
+    fontSize: 7.8,
+    lineHeight: 1.24,
+    color: '#D9F7FF',
   },
 })
 
@@ -389,10 +497,10 @@ const workflowLabels: Record<string, string> = {
 }
 
 const tierLabels: Record<QualificationTier, string> = {
-  high: 'High — Strong Pilot Candidate',
-  medium: 'Medium — Needs Clarification',
-  low: 'Low — Educational Path',
-  incomplete: 'Incomplete — More Data Needed',
+  high: 'Recommended — bounded paid pilot',
+  medium: 'Conditional — clarify scope',
+  low: 'Not yet — establish a baseline',
+  incomplete: 'Incomplete — more data needed',
 }
 
 const outcomeLabels: Record<QualificationOutcome, string> = {
@@ -463,6 +571,18 @@ function valueModelCost(model: ValueModel | undefined, rate = 100): string {
   return model
     ? formatRange(model.low * rate, model.high * rate, (value) => `$${value.toLocaleString('en-US')}`)
     : 'baseline in pilot'
+}
+
+function recoveryScenario(model: ValueModel | undefined, rate = 100) {
+  if (!model) return undefined
+  const lowHours = Math.round(model.midpoint * 0.25)
+  const highHours = Math.round(model.midpoint * 0.5)
+  return {
+    low: { share: 0.25, hours: lowHours, value: lowHours * rate },
+    high: { share: 0.5, hours: highHours, value: highHours * rate },
+    hours: formatRange(lowHours, highHours, (value) => value.toLocaleString('en-US')),
+    value: formatRange(lowHours * rate, highHours * rate, (value) => `$${value.toLocaleString('en-US')}`),
+  }
 }
 
 function getValueModel(data: PersonalizedQualification): ValueModel | undefined {
@@ -567,8 +687,131 @@ function ReportHeader({ page }: { page: number }) {
   return <Header title={`your production workflow evaluation · ${page} / 5`} />
 }
 
-function Kicker({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.kicker}>{children}</Text>
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <Text style={styles.sectionLabel}>{children}</Text>
+}
+
+type SagaBandVariant = 0 | 1 | 2 | 3 | 4
+
+const sagaBandFrames: Record<SagaBandVariant, {
+  cyan: string
+  violet: string
+  magenta: string
+  bloom: { cx: string; cy: string; r: string }
+}> = {
+  0: {
+    cyan: 'M-80 505 C180 285 355 600 602 407 C818 238 971 164 1280 310 L1280 640 C993 512 820 574 608 657 C355 756 132 641 -80 728 Z',
+    violet: 'M-70 167 C196 26 367 258 597 192 C820 128 1009 -41 1280 100 L1280 393 C1026 242 838 401 604 352 C371 303 165 91 -70 332 Z',
+    magenta: 'M-55 694 C188 532 383 767 604 612 C831 454 1020 480 1280 620 L1280 820 L-55 820 Z',
+    bloom: { cx: '72%', cy: '53%', r: '58%' },
+  },
+  1: {
+    cyan: 'M-80 454 C148 622 358 225 603 408 C827 576 1048 257 1280 421 L1280 719 C1054 593 851 725 610 593 C373 463 144 744 -80 607 Z',
+    violet: 'M-72 86 C183 285 385 31 615 192 C836 347 1024 122 1280 264 L1280 500 C1032 410 821 528 594 385 C359 238 147 484 -72 303 Z',
+    magenta: 'M-80 670 C161 468 354 653 570 575 C821 484 1040 591 1280 504 L1280 820 L-80 820 Z',
+    bloom: { cx: '27%', cy: '61%', r: '62%' },
+  },
+  2: {
+    cyan: 'M-70 556 C153 359 358 659 572 488 C819 291 1020 348 1280 207 L1280 551 C1010 655 824 494 601 669 C378 844 150 502 -70 728 Z',
+    violet: 'M-70 224 C155 48 357 348 580 172 C827 -23 1024 180 1280 40 L1280 337 C1012 470 821 286 597 440 C365 599 154 277 -70 463 Z',
+    magenta: 'M-80 735 C158 581 373 714 592 629 C833 536 1014 701 1280 545 L1280 820 L-80 820 Z',
+    bloom: { cx: '82%', cy: '35%', r: '54%' },
+  },
+  3: {
+    cyan: 'M-80 407 C155 193 375 566 602 382 C829 198 1036 571 1280 361 L1280 699 C1042 818 831 524 603 704 C374 886 146 532 -80 728 Z',
+    violet: 'M-80 103 C158 294 376 -3 609 207 C826 404 1043 102 1280 300 L1280 527 C1034 356 838 621 594 425 C361 239 149 526 -80 323 Z',
+    magenta: 'M-80 657 C172 493 361 766 609 575 C829 404 1044 702 1280 493 L1280 820 L-80 820 Z',
+    bloom: { cx: '46%', cy: '44%', r: '60%' },
+  },
+  4: {
+    cyan: 'M-80 514 C173 706 352 314 591 492 C827 669 1021 328 1280 467 L1280 736 C1025 608 820 793 587 625 C351 455 159 791 -80 628 Z',
+    violet: 'M-70 163 C176 -14 384 322 615 146 C833 -20 1042 322 1280 135 L1280 418 C1035 535 827 290 600 478 C370 668 157 288 -70 453 Z',
+    magenta: 'M-80 719 C176 524 379 684 592 594 C828 494 1040 664 1280 535 L1280 820 L-80 820 Z',
+    bloom: { cx: '20%', cy: '38%', r: '58%' },
+  },
+}
+
+function SagaColorBand({
+  children,
+  cover = false,
+  variant,
+}: {
+  children?: React.ReactNode
+  cover?: boolean
+  variant: SagaBandVariant
+}) {
+  const frame = sagaBandFrames[variant]
+  const id = `saga-band-${variant}`
+
+  return (
+    <View style={cover ? styles.coverColorBand : styles.colorBand} wrap={false}>
+      <Svg
+        style={styles.colorBandArtwork}
+        width="100%"
+        height="100%"
+        viewBox="0 0 1200 756"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <Defs>
+          <LinearGradient id={`${id}-base`} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor="#0E115F" />
+            <Stop offset="0.46" stopColor="#053A68" />
+            <Stop offset="1" stopColor="#726DD2" />
+          </LinearGradient>
+          <LinearGradient id={`${id}-cyan`} x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#0E115F" stopOpacity={0.15} />
+            <Stop offset="0.32" stopColor="#3A87CB" stopOpacity={0.92} />
+            <Stop offset="0.55" stopColor="#B6F2FF" stopOpacity={0.98} />
+            <Stop offset="0.72" stopColor="#FFFFFF" stopOpacity={0.9} />
+            <Stop offset="1" stopColor="#4470CC" stopOpacity={0.35} />
+          </LinearGradient>
+          <LinearGradient id={`${id}-violet`} x1="0" y1="0" x2="1" y2="0.2">
+            <Stop offset="0" stopColor="#0E115F" stopOpacity={0.55} />
+            <Stop offset="0.42" stopColor="#726DD2" stopOpacity={0.94} />
+            <Stop offset="0.7" stopColor="#DD30C9" stopOpacity={0.82} />
+            <Stop offset="1" stopColor="#0E115F" stopOpacity={0.45} />
+          </LinearGradient>
+          <LinearGradient id={`${id}-magenta`} x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#C243A7" stopOpacity={0.22} />
+            <Stop offset="0.46" stopColor="#DD30C9" stopOpacity={0.9} />
+            <Stop offset="1" stopColor="#726DD2" stopOpacity={0.32} />
+          </LinearGradient>
+          <LinearGradient id={`${id}-shade`} x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#07112C" stopOpacity={0.92} />
+            <Stop offset="0.48" stopColor="#07112C" stopOpacity={0.44} />
+            <Stop offset="1" stopColor="#07112C" stopOpacity={0.08} />
+          </LinearGradient>
+          <RadialGradient id={`${id}-bloom`} cx={frame.bloom.cx} cy={frame.bloom.cy} r={frame.bloom.r}>
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.72} />
+            <Stop offset="0.22" stopColor="#B6F2FF" stopOpacity={0.46} />
+            <Stop offset="0.62" stopColor="#3A87CB" stopOpacity={0.12} />
+            <Stop offset="1" stopColor="#0E115F" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect width="1200" height="756" fill={`url(#${id}-base)`} />
+        <Path d={frame.violet} fill={`url(#${id}-violet)`} />
+        <Path d={frame.cyan} fill={`url(#${id}-cyan)`} />
+        <Path d={frame.magenta} fill={`url(#${id}-magenta)`} />
+        <Rect width="1200" height="756" fill={`url(#${id}-bloom)`} />
+        <G opacity={0.48}>
+          <Path
+            d="M-40 575 C208 373 370 677 608 502 C845 327 1001 441 1240 277"
+            fill="none"
+            stroke="#FFFFFF"
+            strokeWidth="3"
+          />
+          <Path
+            d="M-40 590 C206 390 375 700 611 520 C843 344 1018 472 1240 302"
+            fill="none"
+            stroke="#B6F2FF"
+            strokeWidth="1"
+          />
+        </G>
+        <Rect width="1200" height="756" fill={`url(#${id}-shade)`} />
+      </Svg>
+      {children ? <View style={styles.colorBandContent}>{children}</View> : null}
+    </View>
+  )
 }
 
 function CleanList({ items }: { items: string[] }) {
@@ -597,8 +840,8 @@ function ScoreBar({ label, score, coverage }: { label: string; score: number; co
   return (
     <View style={styles.scoreRow} wrap={false}>
       <View style={styles.scoreLabelRow}>
-        <Text style={{ fontWeight: 500 }}>{label}</Text>
-        <Text>{score}% · {coverage}% response coverage</Text>
+        <Text style={{ flex: 1, fontWeight: 500 }}>{label}</Text>
+        <Text style={styles.scoreMeta}>{score}% · {coverage}% response coverage</Text>
       </View>
       <View style={styles.scoreTrack}>
         <View style={[styles.scoreFill, { width: `${Math.max(0, Math.min(100, score))}%` }]} />
@@ -637,22 +880,26 @@ function ReportFooter({ data, note }: { data: PersonalizedQualification; note?: 
 
 function Page1ExecutiveSummary({ data }: { data: PersonalizedQualification }) {
   const model = getValueModel(data)
+  const recovery = recoveryScenario(model)
   const workflow = getRecommendedWorkflowLabel(data)
   const reasons = getReasonCodeLabels(data.reasonCodes || []).slice(0, 3)
 
   return (
-    <Page size="LETTER" style={[styles.page, styles.cover]}>
+    <Page size="LETTER" style={[styles.page, styles.cover]} bookmark="Executive summary">
+      <SagaColorBand cover variant={0} />
       <Header title="prepared by portals" />
-      <Text style={[styles.kicker, { color: colors.lightBlue, marginTop: 18 }]}>prepared for {companyDisplay(data)}</Text>
+      <Text style={[styles.sectionLabel, { color: colors.lightBlue, marginTop: 18 }]}>Prepared for {companyDisplay(data)}</Text>
       <Text style={styles.coverTitle}>your production workflow evaluation</Text>
       <Text style={styles.coverCompany}>
         {companyDisplay(data)} · {preparedFor(data)} · {new Date(data.generatedAt).toLocaleDateString('en-US')}
       </Text>
 
       <View style={styles.coverRoi}>
-        <Text style={styles.coverRoiValue}>{valueModelCost(model)}</Text>
+        <Text style={styles.coverRoiValue}>{recovery?.value || 'ROI baseline in pilot'}</Text>
         <Text style={styles.coverRoiLabel}>
-          estimated annual capacity exposure at a $100 blended hourly planning rate · {valueModelHours(model)} contributor-hours
+          {recovery
+            ? `illustrative annual capacity value at 25–50% recovery · ${recovery.hours} contributor-hours returned · based on ${valueModelCost(model)} of reported exposure`
+            : 'The pilot will establish retrieval, recreation, and handoff baselines before value is projected.'}
         </Text>
       </View>
 
@@ -694,58 +941,51 @@ function Page1ExecutiveSummary({ data }: { data: PersonalizedQualification }) {
 function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
   const model = getValueModel(data)
   const rate = 100
-  const scenarios = model
-    ? [0.25, 0.5].map((share) => ({
-        share,
-        hours: Math.round(model.midpoint * share),
-        value: Math.round(model.midpoint * share * rate),
-      }))
-    : []
+  const recovery = recoveryScenario(model, rate)
+  const scenarios = recovery ? [recovery.low, recovery.high] : []
   const affectedValue = annualAffectedValueLabels[answer(data, 'annualAffectedValue')] || 'not provided'
 
   return (
-    <Page size="LETTER" style={styles.page}>
+    <Page size="LETTER" style={styles.page} bookmark="Business case">
       <ReportHeader page={2} />
-      <Kicker>01 · quantified opportunity</Kicker>
+      <SectionLabel>Quantified opportunity</SectionLabel>
       <Text style={styles.reportTitle}>the business case for production memory</Text>
       <Text style={styles.reportLead}>
-        A planning range built from the reported frequency, time loss, and affected team size.
+        A planning range built from {companyDisplay(data, 36)}'s reported frequency, time loss, and affected team size.
       </Text>
 
-      <View style={[styles.split, styles.reportSection]}>
-        <View style={styles.mainPane}>
-          <Text style={styles.sectionTitleSmall}>annual exposure equation</Text>
-          {model ? (
-            <View style={styles.equation} wrap={false}>
-              <View style={styles.equationFactor}>
-                <Text style={styles.equationValue}>{model.frequency.label}</Text>
-                <Text style={styles.equationLabel}>{model.frequency.annualized} incidents / year</Text>
-              </View>
-              <Text style={styles.equationOperator}>×</Text>
-              <View style={styles.equationFactor}>
-                <Text style={styles.equationValue}>{model.hoursLoss.label}</Text>
-                <Text style={styles.equationLabel}>lost / incident</Text>
-              </View>
-              <Text style={styles.equationOperator}>×</Text>
-              <View style={styles.equationFactor}>
-                <Text style={styles.equationValue}>{model.people.label}</Text>
-                <Text style={styles.equationLabel}>contributors affected</Text>
-              </View>
+      <SagaColorBand variant={1}>
+        <Text style={styles.colorBandLabel}>ANNUAL CAPACITY EXPOSURE</Text>
+        <Text style={styles.colorBandMetric}>{valueModelHours(model)} hours / year</Text>
+        <Text style={styles.colorBandMetricLabel}>
+          {valueModelCost(model, rate)} gross capacity exposure at the $100/hour planning rate
+        </Text>
+        {model ? (
+          <View style={styles.colorBandColumns}>
+            <View style={styles.colorBandColumn}>
+              <Text style={styles.colorBandColumnTitle}>{model.frequency.label}</Text>
+              <Text style={styles.colorBandColumnBody}>{model.frequency.annualized} incidents / year</Text>
             </View>
-          ) : (
-            <View style={styles.decisionBlock}>
-              <Text style={styles.decisionAsk}>Establish the missing baseline during pilot scoping.</Text>
-              <Text style={styles.muted}>Frequency, time loss, and affected contributors are all required for an auditable annual range.</Text>
+            <View style={styles.colorBandColumn}>
+              <Text style={styles.colorBandColumnTitle}>{model.hoursLoss.label}</Text>
+              <Text style={styles.colorBandColumnBody}>lost per incident</Text>
             </View>
-          )}
-
-          <View style={styles.valueRange}>
-            <Text style={styles.valueRangeNumber}>{valueModelHours(model)} hours / year</Text>
-            <Text style={styles.valueRangeLabel}>{valueModelCost(model, rate)} gross capacity exposure at $100/hour</Text>
+            <View style={styles.colorBandColumn}>
+              <Text style={styles.colorBandColumnTitle}>{model.people.label}</Text>
+              <Text style={styles.colorBandColumnBody}>contributors affected</Text>
+            </View>
           </View>
+        ) : (
+          <Text style={styles.colorBandBody}>
+            Establish frequency, time loss, and affected contributors during pilot scoping to create an auditable baseline.
+          </Text>
+        )}
+      </SagaColorBand>
 
+      <View style={[styles.split, { marginTop: 18 }]}>
+        <View style={styles.mainPane}>
           {scenarios.length ? (
-            <View style={{ marginTop: 24 }}>
+            <View>
               <Text style={styles.sectionTitleSmall}>illustrative recovery scenarios</Text>
               {scenarios.map((scenario) => (
                 <View key={scenario.share} style={styles.scenarioRow} wrap={false}>
@@ -760,10 +1000,10 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
             </View>
           ) : null}
 
-          <View style={styles.reportSection}>
+          <View style={{ marginTop: 17 }}>
             <Text style={styles.sectionTitleSmall}>where the return can compound</Text>
             <CleanList items={[
-              'Budget: less paid search, reconstruction, and avoidable rework.',
+              'Budget: less paid time spent searching, reconstructing, and repeating avoidable work.',
               'Collaboration: one production record for employees, vendors, and approvers.',
               'Consistency: approved state, source inputs, context, and lineage stay connected.',
               'Delivery: faster handoffs with fewer preventable version or context delays.',
@@ -772,7 +1012,7 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
         </View>
 
         <View style={styles.rightRail}>
-          <Kicker>at a glance</Kicker>
+          <SectionLabel>At a glance</SectionLabel>
           <RailMetric value={`${data.scores.workflowRiskScore}/24`} label="workflow risk score" />
           <RailMetric value={readable(answer(data, 'deliveryImpact'))} label="reported delivery impact" />
           <RailMetric value={affectedValue} label="annual value of affected work" />
@@ -786,71 +1026,66 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
 }
 
 function Page3WorkflowDiagnosis({ data }: { data: PersonalizedQualification }) {
+  const workflow = recommendedWorkflow(data)
   const activeWorkflow = clipped(
     answer(data, 'activeWorkflow') || answer(data, 'pilotWorkflow') || 'No active workflow description was supplied.',
     200,
   )
 
   return (
-    <Page size="LETTER" style={styles.page}>
+    <Page size="LETTER" style={styles.page} bookmark="Workflow diagnosis">
       <ReportHeader page={3} />
-      <Kicker>02 · workflow diagnosis</Kicker>
+      <SectionLabel>Workflow diagnosis</SectionLabel>
       <Text style={styles.reportTitle}>from scattered context to reusable production memory</Text>
       <Text style={styles.reportLead}>
-        portals connects prompts, source files, decisions, approvals, and lineage so AI output becomes reusable production infrastructure—not a disposable final file.
+        portals works beneath the AI tools your team already uses, preserving the context, decisions, approvals, and lineage that make valuable output reusable.
       </Text>
 
-      <View style={styles.reportSection}>
-        <Text style={styles.sectionTitleSmall}>workflow nominated by {companyDisplay(data, 30)}</Text>
-        <Text style={{ fontSize: 11, lineHeight: 1.35 }}>{activeWorkflow}</Text>
-        <WorkflowCard data={data} />
-      </View>
+      <SagaColorBand variant={2}>
+        <Text style={styles.colorBandLabel}>NOMINATED BY {companyDisplay(data, 30).toUpperCase()}</Text>
+        <Text style={styles.colorBandTitle}>{workflow.title}</Text>
+        <Text style={styles.colorBandBody}>{activeWorkflow}</Text>
+        <Text style={[styles.colorBandBody, { marginTop: 7 }]}>instead, {workflow.outcome}</Text>
+        <View style={styles.colorBandColumns}>
+          <View style={styles.colorBandColumn}>
+            <Text style={styles.colorBandColumnTitle}>capture</Text>
+            <Text style={styles.colorBandColumnBody}>Assets, prompts, references, and model details.</Text>
+          </View>
+          <View style={styles.colorBandColumn}>
+            <Text style={styles.colorBandColumnTitle}>connect</Text>
+            <Text style={styles.colorBandColumnBody}>Versions, ownership, decisions, and approvals.</Text>
+          </View>
+          <View style={styles.colorBandColumn}>
+            <Text style={styles.colorBandColumnTitle}>reuse</Text>
+            <Text style={styles.colorBandColumnBody}>Approved work, complete context, and derivative lineage.</Text>
+          </View>
+        </View>
+      </SagaColorBand>
 
-      <View style={styles.reportSection}>
+      <View style={{ marginTop: 18 }}>
         <Text style={styles.sectionTitleSmall}>what your answers indicate</Text>
-        <View style={[styles.evidenceRow, { paddingTop: 7 }]}>
+        <View style={[styles.evidenceRow, { paddingTop: 5, paddingBottom: 7 }]}>
           <Text style={[styles.evidenceSignal, styles.label]}>current signal</Text>
           <Text style={[styles.evidenceMeaning, styles.label]}>production consequence</Text>
           <Text style={[styles.evidenceResponse, styles.label]}>what portals makes testable</Text>
         </View>
-        <View style={styles.evidenceRow} wrap={false}>
+        <View style={[styles.evidenceRow, { paddingVertical: 8 }]} wrap={false}>
           <Text style={styles.evidenceSignal}>{readable(answer(data, 'approvedVersionMethod'))}</Text>
           <Text style={styles.evidenceMeaning}>Approval state lives in conventions or disconnected records.</Text>
           <Text style={styles.evidenceResponse}>Canonical approved state with version history.</Text>
         </View>
-        <View style={styles.evidenceRow} wrap={false}>
+        <View style={[styles.evidenceRow, { paddingVertical: 8 }]} wrap={false}>
           <Text style={styles.evidenceSignal}>{readable(answer(data, 'productionContextMethod'))}</Text>
           <Text style={styles.evidenceMeaning}>Prompts, references, and source files are hard to recover.</Text>
           <Text style={styles.evidenceResponse}>One structured record connected to the asset.</Text>
         </View>
-        <View style={styles.evidenceRow} wrap={false}>
+        <View style={[styles.evidenceRow, { paddingVertical: 8 }]} wrap={false}>
           <Text style={styles.evidenceSignal}>{readable(answer(data, 'incidentType'))} · {readable(answer(data, 'recreationFrequency'))}</Text>
           <Text style={styles.evidenceMeaning}>The team repays for work it already completed.</Text>
           <Text style={styles.evidenceResponse}>Retrieve, reproduce, and branch from proven work.</Text>
         </View>
       </View>
 
-      <View style={styles.reportSection}>
-        <Text style={styles.sectionTitleSmall}>the operational improvement to validate</Text>
-        <View style={styles.outcomeGrid}>
-          <View style={styles.outcomeItem}>
-            <Text style={styles.outcomeTitle}>budget</Text>
-            <Text style={styles.outcomeBody}>Less search and avoidable rework.</Text>
-          </View>
-          <View style={styles.outcomeItem}>
-            <Text style={styles.outcomeTitle}>collaboration</Text>
-            <Text style={styles.outcomeBody}>A record shared across teams and vendors.</Text>
-          </View>
-          <View style={styles.outcomeItem}>
-            <Text style={styles.outcomeTitle}>consistency</Text>
-            <Text style={styles.outcomeBody}>Approved state and lineage stay connected.</Text>
-          </View>
-          <View style={styles.outcomeItem}>
-            <Text style={styles.outcomeTitle}>delivery</Text>
-            <Text style={styles.outcomeBody}>Faster retrieval and clearer handoffs.</Text>
-          </View>
-        </View>
-      </View>
       <ReportFooter data={data} />
     </Page>
   )
@@ -865,44 +1100,48 @@ function Page4PilotCase({ data, document }: { data: PersonalizedQualification; d
   const participants = packageLimitLabel(spec, 'participants')
   const historicalProjects = packageLimitLabel(spec, 'historicalProjects')
   const model = getValueModel(data)
+  const recovery = recoveryScenario(model)
   const pilotPrice = spec?.price?.amount || 5000
   const breakEvenHours = Math.ceil(pilotPrice / 100)
 
   const measures = [
     ['approved retrieval', 'under 1 minute', 'timed retrieval test'],
-    ['context + reuse', 'record recovered and reused once', 'record review + completed artifact'],
-    ['time + handoff', 'improvement against baseline', 'time log + participant walkthrough'],
+    ['record + reuse', 'complete record reused once', 'record audit + derivative lineage'],
+    ['handoff', 'continue without original creator', 'participant walkthrough + time log'],
   ]
 
   return (
-    <Page size="LETTER" style={styles.page}>
+    <Page size="LETTER" style={styles.page} bookmark="Pilot validation plan">
       <ReportHeader page={4} />
-      <Kicker>03 · sponsor-ready validation</Kicker>
+      <SectionLabel>Sponsor-ready validation</SectionLabel>
       <Text style={styles.reportTitle}>a bounded paid pilot with a clear decision gate</Text>
       <Text style={styles.reportLead}>
         Prove or disprove value on one active {getRecommendedWorkflowLabel(data).toLowerCase()} workflow before wider deployment.
       </Text>
 
-      <View style={styles.pilotHero} wrap={false}>
-        <View style={styles.pilotHeroItem}>
-          <Text style={styles.pilotHeroValue}>{price}</Text>
-          <Text style={styles.pilotHeroLabel}>upfront pilot fee</Text>
+      <SagaColorBand variant={3}>
+        <Text style={styles.colorBandLabel}>THE CONTROLLED PROPOSITION</Text>
+        <Text style={styles.colorBandTitle}>A {price}, {periodModifier} test of one active production workflow.</Text>
+        <Text style={styles.colorBandBody}>
+          Validate production memory with a fixed scope, observable evidence, and an explicit deploy, extend, or stop decision.
+        </Text>
+        <View style={styles.colorBandColumns}>
+          <View style={styles.colorBandColumn}>
+            <Text style={styles.colorBandColumnTitle}>{firstValue}</Text>
+            <Text style={styles.colorBandColumnBody}>target to first complete production record</Text>
+          </View>
+          <View style={styles.colorBandColumn}>
+            <Text style={styles.colorBandColumnTitle}>{breakEvenHours} hours</Text>
+            <Text style={styles.colorBandColumnBody}>reclaimed capacity equal to the pilot fee</Text>
+          </View>
+          <View style={styles.colorBandColumn}>
+            <Text style={styles.colorBandColumnTitle}>one gate</Text>
+            <Text style={styles.colorBandColumnBody}>deploy, extend, or stop using measured evidence</Text>
+          </View>
         </View>
-        <View style={styles.pilotHeroItem}>
-          <Text style={styles.pilotHeroValue}>{periodModifier}</Text>
-          <Text style={styles.pilotHeroLabel}>focused evaluation window</Text>
-        </View>
-        <View style={styles.pilotHeroItem}>
-          <Text style={styles.pilotHeroValue}>{firstValue}</Text>
-          <Text style={styles.pilotHeroLabel}>to first complete production record</Text>
-        </View>
-        <View style={styles.pilotHeroItem}>
-          <Text style={styles.pilotHeroValue}>{breakEvenHours} hrs</Text>
-          <Text style={styles.pilotHeroLabel}>pilot-fee equivalent at the planning rate</Text>
-        </View>
-      </View>
+      </SagaColorBand>
 
-      <View style={[styles.split, styles.reportSection]}>
+      <View style={[styles.split, { marginTop: 18 }]}>
         <View style={styles.mainPane}>
           <Text style={styles.sectionTitleSmall}>what the pilot includes</Text>
           <CleanList items={[
@@ -913,14 +1152,14 @@ function Page4PilotCase({ data, document }: { data: PersonalizedQualification; d
           ]} />
         </View>
         <View style={styles.rightRail}>
-          <Kicker>value to prove</Kicker>
+          <SectionLabel>Value to prove</SectionLabel>
           <RailMetric value={valueModelHours(model)} label="annual hours currently exposed" />
-          <RailMetric value={model ? `${Math.round(model.midpoint * 0.25).toLocaleString('en-US')} hrs` : 'measure first'} label="25% midpoint recovery case" />
+          <RailMetric value={recovery ? `${recovery.hours} hrs` : 'measure first'} label="25–50% midpoint recovery case" />
           <RailMetric value={readable(answer(data, 'deliveryImpact'))} label="delivery risk to reduce" />
         </View>
       </View>
 
-      <View style={styles.reportSection}>
+      <View style={{ marginTop: 16 }}>
         <Text style={styles.sectionTitleSmall}>how success will be evidenced</Text>
         <View style={styles.measureHeader}>
           <Text style={[styles.measureName, styles.label]}>measure</Text>
@@ -947,33 +1186,36 @@ function Page5DecisionRecord({ data, document }: { data: PersonalizedQualificati
   const period = packageMilestoneLabel(spec, 'pilot period')
   const periodModifier = period.replace(/\s*days$/i, '-day')
   const outcome = assessmentOutcome(data.tier)
+  const recovery = recoveryScenario(getValueModel(data))
   const decisionAsk = outcome === 'pilot_candidate'
     ? `Authorize ${price} for a ${periodModifier} pilot to validate one workflow before wider deployment.`
     : outcome === 'clarify'
       ? `Authorize completion of pilot readiness; proceed with the ${price} pilot once owner, scope, and approval path are confirmed.`
       : 'Do not authorize a paid pilot yet. Establish a repeatable workflow and measurable baseline, then reassess.'
   return (
-    <Page size="LETTER" style={styles.page}>
+    <Page size="LETTER" style={styles.page} bookmark="Sponsor decision brief">
       <ReportHeader page={5} />
-      <Kicker>04 · decision record</Kicker>
-      <Text style={styles.reportTitle}>a manager-ready decision brief</Text>
+      <SectionLabel>Decision record</SectionLabel>
+      <Text style={styles.reportTitle}>a manager-ready brief for {companyDisplay(data, 32)}</Text>
       <Text style={styles.reportLead}>
         The recommendation, supporting evidence, and decision requested from a production sponsor.
       </Text>
 
       <View style={styles.decisionBlock} wrap={false}>
-        <Text style={styles.kicker}>recommended sponsor decision</Text>
+        <Text style={styles.sectionLabel}>Recommended sponsor decision</Text>
         <Text style={styles.decisionAsk}>{decisionAsk}</Text>
         <Text style={{ marginTop: 10, fontSize: 9.5, lineHeight: 1.35 }}>
-          Why now: {valueModelCost(getValueModel(data))} in annual capacity is exposed by the reported pattern, while the pilot contains the evaluation to one workflow and a defined decision window.
+          {recovery
+            ? `Why now: the 25–50% planning case returns ${recovery.value} in annual capacity value, while the pilot limits the investment, workflow, and decision window.`
+            : 'Why now: the pilot contains the evaluation to one workflow and establishes the baseline required for a defensible deployment decision.'}
         </Text>
       </View>
 
       <View style={[styles.split, styles.reportSection]}>
         <View style={styles.mainPane}>
           <Text style={styles.sectionTitleSmall}>assessment evidence</Text>
-          <ScoreBar label="production fit" score={data.scores.fit.normalized} coverage={data.scores.fit.coverage} />
-          <ScoreBar label="workflow pain" score={data.scores.pain.normalized} coverage={data.scores.pain.coverage} />
+          <ScoreBar label="workflow fit" score={data.scores.fit.normalized} coverage={data.scores.fit.coverage} />
+          <ScoreBar label="production risk" score={data.scores.pain.normalized} coverage={data.scores.pain.coverage} />
           <ScoreBar label="pilot readiness" score={data.scores.intent.normalized} coverage={data.scores.intent.coverage} />
 
           <View style={{ marginTop: 12 }}>
@@ -991,7 +1233,7 @@ function Page5DecisionRecord({ data, document }: { data: PersonalizedQualificati
         </View>
 
         <View style={styles.rightRail}>
-          <Kicker>next actions</Kicker>
+          <SectionLabel>Next actions</SectionLabel>
           <CleanList items={outcome === 'pilot_candidate' ? [
             'Name the production owner, economic buyer, and technical evaluator.',
             'Confirm the workflow, integrations, data classification, and success targets.',
@@ -1006,9 +1248,9 @@ function Page5DecisionRecord({ data, document }: { data: PersonalizedQualificati
             'Reassess when the value hypothesis is testable.',
           ]} />
           <Text style={[styles.profileLabel, { marginTop: 18 }]}>continue</Text>
-          <Text style={{ fontSize: 10, color: colors.blue, textDecoration: 'underline' }}>portals.works/paid-pilot</Text>
+          <Link src="https://portals.works/paid-pilot" style={{ fontSize: 10, color: colors.blue, textDecoration: 'underline' }}>portals.works/paid-pilot</Link>
           <Text style={[styles.profileLabel, { marginTop: 14 }]}>questions</Text>
-          <Text style={{ fontSize: 10, color: colors.blue, textDecoration: 'underline' }}>portals.works/contact</Text>
+          <Link src="https://portals.works/contact" style={{ fontSize: 10, color: colors.blue, textDecoration: 'underline' }}>portals.works/contact</Link>
         </View>
       </View>
 
@@ -1046,6 +1288,8 @@ export function AssessmentResultPdfDocument({
       subject={`Sponsor-ready production workflow evaluation for ${companyName(data)}`}
       creator="portals"
       producer="portals"
+      language="en-US"
+      pageLayout="singlePage"
     >
       <Page1ExecutiveSummary data={data} />
       <Page2BusinessCase data={data} />

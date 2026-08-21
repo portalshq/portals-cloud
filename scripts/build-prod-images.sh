@@ -8,6 +8,8 @@
 
 set -euo pipefail
 
+export AWS_REGION="${AWS_REGION:-us-east-1}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -22,7 +24,7 @@ fi
 ECR_REGISTRY="${ECR_REGISTRY:-907199504810.dkr.ecr.us-east-1.amazonaws.com}"
 ENVIRONMENT="${ENVIRONMENT:-prod}"
 REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-true}"
-COSIGN_KEY="${COSIGN_KEY:-aws-kms://alias/portals-artifact-signing}"
+COSIGN_KEY="${COSIGN_KEY:-awskms:///alias/portals-artifact-signing}"
 ECR_NAMESPACE="${ECR_NAMESPACE:-portals-prod}"
 
 # Separate architecture configuration for each service

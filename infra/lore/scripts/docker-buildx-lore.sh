@@ -129,7 +129,7 @@ SERVER_PIN="${SERVER_REPOSITORY}@${SERVER_DIGEST}"
 if [[ "${REQUIRE_SIGNATURE}" == "true" ]]; then
   command -v cosign >/dev/null || { echo "cosign is required when REQUIRE_SIGNATURE=true" >&2; exit 2; }
   : "${COSIGN_KEY:?Set COSIGN_KEY to the dedicated artifact-signing KMS URI or key reference}"
-  cosign sign --yes --key "${COSIGN_KEY}" "${SERVER_PIN}"
+  AWS_REGION="${AWS_REGION:-us-east-1}" cosign sign --yes --key "${COSIGN_KEY}" "${SERVER_PIN}"
 fi
 
 # The base pin is build input, not a deployable service. Record it only after
