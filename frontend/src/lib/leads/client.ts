@@ -72,7 +72,21 @@ export function clearLeadProfileStorage() {
   }
 }
 
+const PROFILE_RESET_KEY = 'portals_profile_reset_timestamp'
+
 export async function resetKnownProfile(): Promise<void> {
+  // Set a flag to indicate profile reset is in progress
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(PROFILE_RESET_KEY, Date.now().toString())
+    } catch {
+      // ignore storage errors
+    }
+  }
+  
+  // Clear form drafts first to prevent restoration after reload
+  clearAllFormDrafts()
+  
   try {
     await fetch('/api/leads', {
       method: 'POST',
@@ -82,7 +96,7 @@ export async function resetKnownProfile(): Promise<void> {
   } catch (error) {
     console.error('Failed to reset profile on server:', error)
   }
-  clearLeadProfileStorage()
+  
   if (typeof document !== 'undefined') {
     document.querySelectorAll('form').forEach((form) => {
       try {
@@ -92,8 +106,33 @@ export async function resetKnownProfile(): Promise<void> {
       }
     })
   }
+  
+  clearLeadProfileStorage()
+  
+  // Double-check form drafts are cleared after all other cleanup
+  clearAllFormDrafts()
+  
   if (typeof window !== 'undefined') {
     window.location.replace(window.location.href)
+  }
+}
+
+export function shouldSkipFormDraftRestore(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const resetTimestamp = window.localStorage.getItem(PROFILE_RESET_KEY)
+    if (!resetTimestamp) return false
+    
+    // If reset was less than 2 seconds ago, skip draft restoration
+    const resetTime = parseInt(resetTimestamp, 10)
+    const shouldSkip = Date.now() - resetTime < 2000
+    
+    // Clear the flag after checking
+    window.localStorage.removeItem(PROFILE_RESET_KEY)
+    
+    return shouldSkip
+  } catch {
+    return false
   }
 }
 

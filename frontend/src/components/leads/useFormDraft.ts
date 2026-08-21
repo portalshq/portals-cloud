@@ -10,6 +10,7 @@ import {
   writeFormDraft,
   type FormDraft,
 } from '@/lib/leads/form-draft'
+import {shouldSkipFormDraftRestore} from '@/lib/leads/client'
 
 const PERSIST_DELAY_MS = 350
 
@@ -47,6 +48,13 @@ export function useFormDraft(formName: string) {
 
   useEffect(() => {
     if (!formElement) return
+    
+    // Skip draft restoration if a profile reset just occurred
+    if (shouldSkipFormDraftRestore()) {
+      setRestored({})
+      return
+    }
+    
     const values = readFormDraft(storageKey)
     setRestored(values)
     applyDraftValues(formElement, values)
