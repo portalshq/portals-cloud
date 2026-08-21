@@ -2,17 +2,18 @@
   "schemaVersion": 1,
   "releases": {
     "nap-client": {
-      "version": "0.5.8",
-      "sourceCommit": "28fd29d4e02e013eff1b1fb671cd8d7e45638775",
-      "releaseTag": "v0.5.8",
-      "securityContract": "legacy",
-      "artifactManifestSha256": "",
-      "loreClientVersion": "0.8.4",
-      "loreClientArtifactManifestSha256": "",
-      "napSignatureVerified": false,
-      "napChecksumsVerified": false,
-      "loreSignatureVerified": false,
-      "verifiedAt": ""
+      "version": "0.5.12",
+      "sourceCommit": "8501e7db577d2cc0860a9dc5bc085ef1634ba0a8",
+      "releaseTag": "v0.5.12",
+      "securityContract": "lore-auth-v1",
+      "artifactManifestSha256": "sha256:2ce79d5b68e0d38b2ed22156936db17db41631d7c9be0dffecdcd17e90f20ca3",
+      "loreClientVersion": "0.8.4-portals.5",
+      "loreClientSourceCommit": "1c0de969560779d55966152715a909eea45241e8",
+      "loreClientArtifactManifestSha256": "sha256:6285c50ff490870a8417db442f75ab73d53578f52eacacd31011cd350b957457",
+      "napSignatureVerified": true,
+      "napChecksumsVerified": true,
+      "loreSignatureVerified": true,
+      "verifiedAt": "2026-08-21T16:09:42.099Z"
     }
   }
 }

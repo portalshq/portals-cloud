@@ -42,14 +42,14 @@ if (versions.getIn(["schema_version"]) !== 2) {
 }
 const loreClient = versions.getIn(["lore-client"]);
 if (!loreClient ||
-    loreClient.source_repository !== "https://github.com/portalshq/lore" ||
-    loreClient.source_commit !== verifiedLoreSourceCommit ||
-    loreClient.version !== metadata.lore_client_version ||
-    loreClient.release_tag !== `v${metadata.lore_client_version}` ||
-    loreClient.installer_sha256 !== metadata.lore_client_installer_sha256 ||
-    loreClient.artifact_manifest_url !== metadata.lore_client_artifact_manifest_url ||
-    loreClient.artifact_manifest_sha256 !== metadata.lore_client_artifact_manifest_sha256 ||
-    loreClient.signature_bundle_url !== metadata.lore_client_signature_bundle_url) {
+    loreClient.get("source_repository") !== "https://github.com/portalshq/lore" ||
+    loreClient.get("source_commit") !== verifiedLoreSourceCommit ||
+    loreClient.get("version") !== metadata.lore_client_version ||
+    loreClient.get("release_tag") !== `v${metadata.lore_client_version}` ||
+    loreClient.get("installer_sha256") !== metadata.lore_client_installer_sha256 ||
+    loreClient.get("artifact_manifest_url") !== metadata.lore_client_artifact_manifest_url ||
+    loreClient.get("artifact_manifest_sha256") !== metadata.lore_client_artifact_manifest_sha256 ||
+    loreClient.get("signature_bundle_url") !== metadata.lore_client_signature_bundle_url) {
   throw new Error(
     "Nap metadata does not match the independently promoted top-level lore-client release",
   );
