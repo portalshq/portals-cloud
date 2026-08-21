@@ -1,20 +1,13 @@
 import React, { type ReactElement } from 'react'
 import path from 'node:path'
 import {
-  Defs,
   Document,
   type DocumentProps,
   Font,
-  G,
-  LinearGradient,
+  Image,
   Link,
   Page,
-  Path,
-  RadialGradient,
-  Rect,
-  Stop,
   StyleSheet,
-  Svg,
   Text,
   View,
 } from '@react-pdf/renderer'
@@ -45,6 +38,8 @@ const SUB_HEADING_SIZE = 16
 const NORMAL_SIZE = 10.5
 const SMALL_SIZE = 9
 const FONT_ROOT = path.resolve(process.cwd(), 'public/fonts/pdf')
+// Static print frame captured from the production Saga WebGL renderer.
+const SAGA_COLOR_BAND_PATH = path.resolve(process.cwd(), 'public/images/saga-gradient-band.png')
 const CSS_PIXEL_TO_PDF_POINT = 0.75
 const COVER_COLOR_BAND_HEIGHT = 112 * CSS_PIXEL_TO_PDF_POINT
 const PAGE_COLOR_BAND_HEIGHT = 56 * CSS_PIXEL_TO_PDF_POINT
@@ -298,9 +293,10 @@ const styles = StyleSheet.create({
   colorBandArtwork: {
     position: 'absolute',
     top: 0,
-    right: 0,
-    bottom: 0,
     left: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
   },
   featureMetric: {
     fontFamily: 'DieGroteskC',
@@ -584,122 +580,14 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <Text style={styles.sectionLabel}>{children}</Text>
 }
 
-type SagaBandVariant = 0 | 1 | 2 | 3 | 4
-
-const sagaBandFrames: Record<SagaBandVariant, {
-  cyan: string
-  violet: string
-  magenta: string
-  bloom: { cx: string; cy: string; r: string }
-}> = {
-  0: {
-    cyan: 'M-80 505 C180 285 355 600 602 407 C818 238 971 164 1280 310 L1280 640 C993 512 820 574 608 657 C355 756 132 641 -80 728 Z',
-    violet: 'M-70 167 C196 26 367 258 597 192 C820 128 1009 -41 1280 100 L1280 393 C1026 242 838 401 604 352 C371 303 165 91 -70 332 Z',
-    magenta: 'M-55 694 C188 532 383 767 604 612 C831 454 1020 480 1280 620 L1280 820 L-55 820 Z',
-    bloom: { cx: '72%', cy: '53%', r: '58%' },
-  },
-  1: {
-    cyan: 'M-80 454 C148 622 358 225 603 408 C827 576 1048 257 1280 421 L1280 719 C1054 593 851 725 610 593 C373 463 144 744 -80 607 Z',
-    violet: 'M-72 86 C183 285 385 31 615 192 C836 347 1024 122 1280 264 L1280 500 C1032 410 821 528 594 385 C359 238 147 484 -72 303 Z',
-    magenta: 'M-80 670 C161 468 354 653 570 575 C821 484 1040 591 1280 504 L1280 820 L-80 820 Z',
-    bloom: { cx: '27%', cy: '61%', r: '62%' },
-  },
-  2: {
-    cyan: 'M-70 556 C153 359 358 659 572 488 C819 291 1020 348 1280 207 L1280 551 C1010 655 824 494 601 669 C378 844 150 502 -70 728 Z',
-    violet: 'M-70 224 C155 48 357 348 580 172 C827 -23 1024 180 1280 40 L1280 337 C1012 470 821 286 597 440 C365 599 154 277 -70 463 Z',
-    magenta: 'M-80 735 C158 581 373 714 592 629 C833 536 1014 701 1280 545 L1280 820 L-80 820 Z',
-    bloom: { cx: '82%', cy: '35%', r: '54%' },
-  },
-  3: {
-    cyan: 'M-80 407 C155 193 375 566 602 382 C829 198 1036 571 1280 361 L1280 699 C1042 818 831 524 603 704 C374 886 146 532 -80 728 Z',
-    violet: 'M-80 103 C158 294 376 -3 609 207 C826 404 1043 102 1280 300 L1280 527 C1034 356 838 621 594 425 C361 239 149 526 -80 323 Z',
-    magenta: 'M-80 657 C172 493 361 766 609 575 C829 404 1044 702 1280 493 L1280 820 L-80 820 Z',
-    bloom: { cx: '46%', cy: '44%', r: '60%' },
-  },
-  4: {
-    cyan: 'M-80 514 C173 706 352 314 591 492 C827 669 1021 328 1280 467 L1280 736 C1025 608 820 793 587 625 C351 455 159 791 -80 628 Z',
-    violet: 'M-70 163 C176 -14 384 322 615 146 C833 -20 1042 322 1280 135 L1280 418 C1035 535 827 290 600 478 C370 668 157 288 -70 453 Z',
-    magenta: 'M-80 719 C176 524 379 684 592 594 C828 494 1040 664 1280 535 L1280 820 L-80 820 Z',
-    bloom: { cx: '20%', cy: '38%', r: '58%' },
-  },
-}
-
 function SagaColorBand({
   cover = false,
-  variant,
 }: {
   cover?: boolean
-  variant: SagaBandVariant
 }) {
-  const frame = sagaBandFrames[variant]
-  const id = `saga-band-${variant}`
-
   return (
     <View style={cover ? styles.coverColorBand : styles.colorBand} wrap={false}>
-      <Svg
-        style={styles.colorBandArtwork}
-        width="100%"
-        height="100%"
-        viewBox="0 0 1200 756"
-        preserveAspectRatio="xMidYMid slice"
-      >
-        <Defs>
-          <LinearGradient id={`${id}-base`} x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#0E115F" />
-            <Stop offset="0.46" stopColor="#053A68" />
-            <Stop offset="1" stopColor="#726DD2" />
-          </LinearGradient>
-          <LinearGradient id={`${id}-cyan`} x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#0E115F" stopOpacity={0.15} />
-            <Stop offset="0.32" stopColor="#3A87CB" stopOpacity={0.92} />
-            <Stop offset="0.55" stopColor="#B6F2FF" stopOpacity={0.98} />
-            <Stop offset="0.72" stopColor="#FFFFFF" stopOpacity={0.9} />
-            <Stop offset="1" stopColor="#4470CC" stopOpacity={0.35} />
-          </LinearGradient>
-          <LinearGradient id={`${id}-violet`} x1="0" y1="0" x2="1" y2="0.2">
-            <Stop offset="0" stopColor="#0E115F" stopOpacity={0.55} />
-            <Stop offset="0.42" stopColor="#726DD2" stopOpacity={0.94} />
-            <Stop offset="0.7" stopColor="#DD30C9" stopOpacity={0.82} />
-            <Stop offset="1" stopColor="#0E115F" stopOpacity={0.45} />
-          </LinearGradient>
-          <LinearGradient id={`${id}-magenta`} x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#C243A7" stopOpacity={0.22} />
-            <Stop offset="0.46" stopColor="#DD30C9" stopOpacity={0.9} />
-            <Stop offset="1" stopColor="#726DD2" stopOpacity={0.32} />
-          </LinearGradient>
-          <LinearGradient id={`${id}-shade`} x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#07112C" stopOpacity={0.92} />
-            <Stop offset="0.48" stopColor="#07112C" stopOpacity={0.44} />
-            <Stop offset="1" stopColor="#07112C" stopOpacity={0.08} />
-          </LinearGradient>
-          <RadialGradient id={`${id}-bloom`} cx={frame.bloom.cx} cy={frame.bloom.cy} r={frame.bloom.r}>
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.72} />
-            <Stop offset="0.22" stopColor="#B6F2FF" stopOpacity={0.46} />
-            <Stop offset="0.62" stopColor="#3A87CB" stopOpacity={0.12} />
-            <Stop offset="1" stopColor="#0E115F" stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Rect width="1200" height="756" fill={`url(#${id}-base)`} />
-        <Path d={frame.violet} fill={`url(#${id}-violet)`} />
-        <Path d={frame.cyan} fill={`url(#${id}-cyan)`} />
-        <Path d={frame.magenta} fill={`url(#${id}-magenta)`} />
-        <Rect width="1200" height="756" fill={`url(#${id}-bloom)`} />
-        <G opacity={0.48}>
-          <Path
-            d="M-40 575 C208 373 370 677 608 502 C845 327 1001 441 1240 277"
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="3"
-          />
-          <Path
-            d="M-40 590 C206 390 375 700 611 520 C843 344 1018 472 1240 302"
-            fill="none"
-            stroke="#B6F2FF"
-            strokeWidth="1"
-          />
-        </G>
-        <Rect width="1200" height="756" fill={`url(#${id}-shade)`} />
-      </Svg>
+      <Image src={SAGA_COLOR_BAND_PATH} style={styles.colorBandArtwork} />
     </View>
   )
 }
@@ -756,7 +644,7 @@ function Page1ExecutiveSummary({ data }: { data: PersonalizedQualification }) {
 
   return (
     <Page size="LETTER" style={[styles.page, styles.cover]} bookmark="Executive summary">
-      <SagaColorBand cover variant={0} />
+      <SagaColorBand cover />
       <Header title="prepared by portals" />
       <Text style={[styles.sectionLabel, { color: colors.lightBlue, marginTop: 18 }]}>Prepared for {companyDisplay(data)}</Text>
       <Text style={styles.coverTitle}>your production workflow evaluation</Text>
@@ -824,7 +712,7 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
         A planning range built from {companyDisplay(data, 36)}'s reported frequency, time loss, and affected team size.
       </Text>
 
-      <SagaColorBand variant={1} />
+      <SagaColorBand />
 
       <View style={[styles.split, { marginTop: 14 }]}>
         <View style={styles.mainPane}>
@@ -885,7 +773,7 @@ function Page3WorkflowDiagnosis({ data }: { data: PersonalizedQualification }) {
         portals works beneath the AI tools your team already uses, preserving the context, decisions, approvals, and lineage that make valuable output reusable.
       </Text>
 
-      <SagaColorBand variant={2} />
+      <SagaColorBand />
 
       <View style={styles.workflowStatement} wrap={false}>
         <View style={styles.workflowStatementMain}>
@@ -956,7 +844,7 @@ function Page4PilotCase({ data, document }: { data: PersonalizedQualification; d
         Prove or disprove value on one active {getRecommendedWorkflowLabel(data).toLowerCase()} workflow before wider deployment.
       </Text>
 
-      <SagaColorBand variant={3} />
+      <SagaColorBand />
 
       <View style={styles.decisionStatement} wrap={false}>
         <Text style={styles.sectionLabel}>The controlled proposition</Text>
@@ -1027,7 +915,7 @@ function Page5DecisionRecord({ data, document }: { data: PersonalizedQualificati
         The recommendation, supporting evidence, and decision requested from a production sponsor.
       </Text>
 
-      <SagaColorBand variant={4} />
+      <SagaColorBand />
 
       <View style={styles.decisionStatement} wrap={false}>
         <Text style={styles.sectionLabel}>Recommended sponsor decision</Text>
