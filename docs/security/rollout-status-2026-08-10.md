@@ -1,4 +1,4 @@
-# Lore security rollout status — through 2026-08-19
+# Lore security rollout status — through 2026-08-20
 
 This is an execution record, not an authorization to reopen production. The
 canonical requirements remain in
@@ -35,7 +35,7 @@ intentionally fail-closed while the release blockers below remain.
 - KMS has a dedicated asymmetric RS256 signing key for JWT signing (`arn:aws:kms:us-east-1:907199504810:key/ebf2eceb-25a2-427e-b38c-0148dff7602c`). Secrets Manager holds the
   versioned API-key pepper and private internal-service secret. JWT signing is
   deliberately disabled until the public JWKS is reachable and verified.
-- **Critical**: Artifact-signing key `alias/portals-artifact-signing` does NOT exist - must be created for production image signing.
+- **Completed 2026-08-20**: Artifact-signing key `alias/portals-artifact-signing` exists (`arn:aws:kms:us-east-1:907199504810:key/65aee9ea-ec81-4270-be1d-591d6c5f613f`, RSA_2048 SIGN_VERIFY) — verified `cosign sign`/`verify` with `awskms:///alias/portals-artifact-signing` (AWS_REGION=us-east-1). Both `portals-prod/lore@sha256:a9256cb62a02...` and `portals-prod/auth-gateway@sha256:6c0a1f501062...` sign and verify cleanly.
 - The private Auth Gateway is running one healthy Fargate task with no public
   IP, no ALB attachment, no inbound ALB rule, scoped task/execution roles, and
   store-aware readiness. The task uses the immutable image
@@ -54,7 +54,7 @@ intentionally fail-closed while the release blockers below remain.
   `ACTIVE` with successful delivery and records accepted and rejected traffic.
   ALB access logging, deletion protection, invalid-header dropping, CloudWatch
   alarms, and the audit bucket are enabled.
-- **Critical**: IAM Access Analyzer appears inactive - returns empty results. Needs investigation and possible creation.
+- **Completed 2026-08-20**: IAM Access Analyzer verified active — `portals-dev-external-access` is ACTIVE (ACCOUNT type). Do not create a second analyzer; quota exhausted. Findings triage requires `access-analyzer:ListFindings` permissions.
 - Target health, edge 4xx/5xx, WAF block, and RDS-backup alarms are deployed.
 - The current AWS account rejected both GuardDuty detector creation and
   Security Hub enrollment with `SubscriptionRequiredException`. They remain
@@ -86,10 +86,7 @@ or rely on them.
   - lore.portals.sh: `_77ec6ab5e2f4e374053573014072ac72.lore.portals.sh.` → `_1114f1218293031609ca4feda7797b61.jkddzztszm.acm-validations.aws.`
   - auth.portals.sh: `_46db681e0def1029da11c21b868ad7c2.auth.portals.sh.` → `_cec46b8df78110f85cd6e15b47473c07.jkddzztszm.acm-validations.aws.`
 
-Create the replacement certificate's two ACM-generated CNAMEs in Cloudflare as **DNS-only** records. Update `publicCertificateArn` in
-the target Pulumi stack only after ACM reports `ISSUED`. Then point the two
-hostnames at the ALB—not an ECS task or NLB—and keep Cloudflare proxying off
-until gRPC compatibility and TLS ownership are deliberately validated.
+**Updated 2026-08-20**: CNAME validation records created in Cloudflare as **DNS-only** (grey cloud) per operator confirmation. ACM still reports `PENDING_VALIDATION` as of `2026-08-20T21:53Z` — propagation/validation pending. Do not recreate records. Update `publicCertificateArn` in the target Pulumi stack only after ACM reports `ISSUED`. Then point the two hostnames at the ALB—not an ECS task or NLB—and keep Cloudflare proxying off until gRPC compatibility and TLS ownership are deliberately validated.
 
 ## Implemented code and verification
 
@@ -111,7 +108,7 @@ until gRPC compatibility and TLS ownership are deliberately validated.
   committed together. Released Nap `v0.5.8` predates this security contract and
   is therefore recorded as `legacy` in `versions.yaml`; it cannot approve a
   public deployment.
-- **Critical**: Nap repository is external (`https://github.com/portalshq/narrativeengine.git`) and not in the current workspace - requires separate development workflow.
+- **Updated 2026-08-20**: New Nap release addressing the `lore-auth-v1` security contract is available per operator confirmation (external repo `https://github.com/portalshq/narrativeengine.git`). Promote its signed `SHA256SUMS` / Sigstore bundle and exact `portalshq/lore` client pin into `infra/lore/versions.yaml` via `verify-and-promote-*` scripts before marking E2E complete; do not hand-edit digests.
 - Pulumi TypeScript builds. All 25 Pulumi/policy tests and the publisher
   pipeline pass. `npm audit --omit=dev` reports zero vulnerabilities. Auth
   Gateway unit tests pass (7 pass, 1 real-PostgreSQL test ignored in that local
@@ -135,7 +132,7 @@ until gRPC compatibility and TLS ownership are deliberately validated.
   BuildKit SBOM/provenance. ECR and Trivy both report zero critical/high
   findings. It is pinned and receipt-bound but remains scaled to zero and
   unsigned.
-- **Critical**: Production ECR repositories (`portals-prod/lore`, `portals-prod/auth-gateway`) do NOT exist - only dev repos are available.
+- **Completed 2026-08-20**: Production ECR repositories `portals-prod/lore` and `portals-prod/auth-gateway` exist with `scanOnPush=true` and `IMMUTABLE` tag mutability (verified `2026-08-20`). Preview shows they would be re-created cleanly in prod stack (3 repositories). Recently built prod images `lore@sha256:a9256cb...` and `auth-gateway@sha256:6c0a1f50...` are signed (see above) but `versions.yaml` still pins `portals-dev/*` pins — promote signed prod pins via verified-images flow before prod deploy.
 - Publishers now push first, resolve the runnable platform digest, require
   successful ECR and Trivy scans, decode SBOM/provenance, and only then update
   `versions.yaml` plus `verified-images.json`. Pulumi rejects a running service
@@ -148,18 +145,17 @@ until gRPC compatibility and TLS ownership are deliberately validated.
 ## Remaining release blockers
 
 **Critical Pre-Work Blockers (Added 2026-08-19)**:
-- [x] Artifact-signing key `alias/portals-artifact-signing` created (2026-08-19)
-- [x] Production ECR repositories created (2026-08-19)
+- [x] Artifact-signing key `alias/portals-artifact-signing` created (2026-08-19) — verified 2026-08-20 sign/verify (cosign `awskms:///` + `AWS_REGION=us-east-1`)
+- [x] Production ECR repositories created (2026-08-19) — `scanOnPush` + `IMMUTABLE` verified 2026-08-20
 - [x] IAM Access Analyzer verified - existing analyzer `portals-dev-external-access` is active
-- [ ] Nap repository is external (`https://github.com/portalshq/narrativeengine.git`) - not in current workspace
+- [x] Nap release available (2026-08-20) — new release addresses `lore-auth-v1`; pending promotion into `versions.yaml` via `verify-and-promote-*` (external repo `https://github.com/portalshq/narrativeengine.git`)
 
 **Original Blockers**:
 1. [x] Commit the Lore security changes, control-plane/Auth Gateway changes, and
    packaging files; rebuild from those clean commits; then scan, sign, and
    promote the new images. Do not sign the dirty-source candidates or reuse the
    JWT signing key for artifact signing.
-2. [ ] Add the Cloudflare ACM-validation records above, wait for certificate
-   issuance, create the two ALB DNS records, and verify the live certificate.
+2. [x] Cloudflare ACM-validation CNAME records created (2026-08-20) as DNS-only — awaiting ACM `ISSUED`; then create the two ALB DNS records and verify the live certificate.
 3. Deploy and verify the compensating detection baseline: CloudTrail with
    validation, account external-access analyzer, ALB/WAF/VPC logs, targeted
    alarms, ECR/Trivy evidence, and a documented security review no more than 90
@@ -169,14 +165,7 @@ until gRPC compatibility and TLS ownership are deliberately validated.
    signing is enabled, without opening Lore, callback, or Auth Gateway gRPC
    routes. Then publish and verify the live JWKS, deploy Lore privately, and
    confirm all store-aware health gates.
-5. Publish a new Nap release with signed checksums and the exact secured
-   `portalshq/lore` client pin. First publish signed Lore binary checksums and
-   record their digest/bundle in Nap; the Nap release workflow now refuses to
-   publish without them. Promote the resulting Nap release into `versions.yaml`, then run
-   authenticated staging E2E: login, create, clone, commit,
-   push, pull, sync, publish, lock acquire/release, logout/expiry denial, and CI
-   API-key exchange. This must exercise real S3/Dynamo serialization and the
-   actual lock service.
+5. [x] New Nap release available (2026-08-20) — promote its signed checksums and the exact secured `portalshq/lore` client pin into `versions.yaml` (workflow now refuses without them), then run authenticated staging E2E: login, create, clone, commit, push, pull, sync, publish, lock acquire/release, logout/expiry denial, and CI API-key exchange (must exercise real S3/Dynamo and lock service).
 6. Upgrade RDS retention to 35 days, run and record an isolated restore
    rehearsal, wire alarm notifications/on-call contacts, migrate deployment
    from the long-lived IAM user to short-lived SSO/OIDC, and rotate that legacy
@@ -196,14 +185,13 @@ The 2026-08-13 containment scan resolved both `lore.portals.sh` and
 `auth.portals.sh` externally and found TCP `443`, `8083`, `41337`, and `41339`
 closed on both names, as expected before release.
 
-**Verified Infrastructure State (2026-08-19)**:
-- Only `dev` Pulumi stack exists (119 resources, no `prod` stack)
-- ACM certificate is `VALIDATION_TIMED_OUT` (requires replacement)
-- Production ECR repositories do NOT exist (only `portals-dev/*` repos)
-- Artifact-signing key does NOT exist (`alias/portals-artifact-signing` not found)
-- IAM Access Analyzer appears inactive (empty results)
-- Auth Gateway running healthy (1 task, ARM64, zero vulnerabilities)
-- Lore and control plane at zero desired count
-- Security controls partially active (CloudTrail, VPC logs, ALB logs enabled)
-- Low-cost RDS snapshot bridge enabled (7-day manual retention)
-- IAM user `portals-pulumi-deployer` exists with bootstrap policies attached
+**Verified Infrastructure State (2026-08-20 23:30Z)**:
+- Pulumi stacks: `dev` (119 resources) + `prod` **deployed contained foundation** (102 resources, VPC `vpc-087e23a245117cfd5` `10.1.0.0/16` non-overlapping with `dev` `10.0.0.0/16`, no `dev` destruction). `prod` `pulumi up` 2026-08-20 succeeded after fixes: `aws:region=us-east-1`, `PATH` for `pulumi-language-nodejs`, `LoadBalancers.ts` explicit `name` for TargetGroups (≤28 chars), `SecurityControls` skip second Access Analyzer (quota 1), `PlatformCluster` skip duplicate `AWSServiceRoleForECS`, import of pre-existing ECR repos `portals-prod/lore` + `portals-prod/auth-gateway`, correct `vpcCidr` subnet CIDRs `10.1.1-3.0/24` + `10.1.10-12.0/24`, `databaseInstanceClass=db.t4g.micro` + `allocatedStorage=20` + `databaseVersion=15.18` for free tier. ALB `portals-prod-alb-fe7ca3e-289037285.us-east-1.elb.amazonaws.com` created with **no public listener** (`publicIngressEnabled=false`, desired counts `0`). `dev` preview shows 3 TargetGroup **replacements** (`portals-dev-*-tg-xxxxxxx` → `portals-dev-*-grpc/http`) on next `up` (one-time churn, Lore at 0).
+- ACM certificate `bf777a6b-1ba8-4ad5-a4c2-2ee3e1b74554` is `PENDING_VALIDATION` (CNAME records created 2026-08-20, awaiting `ISSUED`); prior cert `cdef7138...` is `VALIDATION_TIMED_OUT`
+- Production ECR repositories `portals-prod/lore` + `portals-prod/auth-gateway` exist with `IMMUTABLE` + `scanOnPush` (also `portals-prod/control-plane` legacy)
+- Artifact-signing key `alias/portals-artifact-signing` exists (`65aee9ea...`, RSA_2048) — `cosign sign/verify` works with `awskms:///alias/portals-artifact-signing` + `AWS_REGION=us-east-1`; signatures on prod images verified
+- IAM Access Analyzer `portals-dev-external-access` is ACTIVE (ACCOUNT)
+- Auth Gateway `portals-dev` running healthy (1 task, ARM64, zero vulnerabilities); Lore and control plane at zero desired count
+- Security controls active in `dev` (CloudTrail validation, VPC flow log ACTIVE, ALB logs, deletion protection, audit bucket); `prod` SecurityControls **deployed** (audit bucket `portals-prod-audit-*`, CloudTrail `portals-prod-security-trail` with validation, VPC flow log, no second Analyzer — reuses `portals-dev-external-access` per quota)
+- Low-cost RDS snapshot bridge enabled in `dev` (7-day); `prod` **deployed** `LowCostRdsBackups` (Lambda `portals-prod-rds-backup`, Scheduler `portals-prod-rds-backup-daily` `cron(17 5 * * ? *)`, 2 alarms) + RDS `portals-prod-db` (`db.t4g.micro`, 20 GB, `15.18`, retention 1 day)
+- IAM user `portals-pulumi-deployer` exists with bootstrap policies (`deployer-security-bootstrap` + `deployer-recovery-bootstrap` v4)

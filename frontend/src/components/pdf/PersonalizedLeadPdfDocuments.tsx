@@ -40,7 +40,6 @@ const SMALL_SIZE = 9
 const FONT_ROOT = path.resolve(process.cwd(), 'public/fonts/pdf')
 // Static print frame captured from the production Saga WebGL renderer.
 const SAGA_COLOR_BAND_PATH = path.resolve(process.cwd(), 'public/images/saga-gradient-band.png')
-const LETTER_PAGE_WIDTH = 612
 const CSS_PIXEL_TO_PDF_POINT = 0.75
 const COVER_COLOR_BAND_HEIGHT = 112 * CSS_PIXEL_TO_PDF_POINT
 const PAGE_COLOR_BAND_HEIGHT = 56 * CSS_PIXEL_TO_PDF_POINT
@@ -285,9 +284,9 @@ const styles = StyleSheet.create({
   },
   coverColorBand: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: LETTER_PAGE_WIDTH,
+    top: -42,
+    left: -44,
+    width: 612,
     height: COVER_COLOR_BAND_HEIGHT,
     overflow: 'hidden',
   },

@@ -91,6 +91,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
     }, { parent: this });
 
     this.loreGrpcTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-lore-grpc-tg`, {
+      name: `${resourcePrefix}-lore-grpc`.substring(0, 32),
       port: 41337,
       protocol: "HTTP",
       protocolVersion: "GRPC",
@@ -117,12 +118,14 @@ export class LoadBalancers extends pulumi.ComponentResource {
     }, { parent: this });
 
     this.authGrpcTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-auth-grpc-tg`, {
+      name: `${resourcePrefix}-auth-grpc`.substring(0, 32),
       port: 8084, protocol: "HTTP", protocolVersion: "GRPC", targetType: "ip", vpcId: args.vpcId,
       deregistrationDelay: 30,
       healthCheck: { enabled: true, path: "/grpc.health.v1.Health/Check", protocol: "HTTP", matcher: "0", interval: 30, timeout: 5, healthyThreshold: 2, unhealthyThreshold: 2 },
       tags: { Project: args.projectName, Environment: args.environment, Service: "auth-gateway" },
     }, { parent: this });
     this.authHttpTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-auth-http-tg`, {
+      name: `${resourcePrefix}-auth-http`.substring(0, 32),
       port: 8085, protocol: "HTTP", protocolVersion: "HTTP1", targetType: "ip", vpcId: args.vpcId,
       deregistrationDelay: 30,
       healthCheck: { enabled: true, path: "/healthz", protocol: "HTTP", matcher: "200", interval: 30, timeout: 5, healthyThreshold: 2, unhealthyThreshold: 2 },

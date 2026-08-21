@@ -511,7 +511,7 @@ export function PilotScopeForm({
             </CTAButton>
           ) : null} */}
         </div>
-        {!isRevision ? (
+        {/* {!isRevision ? (
           <div className="mt-24">
             <CTAButton
               type="button"
@@ -521,10 +521,10 @@ export function PilotScopeForm({
               analyticsLabel="Submit a New Pilot Form"
               analyticsIntent="pilot_scope"
             >
-              <span>submit a new pilot form</span>
+              <span>submit a new pilot request</span>
             </CTAButton>
           </div>
-        ) : null}
+        ) : null} */}
         {/* {submitState.calendarUrl ? (
           <p className="mt-16 t-p-sans text-white">
             need a pilot terms review?{' '}
@@ -553,14 +553,14 @@ export function PilotScopeForm({
       onFocus={onStarted}
       onSubmit={handleSubmit}
     >
-      {!isRevision && Object.keys(carriedAnswers).length > 0 ? (
+      {/* {!isRevision && Object.keys(carriedAnswers).length > 0 ? (
         <div className="sm:col-span-2 rounded-sm border border-white/25 px-16 py-14">
           <p className="t-p-sm-sans text-white/70">carried forward from your assessment</p>
-          <p className="mt-8 t-p-sans text-white">
+          <p className="mt-8 t-p-sm-sans text-white">
             Available workflow, timing, owner, approval, security, integration, and objection details are prefilled. Five short stages remain; fields already completed are omitted where possible.
           </p>
         </div>
-      ) : null}
+      ) : null} */}
       <div className="sm:col-span-2">
         <ol className="flex flex-wrap items-center gap-x-16 gap-y-8 t-p-sm-sans text-white">
           {STAGES.map((item, index) => (
@@ -570,7 +570,7 @@ export function PilotScopeForm({
                 index === stage
                   ? 'text-white'
                   : index < stage
-                    ? 'text-white/60'
+                    ? 'text-white'
                     : 'text-white/35'
               }`}
             >
@@ -578,9 +578,9 @@ export function PilotScopeForm({
                 aria-hidden="true"
                 className={`flex size-20 items-center justify-center rounded-full border text-[11px] ${
                   index < stage
-                    ? 'border-[#9cdeee] bg-[#9cdeee]/20'
+                    ? 'border-white'
                     : index === stage
-                      ? 'border-[#9cdeee]'
+                      ? 'border-white'
                       : 'border-white/30'
                 }`}
               >
@@ -813,7 +813,7 @@ export function PilotScopeForm({
 
       <div data-pilot-stage={2} hidden={stage !== 2} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <p className="t-p-sm-sans text-white/70">what would make the pilot commercially meaningful?</p>
+          <p className="t-p-sm-sans text-white">what would make the pilot commercially meaningful?</p>
         </div>
         <fieldset className="sm:col-span-2">
           <legend className="t-p-sm-sans text-white">success criteria *</legend>

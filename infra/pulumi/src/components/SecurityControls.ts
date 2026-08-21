@@ -25,11 +25,16 @@ export class SecurityControls extends pulumi.ComponentResource {
 
     // Account-level external-access analysis is part of the no-additional-cost
     // baseline. Do not use the paid UNUSED_ACCESS analyzer type here.
-    new aws.accessanalyzer.Analyzer(`${prefix}-external-access`, {
-      analyzerName: `${prefix}-external-access`,
-      type: "ACCOUNT",
-      tags: { Project: args.projectName, Environment: args.environment },
-    }, { parent: this, protect: args.environment === "prod" });
+    // Account quota is 1 analyzer of type ACCOUNT — the existing
+    // `portals-dev-external-access` already covers the account (prod reuses it).
+    // Creating `portals-prod-external-access` would hit ServiceQuotaExceeded.
+    if (args.environment !== "prod") {
+      new aws.accessanalyzer.Analyzer(`${prefix}-external-access`, {
+        analyzerName: `${prefix}-external-access`,
+        type: "ACCOUNT",
+        tags: { Project: args.projectName, Environment: args.environment },
+      }, { parent: this, protect: args.environment === "prod" });
+    }
     const auditBucket = new aws.s3.Bucket(`${prefix}-audit`, {
       forceDestroy: false,
       tags: { Project: args.projectName, Environment: args.environment, Purpose: "security-audit" },

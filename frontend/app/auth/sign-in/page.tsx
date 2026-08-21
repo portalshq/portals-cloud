@@ -37,7 +37,7 @@ function SignInPage() {
       </header>
       <form className="w-full rounded border p-24" onSubmit={submit}>
         <h1 className="t-h3-sans">sign in to your account</h1>
-        <p className="mt-8 t-p-sm-sans">we’ll send a one-time sign-in link to your email.</p>
+        <p className="mt-8 t-p-sm-sans">receive a one-time sign-in link to your email.</p>
         <label className="mt-20 block t-p-sm-sans" htmlFor="email">work email</label>
         <input
           className="mt-6 w-full rounded border border-[#AEB9CA] px-12 py-10"
@@ -49,10 +49,10 @@ function SignInPage() {
           onChange={(event) => setEmail(event.target.value)}
         />
         <CTAButton className="mt-16 px-16 py-10 text-white" disabled={busy} type="submit">
-          {busy ? 'sending…' : 'email me a sign-in link'}
+          {busy ? 'sending…' : 'send link'}
         </CTAButton>
         {sent ? <p className="mt-12 t-p-sm-sans">if your email is registered, check your inbox for a sign-in link.</p> : null}
-        {search.get('error') ? <p className="mt-12 t-p-sm-sans">that sign-in link is invalid or has expired. request a new one.</p> : null}
+        {search.get('error') ? <p className="mt-12 t-p-sm-sans">that sign-in link is invalid or has expired. request a new link.</p> : null}
       </form>
     </main>
   )
