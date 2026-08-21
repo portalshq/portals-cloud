@@ -46,8 +46,8 @@ const NORMAL_SIZE = 10.5
 const SMALL_SIZE = 9
 const FONT_ROOT = path.resolve(process.cwd(), 'public/fonts/pdf')
 const CSS_PIXEL_TO_PDF_POINT = 0.75
-const COVER_COLOR_BAND_HEIGHT = 756 * CSS_PIXEL_TO_PDF_POINT
-const PAGE_COLOR_BAND_HEIGHT = 378 * CSS_PIXEL_TO_PDF_POINT
+const COVER_COLOR_BAND_HEIGHT = 112 * CSS_PIXEL_TO_PDF_POINT
+const PAGE_COLOR_BAND_HEIGHT = 56 * CSS_PIXEL_TO_PDF_POINT
 
 Font.register({
   family: 'DieGroteskB',
@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 28,
+    flexShrink: 0,
   },
   wordmark: { width: 80, fontWeight: 500 },
   heading: {
@@ -252,56 +253,15 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   railLabel: { marginTop: 5, fontSize: 8.5, lineHeight: 1.3, color: colors.muted },
-  equation: {
-    marginTop: 18,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    backgroundColor: colors.pale,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  equationFactor: { width: 72 },
-  equationValue: {
-    fontFamily: 'DieGroteskC',
-    fontSize: 17,
-    fontWeight: 300,
-    color: colors.blue,
-  },
-  equationLabel: { marginTop: 4, fontSize: 7.5, lineHeight: 1.25, color: colors.muted },
-  equationOperator: { width: 10, fontSize: 14, color: colors.blue, textAlign: 'center' },
-  valueRange: { marginTop: 20 },
-  valueRangeNumber: {
-    fontFamily: 'DieGroteskC',
-    fontSize: 27,
-    fontWeight: 300,
-    lineHeight: 1.12,
-    color: colors.blue,
-  },
-  valueRangeLabel: { marginTop: 9, color: colors.muted },
   scenarioRow: {
     flexDirection: 'row',
-    paddingVertical: 11,
+    paddingVertical: 7,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   scenarioPercent: { width: 66, fontWeight: 500, color: colors.blue },
   scenarioHours: { width: 112 },
   scenarioValue: { flex: 1, textAlign: 'right', fontWeight: 500 },
-  workflowCard: {
-    marginTop: 14,
-    padding: 15,
-    backgroundColor: colors.cardLight,
-    borderRadius: 2,
-  },
-  workflowCardTitle: {
-    fontFamily: 'DieGroteskC',
-    fontSize: 19,
-    fontWeight: 300,
-    lineHeight: 1.05,
-  },
-  workflowCardBody: { marginTop: 8, fontSize: 10, lineHeight: 1.3 },
-  workflowCardOutcome: { marginTop: 7, fontSize: 10, lineHeight: 1.3, color: colors.blue },
   evidenceRow: {
     flexDirection: 'row',
     paddingVertical: 12,
@@ -312,76 +272,20 @@ const styles = StyleSheet.create({
   evidenceSignal: { width: 112, fontWeight: 500 },
   evidenceMeaning: { width: 166, color: colors.muted },
   evidenceResponse: { flex: 1, color: colors.blue },
-  mechanismRow: { marginTop: 9, flexDirection: 'row', gap: 14 },
-  mechanismItem: {
-    width: 164,
-    paddingTop: 7,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  mechanismTitle: {
-    fontFamily: 'DieGroteskC',
-    fontSize: 14,
-    fontWeight: 300,
-    color: colors.blue,
-  },
-  mechanismBody: { marginTop: 5, fontSize: 8.2, lineHeight: 1.25, color: colors.muted },
-  pilotSummary: {
-    marginTop: 22,
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    backgroundColor: colors.ink,
-    color: colors.white,
-  },
-  pilotSummaryTitle: {
-    fontFamily: 'DieGroteskC',
-    fontSize: 20,
-    fontWeight: 300,
-    lineHeight: 1.15,
-    color: colors.white,
-  },
-  pilotSummaryDetail: { marginTop: 9, fontSize: 9.5, lineHeight: 1.35, color: colors.lightBlue },
   cleanListItem: { flexDirection: 'row', marginBottom: 9, gap: 9 },
   cleanListIndex: { width: 16, fontSize: 8, fontWeight: 500, color: colors.blue },
   cleanListText: { flex: 1, fontSize: 9.5, lineHeight: 1.3 },
-  measureHeader: {
-    flexDirection: 'row',
-    paddingBottom: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.ink,
-  },
-  measureRow: {
-    flexDirection: 'row',
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  measureName: { width: 145, paddingRight: 10 },
-  measureTarget: { width: 150, paddingRight: 10, color: colors.blue },
-  measureEvidence: { flex: 1, color: colors.muted },
-  scoreRow: { marginBottom: 17 },
+  scoreRow: { marginBottom: 12 },
   scoreLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   scoreMeta: { fontSize: 8.5, color: colors.muted, textAlign: 'right' },
   scoreTrack: { height: 5, backgroundColor: colors.cardLight },
   scoreFill: { height: 5, backgroundColor: colors.blue },
-  profileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
-  profileItem: { width: 150, marginBottom: 8 },
   profileLabel: { marginBottom: 4, fontSize: 8, color: colors.muted },
-  profileValue: { fontSize: 10, lineHeight: 1.25 },
-  decisionBlock: { marginTop: 20, padding: 18, backgroundColor: colors.pale },
-  decisionAsk: {
-    fontFamily: 'DieGroteskC',
-    fontSize: 19,
-    fontWeight: 300,
-    lineHeight: 1.12,
-    color: colors.blue,
-  },
   colorBand: {
     position: 'relative',
     height: PAGE_COLOR_BAND_HEIGHT,
-    marginTop: 18,
+    marginTop: 14,
     overflow: 'hidden',
-    color: colors.white,
   },
   coverColorBand: {
     position: 'absolute',
@@ -398,73 +302,62 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  colorBandContent: {
-    position: 'absolute',
-    top: 22,
-    right: 24,
-    bottom: 20,
-    left: 24,
-  },
-  colorBandLabel: {
-    marginBottom: 9,
-    fontSize: 8.5,
-    fontWeight: 500,
-    color: '#D9F7FF',
-  },
-  colorBandTitle: {
-    maxWidth: 430,
-    fontFamily: 'DieGroteskC',
-    fontSize: 22,
-    fontWeight: 300,
-    lineHeight: 1.04,
-    color: colors.white,
-  },
-  colorBandBody: {
-    marginTop: 8,
-    maxWidth: 440,
-    fontSize: 9.5,
-    lineHeight: 1.32,
-    color: '#E9F8FF',
-  },
-  colorBandMetric: {
+  featureMetric: {
     fontFamily: 'DieGroteskC',
     fontSize: 28,
     fontWeight: 300,
     lineHeight: 1,
-    color: colors.white,
+    color: colors.blue,
   },
-  colorBandMetricLabel: {
+  featureMetricLabel: {
     marginTop: 5,
     fontSize: 8.2,
     lineHeight: 1.25,
-    color: '#D9F7FF',
+    color: colors.muted,
   },
-  colorBandColumns: {
-    position: 'absolute',
-    right: 24,
-    bottom: 20,
-    left: 24,
+  featureColumns: {
+    marginTop: 12,
     flexDirection: 'row',
-    gap: 18,
+    gap: 20,
   },
-  colorBandColumn: {
+  featureColumn: {
     flex: 1,
-    paddingTop: 8,
+    paddingTop: 7,
     borderTopWidth: 1,
-    borderTopColor: '#A9E6F3',
+    borderTopColor: colors.border,
   },
-  colorBandColumnTitle: {
+  featureColumnTitle: {
     fontFamily: 'DieGroteskC',
     fontSize: 13,
     fontWeight: 300,
-    color: colors.white,
+    color: colors.blue,
   },
-  colorBandColumnBody: {
+  featureColumnBody: {
     marginTop: 4,
     fontSize: 7.8,
     lineHeight: 1.24,
-    color: '#D9F7FF',
+    color: colors.muted,
   },
+  workflowStatement: { marginTop: 14, flexDirection: 'row', gap: 28 },
+  workflowStatementMain: { width: 314 },
+  workflowStatementAside: { width: 176 },
+  decisionStatement: { marginTop: 14, maxWidth: 492 },
+  decisionTitle: {
+    fontFamily: 'DieGroteskC',
+    fontSize: 21,
+    fontWeight: 300,
+    lineHeight: 1.08,
+    color: colors.blue,
+  },
+  proofColumn: { width: 250 },
+  proofItem: {
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  proofTitle: { fontWeight: 500, color: colors.blue },
+  proofBody: { marginTop: 3, fontSize: 8.5, lineHeight: 1.25, color: colors.muted },
 })
 
 // ============================================================================
@@ -613,9 +506,9 @@ function getPilotSpec(document?: ResourceDocument) {
   return findPackageSpecification(document?.packageSpecifications, PACKAGE_SPEC_SLUGS.paidPilot)
 }
 
-function Header({ title, page }: { title: string; page?: number }) {
+function Header({ title, page, compact = false }: { title: string; page?: number; compact?: boolean }) {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, compact ? { marginBottom: 18 } : {}]}>
       <Text style={styles.wordmark}>portals</Text>
       <Text style={{ flex: 1, textAlign: 'right' }}>{page ? `${title} / ${page}` : title}</Text>
     </View>
@@ -684,7 +577,7 @@ function TierBadge({ tier }: { tier: QualificationTier }) {
 }
 
 function ReportHeader({ page }: { page: number }) {
-  return <Header title={`your production workflow evaluation · ${page} / 5`} />
+  return <Header compact title={`your production workflow evaluation · ${page} / 5`} />
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -732,11 +625,9 @@ const sagaBandFrames: Record<SagaBandVariant, {
 }
 
 function SagaColorBand({
-  children,
   cover = false,
   variant,
 }: {
-  children?: React.ReactNode
   cover?: boolean
   variant: SagaBandVariant
 }) {
@@ -809,7 +700,6 @@ function SagaColorBand({
         </G>
         <Rect width="1200" height="756" fill={`url(#${id}-shade)`} />
       </Svg>
-      {children ? <View style={styles.colorBandContent}>{children}</View> : null}
     </View>
   )
 }
@@ -846,26 +736,6 @@ function ScoreBar({ label, score, coverage }: { label: string; score: number; co
       <View style={styles.scoreTrack}>
         <View style={[styles.scoreFill, { width: `${Math.max(0, Math.min(100, score))}%` }]} />
       </View>
-    </View>
-  )
-}
-
-function ProfileItem({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.profileItem} wrap={false}>
-      <Text style={styles.profileLabel}>{label}</Text>
-      <Text style={styles.profileValue}>{value}</Text>
-    </View>
-  )
-}
-
-function WorkflowCard({ data }: { data: PersonalizedQualification }) {
-  const workflow = recommendedWorkflow(data)
-  return (
-    <View style={styles.workflowCard} wrap={false}>
-      <Text style={styles.workflowCardTitle}>{workflow.title}</Text>
-      <Text style={styles.workflowCardBody}>{workflow.problem}</Text>
-      <Text style={styles.workflowCardOutcome}>instead, {workflow.outcome}</Text>
     </View>
   )
 }
@@ -954,38 +824,19 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
         A planning range built from {companyDisplay(data, 36)}'s reported frequency, time loss, and affected team size.
       </Text>
 
-      <SagaColorBand variant={1}>
-        <Text style={styles.colorBandLabel}>ANNUAL CAPACITY EXPOSURE</Text>
-        <Text style={styles.colorBandMetric}>{valueModelHours(model)} hours / year</Text>
-        <Text style={styles.colorBandMetricLabel}>
-          {valueModelCost(model, rate)} gross capacity exposure at the $100/hour planning rate
-        </Text>
-        {model ? (
-          <View style={styles.colorBandColumns}>
-            <View style={styles.colorBandColumn}>
-              <Text style={styles.colorBandColumnTitle}>{model.frequency.label}</Text>
-              <Text style={styles.colorBandColumnBody}>{model.frequency.annualized} incidents / year</Text>
-            </View>
-            <View style={styles.colorBandColumn}>
-              <Text style={styles.colorBandColumnTitle}>{model.hoursLoss.label}</Text>
-              <Text style={styles.colorBandColumnBody}>lost per incident</Text>
-            </View>
-            <View style={styles.colorBandColumn}>
-              <Text style={styles.colorBandColumnTitle}>{model.people.label}</Text>
-              <Text style={styles.colorBandColumnBody}>contributors affected</Text>
-            </View>
-          </View>
-        ) : (
-          <Text style={styles.colorBandBody}>
-            Establish frequency, time loss, and affected contributors during pilot scoping to create an auditable baseline.
-          </Text>
-        )}
-      </SagaColorBand>
+      <SagaColorBand variant={1} />
 
-      <View style={[styles.split, { marginTop: 18 }]}>
+      <View style={[styles.split, { marginTop: 14 }]}>
         <View style={styles.mainPane}>
+          <Text style={styles.sectionLabel}>Annual capacity exposure</Text>
+          <Text style={styles.featureMetric}>{valueModelHours(model)} hours / year</Text>
+          <Text style={styles.featureMetricLabel}>
+            {model
+              ? `${valueModelCost(model, rate)} gross capacity exposure at the $100/hour planning rate.`
+              : 'Establish frequency, time loss, and affected contributors during pilot scoping.'}
+          </Text>
           {scenarios.length ? (
-            <View>
+            <View style={{ marginTop: 14 }}>
               <Text style={styles.sectionTitleSmall}>illustrative recovery scenarios</Text>
               {scenarios.map((scenario) => (
                 <View key={scenario.share} style={styles.scenarioRow} wrap={false}>
@@ -994,20 +845,15 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
                   <Text style={styles.scenarioValue}>{formatCurrencyValue(scenario.value)} capacity value</Text>
                 </View>
               ))}
-              <Text style={[styles.muted, { fontSize: 8.5, lineHeight: 1.3 }]}>
-                Scenarios are planning cases, not savings promises. The pilot measures the achievable reduction against a real baseline.
-              </Text>
             </View>
           ) : null}
 
-          <View style={{ marginTop: 17 }}>
+          <View style={{ marginTop: 10 }}>
             <Text style={styles.sectionTitleSmall}>where the return can compound</Text>
-            <CleanList items={[
-              'Budget: less paid time spent searching, reconstructing, and repeating avoidable work.',
-              'Collaboration: one production record for employees, vendors, and approvers.',
-              'Consistency: approved state, source inputs, context, and lineage stay connected.',
-              'Delivery: faster handoffs with fewer preventable version or context delays.',
-            ]} />
+            <Text style={{ fontSize: 8.5, lineHeight: 1.35, color: colors.muted }}>
+              <Text style={{ color: colors.blue }}>Budget</Text> — less search and reconstruction · <Text style={{ color: colors.blue }}>Collaboration</Text> — one production record{`\n`}
+              <Text style={{ color: colors.blue }}>Consistency</Text> — connected approved context · <Text style={{ color: colors.blue }}>Delivery</Text> — faster, safer handoffs
+            </Text>
           </View>
         </View>
 
@@ -1016,8 +862,6 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
           <RailMetric value={`${data.scores.workflowRiskScore}/24`} label="workflow risk score" />
           <RailMetric value={readable(answer(data, 'deliveryImpact'))} label="reported delivery impact" />
           <RailMetric value={affectedValue} label="annual value of affected work" />
-          <RailMetric value={readable(answer(data, 'assetVolume'))} label="assets produced per month" />
-          <RailMetric value={readable(answer(data, 'workflowCollaborators'))} label="people in the production workflow" />
         </View>
       </View>
       <ReportFooter data={data} note="Planning model: self-reported ranges · $100 blended hourly rate · validate with observed pilot data." />
@@ -1041,45 +885,38 @@ function Page3WorkflowDiagnosis({ data }: { data: PersonalizedQualification }) {
         portals works beneath the AI tools your team already uses, preserving the context, decisions, approvals, and lineage that make valuable output reusable.
       </Text>
 
-      <SagaColorBand variant={2}>
-        <Text style={styles.colorBandLabel}>NOMINATED BY {companyDisplay(data, 30).toUpperCase()}</Text>
-        <Text style={styles.colorBandTitle}>{workflow.title}</Text>
-        <Text style={styles.colorBandBody}>{activeWorkflow}</Text>
-        <Text style={[styles.colorBandBody, { marginTop: 7 }]}>instead, {workflow.outcome}</Text>
-        <View style={styles.colorBandColumns}>
-          <View style={styles.colorBandColumn}>
-            <Text style={styles.colorBandColumnTitle}>capture</Text>
-            <Text style={styles.colorBandColumnBody}>Assets, prompts, references, and model details.</Text>
-          </View>
-          <View style={styles.colorBandColumn}>
-            <Text style={styles.colorBandColumnTitle}>connect</Text>
-            <Text style={styles.colorBandColumnBody}>Versions, ownership, decisions, and approvals.</Text>
-          </View>
-          <View style={styles.colorBandColumn}>
-            <Text style={styles.colorBandColumnTitle}>reuse</Text>
-            <Text style={styles.colorBandColumnBody}>Approved work, complete context, and derivative lineage.</Text>
-          </View>
-        </View>
-      </SagaColorBand>
+      <SagaColorBand variant={2} />
 
-      <View style={{ marginTop: 18 }}>
+      <View style={styles.workflowStatement} wrap={false}>
+        <View style={styles.workflowStatementMain}>
+          <Text style={styles.sectionLabel}>Nominated by {companyDisplay(data, 30)}</Text>
+          <Text style={styles.decisionTitle}>{workflow.title}</Text>
+          <Text style={{ marginTop: 7, fontSize: 9, lineHeight: 1.3, color: colors.muted }}>{activeWorkflow}</Text>
+        </View>
+        <View style={styles.workflowStatementAside}>
+          <Text style={styles.sectionLabel}>Instead</Text>
+          <Text style={{ fontSize: 9, lineHeight: 1.3 }}>{workflow.outcome}</Text>
+        </View>
+      </View>
+
+      <View style={{ marginTop: 14 }}>
         <Text style={styles.sectionTitleSmall}>what your answers indicate</Text>
         <View style={[styles.evidenceRow, { paddingTop: 5, paddingBottom: 7 }]}>
           <Text style={[styles.evidenceSignal, styles.label]}>current signal</Text>
           <Text style={[styles.evidenceMeaning, styles.label]}>production consequence</Text>
           <Text style={[styles.evidenceResponse, styles.label]}>what portals makes testable</Text>
         </View>
-        <View style={[styles.evidenceRow, { paddingVertical: 8 }]} wrap={false}>
+        <View style={[styles.evidenceRow, { paddingVertical: 6 }]} wrap={false}>
           <Text style={styles.evidenceSignal}>{readable(answer(data, 'approvedVersionMethod'))}</Text>
           <Text style={styles.evidenceMeaning}>Approval state lives in conventions or disconnected records.</Text>
           <Text style={styles.evidenceResponse}>Canonical approved state with version history.</Text>
         </View>
-        <View style={[styles.evidenceRow, { paddingVertical: 8 }]} wrap={false}>
+        <View style={[styles.evidenceRow, { paddingVertical: 6 }]} wrap={false}>
           <Text style={styles.evidenceSignal}>{readable(answer(data, 'productionContextMethod'))}</Text>
           <Text style={styles.evidenceMeaning}>Prompts, references, and source files are hard to recover.</Text>
           <Text style={styles.evidenceResponse}>One structured record connected to the asset.</Text>
         </View>
-        <View style={[styles.evidenceRow, { paddingVertical: 8 }]} wrap={false}>
+        <View style={[styles.evidenceRow, { paddingVertical: 6 }]} wrap={false}>
           <Text style={styles.evidenceSignal}>{readable(answer(data, 'incidentType'))} · {readable(answer(data, 'recreationFrequency'))}</Text>
           <Text style={styles.evidenceMeaning}>The team repays for work it already completed.</Text>
           <Text style={styles.evidenceResponse}>Retrieve, reproduce, and branch from proven work.</Text>
@@ -1119,30 +956,32 @@ function Page4PilotCase({ data, document }: { data: PersonalizedQualification; d
         Prove or disprove value on one active {getRecommendedWorkflowLabel(data).toLowerCase()} workflow before wider deployment.
       </Text>
 
-      <SagaColorBand variant={3}>
-        <Text style={styles.colorBandLabel}>THE CONTROLLED PROPOSITION</Text>
-        <Text style={styles.colorBandTitle}>A {price}, {periodModifier} test of one active production workflow.</Text>
-        <Text style={styles.colorBandBody}>
-          Validate production memory with a fixed scope, observable evidence, and an explicit deploy, extend, or stop decision.
-        </Text>
-        <View style={styles.colorBandColumns}>
-          <View style={styles.colorBandColumn}>
-            <Text style={styles.colorBandColumnTitle}>{firstValue}</Text>
-            <Text style={styles.colorBandColumnBody}>target to first complete production record</Text>
-          </View>
-          <View style={styles.colorBandColumn}>
-            <Text style={styles.colorBandColumnTitle}>{breakEvenHours} hours</Text>
-            <Text style={styles.colorBandColumnBody}>reclaimed capacity equal to the pilot fee</Text>
-          </View>
-          <View style={styles.colorBandColumn}>
-            <Text style={styles.colorBandColumnTitle}>one gate</Text>
-            <Text style={styles.colorBandColumnBody}>deploy, extend, or stop using measured evidence</Text>
-          </View>
-        </View>
-      </SagaColorBand>
+      <SagaColorBand variant={3} />
 
-      <View style={[styles.split, { marginTop: 18 }]}>
-        <View style={styles.mainPane}>
+      <View style={styles.decisionStatement} wrap={false}>
+        <Text style={styles.sectionLabel}>The controlled proposition</Text>
+        <Text style={styles.decisionTitle}>A {price}, {periodModifier} test of one active production workflow.</Text>
+        <Text style={{ marginTop: 6, fontSize: 8.5, lineHeight: 1.3, color: colors.muted }}>
+          Fixed scope, observable evidence, and an explicit deploy, extend, or stop decision.
+        </Text>
+      </View>
+      <View style={[styles.featureColumns, { marginTop: 9 }]} wrap={false}>
+        <View style={styles.featureColumn}>
+          <Text style={styles.featureColumnTitle}>{firstValue}</Text>
+          <Text style={styles.featureColumnBody}>target to first complete production record</Text>
+        </View>
+        <View style={styles.featureColumn}>
+          <Text style={styles.featureColumnTitle}>{recovery?.value || 'measure first'}</Text>
+          <Text style={styles.featureColumnBody}>25–50% annual capacity recovery case</Text>
+        </View>
+        <View style={styles.featureColumn}>
+          <Text style={styles.featureColumnTitle}>{breakEvenHours} hours</Text>
+          <Text style={styles.featureColumnBody}>reclaimed capacity equal to the pilot fee</Text>
+        </View>
+      </View>
+
+      <View style={[styles.columns, { marginTop: 14 }]}>
+        <View style={styles.proofColumn}>
           <Text style={styles.sectionTitleSmall}>what the pilot includes</Text>
           <CleanList items={[
             `One active workflow: ${getRecommendedWorkflowLabel(data)}.`,
@@ -1151,28 +990,15 @@ function Page4PilotCase({ data, document }: { data: PersonalizedQualification; d
             'Agreed data path, baseline, configured production record, participant validation, and final findings review.',
           ]} />
         </View>
-        <View style={styles.rightRail}>
-          <SectionLabel>Value to prove</SectionLabel>
-          <RailMetric value={valueModelHours(model)} label="annual hours currently exposed" />
-          <RailMetric value={recovery ? `${recovery.hours} hrs` : 'measure first'} label="25–50% midpoint recovery case" />
-          <RailMetric value={readable(answer(data, 'deliveryImpact'))} label="delivery risk to reduce" />
+        <View style={styles.proofColumn}>
+          <Text style={styles.sectionTitleSmall}>how success will be evidenced</Text>
+          {measures.map(([name, target, evidence]) => (
+            <View key={name} style={styles.proofItem} wrap={false}>
+              <Text style={styles.proofTitle}>{name} · {target}</Text>
+              <Text style={styles.proofBody}>{evidence}</Text>
+            </View>
+          ))}
         </View>
-      </View>
-
-      <View style={{ marginTop: 16 }}>
-        <Text style={styles.sectionTitleSmall}>how success will be evidenced</Text>
-        <View style={styles.measureHeader}>
-          <Text style={[styles.measureName, styles.label]}>measure</Text>
-          <Text style={[styles.measureTarget, styles.label]}>target</Text>
-          <Text style={[styles.measureEvidence, styles.label]}>evidence</Text>
-        </View>
-        {measures.map(([name, target, evidence]) => (
-          <View key={name} style={styles.measureRow} wrap={false}>
-            <Text style={styles.measureName}>{name}</Text>
-            <Text style={styles.measureTarget}>{target}</Text>
-            <Text style={styles.measureEvidence}>{evidence}</Text>
-          </View>
-        ))}
       </View>
 
       <ReportFooter data={data} note={`Sponsor control: scope, data access, success measures, and the decision date are confirmed before launch. ${companyDisplay(data)} may deploy, extend, or stop at the decision gate.`} />
@@ -1201,43 +1027,53 @@ function Page5DecisionRecord({ data, document }: { data: PersonalizedQualificati
         The recommendation, supporting evidence, and decision requested from a production sponsor.
       </Text>
 
-      <View style={styles.decisionBlock} wrap={false}>
+      <SagaColorBand variant={4} />
+
+      <View style={styles.decisionStatement} wrap={false}>
         <Text style={styles.sectionLabel}>Recommended sponsor decision</Text>
-        <Text style={styles.decisionAsk}>{decisionAsk}</Text>
-        <Text style={{ marginTop: 10, fontSize: 9.5, lineHeight: 1.35 }}>
+        <Text style={styles.decisionTitle}>{decisionAsk}</Text>
+        <Text style={{ marginTop: 7, fontSize: 8.5, lineHeight: 1.3, color: colors.muted }}>
           {recovery
             ? `Why now: the 25–50% planning case returns ${recovery.value} in annual capacity value, while the pilot limits the investment, workflow, and decision window.`
             : 'Why now: the pilot contains the evaluation to one workflow and establishes the baseline required for a defensible deployment decision.'}
         </Text>
       </View>
+      <View style={[styles.featureColumns, { marginTop: 9 }]} wrap={false}>
+        <View style={styles.featureColumn}>
+          <Text style={styles.featureColumnTitle}>bounded scope</Text>
+          <Text style={styles.featureColumnBody}>One workflow, known participants, agreed access.</Text>
+        </View>
+        <View style={styles.featureColumn}>
+          <Text style={styles.featureColumnTitle}>measured value</Text>
+          <Text style={styles.featureColumnBody}>Retrieval, reuse, handoff, and capacity evidence.</Text>
+        </View>
+        <View style={styles.featureColumn}>
+          <Text style={styles.featureColumnTitle}>controlled decision</Text>
+          <Text style={styles.featureColumnBody}>No wider deployment before the final review.</Text>
+        </View>
+      </View>
 
-      <View style={[styles.split, styles.reportSection]}>
+      <View style={[styles.split, { marginTop: 10 }]}>
         <View style={styles.mainPane}>
           <Text style={styles.sectionTitleSmall}>assessment evidence</Text>
-          <ScoreBar label="workflow fit" score={data.scores.fit.normalized} coverage={data.scores.fit.coverage} />
-          <ScoreBar label="production risk" score={data.scores.pain.normalized} coverage={data.scores.pain.coverage} />
-          <ScoreBar label="pilot readiness" score={data.scores.intent.normalized} coverage={data.scores.intent.coverage} />
-
-          <View style={{ marginTop: 12 }}>
-            <Text style={styles.sectionTitleSmall}>organization and workflow profile</Text>
-            <View style={styles.profileGrid}>
-              <ProfileItem label="team type" value={readable(answer(data, 'teamType'))} />
-              <ProfileItem label="production team" value={readable(answer(data, 'teamSize'))} />
-              <ProfileItem label="AI creative tools" value={readable(answer(data, 'toolsUsed'))} />
-              <ProfileItem label="workflow cadence" value={readable(answer(data, 'recurringWorkflow'))} />
-              <ProfileItem label="asset volume / month" value={readable(answer(data, 'assetVolume'))} />
-              <ProfileItem label="latest incident" value={readable(answer(data, 'incidentType'))} />
-            </View>
+          <View style={{ marginBottom: -7 }}>
+            <ScoreBar label="workflow fit" score={data.scores.fit.normalized} coverage={data.scores.fit.coverage} />
+            <ScoreBar label="production risk" score={data.scores.pain.normalized} coverage={data.scores.pain.coverage} />
+            <ScoreBar label="pilot readiness" score={data.scores.intent.normalized} coverage={data.scores.intent.coverage} />
           </View>
+
+          <Text style={{ marginTop: 4, fontSize: 8.2, lineHeight: 1.25, color: colors.muted }}>
+            Assessment context · {readable(answer(data, 'teamSize'))} production team · {readable(answer(data, 'assetVolume'))} assets/month · {readable(answer(data, 'incidentType'))}
+          </Text>
 
         </View>
 
         <View style={styles.rightRail}>
           <SectionLabel>Next actions</SectionLabel>
           <CleanList items={outcome === 'pilot_candidate' ? [
-            'Name the production owner, economic buyer, and technical evaluator.',
-            'Confirm the workflow, integrations, data classification, and success targets.',
-            'Approve the pilot plan, launch, and review evidence at the final decision gate.',
+            'Name the production owner, buyer, and technical evaluator.',
+            'Confirm workflow, integrations, data class, and success targets.',
+            'Approve, launch, and review evidence at the decision gate.',
           ] : outcome === 'clarify' ? [
             'Confirm the production owner and budget approval path.',
             'Set a target start and measurable workflow outcome.',
@@ -1247,10 +1083,12 @@ function Page5DecisionRecord({ data, document }: { data: PersonalizedQualificati
             'Measure retrieval, rework, and handoff time.',
             'Reassess when the value hypothesis is testable.',
           ]} />
-          <Text style={[styles.profileLabel, { marginTop: 18 }]}>continue</Text>
-          <Link src="https://portals.works/paid-pilot" style={{ fontSize: 10, color: colors.blue, textDecoration: 'underline' }}>portals.works/paid-pilot</Link>
-          <Text style={[styles.profileLabel, { marginTop: 14 }]}>questions</Text>
-          <Link src="https://portals.works/contact" style={{ fontSize: 10, color: colors.blue, textDecoration: 'underline' }}>portals.works/contact</Link>
+          <Text style={[styles.profileLabel, { marginTop: 8 }]}>continue</Text>
+          <View style={{ flexDirection: 'row' }}>
+            <Link src="https://portals.works/paid-pilot" style={{ fontSize: 9.2, color: colors.blue, textDecoration: 'underline' }}>pilot</Link>
+            <Text style={{ marginHorizontal: 5, color: colors.muted }}>·</Text>
+            <Link src="https://portals.works/contact" style={{ fontSize: 9.2, color: colors.blue, textDecoration: 'underline' }}>contact</Link>
+          </View>
         </View>
       </View>
 
