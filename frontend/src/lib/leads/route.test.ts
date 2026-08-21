@@ -7,7 +7,7 @@ process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {POST} from '../../../app/api/leads/route'
 import {processLeadOutbox} from './processor'
-import {consumeMagicLink, getApplicationUserByEmail, issueMagicLink} from './application-auth'
+import {consumeMagicLink, getApplicationUserByEmail, issueMagicLink, pilotMembershipRole} from './application-auth'
 import {
   getProfileByToken,
   getPilotById,
@@ -19,6 +19,12 @@ import {
 const DISCLOSURE = '2026-08-01'
 
 type Captured = {url: string; body: {to?: string; subject?: string; text?: string}}
+
+function tokenFrom(text: string): string {
+  const match = text.match(/https:\/\/portals\.test\/auth\/verify\?token=([^&\s]+)/)
+  assert.ok(match, 'pilot email should contain a direct auth verify link')
+  return decodeURIComponent(match[1])
+}
 
 function captureFetch(t: TestContext) {
   const fetches: Captured[] = []
@@ -173,7 +179,10 @@ test('pilot_request through POST delivers the approval-room email to the submitt
   const sent = fetches[0].body
   assert.equal(sent.to, email.toLowerCase())
   assert.match(String(sent.subject), /pilot approval room/)
-  assert.match(String(sent.text), /https:\/\/portals\.test\/auth\/sign-in\?next=/)
+  assert.match(String(sent.text), /https:\/\/portals\.test\/auth\/verify\?token=/)
+  const directSession = await consumeMagicLink(tokenFrom(String(sent.text)))
+  assert.equal(directSession?.user.email, email.toLowerCase())
+  assert.equal(await pilotMembershipRole(pilot.id, directSession!.user.id), 'owner')
 
   await processLeadOutbox(20)
   assert.equal(fetches.length, 1, 'the processed row is not replayed')
@@ -319,4 +328,3 @@ test('reset_profile clears both profile and session cookies with complete attrib
   assert.match(sessionCookie, /SameSite=lax/i)
   assert.match(sessionCookie, /Path=\//i)
 })
-

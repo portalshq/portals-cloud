@@ -80,6 +80,7 @@
     "zod": "^4.4.3"
   },
   "dependencies": {
+    "@automerge/automerge": "^3.4.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^9.3.0",

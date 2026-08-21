@@ -11,7 +11,8 @@ release:
 
 # Nap is a signed downloadable binary, not a container image. The current
 # v0.5.8 release predates the secure cloud-auth changes, so it is recorded but
-# deliberately does not satisfy the production contract.
+# deliberately does not satisfy the production contract. A new release addressing
+# lore-auth-v1 is needed.
 nap-client:
   version: "0.5.8"
   source_repository: "https://github.com/portalshq/narrativeengine.git"
@@ -25,6 +26,7 @@ nap-client:
   # Nap must install this exact top-level Lore client release. Its artifacts
   # and source provenance are recorded once under lore-client below.
   lore_client_version: "0.8.4-portals.5"
+  # NOTE: v0.5.8 lacks Sigstore bundles. New release with lore-auth-v1 support needed.
 
 # Lore CLI is a separately published binary dependency of Nap. Keep the
 # checked-out submodule pinned to upstream_commit until the minimal security
@@ -46,29 +48,26 @@ lore-client:
     .4-portals.5/SHA256SUMS.sigstore.json"
 
 lore:
-  # source_commit and packaging_commit remain empty until the security changes
-  # are committed and the image is rebuilt from those clean commits.
+  # source_commit and packaging_commit updated 2026-08-21 with production build
   source_repository: "https://github.com/portalshq/lore"
-  source_commit: ""
-  packaging_commit: ""
+  source_commit: "1c0de969560779d55966152715a909eea45241e8"
+  packaging_commit: "92244a3b6148bd64b82a79003724003e4ce2a6b1"
   upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
   upstream_tag: ""
   security_contract: "lore-auth-v1"
-  base_image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/lore@sha2\
-    56:f6c88af0455227f592e6f369c5bf8356a3ebd03849594346621a3863cdfb44bc"
-  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/lore@sha256:69\
-    d4bf5f77e94879d5a919eee7f3e2aecf2508294479fa54124a412deeef9bcb"
+  base_image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha2\
+    56:6ab2406d4942b3bc474664899190f5e31f16ab5cab49db9370d1163e96f437dc"
+  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:a9256cb62a02f32f45558515226b7917b3082869b1e1d50ba9918e8dcd1446f9"
 
 # The active control-plane runtime is the private Auth Gateway. The old
 # caller-selected-claims issuer is separately and permanently retired below.
 control-plane:
   implementation: "auth-gateway"
   source_repository: "https://github.com/DigitalCreationsCo/portals-cloud.git"
-  source_commit: ""
-  protocol_commit: ""
+  source_commit: "4885f927645dffbd813a1f04b86d0c8fb6ea0cbf"
+  protocol_commit: "1c0de969560779d55966152715a909eea45241e8"
   security_contract: "lore-auth-v1"
-  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-dev/auth-gateway@s\
-    ha256:aa7945dacf559884fc7b526701621da7972b48b1a60846a63c2436588a2cd4db"
+  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/auth-gateway@sha256:1f23c9a95b1661d5bcf73b067cec0e0fc6df8258dc04b2a55ca6ace97804b9a1"
 
 legacy-control-plane:
   status: "retired"

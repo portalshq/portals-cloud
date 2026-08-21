@@ -24,6 +24,12 @@ import type {
 } from './pilot'
 import {recommendedReviewers} from './pilot'
 import {
+  createPilotDraft,
+  type PilotCollaborativeDraft,
+  type PilotCommittedRevision,
+  type PilotMutableTerms,
+} from './pilot-collaboration'
+import {
   BillingCustomer,
   BillingSubscription,
   BillingInvoice,
@@ -165,6 +171,8 @@ export type StoredPilot = {
   securityDecisions: SecurityDecision[]
   reviewers: Reviewer[]
   version: number
+  draft?: PilotCollaborativeDraft
+  revisions: PilotCommittedRevision[]
   history: PilotHistoryEntry[]
   signing: Record<string, unknown>
   payment: Record<string, unknown>
@@ -198,6 +206,8 @@ export type PilotPatch = {
   securityDecisions?: SecurityDecision[]
   reviewers?: Reviewer[]
   version?: number
+  draft?: PilotCollaborativeDraft
+  revisions?: PilotCommittedRevision[]
   signing?: Record<string, unknown>
   payment?: Record<string, unknown>
   kickoff?: Record<string, unknown>
@@ -221,6 +231,8 @@ type PilotRow = {
   security_decisions: SecurityDecision[]
   reviewers: Reviewer[]
   version: number
+  draft: PilotCollaborativeDraft | null
+  revisions: PilotCommittedRevision[] | null
   history: PilotHistoryEntry[]
   signing: Record<string, unknown>
   payment: Record<string, unknown>
@@ -231,6 +243,11 @@ type PilotRow = {
 }
 
 function pilotFromRow(row: PilotRow): StoredPilot {
+  const currentTerms: PilotMutableTerms = {
+    startDate: row.resolved_start_date,
+    valueConfirmed: Boolean(row.proposal?.valueModel?.confirmed),
+    criteria: row.success_criteria,
+  }
   return {
     id: row.id,
     profileId: row.profile_id,
@@ -246,6 +263,20 @@ function pilotFromRow(row: PilotRow): StoredPilot {
     securityDecisions: row.security_decisions,
     reviewers: row.reviewers,
     version: row.version,
+    draft: row.draft || createPilotDraft({
+      terms: currentTerms,
+      baseVersion: row.version,
+    }),
+    revisions: row.revisions || [
+      {
+        pilotId: row.id,
+        version: row.version,
+        baseVersion: Math.max(0, row.version - 1),
+        committedAt: new Date(row.updated_at).toISOString(),
+        terms: currentTerms,
+        changes: [],
+      },
+    ],
     history: row.history,
     signing: row.signing,
     payment: row.payment,
@@ -283,6 +314,28 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     securityDecisions: input.securityDecisions,
     reviewers,
     version: 1,
+    draft: createPilotDraft({
+      terms: {
+        startDate: null,
+        valueConfirmed: false,
+        criteria: input.successCriteria,
+      },
+      baseVersion: 1,
+    }),
+    revisions: [
+      {
+        pilotId: '',
+        version: 1,
+        baseVersion: 0,
+        committedAt: now,
+        terms: {
+          startDate: null,
+          valueConfirmed: false,
+          criteria: input.successCriteria,
+        },
+        changes: [],
+      },
+    ],
     history: [{at: now, action: 'created', state: input.state}],
     signing: {},
     payment: {},
@@ -291,6 +344,10 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     createdAt: now,
     updatedAt: now,
   }
+  pilot.revisions = pilot.revisions.map((revision) => ({
+    ...revision,
+    pilotId: pilot.id,
+  }))
   if (leadsDryRun()) {
     memory().pilots.set(pilot.id, pilot)
     memory().submissionPilots.set(input.initialSubmissionId, pilot.id)
@@ -299,8 +356,9 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
   await pool().query(
     `INSERT INTO lead_pilots(
       id, profile_id, initial_submission_id, state, route, answers_ciphertext,
-      exceptions, unresolved, success_criteria, security_decisions, reviewers, version, history
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      exceptions, unresolved, success_criteria, security_decisions, reviewers,
+      version, draft, revisions, history
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
     [
       pilot.id,
       pilot.profileId,
@@ -314,6 +372,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
       JSON.stringify(pilot.securityDecisions),
       JSON.stringify(pilot.reviewers),
       pilot.version,
+      JSON.stringify(pilot.draft),
+      JSON.stringify(pilot.revisions),
       JSON.stringify(pilot.history),
     ],
   )
@@ -410,6 +470,8 @@ export async function updatePilot(id: string, patch: PilotPatch): Promise<Stored
     securityDecisions: patch.securityDecisions || existing.securityDecisions,
     reviewers: patch.reviewers || existing.reviewers,
     version: patch.version !== undefined ? patch.version : existing.version,
+    draft: patch.draft !== undefined ? patch.draft : existing.draft,
+    revisions: patch.revisions || existing.revisions,
     signing: patch.signing || existing.signing,
     payment: patch.payment || existing.payment,
     kickoff: patch.kickoff || existing.kickoff,
@@ -429,8 +491,9 @@ export async function updatePilot(id: string, patch: PilotPatch): Promise<Stored
         SET state = $2, route = $3, answers_ciphertext = $4, exceptions = $5,
             unresolved = $6, proposal = $7, success_criteria = $8,
             security_decisions = $9, reviewers = $10, version = $11,
-            signing = $12, payment = $13, kickoff = $14, resolved_start_date = $15,
-            history = $16, updated_at = now()
+            draft = $12, revisions = $13, signing = $14, payment = $15,
+            kickoff = $16, resolved_start_date = $17, history = $18,
+            updated_at = now()
       WHERE id = $1`,
     [
       updated.id,
@@ -444,6 +507,8 @@ export async function updatePilot(id: string, patch: PilotPatch): Promise<Stored
       JSON.stringify(updated.securityDecisions),
       JSON.stringify(updated.reviewers),
       updated.version,
+      JSON.stringify(updated.draft || null),
+      JSON.stringify(updated.revisions),
       JSON.stringify(updated.signing),
       JSON.stringify(updated.payment),
       JSON.stringify(updated.kickoff),

@@ -14,6 +14,13 @@ import {
   getPilotByPaymentSession,
   updatePilot,
 } from './store'
+import {
+  createPilotDraft,
+  pilotTermsFromDraft,
+  resolvePilotDraftCommit,
+  updatePilotDraft,
+  type PilotMutableTerms,
+} from './pilot-collaboration'
 
 const eligible = {
   email: 'ava@studio.example',
@@ -142,6 +149,9 @@ test('creating a pilot seeds proposed reviewers from the answers', async () => {
   const signer = pilot.reviewers.find((reviewer) => reviewer.role === 'signer')
   assert.equal(signer?.email, 'ava@studio.example')
   assert.equal(pilot.version, 1)
+  assert.equal(pilot.draft?.baseVersion, 1)
+  assert.equal(pilot.revisions[0]?.version, 1)
+  assert.equal(pilot.revisions[0]?.terms.criteria.length, pilot.successCriteria.length)
 })
 
 test('version bumps leave stale reviewers flagged for reconfirmation', async () => {
@@ -170,4 +180,84 @@ test('reviewer decisions persist status and change requests', async () => {
   assert.equal(buyerAfter?.status, 'reviewed')
   assert.equal(buyerAfter?.requestedChanges, true)
   assert.equal(updated.history.length, pilot.history.length)
+})
+
+test('collaborative draft records working changes without committing a revision', () => {
+  const base: PilotMutableTerms = {
+    startDate: null,
+    valueConfirmed: false,
+    criteria: buildSuccessCriteria(eligible),
+  }
+  const draft = createPilotDraft({terms: base, baseVersion: 1, actor: 'ava@studio.example'})
+  const updated = updatePilotDraft({
+    draft,
+    baseTerms: base,
+    baseVersion: 1,
+    nextTerms: {...base, startDate: '2026-09-01'},
+    actor: 'ava@studio.example',
+  })
+  const terms = pilotTermsFromDraft(updated, base)
+  assert.equal(updated.baseVersion, 1)
+  assert.equal(updated.changes.some((change) => change.field === 'startDate'), true)
+  assert.equal(terms.startDate, '2026-09-01')
+})
+
+test('draft commit preserves concurrent changes to different structured fields', () => {
+  const base: PilotMutableTerms = {
+    startDate: null,
+    valueConfirmed: false,
+    criteria: buildSuccessCriteria(eligible),
+  }
+  const current = {...base, startDate: '2026-09-01'}
+  const incoming = {...base, valueConfirmed: true}
+  const resolved = resolvePilotDraftCommit({
+    baseTerms: base,
+    currentTerms: current,
+    incomingTerms: incoming,
+  })
+  assert.equal(resolved.conflicts.length, 0)
+  assert.equal(resolved.terms.startDate, '2026-09-01')
+  assert.equal(resolved.terms.valueConfirmed, true)
+})
+
+test('draft commit detects concurrent changes to the same structured field', () => {
+  const base: PilotMutableTerms = {
+    startDate: null,
+    valueConfirmed: false,
+    criteria: buildSuccessCriteria(eligible),
+  }
+  const resolved = resolvePilotDraftCommit({
+    baseTerms: base,
+    currentTerms: {...base, startDate: '2026-09-01'},
+    incomingTerms: {...base, startDate: '2026-10-01'},
+  })
+  assert.equal(resolved.conflicts.length, 1)
+  assert.equal(resolved.conflicts[0].field, 'startDate')
+})
+
+test('draft commit merges concurrent collaborative text changes', () => {
+  const criteria = buildSuccessCriteria(eligible)
+  const key = criteria[0].key
+  const base: PilotMutableTerms = {
+    startDate: null,
+    valueConfirmed: false,
+    criteria,
+  }
+  const current: PilotMutableTerms = {
+    ...base,
+    criteria: criteria.map((criterion) =>
+      criterion.key === key ? {...criterion, target: 'retrieve approved assets'} : criterion,
+    ),
+  }
+  const incoming: PilotMutableTerms = {
+    ...base,
+    criteria: criteria.map((criterion) =>
+      criterion.key === key ? {...criterion, target: 'under one minute'} : criterion,
+    ),
+  }
+  const resolved = resolvePilotDraftCommit({baseTerms: base, currentTerms: current, incomingTerms: incoming})
+  const merged = resolved.terms.criteria.find((criterion) => criterion.key === key)?.target || ''
+  assert.equal(resolved.conflicts.length, 0)
+  assert.match(merged, /retrieve approved assets/)
+  assert.match(merged, /under one minute/)
 })

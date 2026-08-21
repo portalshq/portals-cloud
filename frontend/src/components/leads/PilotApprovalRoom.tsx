@@ -1,9 +1,22 @@
 'use client'
 
-import {useEffect, useMemo, useState} from 'react'
-import {ArrowRight} from 'lucide-react'
-import {CTAButton} from '@/components/CTAButton'
+import {type ReactNode, useEffect, useMemo, useState} from 'react'
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Download,
+  LockKeyhole,
+  Pencil,
+  RefreshCw,
+  Save,
+  Send,
+  UserPlus,
+  X,
+} from 'lucide-react'
 import {RoomCheckbox, RoomSelectField, RoomTextField, RoomTextareaField} from '@/components/mui/fields'
+import type {SuccessCriterion} from '@/lib/leads/contracts'
+import type {ConflictResolution, PilotDraftConflict} from '@/lib/leads/pilot-collaboration'
 import {
   reviewerRoleLabel,
   stateLabel,
@@ -14,7 +27,6 @@ import {
 import type {StoredPilot} from '@/lib/leads/store'
 import {trackEvent} from '@/lib/leads/analytics-client'
 import {formatReadableDate} from '@/lib/utils'
-import {packageTermDays} from '@/lib/package-specifications'
 
 const EDITABLE_STATES: PilotState[] = [
   'reviewing',
@@ -26,12 +38,6 @@ const EDITABLE_STATES: PilotState[] = [
 
 const INVITATION_STATES: PilotState[] = ['team_review', 'scope_confirmed', 'exception_review']
 
-const CRITERION_STATUS_OPTIONS = [
-  {value: 'accepted', label: 'Accept'},
-  {value: 'modified', label: 'Modify'},
-  {value: 'not-applicable', label: 'Not applicable'},
-] as const
-
 const REVIEWER_ROLES: ReviewerRole[] = [
   'production_owner',
   'economic_buyer',
@@ -42,10 +48,16 @@ const REVIEWER_ROLES: ReviewerRole[] = [
   'signer',
 ]
 
-function FieldLabel({children}: {children: string}) {
-  return (
-    <p className="mt-16 mb-6 t-p-sm-sans text-[#52617D]">{children}</p>
-  )
+const CRITERION_STATUS_OPTIONS = [
+  {value: 'accepted', label: 'Accept'},
+  {value: 'modified', label: 'Modify'},
+  {value: 'not-applicable', label: 'Not applicable'},
+] as const
+
+type RoomTerms = {
+  startDate: string | null
+  valueConfirmed: boolean
+  criteria: SuccessCriterion[]
 }
 
 type ReviewerStatusView = {
@@ -54,52 +66,110 @@ type ReviewerStatusView = {
 }
 
 function reviewerStatusView(reviewer: Reviewer | undefined): ReviewerStatusView {
-  if (!reviewer) return {label: '—', tone: 'muted'}
+  if (!reviewer) return {label: '-', tone: 'muted'}
   if (reviewer.status === 'revoked') return {label: 'Removed', tone: 'muted'}
   if (reviewer.status === 'reviewed') {
-    if (reviewer.requestedChanges) return {label: 'Changes requested', tone: 'warn'}
-    if (reviewer.versionSeen < 1 || !reviewer.reviewedAt) return {label: 'Confirmed', tone: 'ok'}
-    return {label: 'Confirmed', tone: 'ok'}
+    return reviewer.requestedChanges
+      ? {label: 'Changes requested', tone: 'warn'}
+      : {label: 'Confirmed', tone: 'ok'}
   }
   if (reviewer.status === 'opened') return {label: 'Review pending', tone: 'warn'}
   if (reviewer.status === 'invited') return {label: 'Invited', tone: 'warn'}
   return {label: 'Proposed', tone: 'muted'}
 }
 
-function combinedStatus(
-  reviewers: Reviewer[],
-  roles: ReviewerRole[],
-): ReviewerStatusView {
-  const owned = reviewers.filter(
-    (reviewer) => roles.includes(reviewer.role) && reviewer.status !== 'revoked',
-  )
-  if (owned.some((reviewer) => reviewer.requestedChanges)) {
-    return {label: 'Changes requested', tone: 'warn'}
+function termsFromPilot(pilot: StoredPilot): RoomTerms {
+  return {
+    startDate: pilot.resolvedStartDate || null,
+    valueConfirmed: Boolean(pilot.proposal?.valueModel?.confirmed),
+    criteria: pilot.successCriteria.map((criterion) => ({...criterion})),
   }
-  if (owned.length > 0 && owned.every((reviewer) => reviewer.status === 'reviewed')) {
-    return {label: 'Confirmed', tone: 'ok'}
-  }
-  if (owned.some((reviewer) => reviewer.status === 'invited' || reviewer.status === 'opened')) {
-    return {label: 'Awaiting review', tone: 'warn'}
-  }
-  if (owned.length === 0) return {label: 'Proposed', tone: 'muted'}
-  return {label: 'Proposed', tone: 'muted'}
 }
 
-function agreementStatus(state: PilotState): ReviewerStatusView {
-  switch (state) {
-    case 'ready_sign':
-      return {label: 'Ready to sign', tone: 'ok'}
-    case 'signed':
-      return {label: 'Signed', tone: 'ok'}
-    case 'paid':
-      return {label: 'Paid', tone: 'ok'}
-    case 'kickoff':
-    case 'active':
-      return {label: 'Live', tone: 'ok'}
-    default:
-      return {label: 'Not yet available', tone: 'muted'}
+function sameValue(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null)
+}
+
+function changedCount(base: RoomTerms, current: RoomTerms): number {
+  let count = 0
+  if (!sameValue(base.startDate, current.startDate)) count += 1
+  if (!sameValue(base.valueConfirmed, current.valueConfirmed)) count += 1
+  const criteria = new Map(base.criteria.map((criterion) => [criterion.key, criterion]))
+  for (const criterion of current.criteria) {
+    const prior = criteria.get(criterion.key)
+    if (!prior) {
+      count += 1
+      continue
+    }
+    if (!sameValue(prior.status, criterion.status)) count += 1
+    if (!sameValue(prior.target || '', criterion.target || '')) count += 1
+    if (!sameValue(prior.participant || '', criterion.participant || '')) count += 1
+    if (!sameValue(prior.evidence || '', criterion.evidence || '')) count += 1
   }
+  return count
+}
+
+function toneClasses(tone: ReviewerStatusView['tone']) {
+  if (tone === 'ok') return 'text-[#1F7A4D]'
+  if (tone === 'warn') return 'text-[#B3261E]'
+  return 'text-[#6F7C93]'
+}
+
+function SectionShell({
+  id,
+  title,
+  summary,
+  mode,
+  children,
+  action,
+}: {
+  id: string
+  title: string
+  summary?: string
+  mode: 'editable' | 'request' | 'readonly'
+  children: ReactNode
+  action?: ReactNode
+}) {
+  const modeCopy = {
+    editable: {label: 'Editable', icon: Pencil},
+    request: {label: 'Request changes here', icon: Send},
+    readonly: {label: 'Read only', icon: LockKeyhole},
+  }[mode]
+  const Icon = modeCopy.icon
+  return (
+    <section id={id} className="border-t border-[#D9E1EC] py-28">
+      <div className="grid gap-16 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+        <div>
+          <div className="flex flex-wrap items-center gap-10">
+            <h2 className="t-h3-sans">{title}</h2>
+            <span className="inline-flex items-center gap-6 rounded border border-[#D9E1EC] px-8 py-4 t-p-sm-sans text-[#52617D]">
+              <Icon aria-hidden="true" size={14} strokeWidth={1.8} />
+              {modeCopy.label}
+            </span>
+          </div>
+          {summary ? (
+            <p className="mt-8 max-w-[54rem] t-p-sm-sans text-[#52617D]">{summary}</p>
+          ) : null}
+        </div>
+        {action ? <div className="md:justify-self-end">{action}</div> : null}
+      </div>
+      <div className="mt-18">{children}</div>
+    </section>
+  )
+}
+
+function StatusPill({children, tone}: {children: ReactNode; tone: ReviewerStatusView['tone']}) {
+  const classes =
+    tone === 'ok'
+      ? 'border-[#BFE5CE] bg-[#F1FAF4] text-[#1F7A4D]'
+      : tone === 'warn'
+        ? 'border-[#F2C8C2] bg-[#FFF6F4] text-[#B3261E]'
+        : 'border-[#D9E1EC] bg-[#F7F9FC] text-[#52617D]'
+  return (
+    <span className={`inline-flex items-center rounded border px-8 py-4 t-p-sm-sans ${classes}`}>
+      {children}
+    </span>
+  )
 }
 
 export function PilotApprovalRoom({
@@ -120,25 +190,28 @@ export function PilotApprovalRoom({
   qualificationCalendarUrl?: string
 }) {
   const [pilot, setPilot] = useState(initial)
+  const [baseTerms, setBaseTerms] = useState<RoomTerms>(() => termsFromPilot(initial))
+  const [baseVersion, setBaseVersion] = useState(initial.version)
   const [criteria, setCriteria] = useState(initial.successCriteria)
   const [startDate, setStartDate] = useState(initial.resolvedStartDate || '')
   const [valueConfirmed, setValueConfirmed] = useState(
     Boolean(initial.proposal?.valueModel?.confirmed),
   )
-  const [signerName, setSignerName] = useState(
-    String(initial.answers.signerName || ''),
-  )
-  const [signerEmail, setSignerEmail] = useState(
-    String(initial.answers.signerEmail || ''),
-  )
+  const [signerName, setSignerName] = useState(String(initial.answers.signerName || ''))
+  const [signerEmail, setSignerEmail] = useState(String(initial.answers.signerEmail || ''))
   const [signerConsent, setSignerConsent] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [draftBusy, setDraftBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [conflicts, setConflicts] = useState<PilotDraftConflict[]>([])
+  const [resolutions, setResolutions] = useState<Record<string, ConflictResolution>>({})
   const [draftRole, setDraftRole] = useState<ReviewerRole>('technical_evaluator')
   const [draftName, setDraftName] = useState('')
   const [draftEmail, setDraftEmail] = useState('')
   const [myNote, setMyNote] = useState('')
+  const [openRequest, setOpenRequest] = useState<string | null>(null)
+  const [requestText, setRequestText] = useState<Record<string, string>>({})
 
   const editable = EDITABLE_STATES.includes(pilot.state)
   const canEdit = accessRole === 'owner'
@@ -147,11 +220,23 @@ export function PilotApprovalRoom({
   const answers = pilot.answers as Record<string, string | boolean | undefined>
   const value = pilot.proposal?.valueModel
   const reviewers = pilot.reviewers
+  const currentTerms: RoomTerms = useMemo(
+    () => ({
+      startDate: startDate || null,
+      valueConfirmed,
+      criteria,
+    }),
+    [criteria, startDate, valueConfirmed],
+  )
+  const unsavedChanges = changedCount(baseTerms, currentTerms)
+  const hasUnsavedChanges = unsavedChanges > 0
   const myReviewer = reviewers.find(
     (reviewer) =>
       reviewer.email.toLowerCase() === userEmail.toLowerCase() &&
       reviewer.status !== 'revoked',
   )
+  const pendingExceptionReview =
+    pilot.route === 'one-call' && pilot.exceptions.some((item) => !item.resolvedAt)
   const assessmentQualificationPending = pilot.exceptions.some(
     (item) => item.kind === 'assessment-qualification' && !item.resolvedAt,
   )
@@ -171,7 +256,7 @@ export function PilotApprovalRoom({
     if (attempts >= 6) return
     const timer = setTimeout(() => {
       sessionStorage.setItem(attemptsKey, String(attempts + 1))
-      window.location.reload()
+      void refreshPilot()
     }, 3000)
     return () => clearTimeout(timer)
   }, [sessionId, pilot.state, pilot.id])
@@ -187,10 +272,56 @@ export function PilotApprovalRoom({
     })
   }, [accessRole, pilot.id])
 
-  async function patch(body: Record<string, unknown>): Promise<boolean> {
-    setBusy(true)
-    setError('')
-    setNotice('')
+  useEffect(() => {
+    if (!editable || !canEdit || !hasUnsavedChanges) return
+    const timer = setTimeout(() => {
+      void saveDraft()
+    }, 700)
+    return () => clearTimeout(timer)
+  }, [editable, canEdit, hasUnsavedChanges, currentTerms, baseVersion])
+
+  async function refreshPilot() {
+    try {
+      const response = await fetch(`/api/pilot/${pilot.id}`, {cache: 'no-store'})
+      const json = (await response.json()) as {ok: boolean; pilot?: StoredPilot}
+      if (response.ok && json.ok && json.pilot) {
+        setPilot(json.pilot)
+        if (!hasUnsavedChanges) syncFromPilot(json.pilot)
+      }
+    } catch {
+      // refresh is opportunistic
+    }
+  }
+
+  function syncFromPilot(nextPilot: StoredPilot) {
+    const terms = termsFromPilot(nextPilot)
+    setBaseTerms(terms)
+    setBaseVersion(nextPilot.version)
+    setCriteria(nextPilot.successCriteria)
+    setStartDate(nextPilot.resolvedStartDate || '')
+    setValueConfirmed(Boolean(nextPilot.proposal?.valueModel?.confirmed))
+    setConflicts([])
+    setResolutions({})
+  }
+
+  function saveFields() {
+    return {
+      criteria,
+      startDate: startDate || null,
+      valueConfirmed,
+      baseVersion,
+    }
+  }
+
+  async function patch(
+    body: Record<string, unknown>,
+    opts: {silent?: boolean; sync?: boolean} = {},
+  ): Promise<boolean> {
+    if (!opts.silent) {
+      setBusy(true)
+      setError('')
+      setNotice('')
+    }
     try {
       const response = await fetch(`/api/pilot/${pilot.id}`, {
         method: 'PATCH',
@@ -199,48 +330,75 @@ export function PilotApprovalRoom({
       })
       const json = (await response.json()) as {
         ok: boolean
+        code?: string
         message?: string
         pilot?: StoredPilot
+        conflicts?: PilotDraftConflict[]
         unresolved?: Array<{key: string; label: string; resolution: string}>
       }
       if (!response.ok || !json.ok) {
+        if (json.code === 'conflict' && json.conflicts) {
+          setConflicts(json.conflicts)
+          throw new Error('Resolve the highlighted conflict before saving.')
+        }
         const detail = json.unresolved?.map((item) => `- ${item.label}`).join('\n')
         throw new Error(detail ? `resolve the highlighted items first:\n${detail}` : (json.message || 'could not update the pilot room'))
       }
-      if (json.pilot) setPilot(json.pilot)
+      if (json.pilot) {
+        setPilot(json.pilot)
+        if (opts.sync) syncFromPilot(json.pilot)
+      }
       return true
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'could not update the pilot room')
+      if (!opts.silent) {
+        setError(cause instanceof Error ? cause.message : 'could not update the pilot room')
+      }
       return false
     } finally {
-      setBusy(false)
+      if (!opts.silent) setBusy(false)
     }
   }
 
-  function saveFields() {
-    return {
-      criteria,
-      startDate: startDate || null,
-      valueConfirmed,
+  async function saveDraft() {
+    setDraftBusy(true)
+    await patch({action: 'draft', ...saveFields()}, {silent: true})
+    setDraftBusy(false)
+  }
+
+  async function onSave(extraResolutions = resolutions) {
+    if (await patch({action: 'commit_draft', ...saveFields(), resolutions: extraResolutions}, {sync: true})) {
+      setNotice('Changes saved as the latest pilot revision.')
     }
   }
 
-  async function onSave() {
-    if (await patch({action: 'update', ...saveFields()})) {
-      setNotice('changes saved')
+  async function onApprove() {
+    if (hasUnsavedChanges) {
+      setError('Save changes before approving this pilot.')
+      return
     }
-  }
-
-  async function onConfirmScope() {
-    if (await patch({action: 'confirm_scope', ...saveFields()})) {
-      setNotice('scope confirmed — the agreement can now be finalized')
+    if (pendingExceptionReview) {
+      setError('Submit the requested terms for Portals review before approving.')
+      return
+    }
+    if (pilot.state === 'scope_confirmed') {
+      if (await patch({action: 'finalize', note: 'agreement finalized for signature'}, {sync: true})) {
+        setNotice('The agreement is ready for signature.')
+      }
+      return
+    }
+    if (await patch({action: 'confirm_scope', ...saveFields()}, {sync: true})) {
+      setNotice('Pilot terms approved. The agreement can now be finalized.')
     }
   }
 
   async function onStartTeamReview() {
-    if (await patch({action: 'start_team_review'})) {
+    if (hasUnsavedChanges) {
+      setError('Save changes before sharing the pilot for review.')
+      return
+    }
+    if (await patch({action: 'start_team_review'}, {sync: true})) {
       await onInviteAllRequired()
-      setNotice('invitations are unlocked. reviewers see this exact version until a material change is submitted — any change after this point flags their confirmations for re-review.')
+      setNotice('Review invitations are ready.')
     }
   }
 
@@ -249,7 +407,7 @@ export function PilotApprovalRoom({
       action: 'invite_reviewer',
       invite: {role: reviewer.role, email: reviewer.email, name: reviewer.name, reviewerId: reviewer.id},
     })) {
-      setNotice(`invitation sent to ${reviewer.email}`)
+      setNotice(`Invitation sent to ${reviewer.email}.`)
     }
   }
 
@@ -261,7 +419,7 @@ export function PilotApprovalRoom({
         reviewer.role !== 'signer',
     )
     if (pending.length === 0) {
-      setError('no proposed reviewers with an email to invite yet')
+      setError('No proposed reviewers with an email to invite yet.')
       return
     }
     for (const reviewer of pending) {
@@ -271,19 +429,19 @@ export function PilotApprovalRoom({
       })
       if (!ok) return
     }
-    setNotice(`invitations sent to ${pending.length} reviewer${pending.length === 1 ? '' : 's'}`)
+    setNotice(`Invitations sent to ${pending.length} reviewer${pending.length === 1 ? '' : 's'}.`)
   }
 
   async function onAddReviewer() {
     if (!draftEmail.trim()) {
-      setError('enter an email for the reviewer')
+      setError('Enter an email for the reviewer.')
       return
     }
     if (await patch({
       action: 'invite_reviewer',
       invite: {role: draftRole, email: draftEmail.trim(), name: draftName.trim() || undefined},
     })) {
-      setNotice(`invitation sent to ${draftEmail.trim()}`)
+      setNotice(`Invitation sent to ${draftEmail.trim()}.`)
       setDraftName('')
       setDraftEmail('')
     }
@@ -291,64 +449,99 @@ export function PilotApprovalRoom({
 
   async function onRemove(reviewer: Reviewer) {
     if (await patch({action: 'remove_reviewer', reviewerId: reviewer.id})) {
-      setNotice(`${reviewer.email} removed from the room`)
+      setNotice(`${reviewer.email} removed from the room.`)
     }
   }
 
   async function onChangeRole(reviewer: Reviewer, role: ReviewerRole) {
     if (await patch({action: 'reviewer_role', reviewerId: reviewer.id, role})) {
-      setNotice(`${reviewer.email} is now the ${reviewerRoleLabel(role).toLowerCase()}`)
+      setNotice(`${reviewer.email} is now the ${reviewerRoleLabel(role).toLowerCase()}.`)
     }
   }
 
   async function onClaim(reviewer: Reviewer) {
     if (await patch({action: 'claim_role', reviewerId: reviewer.id})) {
-      setNotice(`you hold the ${reviewerRoleLabel(reviewer.role).toLowerCase()} role`)
+      setNotice(`You hold the ${reviewerRoleLabel(reviewer.role).toLowerCase()} role.`)
     }
   }
 
   async function onReviewerDecision(decision: 'confirm' | 'changes') {
     if (!myReviewer) return
+    if (decision === 'confirm' && hasUnsavedChanges) {
+      setError('Save changes before confirming your review.')
+      return
+    }
     if (await patch({
       action: 'reviewer_decision',
       reviewerId: myReviewer.id,
       decision,
       note: myNote.trim() || undefined,
     })) {
-      setNotice(decision === 'confirm' ? 'your review is recorded' : 'your requested changes were recorded')
+      setNotice(decision === 'confirm' ? 'Your review is recorded.' : 'Your requested changes were recorded.')
       setMyNote('')
     }
   }
 
-  async function onAddNote() {
-    if (!myReviewer) return
-    if (!myNote.trim()) {
-      setError('write a note before submitting')
+  async function onSectionRequest(section: string) {
+    const note = String(requestText[section] || '').trim()
+    if (!note) {
+      setError('Write the requested change before submitting.')
       return
     }
-    if (await patch({action: 'reviewer_note', reviewerId: myReviewer.id, note: myNote.trim()})) {
-      setNotice('note added')
-      setMyNote('')
+    if (await patch({action: 'section_change_request', sectionChange: {section, note}})) {
+      setNotice(`Requested changes for ${section}.`)
+      setOpenRequest(null)
+      setRequestText((current) => ({...current, [section]: ''}))
     }
   }
 
-  async function onFinalize() {
-    if (await patch({action: 'finalize', note: 'agreement finalized for signature'})) {
-      setNotice('the standard agreement is ready to sign')
+  async function onQualificationDecision(action: 'qualify' | 'disqualify') {
+    const accepted = await patch({
+      action,
+      note:
+        action === 'qualify'
+          ? 'assessment override qualified by founder'
+          : 'assessment override declined by founder',
+    })
+    if (accepted) {
+      void trackEvent('qualification_call_outcome', {
+        pilot_id: pilot.id,
+        outcome: action === 'qualify' ? 'qualified' : 'not_eligible',
+      })
+    }
+  }
+
+  async function onResolveExceptions() {
+    if (await patch({action: 'resolve_exceptions', note: 'exceptions resolved'}, {sync: true})) {
+      setNotice('Review items were resolved.')
+    }
+  }
+
+  async function onSubmitForPortalsReview() {
+    if (hasUnsavedChanges) {
+      setError('Save changes before submitting these terms for Portals review.')
+      return
+    }
+    if (await patch({action: 'request_exception', note: 'Portals review requested'}, {sync: true})) {
+      setNotice('Submitted for Portals review.')
     }
   }
 
   async function onSign() {
+    if (hasUnsavedChanges) {
+      setError('Save changes before signing this pilot.')
+      return
+    }
     if (!signerName.trim() || !signerEmail.trim()) {
-      setError('enter the authorized signer\u2019s name and email')
+      setError("Enter the authorized signer's name and email.")
       return
     }
     if (!signerConsent) {
-      setError('check the agreement before signing')
+      setError('Check the agreement confirmation before signing.')
       return
     }
-    if (await patch({action: 'sign', signer: {name: signerName, email: signerEmail}})) {
-      setNotice('signed — the pilot fee is due on signature')
+    if (await patch({action: 'sign', signer: {name: signerName, email: signerEmail}}, {sync: true})) {
+      setNotice('Signed. The pilot fee is due on signature.')
     }
   }
 
@@ -375,8 +568,11 @@ export function PilotApprovalRoom({
         window.location.href = json.url
         return
       }
-      if (json.pilot) setPilot(json.pilot)
-      setNotice('payment recorded — kickoff can be scheduled')
+      if (json.pilot) {
+        setPilot(json.pilot)
+        syncFromPilot(json.pilot)
+      }
+      setNotice('Payment recorded. Kickoff can be scheduled.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'could not start payment')
     } finally {
@@ -385,284 +581,242 @@ export function PilotApprovalRoom({
   }
 
   async function onKickoff() {
-    if (await patch({action: 'kickoff'})) {
-      setNotice('kickoff scheduled — the pilot can be activated')
+    if (await patch({action: 'kickoff'}, {sync: true})) {
+      setNotice('Kickoff scheduled. The pilot can be activated.')
     }
   }
 
   async function onActivate() {
-    if (await patch({action: 'activate', note: 'pilot activated'})) {
-      setNotice('the pilot is live')
+    if (await patch({action: 'activate', note: 'pilot activated'}, {sync: true})) {
+      setNotice('The pilot is live.')
     }
   }
 
-  async function onQualificationDecision(action: 'qualify' | 'disqualify') {
-    const accepted = await patch({
-      action,
-      note:
-        action === 'qualify'
-          ? 'assessment override qualified by founder'
-          : 'assessment override declined by founder',
-    })
-    if (accepted) {
-      void trackEvent('qualification_call_outcome', {
-        pilot_id: pilot.id,
-        outcome: action === 'qualify' ? 'qualified' : 'not_eligible',
-      })
-    }
+  function setConflictField(field: string, value: unknown) {
+    if (field === 'startDate') setStartDate(value ? String(value) : '')
+    if (field === 'valueConfirmed') setValueConfirmed(Boolean(value))
+    const match = field.match(/^criteria\.([^.]+)\.(status|target|participant|evidence)$/)
+    if (!match) return
+    const [, key, property] = match
+    setCriteria((current) =>
+      current.map((criterion) =>
+        criterion.key === key
+          ? {...criterion, [property]: property === 'status' ? value : String(value || '')}
+          : criterion,
+      ),
+    )
   }
 
-  const actionButtons = useMemo(() => {
-    if (!canEdit) {
-      if (founderAccess && assessmentQualificationPending && pilot.state === 'exception_review') {
-        return (
-          <>
-            <button onClick={() => onQualificationDecision('qualify')} disabled={busy} className={accentButtonClasses}>
-              qualify for pilot
-            </button>
-            <button onClick={() => onQualificationDecision('disqualify')} disabled={busy} className={plainButtonClasses}>
-              mark not eligible
-            </button>
-          </>
-        )
-      }
-      return null
+  async function resolveConflict(conflict: PilotDraftConflict, resolution: ConflictResolution) {
+    const nextResolutions = {...resolutions, [conflict.field]: resolution}
+    setResolutions(nextResolutions)
+    setConflicts((current) => current.filter((item) => item.field !== conflict.field))
+    if (resolution === 'current') {
+      setConflictField(conflict.field, conflict.currentValue)
+      return
     }
-    const pendingExceptionReview =
-      pilot.route === 'one-call' &&
-      pilot.exceptions.some((item) => !item.resolvedAt)
-    switch (pilot.state) {
-      case 'reviewing':
-      case 'revision':
-        return (
-          <>
-            <button onClick={onSave} disabled={busy} className={primaryButtonClasses}>
-              save changes
-            </button>
-            {!pendingExceptionReview ? (
-              <button onClick={onConfirmScope} disabled={busy} className={accentButtonClasses}>
-                confirm scope
-              </button>
-            ) : null}
-            {pilot.exceptions.length > 0 ? (
-              <button onClick={() => patch({action: 'request_exception', note: 'exception review requested'})} disabled={busy} className={plainButtonClasses}>
-                request exception review
-              </button>
-            ) : null}
-          </>
-        )
-      case 'team_review':
-        return (
-          <>
-            <button onClick={onSave} disabled={busy} className={primaryButtonClasses}>
-              save changes
-            </button>
-            {!pendingExceptionReview ? (
-              <button onClick={onConfirmScope} disabled={busy} className={accentButtonClasses}>
-                confirm scope
-              </button>
-            ) : null}
-            {pilot.exceptions.length > 0 ? (
-              <button onClick={() => patch({action: 'request_exception', note: 'exception review requested'})} disabled={busy} className={plainButtonClasses}>
-                request exception review
-              </button>
-            ) : null}
-          </>
-        )
-      case 'exception_review':
-        if (assessmentQualificationPending) {
-          return founderAccess ? (
-            <>
-              <button onClick={() => onQualificationDecision('qualify')} disabled={busy} className={accentButtonClasses}>
-                qualify for pilot
-              </button>
-              <button onClick={() => onQualificationDecision('disqualify')} disabled={busy} className={plainButtonClasses}>
-                mark not eligible
-              </button>
-            </>
-          ) : null
-        }
-        return (
-          <>
-            <button onClick={() => patch({action: 'resolve_exceptions', note: 'exceptions resolved'})} disabled={busy} className={accentButtonClasses}>
-              mark exceptions resolved
-            </button>
-          </>
-        )
-      case 'scope_confirmed':
-        return (
-          <>
-            <button onClick={onSave} disabled={busy} className={primaryButtonClasses}>
-              save changes
-            </button>
-            {!pendingExceptionReview ? (
-              <button onClick={onFinalize} disabled={busy} className={accentButtonClasses}>
-                finalize the agreement
-              </button>
-            ) : null}
-            {pilot.exceptions.length > 0 ? (
-              <button onClick={() => patch({action: 'request_exception', note: 'exception review requested'})} disabled={busy} className={plainButtonClasses}>
-                request exception review
-              </button>
-            ) : null}
-          </>
-        )
-      case 'ready_sign':
-        return null
-      case 'signed':
-        return (
-          <button onClick={onPay} disabled={busy} className={accentButtonClasses}>
-            pay the ${pilot.proposal?.priceAmount || 5000} pilot fee
+    await onSave(nextResolutions)
+  }
+
+  function requestAction(section: string) {
+    if (!myReviewer && accessRole !== 'owner') return null
+    return (
+      <div className="grid gap-10">
+        <button
+          type="button"
+          onClick={() => setOpenRequest(openRequest === section ? null : section)}
+          className={plainButtonClasses}
+        >
+          <Send aria-hidden="true" size={16} strokeWidth={1.8} />
+          Request a change
+        </button>
+      </div>
+    )
+  }
+
+  function requestPanel(section: string) {
+    if (openRequest !== section) return null
+    return (
+      <div className="mt-14 grid gap-10 border border-[#D9E1EC] bg-[#F7F9FC] p-14">
+        <label className="t-p-sm-sans text-[#52617D]">
+          Requested change for {section}
+          <RoomTextareaField
+            className="mt-6"
+            minRows={3}
+            value={requestText[section] || ''}
+            onChange={(event) =>
+              setRequestText((current) => ({...current, [section]: event.target.value}))
+            }
+            placeholder="Describe the exact change needed in this section."
+          />
+        </label>
+        <div className="flex flex-wrap gap-8">
+          <button type="button" onClick={() => void onSectionRequest(section)} disabled={busy} className={primaryButtonClasses}>
+            <Send aria-hidden="true" size={16} strokeWidth={1.8} />
+            Submit request
           </button>
-        )
-      case 'paid':
-        return (
-          <button onClick={onKickoff} disabled={busy} className={accentButtonClasses}>
-            schedule the kickoff
+          <button type="button" onClick={() => setOpenRequest(null)} className={plainButtonClasses}>
+            Cancel
           </button>
-        )
-      case 'kickoff':
-        return (
-          <button onClick={onActivate} disabled={busy} className={accentButtonClasses}>
-            activate the pilot
-          </button>
-        )
-      default:
-        return null
-    }
-  }, [pilot.state, pilot.route, pilot.exceptions, pilot.proposal?.priceAmount, busy, assessmentQualificationPending, founderAccess, canEdit])
+        </div>
+      </div>
+    )
+  }
 
   const routeBadge =
     pilot.route === 'zero-call'
-      ? 'no call required to proceed'
+      ? 'No call required'
       : pilot.route === 'one-call'
-        ? 'one pilot terms review required'
-        : 'needs clarification'
+        ? 'Portals review required'
+        : 'Needs clarification'
 
-  const consolidatedRows: Array<{section: string; view: ReviewerStatusView}> = [
+  const canApprove =
+    canEdit &&
+    ['reviewing', 'revision', 'team_review', 'scope_confirmed'].includes(pilot.state) &&
+    pilot.unresolved.length === 0
+
+  const approvalLabel =
+    pilot.state === 'scope_confirmed' ? 'Approve for signature' : 'Approve pilot terms'
+
+  const globalWorkflowAction = (() => {
+    if (!canEdit) return null
+    if (founderAccess && assessmentQualificationPending && pilot.state === 'exception_review') {
+      return (
+        <>
+          <button onClick={() => void onQualificationDecision('qualify')} disabled={busy} className={accentButtonClasses}>
+            <Check aria-hidden="true" size={16} strokeWidth={1.8} />
+            Qualify
+          </button>
+          <button onClick={() => void onQualificationDecision('disqualify')} disabled={busy} className={plainButtonClasses}>
+            <X aria-hidden="true" size={16} strokeWidth={1.8} />
+            Not eligible
+          </button>
+        </>
+      )
+    }
+    if (founderAccess && pilot.state === 'exception_review') {
+      return (
+        <button onClick={() => void onResolveExceptions()} disabled={busy} className={accentButtonClasses}>
+          <Check aria-hidden="true" size={16} strokeWidth={1.8} />
+          Resolve review
+        </button>
+      )
+    }
+    if (canApprove && !pendingExceptionReview) {
+      return (
+        <button onClick={() => void onApprove()} disabled={busy || hasUnsavedChanges} className={accentButtonClasses}>
+          <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
+          {approvalLabel}
+        </button>
+      )
+    }
+    if (pilot.state === 'signed') {
+      return (
+        <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>
+          Pay the ${pilot.proposal?.priceAmount || 5000} pilot fee
+        </button>
+      )
+    }
+    if (pilot.state === 'paid') {
+      return (
+        <button onClick={() => void onKickoff()} disabled={busy} className={accentButtonClasses}>
+          Schedule kickoff
+        </button>
+      )
+    }
+    if (pilot.state === 'kickoff') {
+      return (
+        <button onClick={() => void onActivate()} disabled={busy} className={accentButtonClasses}>
+          Activate pilot
+        </button>
+      )
+    }
+    return null
+  })()
+
+  const reviewRows: Array<{section: string; view: ReviewerStatusView}> = [
+    {section: 'Workflow scope', view: reviewerStatusView(reviewers.find((reviewer) => reviewer.role === 'production_owner'))},
+    {section: 'Success criteria', view: reviewerStatusView(reviewers.find((reviewer) => reviewer.role === 'economic_buyer'))},
+    {section: 'Technical fit', view: reviewerStatusView(reviewers.find((reviewer) => reviewer.role === 'technical_evaluator'))},
     {
-      section: 'Workflow scope',
-      view: reviewerStatusView(
-        reviewers.find((reviewer) => reviewer.role === 'production_owner'),
-      ),
-    },
-    {
-      section: 'Success criteria',
-      view: combinedStatus(reviewers, ['production_owner', 'economic_buyer']),
-    },
-    {
-      section: 'Technical compatibility',
-      view: reviewerStatusView(
-        reviewers.find((reviewer) => reviewer.role === 'technical_evaluator'),
-      ),
-    },
-    {
-      section: 'Security review',
+      section: 'Security posture',
       view: reviewers.some((reviewer) => reviewer.role === 'security_reviewer')
-        ? reviewerStatusView(
-            reviewers.find((reviewer) => reviewer.role === 'security_reviewer'),
-          )
+        ? reviewerStatusView(reviewers.find((reviewer) => reviewer.role === 'security_reviewer'))
         : {label: 'Not required', tone: 'muted'},
     },
     {
-      section: 'Commercial terms',
-      view: (() => {
-        const buyer = reviewers.find((reviewer) => reviewer.role === 'economic_buyer')
-        if (buyer?.status === 'reviewed' && buyer.requestedChanges) {
-          return {label: 'Changes requested', tone: 'warn' as const}
-        }
-        if (buyer?.status === 'reviewed') {
-          return {label: 'Confirmed', tone: 'ok' as const}
-        }
-        return {label: 'Awaiting buyer', tone: 'warn' as const}
-      })(),
-    },
-    {
       section: 'Agreement',
-      view: agreementStatus(pilot.state),
+      view:
+        pilot.state === 'ready_sign' || pilot.state === 'signed' || pilot.state === 'paid' || pilot.state === 'kickoff' || pilot.state === 'active'
+          ? {label: stateLabel(pilot.state), tone: 'ok'}
+          : {label: 'Not yet available', tone: 'muted'},
     },
   ]
 
   return (
-    <div>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-16 gap-y-8">
-        <div className='w-full md:w-auto'>
-          <p className="t-p-sm-sans">pilot approval room {pilot.answers?.company ? `· ${pilot.answers.company}` : ''}</p>
-          <h1 className="mt-8 t-h3-sans">{stateLabel(pilot.state)}</h1>
-          <p className="t-p-sm-sans">{routeBadge}</p>
+    <div className="pb-32">
+      <div className="grid gap-20 border-b border-[#D9E1EC] pb-28 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div>
+          <p className="t-p-sm-sans text-[#52617D]">Paid pilot review</p>
+          <h1 className="mt-6 t-h2-sans">{String(answers.company || 'Pilot terms')}</h1>
+          <p className="mt-10 max-w-[58rem] t-p-sans text-[#52617D]">
+            Review the scope, success criteria, security requirements, and commercial terms. Make necessary changes, save them, then approve the pilot when everything is correct.
+          </p>
+          <div className="mt-16 flex flex-wrap items-center gap-8">
+            <StatusPill tone={pilot.unresolved.length > 0 || pendingExceptionReview ? 'warn' : 'ok'}>
+              {stateLabel(pilot.state)}
+            </StatusPill>
+            <StatusPill tone={pendingExceptionReview ? 'warn' : 'muted'}>{routeBadge}</StatusPill>
+            <StatusPill tone={hasUnsavedChanges ? 'warn' : 'ok'}>
+              {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
+            </StatusPill>
+          </div>
         </div>
-        <div className="md:text-right w-full md:w-auto">
-          <p className="mt-4 t-p-sm-sans text-[#52617D]">
-            {accessRole} · {userEmail}
-          </p>
-          <p className="mt-16">
-            <a
-              className={primaryButtonClasses}
-              href={`/api/leads/documents/pilot-packet?pilot=${encodeURIComponent(pilot.id)}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              download a pdf copy
-            </a>
-          </p>
+        <div className="grid gap-8 lg:justify-items-end">
+          <p className="t-p-sm-sans text-[#52617D]">{accessRole} - {userEmail}</p>
+          <a
+            className={plainButtonClasses}
+            href={`/api/leads/documents/pilot-packet?pilot=${encodeURIComponent(pilot.id)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Download aria-hidden="true" size={16} strokeWidth={1.8} />
+            Download PDF
+          </a>
         </div>
       </div>
 
       {pilot.state === 'not_eligible' ? (
-        <div className="mt-24 rounded border border-[#E5C7A8] bg-[#FBF3E9] px-20 py-16">
-          <p className="t-p-sm-sans font-medium">the standard pilot cannot proceed as drafted.</p>
-          <p className="mt-8 t-p-sm-sans text-[#52617D]">
-            revise the plan to continue.
-          </p>
-          <CTAButton href={revisePath} className="mt-16 border-[#07112C]/20 !bg-[#07112C]">
-            <span>revise the plan</span>
-            <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
-          </CTAButton>
+        <div className="mt-24 border border-[#E5C7A8] bg-[#FBF3E9] px-18 py-16">
+          <p className="t-p-sm-sans font-medium">The standard pilot cannot proceed as drafted.</p>
+          <p className="mt-8 t-p-sm-sans text-[#52617D]">Revise the plan to continue.</p>
+          <a href={revisePath} className={`${primaryButtonClasses} mt-14`}>
+            <Pencil aria-hidden="true" size={16} strokeWidth={1.8} />
+            Revise the plan
+          </a>
         </div>
       ) : null}
 
-      {(pilot.state === 'reviewing' || pilot.state === 'revision') &&
-      accessRole === 'owner' ? (
-        <div className="mt-24 rounded border border-[#C9D6EA] bg-[#F3F7FC] px-20 py-16">
-          <p className="t-p-sm-sans font-medium">
-            your pilot plan is ready. review it for accuracy before inviting your team for review.
+      {(pilot.state === 'reviewing' || pilot.state === 'revision') && canEdit ? (
+        <div className="mt-24 border border-[#C9D6EA] bg-[#F3F7FC] px-18 py-16">
+          <p className="t-p-sm-sans font-medium">Review the draft before inviting the team.</p>
+          <p className="mt-8 max-w-[54rem] t-p-sm-sans text-[#52617D]">
+            Once the terms are saved, share this room with reviewers so everyone sees the same committed revision.
           </p>
-          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
-            workflows, people, integrations, security requirements,
-            and annual terms are outlined below. 
-          </p>
-          <CTAButton
-            appearance="plain"
-            onClick={onStartTeamReview}
-            disabled={busy}
-            className={`${accentButtonClasses} mt-16`}
-          >
-            I have reviewed this draft and it is ready to share internally
-          </CTAButton>
-        </div>
-      ) : null}
-
-      {pilot.state === 'team_review' ? (
-        <div className="mt-24 rounded border border-[#C9D6EA] bg-[#F3F7FC] px-20 py-16">
-          <p className="t-p-sm-sans font-medium">ready for team review.</p>
-          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
-            invitations are unlocked. reviewers see this exact version until a
-            material change is submitted — any change after this point flags
-            their confirmations for re-review.
-          </p>
+          <button onClick={() => void onStartTeamReview()} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} mt-14`}>
+            <UserPlus aria-hidden="true" size={16} strokeWidth={1.8} />
+            Ready to share
+          </button>
         </div>
       ) : null}
 
       {pilot.unresolved.length > 0 ? (
-        <div className="mt-24 rounded border border-[#E5C7A8] bg-[#FBF3E9] px-20 py-16">
-          <p className="t-p-sm-sans font-medium">
-            {pilot.unresolved.length} item{pilot.unresolved.length === 1 ? '' : 's'} to resolve
-          </p>
-          <ul className="mt-12 grid gap-20">
+        <div className="mt-24 border border-[#E5C7A8] bg-[#FBF3E9] px-18 py-16">
+          <p className="t-p-sm-sans font-medium">{pilot.unresolved.length} item{pilot.unresolved.length === 1 ? '' : 's'} to resolve</p>
+          <ul className="mt-12 grid gap-10">
             {pilot.unresolved.map((item) => (
               <li key={item.key} className="t-p-sm-sans text-[#52617D]">
-                <a href={item.href} className="inline text-[#07112C]">{item.label}.</a>{' '}
-                {item.resolution}
+                <a href={item.href} className="inline text-[#07112C] underline underline-offset-4">{item.label}</a>: {item.resolution}
               </li>
             ))}
           </ul>
@@ -670,34 +824,36 @@ export function PilotApprovalRoom({
       ) : null}
 
       {pilot.exceptions.length > 0 ? (
-        <div className="mt-24 rounded border border-[#C9D6EA] bg-[#F3F7FC] px-20 py-16">
-          <p className="t-p-sm-sans font-medium">terms outside the standard scope</p>
-          <ul className="mt-12 grid gap-20">
+        <div className="mt-24 border border-[#C9D6EA] bg-[#F3F7FC] px-18 py-16">
+          <p className="t-p-sm-sans font-medium">Terms needing Portals review</p>
+          <ul className="mt-12 grid gap-12">
             {pilot.exceptions.map((item, index) => (
-              <li key={item.kind + index} className="t-p-sm-sans">
-                <span className="text-[#07112C]">{item.summary}</span>{' '}
-                <div className="flex items-center justify-between">
-                  {item.amendment}
-                  {item.resolvedAt ? <span className="text-[#2F66B5]"> resolved</span> : null}
-                </div>
+              <li key={item.kind + index} className="grid gap-4 t-p-sm-sans">
+                <span className="text-[#07112C]">{item.summary}</span>
+                <span className="text-[#52617D]">{item.amendment}</span>
+                {item.resolvedAt ? <span className="text-[#1F7A4D]">Resolved</span> : null}
               </li>
             ))}
           </ul>
-          {pilot.route === 'one-call' &&
-          pilot.exceptions.some((item) => !item.resolvedAt) ? (
+          {pendingExceptionReview ? (
             <p className="mt-12 t-p-sm-sans text-[#52617D]">
-              a single pilot terms review is required before this plan can be
-              finalized and signed.
+              These items cannot be approved by the customer alone. Submit them for Portals review and approve the pilot after they are resolved.
             </p>
+          ) : null}
+          {canEdit && pendingExceptionReview && pilot.state !== 'exception_review' ? (
+            <button onClick={() => void onSubmitForPortalsReview()} disabled={busy || hasUnsavedChanges} className={`${primaryButtonClasses} mt-14`}>
+              <Send aria-hidden="true" size={16} strokeWidth={1.8} />
+              Submit for Portals review
+            </button>
           ) : null}
         </div>
       ) : null}
 
       {assessmentQualificationPending ? (
-        <div className="mt-24 rounded border border-[#E5C7A8] bg-[#FBF3E9] px-20 py-16">
-          <p className="t-p-sm-sans font-medium">qualification call required</p>
-          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
-            This request came through the assessment self-selection path. The completed scope gives the founder enough context to definitively qualify or decline the pilot.
+        <div className="mt-24 border border-[#E5C7A8] bg-[#FBF3E9] px-18 py-16">
+          <p className="t-p-sm-sans font-medium">Qualification call required</p>
+          <p className="mt-8 max-w-[54rem] t-p-sm-sans text-[#52617D]">
+            This request came through the assessment self-selection path. The completed scope gives Portals enough context to qualify or decline the pilot.
           </p>
           {!founderAccess && qualificationCalendarUrl ? (
             <a
@@ -707,239 +863,258 @@ export function PilotApprovalRoom({
               rel="noreferrer"
               onClick={() => void trackEvent('qualification_call_scheduled', {pilot_id: pilot.id})}
             >
-              schedule the qualification call
+              Schedule the qualification call
             </a>
           ) : null}
         </div>
       ) : null}
 
-      <section id="scope" className="mt-32 grid gap-20 md:grid-cols-2">
-        <div className="rounded border border-[#D9E1EC] p-20">
-          <h2 className="t-h3-sans">scope</h2>
-          <dl className="mt-12 grid gap-20 t-p-sm-sans">
-            <div><dt className="text-[#52617D]">pilot workflow</dt><dd className="mt-2">{String(answers.pilotWorkflow || answers.activeWorkflow || '—')}</dd></div>
-            <div><dt className="text-[#52617D]">production owner</dt><dd className="mt-2">{String(answers.productionOwner || '—')}</dd></div>
-            <div><dt className="text-[#52617D]">economic buyer</dt><dd className="mt-2">{String(answers.economicBuyer || '—')}</dd></div>
-            <div><dt className="text-[#52617D]">technical evaluator</dt><dd className="mt-2">{String(answers.technicalEvaluator || '—')}</dd></div>
-            <div><dt className="text-[#52617D]">historical projects</dt><dd className="mt-2">{String(answers.historicalProject || '—')}</dd></div>
-            <div><dt className="text-[#52617D]">participants</dt><dd className="mt-2">{String(answers.participantsRange || '—')}</dd></div>
-            <div><dt className="text-[#52617D]">integration method</dt><dd className="mt-2">{String(answers.integrationMethod || '—')}</dd></div>
-            <div><dt className="text-[#52617D]">data classification</dt><dd className="mt-2">{String(answers.dataClassification || '—')}</dd></div>
+      {conflicts.length > 0 ? (
+        <div className="mt-24 border border-[#F2C8C2] bg-[#FFF6F4] px-18 py-16" role="alert">
+          <div className="flex items-start gap-10">
+            <AlertTriangle aria-hidden="true" size={18} strokeWidth={1.8} className="mt-2 text-[#B3261E]" />
             <div>
-              <dt className="text-[#52617D]">pilot start date</dt>
-              <dd className="mt-2">
-                {editable && canEdit ? (
-                  <RoomTextField
-                    type="date"
-                    value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
-                  />
-                ) : (
-                  formatReadableDate(pilot.resolvedStartDate) || 'not yet chosen'
-                )}
-              </dd>
+              <p className="t-p-sm-sans font-medium">This field changed while you were reviewing the pilot.</p>
+              <p className="mt-6 t-p-sm-sans text-[#52617D]">Choose which value to keep, then save again if needed.</p>
             </div>
+          </div>
+          <div className="mt-14 grid gap-12">
+            {conflicts.map((conflict) => (
+              <div key={conflict.field} className="grid gap-10 border-t border-[#F2C8C2] pt-12 md:grid-cols-[1fr_1fr_auto] md:items-start">
+                <div>
+                  <p className="t-p-sm-sans font-medium">{conflict.label}</p>
+                  <p className="mt-4 t-p-sm-sans text-[#52617D]">Current version: {String(conflict.currentValue || '-')}</p>
+                  <p className="mt-4 t-p-sm-sans text-[#52617D]">Your change: {String(conflict.mineValue || '-')}</p>
+                </div>
+                <div className="flex flex-wrap gap-8 md:justify-end">
+                  <button type="button" className={plainButtonClasses} onClick={() => void resolveConflict(conflict, 'current')}>
+                    Use current
+                  </button>
+                  <button type="button" className={primaryButtonClasses} onClick={() => void resolveConflict(conflict, 'mine')}>
+                    Use mine
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <SectionShell
+        id="scope"
+        title="Scope"
+        mode={editable && canEdit ? 'editable' : 'request'}
+        summary="The operational shape of the pilot: workflow, people, integrations, data, participants, and target start."
+        action={!canEdit ? requestAction('Scope') : null}
+      >
+        <dl className="grid gap-14 t-p-sm-sans md:grid-cols-2">
+          <div><dt className="text-[#52617D]">Pilot workflow</dt><dd className="mt-2">{String(answers.pilotWorkflow || answers.activeWorkflow || '-')}</dd></div>
+          <div><dt className="text-[#52617D]">Production owner</dt><dd className="mt-2">{String(answers.productionOwner || '-')}</dd></div>
+          <div><dt className="text-[#52617D]">Economic buyer</dt><dd className="mt-2">{String(answers.economicBuyer || '-')}</dd></div>
+          <div><dt className="text-[#52617D]">Technical evaluator</dt><dd className="mt-2">{String(answers.technicalEvaluator || '-')}</dd></div>
+          <div><dt className="text-[#52617D]">Historical projects</dt><dd className="mt-2">{String(answers.historicalProject || '-')}</dd></div>
+          <div><dt className="text-[#52617D]">Participants</dt><dd className="mt-2">{String(answers.participantsRange || '-')}</dd></div>
+          <div><dt className="text-[#52617D]">Integration method</dt><dd className="mt-2">{String(answers.integrationMethod || '-')}</dd></div>
+          <div><dt className="text-[#52617D]">Data classification</dt><dd className="mt-2">{String(answers.dataClassification || '-')}</dd></div>
+          <div>
+            <dt className="text-[#52617D]">Pilot start date</dt>
+            <dd className="mt-2">
+              {editable && canEdit ? (
+                <RoomTextField
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  aria-label="Pilot start date"
+                />
+              ) : (
+                formatReadableDate(pilot.resolvedStartDate) || 'Not yet chosen'
+              )}
+            </dd>
+          </div>
+        </dl>
+        {requestPanel('Scope')}
+      </SectionShell>
+
+      <SectionShell
+        id="commercial"
+        title="Commercial Terms"
+        mode={editable && canEdit ? 'editable' : 'request'}
+        summary="The fee, term, annual option, and value estimate attached to the committed pilot revision."
+        action={!canEdit ? requestAction('Commercial terms') : null}
+      >
+        {pilot.proposal ? (
+          <dl className="grid gap-14 t-p-sm-sans md:grid-cols-2">
+            <div><dt className="text-[#52617D]">Pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature</dd></div>
+            <div><dt className="text-[#52617D]">Term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? `, ${pilot.proposal.termStart} to ${pilot.proposal.termEnd}` : ''}</dd></div>
+            {pilot.proposal.decisionDate ? <div><dt className="text-[#52617D]">Final decision date</dt><dd className="mt-2">{pilot.proposal.decisionDate}</dd></div> : null}
+            {pilot.proposal.creditDeadline ? <div><dt className="text-[#52617D]">Annual credit window</dt><dd className="mt-2">Signs by {pilot.proposal.creditDeadline}</dd></div> : null}
+            {pilot.proposal.annualOption ? (
+              <div>
+                <dt className="text-[#52617D]">Proposed annual deployment</dt>
+                <dd className="mt-2">{pilot.proposal.annualOption.name} - {pilot.proposal.annualOption.priceLabel}</dd>
+                <dd className="mt-2 text-[#52617D]">{pilot.proposal.annualOption.creditNote}</dd>
+              </div>
+            ) : null}
+            {value ? (
+              <div className="md:col-span-2">
+                <dt className="text-[#52617D]">Auditable value estimate</dt>
+                <dd className="mt-2">{value.formula}</dd>
+                <dd className="mt-2">Range ${value.low.toLocaleString()} to ${value.high.toLocaleString()}, midpoint ${value.midpoint.toLocaleString()}</dd>
+                <dd className="mt-2 text-[#52617D]">{value.frequency.label}, {value.hoursLoss.label} lost, {value.people.label} affected</dd>
+                {editable && canEdit ? (
+                  <label className="mt-12 flex items-center gap-8">
+                    <RoomCheckbox
+                      checked={valueConfirmed}
+                      onChange={(event) => setValueConfirmed(event.target.checked)}
+                    />
+                    <span className="t-p-sm-sans">Confirm this estimate as reasonable</span>
+                  </label>
+                ) : value.confirmed ? (
+                  <p className="mt-10 t-p-sm-sans text-[#1F7A4D]">Estimate confirmed by the customer</p>
+                ) : null}
+              </div>
+            ) : null}
           </dl>
-        </div>
+        ) : (
+          <p className="t-p-sm-sans text-[#52617D]">Commercial terms are being prepared.</p>
+        )}
+        {requestPanel('Commercial terms')}
+      </SectionShell>
 
-        <div className="rounded border border-[#D9E1EC] p-20">
-          <h2 className="t-h3-sans">commercial terms</h2>
-          {pilot.proposal ? (
-            <dl className="mt-12 grid gap-20 t-p-sm-sans">
-              <div><dt className="text-[#52617D]">pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature</dd></div>
-              <div><dt className="text-[#52617D]">term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? ` · ${pilot.proposal.termStart} → ${pilot.proposal.termEnd}` : ''}</dd></div>
-              {pilot.proposal.decisionDate ? <div><dt className="text-[#52617D]">final decision date</dt><dd className="mt-2">{pilot.proposal.decisionDate}</dd></div> : null}
-              {pilot.proposal.creditDeadline ? <div><dt className="text-[#52617D]">annual credit window</dt><dd className="mt-2">signs by {pilot.proposal.creditDeadline}</dd></div> : null}
-              {pilot.proposal.annualOption ? (
-                <div>
-                  <dt className="text-[#52617D]">proposed annual deployment</dt>
-                  <dd className="mt-2">{pilot.proposal.annualOption.name} — {pilot.proposal.annualOption.priceLabel}</dd>
-                  <dd className="mt-2 text-[#52617D]">{pilot.proposal.annualOption.creditNote}</dd>
-                </div>
-              ) : null}
-              {value ? (
-                <div>
-                  <dt className="text-[#52617D]">auditable value estimate</dt>
-                  <dd className="mt-2">{value.formula}</dd>
-                  <dd className="mt-2">range ${value.low.toLocaleString()} – ${value.high.toLocaleString()} · midpoint ${value.midpoint.toLocaleString()}</dd>
-                  <dd className="mt-2 text-[#52617D]">{value.frequency.label} · {value.hoursLoss.label} lost · {value.people.label} affected</dd>
-                  {editable && canEdit ? (
-                    <label className="mt-10 flex items-center gap-8">
-                      <RoomCheckbox
-                        checked={valueConfirmed}
-                        onChange={(event) => setValueConfirmed(event.target.checked)}
-                      />
-                      <span className="t-p-sm-sans">confirm this estimate as reasonable</span>
-                    </label>
-                  ) : value.confirmed ? (
-                    <p className="mt-10 t-p-sm-sans text-[#2F66B5]">estimate confirmed by the customer</p>
-                  ) : null}
-                </div>
-              ) : null}
-            </dl>
-          ) : (
-            <p className="mt-12 t-p-sm-sans text-[#52617D]">commercial terms are being prepared.</p>
-          )}
-        </div>
-      </section>
-
-      <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-        <h2 className="t-h3-sans">success criteria</h2>
-        <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
-          each criterion is judged by a named participant against a baseline and
-          a measurable target, with evidence recorded in the final evaluation.
-        </p>
-        <div className="mt-16 grid gap-20">
+      <SectionShell
+        id="success-criteria"
+        title="Success Criteria"
+        mode={editable && canEdit ? 'editable' : 'request'}
+        summary="Define how this pilot will be judged. Accept each criterion as written, modify it for this pilot, or mark it as not applicable."
+        action={!canEdit ? requestAction('Success criteria') : null}
+      >
+        <div className="grid gap-16">
           {criteria.map((criterion, index) => (
-            <div key={criterion.key} className="grid gap-20 rounded border border-[#E5EBF4] p-14 md:grid-cols-[240px_1fr]">
+            <div key={criterion.key} className="grid gap-14 border border-[#E5EBF4] p-14 md:grid-cols-[minmax(13rem,16rem)_1fr]">
               <div>
                 <p className="t-p-sm-sans font-medium">{criterion.label}</p>
                 {editable && canEdit ? (
-                  <RoomSelectField
-                    className="mt-8"
-                    value={criterion.status}
-                    onChange={(event) => {
-                      const next = [...criteria]
-                      next[index] = {
-                        ...criterion,
-                        status: event.target.value as typeof criterion.status,
-                      }
-                      setCriteria(next)
-                    }}
-                  >
+                  <div className="mt-10 inline-grid grid-cols-3 border border-[#D9E1EC]" role="group" aria-label={`${criterion.label} decision`}>
                     {CRITERION_STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          const next = [...criteria]
+                          next[index] = {
+                            ...criterion,
+                            status: option.value as typeof criterion.status,
+                          }
+                          setCriteria(next)
+                        }}
+                        className={`min-h-40 px-10 t-p-sm-sans transition-colors ${
+                          criterion.status === option.value
+                            ? 'bg-[#07112C] text-white'
+                            : 'bg-white text-[#52617D] hover:bg-[#F3F7FC]'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
                     ))}
-                  </RoomSelectField>
+                  </div>
                 ) : (
                   <p className="mt-8 t-p-sm-sans text-[#52617D] capitalize">{criterion.status.replace('-', ' ')}</p>
                 )}
               </div>
-              <div className="grid gap-8">
-                <label className="t-p-sm-sans text-[#52617D]">
-                  measurable target
-                  {editable && canEdit ? (
-                    <RoomTextField
-                      className="mt-4"
-                      value={criterion.target || ''}
-                      placeholder="e.g. under one minute to retrieve the approved asset"
-                      onChange={(event) => {
-                        const next = [...criteria]
-                        next[index] = {...criterion, target: event.target.value}
-                        setCriteria(next)
-                      }}
-                    />
-                  ) : (
-                    <span className="mt-4 block t-p-sm-sans text-[#07112C]">{criterion.target || '—'}</span>
-                  )}
-                </label>
-                <label className="t-p-sm-sans text-[#52617D]">
-                  participant
-                  {editable && canEdit ? (
-                    <RoomTextField
-                      className="mt-4"
-                      value={criterion.participant || ''}
-                      onChange={(event) => {
-                        const next = [...criteria]
-                        next[index] = {...criterion, participant: event.target.value}
-                        setCriteria(next)
-                      }}
-                    />
-                  ) : (
-                    <span className="mt-4 block t-p-sm-sans text-[#07112C]">{criterion.participant || '—'}</span>
-                  )}
-                </label>
-                <label className="t-p-sm-sans text-[#52617D]">
-                  evidence
-                  {editable && canEdit ? (
-                    <RoomTextField
-                      className="mt-4"
-                      value={criterion.evidence || ''}
-                      onChange={(event) => {
-                        const next = [...criteria]
-                        next[index] = {...criterion, evidence: event.target.value}
-                        setCriteria(next)
-                      }}
-                    />
-                  ) : (
-                    <span className="mt-4 block t-p-sm-sans text-[#07112C]">{criterion.evidence || '—'}</span>
-                  )}
-                </label>
+              <div className="grid gap-10">
+                {(['target', 'participant', 'evidence'] as const).map((field) => (
+                  <label key={field} className="t-p-sm-sans text-[#52617D]">
+                    {field === 'target' ? 'Measurable target' : field === 'participant' ? 'Participant' : 'Evidence'}
+                    {editable && canEdit && criterion.status !== 'not-applicable' ? (
+                      <RoomTextField
+                        className="mt-4"
+                        value={String(criterion[field] || '')}
+                        placeholder={field === 'target' ? 'e.g. under one minute to retrieve the approved asset' : undefined}
+                        onChange={(event) => {
+                          const next = [...criteria]
+                          next[index] = {...criterion, [field]: event.target.value}
+                          setCriteria(next)
+                        }}
+                      />
+                    ) : (
+                      <span className="mt-4 block t-p-sm-sans text-[#07112C]">{criterion[field] || '-'}</span>
+                    )}
+                  </label>
+                ))}
               </div>
             </div>
           ))}
         </div>
-      </section>
+        {requestPanel('Success criteria')}
+      </SectionShell>
 
-      <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-        <h2 className="t-h3-sans">security posture</h2>
-        <div className="mt-16 grid gap-8">
+      <SectionShell
+        id="security"
+        title="Security Posture"
+        mode="request"
+        summary="These terms describe Portals' current security posture and cannot be edited directly. If your organization has additional requirements, submit them for review."
+        action={requestAction('Security posture')}
+      >
+        <div className="grid gap-10">
           {pilot.securityDecisions.map((decision) => (
-            <div key={decision.key} className="grid gap-4 border-b border-[#E5EBF4] pb-10 md:grid-cols-[220px_1fr_auto] md:items-baseline">
-              <p className="t-p-sm-sans font-medium">{decision.label}</p>
-              <p className="t-p-sm-sans text-[#52617D]">{decision.note || ''}</p>
-              <p className="t-p-sm-sans capitalize text-[#2F66B5]">{decision.decision.replace('-', ' ')}</p>
+            <div key={decision.key} className="grid gap-6 border-b border-[#E5EBF4] pb-10 t-p-sm-sans md:grid-cols-[minmax(13rem,18rem)_1fr_auto] md:items-baseline">
+              <p className="font-medium">{decision.label}</p>
+              <p className="text-[#52617D]">{decision.note || ''}</p>
+              <p className="capitalize text-[#2F66B5]">{decision.decision.replace('-', ' ')}</p>
             </div>
           ))}
         </div>
-      </section>
+        {requestPanel('Security posture')}
+      </SectionShell>
 
-      <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-        <h2 className="t-h3-sans">review status</h2>
-        <dl className="mt-12 grid gap-20 t-p-sm-sans">
-          {consolidatedRows.map((row) => (
-            <div key={row.section} className="grid grid-cols-[1fr_auto] gap-12 items-baseline border-b border-[#E5EBF4] pb-10">
+      <SectionShell
+        id="review-status"
+        title="Review Status"
+        mode="readonly"
+        summary="A compact view of who has confirmed the current committed revision and who still needs to review."
+      >
+        <dl className="grid gap-10 t-p-sm-sans md:grid-cols-2">
+          {reviewRows.map((row) => (
+            <div key={row.section} className="grid grid-cols-[1fr_auto] items-baseline gap-12 border-b border-[#E5EBF4] pb-10">
               <dt className="text-[#52617D]">{row.section}</dt>
-              <dd
-                className={
-                  row.view.tone === 'ok'
-                    ? 'text-[#2F66B5]'
-                    : row.view.tone === 'warn'
-                      ? 'text-[#B3261E]'
-                      : 'text-[#AEB9CA]'
-                }
-              >
-                {row.view.label}
-              </dd>
+              <dd className={toneClasses(row.view.tone)}>{row.view.label}</dd>
             </div>
           ))}
         </dl>
-      </section>
+      </SectionShell>
 
       {accessRole === 'owner' ? (
-        <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-          <h2 className="t-h3-sans">reviewers</h2>
-          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
-            who will review or approve this pilot? confirm the people
-            and send invites here. 
-            <br />
-            each reviewer opens the plan through a
-            personalized sign-in link and receives a scoped application account.
-          </p>
+        <SectionShell
+          id="reviewers"
+          title="Reviewers"
+          mode={invitationsUnlocked ? 'editable' : 'readonly'}
+          summary="Confirm who needs access to this room. Each reviewer receives one secure link that opens this pilot directly."
+        >
           {!invitationsUnlocked ? (
-            <p className="mt-12 t-p-sm-sans text-[#52617D]">
-              invitations can be sent after confirming the draft is ready for review above.
-            </p>
+            <p className="mb-14 t-p-sm-sans text-[#52617D]">Invitations unlock after the draft is ready for team review.</p>
           ) : null}
-          <div className="mt-16 grid gap-12">
+          <div className="grid gap-12">
             {reviewers.map((reviewer) => {
               const view = reviewerStatusView(reviewer)
-              const stale =
-                reviewer.status === 'reviewed' &&
-                reviewer.versionSeen < pilot.version
+              const stale = reviewer.status === 'reviewed' && reviewer.versionSeen < pilot.version
               return (
-                <div key={reviewer.id} className="grid gap-20 rounded border border-[#E5EBF4] p-14 md:grid-cols-[240px_1fr_auto] md:items-center">
+                <div key={reviewer.id} className="grid gap-12 border border-[#E5EBF4] p-14 md:grid-cols-[minmax(13rem,16rem)_1fr_auto] md:items-center">
                   <div>
                     <p className="t-p-sm-sans font-medium">{reviewerRoleLabel(reviewer.role)}</p>
-                    <p className="t-p-sm-sans text-[#52617D]">
-                      {reviewer.name || reviewer.email || 'no one named yet'}
-                    </p>
+                    <p className="t-p-sm-sans text-[#52617D]">{reviewer.name || reviewer.email || 'No one named yet'}</p>
                   </div>
-                  <div className="grid gap-6">
-                    <p className={`t-p-sm-sans capitalize ${view.tone === 'ok' ? 'text-[#2F66B5]' : view.tone === 'warn' ? 'text-[#B3261E]' : 'text-[#52617D]'}`}>
+                  <div className="grid gap-8">
+                    <p className={`t-p-sm-sans ${toneClasses(view.tone)}`}>
                       {view.label}
-                      {stale ? <span className="text-[#B3261E]"> · reconfirmation needed</span> : null}
+                      {stale ? <span className="text-[#B3261E]">, reconfirmation needed</span> : null}
                     </p>
+                    {reviewer.notes.length > 0 ? (
+                      <ul className="grid gap-4">
+                        {reviewer.notes.map((note, noteIndex) => (
+                          <li key={noteIndex} className="t-p-sm-sans text-[#52617D]">Note: {note}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                     {reviewer.status === 'proposed' && !reviewer.email.trim() && invitationsUnlocked ? (
                       <div className="flex flex-wrap items-center gap-8">
                         <RoomTextField
@@ -948,40 +1123,25 @@ export function PilotApprovalRoom({
                           placeholder="email address"
                           value={draftEmail}
                           onChange={(event) => setDraftEmail(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                              event.preventDefault()
-                              if (draftEmail.trim()) void onInvite({...reviewer, email: draftEmail.trim()})
-                            }
-                          }}
                         />
                         <button
                           onClick={() => void onInvite({...reviewer, email: draftEmail.trim()})}
                           disabled={busy || !draftEmail.trim()}
                           className={primaryButtonClasses}
                         >
-                          invite
+                          Invite
                         </button>
                       </div>
                     ) : null}
                     {reviewer.status === 'proposed' && reviewer.email.trim() && invitationsUnlocked ? (
                       <button onClick={() => void onInvite(reviewer)} disabled={busy} className={primaryButtonClasses}>
-                        invite
+                        Invite
                       </button>
                     ) : null}
                     {(reviewer.status === 'invited' || reviewer.status === 'opened') && invitationsUnlocked ? (
                       <button onClick={() => void onInvite(reviewer)} disabled={busy} className={primaryButtonClasses}>
-                        resend invitation
+                        Resend invitation
                       </button>
-                    ) : null}
-                    {reviewer.notes.length > 0 ? (
-                      <ul className="grid gap-4">
-                        {reviewer.notes.map((note, index) => (
-                          <li key={index} className="t-p-sm-sans text-[#52617D]">
-                            note: {note}
-                          </li>
-                        ))}
-                      </ul>
                     ) : null}
                   </div>
                   {invitationsUnlocked ? (
@@ -1003,7 +1163,7 @@ export function PilotApprovalRoom({
                         </button>
                         {reviewer.status !== 'revoked' ? (
                           <button onClick={() => void onRemove(reviewer)} disabled={busy} className={plainButtonClasses}>
-                            remove
+                            Remove
                           </button>
                         ) : null}
                       </div>
@@ -1012,75 +1172,53 @@ export function PilotApprovalRoom({
                 </div>
               )
             })}
-            {reviewers.length === 0 ? (
-              <p className="t-p-sm-sans text-[#52617D]">
-                no reviewers configured yet. add the first one below.
-              </p>
-            ) : null}
           </div>
           {invitationsUnlocked ? (
             <>
-              <div className="mt-16 flex flex-wrap gap-20">
-                <button
-                  onClick={() => void onInviteAllRequired()}
-                  disabled={busy}
-                  className={accentButtonClasses}
-                >
-                  invite all required reviews
+              <div className="mt-16 flex flex-wrap gap-10">
+                <button onClick={() => void onInviteAllRequired()} disabled={busy} className={accentButtonClasses}>
+                  <Send aria-hidden="true" size={16} strokeWidth={1.8} />
+                  Invite required reviewers
                 </button>
               </div>
-              <div className="mt-16 grid gap-20 border-t border-[#E5EBF4] pt-16 lg:grid-cols-[180px_1fr_2fr_auto] lg:items-end">
+              <div className="mt-16 grid gap-14 border-t border-[#E5EBF4] pt-16 lg:grid-cols-[180px_1fr_2fr_auto] lg:items-end">
                 <label className="t-p-sm-sans text-[#52617D]">
-                  role
-                  <RoomSelectField
-                    className="mt-4"
-                    value={draftRole}
-                    onChange={(event) => setDraftRole(event.target.value as ReviewerRole)}
-                  >
+                  Role
+                  <RoomSelectField className="mt-4" value={draftRole} onChange={(event) => setDraftRole(event.target.value as ReviewerRole)}>
                     {REVIEWER_ROLES.map((role) => (
                       <option key={role} value={role}>{reviewerRoleLabel(role)}</option>
                     ))}
                   </RoomSelectField>
                 </label>
                 <label className="t-p-sm-sans text-[#52617D]">
-                  name
-                  <RoomTextField
-                    className="mt-4"
-                    value={draftName}
-                    onChange={(event) => setDraftName(event.target.value)}
-                    placeholder="name and title"
-                  />
+                  Name
+                  <RoomTextField className="mt-4" value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="name and title" />
                 </label>
                 <label className="t-p-sm-sans text-[#52617D]">
-                  email
-                  <RoomTextField
-                    className="mt-4"
-                    type="email"
-                    value={draftEmail}
-                    onChange={(event) => setDraftEmail(event.target.value)}
-                    placeholder="name@company.com"
-                  />
+                  Email
+                  <RoomTextField className="mt-4" type="email" value={draftEmail} onChange={(event) => setDraftEmail(event.target.value)} placeholder="name@company.com" />
                 </label>
                 <button onClick={() => void onAddReviewer()} disabled={busy} className={`${primaryButtonClasses} w-full lg:w-auto`}>
-                  invite reviewer
+                  <UserPlus aria-hidden="true" size={16} strokeWidth={1.8} />
+                  Invite reviewer
                 </button>
               </div>
             </>
           ) : null}
-        </section>
+        </SectionShell>
       ) : myReviewer ? (
-        <section className="mt-24 rounded border border-[#D9E1EC] p-20">
-          <h2 className="t-h3-sans">your review</h2>
-          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
-            you are the {reviewerRoleLabel(myReviewer.role).toLowerCase()} for
-            this pilot. review the plan above, then record your decision.
-            {pilot.version > 1 && myReviewer.versionSeen < pilot.version ? (
-              <span className="text-[#B3261E]"> the plan changed after your last review — please re-review.</span>
-            ) : null}
-          </p>
-          <div className="mt-16 grid gap-20">
+        <SectionShell
+          id="your-review"
+          title="Your Review"
+          mode="request"
+          summary={`You are the ${reviewerRoleLabel(myReviewer.role).toLowerCase()} for this pilot. Review the current committed revision, then confirm or request a specific change.`}
+        >
+          {pilot.version > 1 && myReviewer.versionSeen < pilot.version ? (
+            <p className="mb-12 t-p-sm-sans text-[#B3261E]">The plan changed after your last review. Please re-review.</p>
+          ) : null}
+          <div className="grid gap-14">
             <label className="t-p-sm-sans text-[#52617D]">
-              questions or requested changes
+              Notes or requested changes
               <RoomTextareaField
                 className="mt-4"
                 value={myNote}
@@ -1088,118 +1226,116 @@ export function PilotApprovalRoom({
                 placeholder="e.g. please add the security addendum before I can confirm"
               />
             </label>
-            <div className="flex flex-wrap items-center gap-20">
-              <button onClick={() => void onReviewerDecision('confirm')} disabled={busy} className={accentButtonClasses}>
-                confirm my section
+            <div className="flex flex-wrap items-center gap-10">
+              <button onClick={() => void onReviewerDecision('confirm')} disabled={busy || hasUnsavedChanges} className={accentButtonClasses}>
+                <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
+                Confirm my review
               </button>
               <button onClick={() => void onReviewerDecision('changes')} disabled={busy} className={primaryButtonClasses}>
-                request changes
-              </button>
-              <button onClick={() => void onAddNote()} disabled={busy} className={plainButtonClasses}>
-                add note only
+                <Send aria-hidden="true" size={16} strokeWidth={1.8} />
+                Request changes
               </button>
             </div>
           </div>
-        </section>
+        </SectionShell>
       ) : null}
 
       {pilot.state === 'ready_sign' && canSign ? (
-        <section className="mt-24 rounded border-2 border-[#07112C] p-20">
-          <h2 className="t-h3-sans">sign and fund the pilot</h2>
-          <p className="mt-8 max-w-[46em] t-p-sm-sans text-[#52617D]">
-            by signing, {String(answers.company || 'the customer')} agrees to
-            the confirmed scope, the {pilot.proposal?.priceLabel} pilot
-            fee due on signature, and the {pilot.proposal?.termDays}-day
-            pilot term.
-          </p>
-          <FieldLabel>authorized signer name</FieldLabel>
-          <RoomTextField
-            value={signerName}
-            onChange={(event) => setSignerName(event.target.value)}
-          />
-          <FieldLabel>signer email</FieldLabel>
-          <RoomTextField
-            type="email"
-            value={signerEmail}
-            onChange={(event) => setSignerEmail(event.target.value)}
-          />
+        <SectionShell
+          id="signature"
+          title="Sign And Fund"
+          mode="editable"
+          summary={`By signing, ${String(answers.company || 'the customer')} agrees to the confirmed scope, the ${pilot.proposal?.priceLabel} pilot fee due on signature, and the ${pilot.proposal?.termDays}-day pilot term.`}
+        >
+          <div className="grid gap-14 md:grid-cols-2">
+            <label className="t-p-sm-sans text-[#52617D]">
+              Authorized signer name
+              <RoomTextField className="mt-4" value={signerName} onChange={(event) => setSignerName(event.target.value)} />
+            </label>
+            <label className="t-p-sm-sans text-[#52617D]">
+              Signer email
+              <RoomTextField className="mt-4" type="email" value={signerEmail} onChange={(event) => setSignerEmail(event.target.value)} />
+            </label>
+          </div>
           <label className="mt-16 flex items-start gap-8">
-            <RoomCheckbox
-              checked={signerConsent}
-              onChange={(event) => setSignerConsent(event.target.checked)}
-            />
+            <RoomCheckbox checked={signerConsent} onChange={(event) => setSignerConsent(event.target.checked)} />
             <span className="t-p-sm-sans">
-              I confirm the information in this plan is accurate, that I am
-              authorized to bind the customer, and that I understand the pilot
-              fee becomes due on signature.
+              I confirm the information in this plan is accurate, that I am authorized to bind the customer, and that I understand the pilot fee becomes due on signature.
             </span>
           </label>
-          <button onClick={onSign} disabled={busy} className={`${accentButtonClasses} mt-20`}>
-            sign the pilot agreement
+          <button onClick={() => void onSign()} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} mt-18`}>
+            Sign the pilot agreement
           </button>
-        </section>
-      ) : null}
-
-      {actionButtons ? (
-        <div className="mt-24 flex flex-wrap items-center gap-12">
-          {actionButtons}
-          {pilot.state === 'reviewing' || pilot.state === 'revision' || pilot.state === 'team_review' || pilot.state === 'scope_confirmed' ? (
-            <CTAButton href={revisePath} appearance="plain" className="text-[#07112C]">
-              <span>request changes</span>
-              <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
-            </CTAButton>
-          ) : null}
-        </div>
+        </SectionShell>
       ) : null}
 
       {pilot.state === 'active' ? (
-        <div className="mt-24 rounded bg-[#07112C] px-20 py-16 text-white">
-          <p className="t-p-sm-sans">the pilot is live. the final evaluation will be assessed against the agreed criteria.</p>
+        <div className="mt-24 bg-[#07112C] px-18 py-16 text-white">
+          <p className="t-p-sm-sans">The pilot is live. The final evaluation will be assessed against the agreed criteria.</p>
         </div>
       ) : null}
 
       {sessionId && pilot.state !== 'paid' ? (
-        <div className="mt-24 rounded border border-[#C9D6EA] bg-[#F3F7FC] px-20 py-16">
-          <p className="t-p-sm-sans font-medium">payment received — finalizing your pilot record.</p>
-          <p className="mt-8 t-p-sm-sans text-[#52617D]">
-            this page refreshes automatically when the confirmation lands.
-          </p>
+        <div className="mt-24 border border-[#C9D6EA] bg-[#F3F7FC] px-18 py-16">
+          <p className="t-p-sm-sans font-medium">Payment received. Finalizing your pilot record.</p>
+          <p className="mt-8 t-p-sm-sans text-[#52617D]">This page refreshes the pilot status without leaving the room.</p>
         </div>
       ) : null}
 
       {error ? (
-        <p className="mt-16 t-p-sm-sans text-[#B3261E]" role="alert">
-          {error}
-        </p>
+        <p className="mt-16 t-p-sm-sans text-[#B3261E]" role="alert">{error}</p>
       ) : null}
       {notice ? (
-        <p className="mt-16 t-p-sm-sans text-[#2F66B5]" role="status">
-          {notice}
-        </p>
+        <p className="mt-16 t-p-sm-sans text-[#1F7A4D]" role="status">{notice}</p>
       ) : null}
 
       {pilot.history.length > 1 ? (
-        <section className="mt-24 border-t border-[#D9E1EC] pt-16">
-          <h2 className="t-h3-sans">activity</h2>
+        <section className="mt-24 border-t border-[#D9E1EC] pt-18">
+          <h2 className="t-h3-sans">Activity</h2>
           <ul className="mt-12 grid gap-8">
-            {[...pilot.history].reverse().map((entry, index) => (
+            {[...pilot.history].reverse().slice(0, 8).map((entry, index) => (
               <li key={entry.at + index} className="t-p-sm-sans text-[#52617D]">
                 <span className="capitalize">{entry.action.replaceAll('_', ' ')}</span>
-                 {/* — {stateLabel(entry.state)} */}
                 <span className="text-[#AEB9CA]"> {new Date(entry.at).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'})}</span>
-                {entry.note ? <span> — {entry.note}</span> : null}
+                {entry.note ? <span> - {entry.note}</span> : null}
               </li>
             ))}
           </ul>
         </section>
       ) : null}
+
+      <div className="sticky bottom-0 z-30 -mx-24 mt-32 border-t border-[#D9E1EC] bg-white/95 px-24 py-12 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl flex-col gap-10 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-8 t-p-sm-sans">
+            <span className={hasUnsavedChanges ? 'text-[#B3261E]' : 'text-[#1F7A4D]'}>
+              {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
+            </span>
+            {draftBusy ? (
+              <span className="inline-flex items-center gap-6 text-[#52617D]">
+                <RefreshCw aria-hidden="true" size={14} strokeWidth={1.8} />
+                Draft protected
+              </span>
+            ) : null}
+            <span className="text-[#AEB9CA]">Revision {pilot.version}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-8">
+            {editable && canEdit ? (
+              <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={primaryButtonClasses}>
+                <Save aria-hidden="true" size={16} strokeWidth={1.8} />
+                Save Changes
+              </button>
+            ) : null}
+            {globalWorkflowAction}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
 const primaryButtonClasses =
-  'inline-flex h-48 items-center justify-center rounded border border-[#07112C]/20 px-16 t-p-sm-sans text-[#07112C] transition-colors hover:bg-[#F3F7FC] disabled:opacity-40 cursor-pointer'
+  'inline-flex min-h-44 items-center justify-center gap-8 rounded border border-[#07112C]/20 px-14 t-p-sm-sans text-[#07112C] transition-colors hover:bg-[#F3F7FC] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer'
 const accentButtonClasses =
-  'inline-flex h-48 items-center justify-center rounded bg-[#07112C] px-16 t-p-sm-sans text-white transition-colors hover:bg-[#2F66B5] disabled:opacity-40 cursor-pointer'
+  'inline-flex min-h-44 items-center justify-center gap-8 rounded bg-[#07112C] px-14 t-p-sm-sans text-white transition-colors hover:bg-[#2F66B5] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer'
 const plainButtonClasses =
-  'inline-flex h-48 items-center justify-center rounded px-16 t-p-sm-sans text-[#52617D] transition-colors hover:text-[#07112C] disabled:opacity-40 cursor-pointer'
+  'inline-flex min-h-44 items-center justify-center gap-8 rounded px-12 t-p-sm-sans text-[#52617D] transition-colors hover:bg-[#F3F7FC] hover:text-[#07112C] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer'

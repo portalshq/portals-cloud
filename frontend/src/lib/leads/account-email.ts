@@ -14,6 +14,7 @@ export async function sendApplicationAccessEmail(input: {
     purpose: input.purpose || 'sign_in',
     customerAccountId: input.customerAccountId,
     role: input.role,
+    nextPath: input.nextPath || '/account',
   })
   const next = input.nextPath || '/account'
   const url = `${siteUrl()}/auth/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`

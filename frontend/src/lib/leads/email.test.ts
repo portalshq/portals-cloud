@@ -7,6 +7,7 @@ process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {sendLeadConfirmation, sendPilotStatusEmail} from './email'
 import {leadRequestSchema} from './contracts'
 import {createPilotRecord, persistSubmission, type StoredPilot} from './store'
+import {consumeMagicLink, ensureApplicationUser, inspectMagicLink, issueMagicLink, pilotMembershipRole} from './application-auth'
 import {
   buildSecurityDecisions,
   buildSuccessCriteria,
@@ -48,6 +49,12 @@ async function createPilot(answers = pilotAnswers): Promise<StoredPilot> {
 
 type ResendCall = {to?: string; subject?: string; text?: string; idempotency?: string}
 
+function tokenFrom(text: string): string {
+  const match = text.match(/https:\/\/portals\.test\/auth\/verify\?token=([^&\s]+)/)
+  assert.ok(match, 'email should contain a direct auth verify link')
+  return decodeURIComponent(match[1])
+}
+
 function resendStub(t: TestContext) {
   const calls: ResendCall[] = []
   const stub: typeof fetch = async (_url, init) => {
@@ -65,7 +72,7 @@ function resendStub(t: TestContext) {
   return calls
 }
 
-test('sendPilotStatusEmail uses the stored submitter email and directs the user through sign-in', async (t) => {
+test('sendPilotStatusEmail uses the stored submitter email and opens the room directly', async (t) => {
   const pilot = await createPilot()
   const calls = resendStub(t)
 
@@ -75,7 +82,10 @@ test('sendPilotStatusEmail uses the stored submitter email and directs the user 
   assert.equal(calls[0].to, 'ava@studio.example')
   assert.match(String(calls[0].subject), /approval room is ready/)
   assert.equal(calls[0].idempotency, `${pilot.id}-status-reviewing-ava@studio.example`)
-  assert.match(String(calls[0].text), /https:\/\/portals\.test\/auth\/sign-in\?next=/)
+  assert.match(String(calls[0].text), /https:\/\/portals\.test\/auth\/verify\?token=/)
+  const session = await consumeMagicLink(tokenFrom(String(calls[0].text)))
+  assert.equal(session?.user.email, 'ava@studio.example')
+  assert.equal(await pilotMembershipRole(pilot.id, session!.user.id), 'owner')
 })
 
 test('sendPilotStatusEmail honors an explicit recipient over the answers email', async (t) => {
@@ -89,7 +99,7 @@ test('sendPilotStatusEmail honors an explicit recipient over the answers email',
   assert.equal(calls[0].subject, 'your pilot plan was updated')
 })
 
-test('sendPilotStatusEmail directs an explicit recipient through sign-in when answers.email is absent', async (t) => {
+test('sendPilotStatusEmail directs an explicit signer recipient through the secure room link', async (t) => {
   const pilot = await createPilot({...pilotAnswers, email: ''})
   const calls = resendStub(t)
 
@@ -97,7 +107,10 @@ test('sendPilotStatusEmail directs an explicit recipient through sign-in when an
 
   assert.equal(calls.length, 1)
   assert.equal(calls[0].to, 'ava@studio.example')
-  assert.match(String(calls[0].text), /https:\/\/portals\.test\/auth\/sign-in\?next=/)
+  assert.match(String(calls[0].text), /https:\/\/portals\.test\/auth\/verify\?token=/)
+  const session = await consumeMagicLink(tokenFrom(String(calls[0].text)))
+  assert.equal(session?.user.email, 'ava@studio.example')
+  assert.equal(await pilotMembershipRole(pilot.id, session!.user.id), 'signer')
 })
 
 test('sendPilotStatusEmail rejects when no recipient can be resolved', async (t) => {
@@ -108,6 +121,22 @@ test('sendPilotStatusEmail rejects when no recipient can be resolved', async (t)
     sendPilotStatusEmail(pilot.id, 'reviewing'),
     /Pilot recipient email is missing/,
   )
+})
+
+test('expired or invalid room links fail closed but retain recovery context', async () => {
+  const user = await ensureApplicationUser({email: `expired-${crypto.randomUUID()}@studio.example`})
+  const token = await issueMagicLink({
+    userId: user.id,
+    purpose: 'invite',
+    nextPath: '/paid-pilot/room/pilot-expired',
+    maxAgeSeconds: -1,
+  })
+
+  assert.equal(await consumeMagicLink(token), null)
+  const inspected = await inspectMagicLink(token)
+  assert.equal(inspected?.expired, true)
+  assert.equal(inspected?.nextPath, '/paid-pilot/room/pilot-expired')
+  assert.equal(await inspectMagicLink('not-a-real-token'), null)
 })
 
 test('sendPilotStatusEmail requires Resend credentials', async (t) => {

@@ -16,8 +16,14 @@ export async function GET(request: Request): Promise<NextResponse> {
   const token = url.searchParams.get('token')
   if (!token) return NextResponse.redirect(new URL('/auth/sign-in?error=invalid', url))
   const result = await consumeMagicLink(token)
-  if (!result) return NextResponse.redirect(new URL('/auth/sign-in?error=expired', url))
-  const response = NextResponse.redirect(new URL(safeNext(url.searchParams.get('next')), url))
+  if (!result) {
+    return NextResponse.redirect(
+      new URL(`/auth/recover?token=${encodeURIComponent(token)}`, url),
+    )
+  }
+  const response = NextResponse.redirect(
+    new URL(safeNext(url.searchParams.get('next') || result.nextPath || null), url),
+  )
   response.cookies.set(APP_SESSION_COOKIE, result.sessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

@@ -108,7 +108,12 @@ or rely on them.
   committed together. Released Nap `v0.5.8` predates this security contract and
   is therefore recorded as `legacy` in `versions.yaml`; it cannot approve a
   public deployment.
-- **Updated 2026-08-20**: New Nap release addressing the `lore-auth-v1` security contract is available per operator confirmation (external repo `https://github.com/portalshq/narrativeengine.git`). Promote its signed `SHA256SUMS` / Sigstore bundle and exact `portalshq/lore` client pin into `infra/lore/versions.yaml` via `verify-and-promote-*` scripts before marking E2E complete; do not hand-edit digests.
+- **Updated 2026-08-21**: Production images promoted into versions.yaml:
+- Lore: `portals-prod/lore@sha256:a9256cb62a02f32f45558515226b7917b3082869b1e1d50ba9918e8dcd1446f9`
+- Auth Gateway: `portals-prod/auth-gateway@sha256:1f23c9a95b1661d5bcf73b067cec0e0fc6df8258dc04b2a55ca6ace97804b9a1`
+- Source commits recorded: Lore `1c0de969560779d55966152715a909eea45241e8`, packaging `92244a3b6148bd64b82a79003724003e4ce2a6b1`, control-plane `4885f927645dffbd813a1f04b86d0c8fb6ea0cbf`, protocol `1c0de969560779d55966152715a909eea45241e8`
+
+**Updated 2026-08-21**: Nap promotion blocked - v0.5.8 lacks Sigstore bundles. New release with lore-auth-v1 support needed from external repo `https://github.com/portalshq/narrativeengine.git`.
 - Pulumi TypeScript builds. All 25 Pulumi/policy tests and the publisher
   pipeline pass. `npm audit --omit=dev` reports zero vulnerabilities. Auth
   Gateway unit tests pass (7 pass, 1 real-PostgreSQL test ignored in that local

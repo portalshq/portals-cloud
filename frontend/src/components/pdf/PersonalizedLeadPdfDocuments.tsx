@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     color: colors.blue,
   },
   coverTitle: {
-    marginTop: 52,
+    marginTop: 26,
     maxWidth: 500,
     fontFamily: 'DieGroteskC',
     fontSize: 36,
@@ -200,7 +200,6 @@ const styles = StyleSheet.create({
   coverCompany: {
     marginTop: 16,
     fontSize: 14,
-    color: colors.lightBlue,
   },
   coverRoi: { marginTop: 54, maxWidth: 430 },
   coverRoiValue: {
@@ -215,7 +214,6 @@ const styles = StyleSheet.create({
     maxWidth: 390,
     fontSize: 11,
     lineHeight: 1.35,
-    color: colors.lightBlue,
   },
   coverRule: {
     marginTop: 26,
@@ -377,25 +375,25 @@ export const ASSESSMENT_PDF_FILE_NAME = 'portals-production-workflow-evaluation.
 // ============================================================================
 
 const workflowLabels: Record<string, string> = {
-  'approved-version-retrieval': 'Approved Version Retrieval',
-  'asset-reproduction': 'Asset Reproduction',
-  'character-continuity': 'Character Continuity',
-  'campaign-variant-control': 'Campaign Variant Control',
-  'production-handoff': 'Production Handoff',
-  'twelve-more-like-this': 'Twelve More Like This',
+  'approved-version-retrieval': 'approved version retrieval',
+  'asset-reproduction': 'asset reproduction',
+  'character-continuity': 'character continuity',
+  'campaign-variant-control': 'campaign variant control',
+  'production-handoff': 'production handoff',
+  'twelve-more-like-this': 'twelve more tike this',
 }
 
 const tierLabels: Record<QualificationTier, string> = {
-  high: 'Recommended — bounded paid pilot',
-  medium: 'Conditional — clarify scope',
-  low: 'Not yet — establish a baseline',
-  incomplete: 'Incomplete — more data needed',
+  high: 'Recommended: bounded paid pilot',
+  medium: 'clarify pilot scope',
+  low: 'establish a baseline workflow',
+  incomplete: "we couldn't collect enough data to evaluate your need",
 }
 
 const outcomeLabels: Record<QualificationOutcome, string> = {
-  pilot_candidate: 'Pilot Candidate',
-  clarify: 'Clarify & Deepen',
-  education: 'Education First',
+  pilot_candidate: 'pilot candidate',
+  clarify: 'clarify',
+  education: 'explore use cases',
 }
 
 const reasonCodeLabels: Record<QualificationReasonCode, string> = {
@@ -555,7 +553,7 @@ function recommendedWorkflow(data: PersonalizedQualification) {
 function recommendationStatement(data: PersonalizedQualification): string {
   switch (assessmentOutcome(data.tier)) {
     case 'pilot_candidate':
-      return 'Proceed to a bounded paid pilot on one active workflow. Measure reclaimed time, retrieval speed, handoff quality, and delivery confidence before any wider deployment.'
+      return 'Proceed to a bounded paid pilot on one active workflow. Measure reclaimed time, production cost reduction, handoff quality, and delivery confidence before any wider deployment.'
     case 'clarify':
       return 'Complete the ownership, timing, and approval details, then use the same bounded pilot structure to validate value on one active workflow.'
     default:
@@ -645,8 +643,7 @@ function Page1ExecutiveSummary({ data }: { data: PersonalizedQualification }) {
   return (
     <Page size="LETTER" style={[styles.page, styles.cover]} bookmark="Executive summary">
       <SagaColorBand cover />
-      <Header title="prepared by portals" />
-      <Text style={[styles.sectionLabel, { color: colors.lightBlue, marginTop: 18 }]}>Prepared for {companyDisplay(data)}</Text>
+      <Header title={`Prepared for ${companyDisplay(data)}`} />
       <Text style={styles.coverTitle}>your production workflow evaluation</Text>
       <Text style={styles.coverCompany}>
         {companyDisplay(data)} · {preparedFor(data)} · {new Date(data.generatedAt).toLocaleDateString('en-US')}
@@ -656,7 +653,7 @@ function Page1ExecutiveSummary({ data }: { data: PersonalizedQualification }) {
         <Text style={styles.coverRoiValue}>{recovery?.value || 'ROI baseline in pilot'}</Text>
         <Text style={styles.coverRoiLabel}>
           {recovery
-            ? `illustrative annual capacity value at 25–50% recovery · ${recovery.hours} contributor-hours returned · based on ${valueModelCost(model)} of reported exposure`
+            ? `project annual recovery value at 25–50% recovery · ${recovery.low.hours} contributor-hours returned · based on ${valueModelCost(model)} of reported exposure`
             : 'The pilot will establish retrieval, recreation, and handoff baselines before value is projected.'}
         </Text>
       </View>
@@ -664,16 +661,16 @@ function Page1ExecutiveSummary({ data }: { data: PersonalizedQualification }) {
       <View style={styles.coverRule} />
       <View style={styles.coverSummary}>
         <View style={styles.coverSummaryItem}>
+          <Text style={styles.coverSummaryLabel}>your production memory risk</Text>
           <Text style={styles.coverSummaryValue}>{data.scores.workflowRiskScore}/24</Text>
-          <Text style={styles.coverSummaryLabel}>production-memory risk</Text>
         </View>
         <View style={styles.coverSummaryItem}>
-          <Text style={styles.coverSummaryValue}>{workflow}</Text>
           <Text style={styles.coverSummaryLabel}>recommended workflow focus</Text>
+          <Text style={styles.coverSummaryValue}>{workflow}</Text>
         </View>
         <View style={styles.coverSummaryItem}>
-          <Text style={styles.coverSummaryValue}>{outcomeLabels[assessmentOutcome(data.tier)]}</Text>
           <Text style={styles.coverSummaryLabel}>recommended decision path</Text>
+          <Text style={styles.coverSummaryValue}>{outcomeLabels[assessmentOutcome(data.tier)]}</Text>
         </View>
       </View>
 
@@ -716,16 +713,14 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
 
       <View style={[styles.split, { marginTop: 14 }]}>
         <View style={styles.mainPane}>
-          <Text style={styles.sectionLabel}>Annual capacity exposure</Text>
           <Text style={styles.featureMetric}>{valueModelHours(model)} hours / year</Text>
           <Text style={styles.featureMetricLabel}>
             {model
-              ? `${valueModelCost(model, rate)} gross capacity exposure at the $100/hour planning rate.`
+              ? `${valueModelCost(model, rate)} gross recovery capacity at the $100/hour planning rate.`
               : 'Establish frequency, time loss, and affected contributors during pilot scoping.'}
           </Text>
           {scenarios.length ? (
             <View style={{ marginTop: 14 }}>
-              <Text style={styles.sectionTitleSmall}>illustrative recovery scenarios</Text>
               {scenarios.map((scenario) => (
                 <View key={scenario.share} style={styles.scenarioRow} wrap={false}>
                   <Text style={styles.scenarioPercent}>{scenario.share * 100}% recovered</Text>
@@ -733,6 +728,9 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
                   <Text style={styles.scenarioValue}>{formatCurrencyValue(scenario.value)} capacity value</Text>
                 </View>
               ))}
+              <Text style={styles.footer}>
+                {`Scenarios are planning cases, not a benchmark or guaranteed savings forecast.`}
+              </Text>
             </View>
           ) : null}
 
@@ -746,7 +744,6 @@ function Page2BusinessCase({ data }: { data: PersonalizedQualification }) {
         </View>
 
         <View style={styles.rightRail}>
-          <SectionLabel>At a glance</SectionLabel>
           <RailMetric value={`${data.scores.workflowRiskScore}/24`} label="workflow risk score" />
           <RailMetric value={readable(answer(data, 'deliveryImpact'))} label="reported delivery impact" />
           <RailMetric value={affectedValue} label="annual value of affected work" />

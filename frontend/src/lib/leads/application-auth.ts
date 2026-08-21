@@ -39,7 +39,14 @@ const memory = globalThis as typeof globalThis & {
     customers: Map<string, CustomerAccount>
     memberships: Map<string, ApplicationRole>
     pilotMemberships: Map<string, PilotMemberRole>
-    magicLinks: Map<string, {userId: string; customerAccountId?: string; role?: ApplicationRole; expiresAt: number}>
+    magicLinks: Map<string, {
+      userId: string
+      purpose: 'sign_in' | 'invite'
+      customerAccountId?: string
+      role?: ApplicationRole
+      nextPath?: string
+      expiresAt: number
+    }>
     sessions: Map<string, {userId: string; expiresAt: number}>
   }
 }
@@ -284,28 +291,40 @@ export async function issueMagicLink(input: {
   purpose: 'sign_in' | 'invite'
   customerAccountId?: string
   role?: ApplicationRole
+  nextPath?: string
+  maxAgeSeconds?: number
 }): Promise<string> {
   const token = randomToken()
   const tokenHash = hashValue(token)
-  const expiresAt = new Date(Date.now() + MAGIC_LINK_MAX_AGE_SECONDS * 1000)
+  const expiresAt = new Date(Date.now() + (input.maxAgeSeconds || MAGIC_LINK_MAX_AGE_SECONDS) * 1000)
   if (leadsDryRun()) {
     memoryStore().magicLinks.set(tokenHash, {
       userId: input.userId,
+      purpose: input.purpose,
       customerAccountId: input.customerAccountId,
       role: input.role,
+      nextPath: input.nextPath,
       expiresAt: expiresAt.getTime(),
     })
     return token
   }
   await leadPool().query(
-    `INSERT INTO auth_magic_links(token_hash, user_id, purpose, customer_account_id, role, expires_at)
-     VALUES ($1,$2,$3,$4,$5,$6)`,
-    [tokenHash, input.userId, input.purpose, input.customerAccountId || null, input.role || null, expiresAt],
+    `INSERT INTO auth_magic_links(token_hash, user_id, purpose, customer_account_id, role, next_path, expires_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    [
+      tokenHash,
+      input.userId,
+      input.purpose,
+      input.customerAccountId || null,
+      input.role || null,
+      input.nextPath || null,
+      expiresAt,
+    ],
   )
   return token
 }
 
-export async function consumeMagicLink(token: string): Promise<{sessionToken: string; user: ApplicationUser} | null> {
+export async function consumeMagicLink(token: string): Promise<{sessionToken: string; user: ApplicationUser; nextPath?: string} | null> {
   const tokenHash = hashValue(token)
   if (leadsDryRun()) {
     const stored = memoryStore().magicLinks.get(tokenHash)
@@ -320,7 +339,7 @@ export async function consumeMagicLink(token: string): Promise<{sessionToken: st
       expiresAt: Date.now() + APP_SESSION_MAX_AGE_SECONDS * 1000,
     })
     const user = await getApplicationUserById(stored.userId)
-    return user ? {sessionToken, user} : null
+    return user ? {sessionToken, user, nextPath: stored.nextPath} : null
   }
   const client = await leadPool().connect()
   try {
@@ -329,10 +348,11 @@ export async function consumeMagicLink(token: string): Promise<{sessionToken: st
       user_id: string
       customer_account_id: string | null
       role: ApplicationRole | null
+      next_path: string | null
     }>(
       `UPDATE auth_magic_links SET consumed_at = now()
         WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now()
-        RETURNING user_id, customer_account_id, role`,
+        RETURNING user_id, customer_account_id, role, next_path`,
       [tokenHash],
     )
     const row = link.rows[0]
@@ -357,13 +377,66 @@ export async function consumeMagicLink(token: string): Promise<{sessionToken: st
     )
     await client.query('COMMIT')
     const user = await getApplicationUserById(row.user_id)
-    return user ? {sessionToken, user} : null
+    return user ? {sessionToken, user, nextPath: row.next_path || undefined} : null
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
   } finally {
     client.release()
   }
+}
+
+export async function inspectMagicLink(token: string): Promise<{
+  user: ApplicationUser
+  purpose: 'sign_in' | 'invite'
+  customerAccountId?: string
+  role?: ApplicationRole
+  nextPath?: string
+  expired: boolean
+  consumed: boolean
+} | null> {
+  const tokenHash = hashValue(token)
+  if (leadsDryRun()) {
+    const stored = memoryStore().magicLinks.get(tokenHash)
+    const user = stored ? await getApplicationUserById(stored.userId) : null
+    return stored && user
+      ? {
+          user,
+          purpose: stored.purpose,
+          customerAccountId: stored.customerAccountId,
+          role: stored.role,
+          nextPath: stored.nextPath,
+          expired: stored.expiresAt < Date.now(),
+          consumed: false,
+        }
+      : null
+  }
+  const result = await leadPool().query<{
+    user_id: string
+    purpose: 'sign_in' | 'invite'
+    customer_account_id: string | null
+    role: ApplicationRole | null
+    next_path: string | null
+    expires_at: Date | string
+    consumed_at: Date | string | null
+  }>(
+    `SELECT user_id, purpose, customer_account_id, role, next_path, expires_at, consumed_at
+       FROM auth_magic_links WHERE token_hash = $1`,
+    [tokenHash],
+  )
+  const row = result.rows[0]
+  const user = row ? await getApplicationUserById(row.user_id) : null
+  return row && user
+    ? {
+        user,
+        purpose: row.purpose,
+        customerAccountId: row.customer_account_id || undefined,
+        role: row.role || undefined,
+        nextPath: row.next_path || undefined,
+        expired: new Date(row.expires_at).getTime() < Date.now(),
+        consumed: Boolean(row.consumed_at),
+      }
+    : null
 }
 
 export async function currentApplicationUser(sessionToken?: string): Promise<ApplicationUser | null> {
@@ -433,6 +506,57 @@ export async function invitePilotMember(input: {
       `INSERT INTO application_audit_events(customer_account_id, pilot_id, actor_user_id, event_type, detail)
        VALUES ($1,$2,$3,'pilot_member_invited',$4)`,
       [customerAccountId, input.pilotId, user.id, JSON.stringify({role: input.role})],
+    )
+    await client.query('COMMIT')
+    return {user, customerAccountId}
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+export async function ensurePilotRecipientAccess(input: {
+  pilotId: string
+  email: string
+  displayName?: string
+  pilotRole: PilotMemberRole
+  customerRole?: ApplicationRole
+}): Promise<{user: ApplicationUser; customerAccountId?: string}> {
+  const user = await ensureApplicationUser({
+    email: input.email,
+    displayName: input.displayName,
+  })
+  if (leadsDryRun()) {
+    const customer = [...memoryStore().customers.values()][0]
+    if (customer && input.customerRole) {
+      memoryStore().memberships.set(memberKey(customer.id, user.id), input.customerRole)
+    }
+    memoryStore().pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), input.pilotRole)
+    return {user, customerAccountId: customer?.id}
+  }
+  const client = await leadPool().connect()
+  try {
+    await client.query('BEGIN')
+    const pilot = await client.query<{customer_account_id: string | null}>(
+      'SELECT customer_account_id FROM lead_pilots WHERE id = $1 FOR UPDATE',
+      [input.pilotId],
+    )
+    const customerAccountId = pilot.rows[0]?.customer_account_id || undefined
+    if (customerAccountId && input.customerRole) {
+      await client.query(
+        `INSERT INTO customer_memberships(customer_account_id, user_id, role)
+         VALUES ($1,$2,$3) ON CONFLICT(customer_account_id, user_id)
+         DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
+        [customerAccountId, user.id, input.customerRole],
+      )
+    }
+    await client.query(
+      `INSERT INTO pilot_memberships(pilot_id, user_id, role)
+       VALUES ($1,$2,$3) ON CONFLICT(pilot_id, user_id)
+       DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
+      [input.pilotId, user.id, input.pilotRole],
     )
     await client.query('COMMIT')
     return {user, customerAccountId}

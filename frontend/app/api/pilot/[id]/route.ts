@@ -28,9 +28,21 @@ import {
   updatePilot,
   type StoredPilot,
 } from '@/lib/leads/store'
+import {
+  changedPilotFields,
+  createPilotDraft,
+  pilotTermsFromDraft,
+  resolvePilotDraftCommit,
+  updatePilotDraft,
+  type ConflictResolution,
+  type PilotDraftConflict,
+  type PilotMutableTerms,
+} from '@/lib/leads/pilot-collaboration'
 
 type PatchAction =
   | 'update'
+  | 'draft'
+  | 'commit_draft'
   | 'start_team_review'
   | 'invite_reviewer'
   | 'reviewer_decision'
@@ -38,6 +50,7 @@ type PatchAction =
   | 'remove_reviewer'
   | 'reviewer_role'
   | 'claim_role'
+  | 'section_change_request'
   | 'confirm_scope'
   | 'revise'
   | 'request_exception'
@@ -66,6 +79,9 @@ type PatchBody = {
   reviewerId?: string
   decision?: 'confirm' | 'changes'
   role?: ReviewerRole
+  baseVersion?: number
+  resolutions?: Record<string, ConflictResolution>
+  sectionChange?: {section: string; note: string}
   payment?: Record<string, unknown>
   kickoff?: Record<string, unknown>
 }
@@ -158,6 +174,80 @@ function recompute(
   }
 }
 
+function mutableTermsFromPilot(pilot: StoredPilot): PilotMutableTerms {
+  return {
+    startDate: pilot.resolvedStartDate || null,
+    valueConfirmed: Boolean(pilot.proposal?.valueModel?.confirmed),
+    criteria: pilot.successCriteria,
+  }
+}
+
+function mutableTermsFromBody(
+  pilot: StoredPilot,
+  body: PatchBody,
+): PilotMutableTerms {
+  return {
+    startDate:
+      body.startDate !== undefined
+        ? body.startDate
+        : pilot.resolvedStartDate || null,
+    valueConfirmed:
+      body.valueConfirmed !== undefined
+        ? body.valueConfirmed
+        : Boolean(pilot.proposal?.valueModel?.confirmed),
+    criteria: body.criteria || pilot.successCriteria,
+  }
+}
+
+function termsForRevision(
+  pilot: StoredPilot,
+  version: number,
+): PilotMutableTerms | null {
+  return pilot.revisions.find((revision) => revision.version === version)?.terms || null
+}
+
+function conflictResponse(conflicts: PilotDraftConflict[]): NextResponse {
+  return NextResponse.json(
+    {
+      ok: false,
+      code: 'conflict',
+      message: 'This pilot changed while you were reviewing it.',
+      conflicts,
+    },
+    {status: 409},
+  )
+}
+
+async function authenticatedPilot(requestedId: string): Promise<{
+  user: NonNullable<Awaited<ReturnType<typeof currentApplicationUser>>>
+  pilot: StoredPilot
+  accessRole: NonNullable<Awaited<ReturnType<typeof pilotMembershipRole>>>
+} | NextResponse> {
+  const user = await currentApplicationUser((await cookies()).get(APP_SESSION_COOKIE)?.value)
+  if (!user) {
+    return NextResponse.json({ok: false, message: 'sign in is required'}, {status: 401})
+  }
+  const pilot = await getPilotById(requestedId)
+  if (!pilot) {
+    return NextResponse.json({ok: false, message: 'pilot record not found'}, {status: 404})
+  }
+  const accessRole = await pilotMembershipRole(pilot.id, user.id)
+  if (!accessRole) {
+    return NextResponse.json({ok: false, message: 'you do not have access to this pilot'}, {status: 403})
+  }
+  return {user, pilot, accessRole}
+}
+
+export async function GET(
+  _request: Request,
+  {params}: {params: Promise<{id: string}>},
+): Promise<NextResponse> {
+  const {id} = await params
+  const result = await authenticatedPilot(id)
+  if (result instanceof NextResponse) return result
+  return NextResponse.json({ok: true, pilot: result.pilot, accessRole: result.accessRole})
+}
+
 export async function PATCH(
   request: Request,
   {params}: {params: Promise<{id: string}>},
@@ -239,6 +329,130 @@ export async function PATCH(
           })
         }
       }
+      return NextResponse.json({ok: true, pilot: updated})
+    }
+
+    if (body.action === 'draft') {
+      if (accessRole !== 'owner') {
+        return NextResponse.json({ok: false, message: 'only the submitter can edit the plan'}, {status: 403})
+      }
+      const currentTerms = mutableTermsFromPilot(pilot)
+      const baseVersion = body.baseVersion || pilot.version
+      const baseTerms = termsForRevision(pilot, baseVersion) || pilotTermsFromDraft(pilot.draft, currentTerms)
+      const draft = updatePilotDraft({
+        draft: pilot.draft,
+        baseTerms,
+        baseVersion,
+        nextTerms: mutableTermsFromBody(pilot, body),
+        actor: user.email,
+      })
+      const updated = await updatePilot(id, {draft})
+      return NextResponse.json({ok: true, pilot: updated})
+    }
+
+    if (body.action === 'commit_draft') {
+      if (accessRole !== 'owner') {
+        return NextResponse.json({ok: false, message: 'only the submitter can save changes'}, {status: 403})
+      }
+      const baseVersion = body.baseVersion || pilot.draft?.baseVersion || pilot.version
+      const baseTerms = termsForRevision(pilot, baseVersion) || mutableTermsFromPilot(pilot)
+      const currentTerms = mutableTermsFromPilot(pilot)
+      const incomingTerms = mutableTermsFromBody(pilot, body)
+      const resolved = resolvePilotDraftCommit({
+        baseTerms,
+        currentTerms,
+        incomingTerms,
+        resolutions: body.resolutions,
+      })
+      if (resolved.conflicts.length > 0) return conflictResponse(resolved.conflicts)
+      const commitBody: PatchBody = {
+        ...body,
+        action: 'commit_draft',
+        criteria: resolved.terms.criteria,
+        startDate: resolved.terms.startDate,
+        valueConfirmed: resolved.terms.valueConfirmed,
+      }
+      const next = recompute(pilot, commitBody)
+      const committedChanges = changedPilotFields(currentTerms, resolved.terms, {
+        by: user.email,
+      })
+      const version = committedChanges.length > 0 ? pilot.version + 1 : pilot.version
+      const draft = createPilotDraft({
+        terms: resolved.terms,
+        baseVersion: version,
+        actor: user.email,
+      })
+      const revisions =
+        committedChanges.length > 0
+          ? [
+              ...pilot.revisions,
+              {
+                pilotId: pilot.id,
+                version,
+                baseVersion,
+                committedAt: new Date().toISOString(),
+                committedBy: user.email,
+                terms: resolved.terms,
+                changes: committedChanges,
+              },
+            ]
+          : pilot.revisions
+      const updated = await updatePilot(id, {
+        route: next.route,
+        answers: next.answers,
+        exceptions: next.exceptions,
+        unresolved: next.unresolved,
+        proposal: next.proposal,
+        successCriteria: next.criteria,
+        securityDecisions: next.security,
+        version,
+        draft,
+        revisions,
+        resolvedStartDate: resolved.terms.startDate,
+        historyNote: committedChanges.length > 0 ? 'pilot terms saved' : undefined,
+        by: user.email,
+      })
+      if (version > pilot.version) {
+        await notifyStaleReviewers(updated)
+      }
+      return NextResponse.json({ok: true, pilot: updated})
+    }
+
+    if (body.action === 'section_change_request') {
+      const section = String(body.sectionChange?.section || '').trim()
+      const note = String(body.sectionChange?.note || body.note || '').trim()
+      if (!section || !note) {
+        return NextResponse.json({ok: false, message: 'section and change request are required'}, {status: 400})
+      }
+      const reviewer = pilot.reviewers.find(
+        (candidate) =>
+          candidate.status !== 'revoked' &&
+          candidate.email.toLowerCase() === user.email.toLowerCase(),
+      )
+      if (!reviewer && accessRole !== 'owner') {
+        return NextResponse.json({ok: false, message: 'you can only request changes for your own review'}, {status: 403})
+      }
+      const now = new Date().toISOString()
+      const contextualNote = `${section}: ${note}`
+      const updated = await updatePilot(id, {
+        reviewers: reviewer
+          ? pilot.reviewers.map((candidate) =>
+              candidate.id === reviewer.id
+                ? {
+                    ...candidate,
+                    status: 'reviewed' as const,
+                    reviewedAt: now,
+                    requestedChanges: true,
+                    versionSeen: pilot.version,
+                    notes: [...candidate.notes, contextualNote],
+                  }
+                : candidate,
+            )
+          : pilot.reviewers,
+        historyNote: `${user.email} requested changes to ${section}`,
+        by: user.email,
+      })
+      await enqueuePilotEmail(id, 'change_requested')
       return NextResponse.json({ok: true, pilot: updated})
     }
 
@@ -519,6 +733,8 @@ export async function PATCH(
 
     const emailVariant: Record<PatchAction, string | null> = {
       update: null,
+      draft: null,
+      commit_draft: null,
       start_team_review: null,
       invite_reviewer: null,
       reviewer_decision: null,
@@ -526,6 +742,7 @@ export async function PATCH(
       remove_reviewer: null,
       reviewer_role: null,
       claim_role: null,
+      section_change_request: null,
       confirm_scope: null,
       revise: null,
       request_exception: 'exception',

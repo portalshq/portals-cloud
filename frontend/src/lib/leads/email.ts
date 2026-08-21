@@ -1,7 +1,12 @@
 import {leadDownloadUrl} from './downloads'
-import {stateLabel, summarizeProposal} from './pilot'
+import {reviewerTokenRole, stateLabel, summarizeProposal} from './pilot'
 import type {StoredPilot, StoredSubmission} from './store'
 import {getPilotBySubmissionId, getPilotById} from './store'
+import {
+  ensurePilotRecipientAccess,
+  issueMagicLink,
+  type PilotMemberRole,
+} from './application-auth'
 
 export async function sendEmail({
   idempotencyKey,
@@ -47,16 +52,70 @@ export function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works').replace(/\/$/, '')
 }
 
-function pilotDocuments(
+function recipientRole(pilot: StoredPilot, email: string): {
+  pilotRole: PilotMemberRole
+  customerRole: 'owner' | 'member'
+  displayName?: string
+} | null {
+  const normalized = email.trim().toLowerCase()
+  if (String(pilot.answers.email || '').trim().toLowerCase() === normalized) {
+    return {
+      pilotRole: 'owner',
+      customerRole: 'owner',
+      displayName: String(pilot.answers.name || '').trim() || undefined,
+    }
+  }
+  const reviewer = pilot.reviewers.find(
+    (candidate) =>
+      candidate.status !== 'revoked' &&
+      candidate.email.trim().toLowerCase() === normalized,
+  )
+  if (reviewer) {
+    return {
+      pilotRole: reviewerTokenRole(reviewer.role),
+      customerRole: 'member',
+      displayName: reviewer.name || undefined,
+    }
+  }
+  if (String(pilot.answers.signerEmail || '').trim().toLowerCase() === normalized) {
+    return {
+      pilotRole: 'signer',
+      customerRole: 'member',
+      displayName: String(pilot.answers.signerName || '').trim() || undefined,
+    }
+  }
+  return null
+}
+
+async function pilotDocuments(
   pilot: StoredPilot,
   submitterEmailOverride?: string,
-): {
+): Promise<{
   roomUrl: string
   packetUrl: string
   securityUrl: string
-} {
+}> {
   const roomPath = `/paid-pilot/room/${pilot.id}`
-  const roomUrl = `${siteUrl()}/auth/sign-in?next=${encodeURIComponent(roomPath)}`
+  const recipient = String(submitterEmailOverride || pilot.answers.email || '').trim()
+  const access = recipient ? recipientRole(pilot, recipient) : null
+  let roomUrl = `${siteUrl()}/auth/sign-in?next=${encodeURIComponent(roomPath)}`
+  if (recipient && access) {
+    const granted = await ensurePilotRecipientAccess({
+      pilotId: pilot.id,
+      email: recipient,
+      displayName: access.displayName,
+      pilotRole: access.pilotRole,
+      customerRole: access.customerRole,
+    })
+    const token = await issueMagicLink({
+      userId: granted.user.id,
+      purpose: 'invite',
+      customerAccountId: granted.customerAccountId,
+      role: access.customerRole,
+      nextPath: roomPath,
+    })
+    roomUrl = `${siteUrl()}/auth/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(roomPath)}`
+  }
   return {
     roomUrl,
     packetUrl: `${siteUrl()}/api/leads/documents/pilot-packet`,
@@ -76,12 +135,12 @@ export function submitterGreeting(pilot: StoredPilot): string | null {
   return null
 }
 
-export function pilotCopy(
+export async function pilotCopy(
   pilot: StoredPilot,
   variant: string,
   submitterEmail?: string,
-): {subject: string; text: string} {
-  const {roomUrl, packetUrl, securityUrl} = pilotDocuments(pilot, submitterEmail)
+): Promise<{subject: string; text: string}> {
+  const {roomUrl, packetUrl, securityUrl} = await pilotDocuments(pilot, submitterEmail)
   const calendar = process.env.PILOT_CALENDAR_URL
   const greeting = submitterGreeting(pilot)
   const base = [
@@ -91,7 +150,7 @@ export function pilotCopy(
     '',
     'review your personalized pilot approval room',
     roomUrl,
-    'sign in with the email invited to this account to open the room.',
+    'this secure link opens the room directly and expires after 15 minutes.',
   ]
 
   switch (variant) {
@@ -360,7 +419,7 @@ export async function sendPilotStatusEmail(
     ? String(recipient).trim()
     : String(pilot.answers.email || '')
   if (!target) throw new Error('Pilot recipient email is missing.')
-  const copy = pilotCopy(pilot, variant, target)
+  const copy = await pilotCopy(pilot, variant, target)
   await sendEmail({
     idempotencyKey: `${pilot.id}-status-${variant}-${target}`,
     to: target,
