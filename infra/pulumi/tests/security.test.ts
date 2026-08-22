@@ -120,6 +120,9 @@ test("image promotion is scan-gated and public release also requires a signature
   assert.match(versioning, /receipt\?\.signatureVerified !== true/);
   assert.match(publisher, /describe-image-scan-findings/);
   assert.match(publisher, /--severity CRITICAL,HIGH --exit-code 1/);
+  assert.match(publisher, /Trivy produced empty JSON output/);
+  assert.match(publisher, /Trivy produced invalid JSON output; refusing to promote/);
+  assert.match(publisher, /\.Results \| type == "array"/);
   assert.doesNotMatch(publisher, /trivy[^\n]*--ignore-unfixed/i);
   assert.match(publisher, /\.SBOM/);
   assert.match(publisher, /\.Provenance/);

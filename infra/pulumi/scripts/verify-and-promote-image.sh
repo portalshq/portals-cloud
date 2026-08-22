@@ -29,10 +29,11 @@ command -v aws >/dev/null || { echo "aws CLI is required" >&2; exit 2; }
 command -v docker >/dev/null || { echo "docker with buildx is required" >&2; exit 2; }
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
 
-# Handle trivy check. Default is the containerized scanner — no host install.
+# ---------------------------------------------------------------------------
+# Scanner selection — containerized by default (no host install).
 # A binary name or image reference never contains whitespace; reject poisoned
-# values (e.g. an exported 'docker run …' command string) loudly instead of
-# misrouting them.
+# values (e.g. an exported 'docker run …' command string) loudly.
+# ---------------------------------------------------------------------------
 case "${TRIVY_BIN:-}" in
   *[[:space:]]*)
     echo "TRIVY_BIN contains whitespace and cannot be executed safely:" >&2
@@ -49,45 +50,31 @@ if [[ -z "${TRIVY_BIN}" ]]; then
     echo "No native trivy found; using containerized scanner (${TRIVY_IMAGE})"
   fi
 fi
-if [[ "${TRIVY_BIN}" == *:* ]]; then
-  # Image reference (contains a tag separator); native/custom paths never do
-  echo "Using trivy via Docker container (${TRIVY_BIN})"
-  docker pull "${TRIVY_BIN}" >/dev/null 2>&1 || { echo "Failed to pull trivy Docker image" >&2; exit 2; }
-elif command -v "${TRIVY_BIN}" >/dev/null 2>&1; then
-  : # native binary or custom path
-else
-  echo "Trivy is required; refusing to promote without an independent scan" >&2
-  exit 2
-fi
 
-# When credentials are injected into a Trivy container, they transit the docker
-# API to whichever daemon will run it. Refuse plaintext remote endpoints so
-# secrets never cross an unencrypted channel.
+# --- Helpers (defined before use) ------------------------------------------
 docker_trivy_transit_guard() {
   local endpoint
   endpoint="$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)"
   endpoint="${endpoint:-${DOCKER_HOST:-}}"
   case "${endpoint}" in
-    ""|unix://*|npipe://*|ssh://*) : ;; # local socket or SSH/TLS-wrapped remote: encrypted in transit
+    ""|unix://*|npipe://*|ssh://*) : ;;
     tcp://*|http://*)
       echo "Refusing to inject AWS credentials over unencrypted docker endpoint '${endpoint}'." >&2
       echo "Use a local daemon, an ssh:// context, or a TLS-configured context." >&2
       exit 2 ;;
-    *) : ;; # e.g. https:// or desktop-specific schemes
+    *) : ;; # https:// and desktop-specific schemes
   esac
 }
 
-# Resolve AWS credentials on the host and print them as KEY=VALUE lines on
-# stdout. Values never appear in argv, logs, or files on disk. Order:
-#   1. already-exported session environment (SSO / assume-role chains)
-#   2. `aws configure export-credentials` for the active profile
-# Fails the promotion early when neither source yields a usable pair.
 resolve_trivy_credentials() {
-  local key secret token
+  # Resolve AWS credentials on the host; print KEY=VALUE lines on stdout.
+  # Values never appear in argv, logs, or files on disk. Order:
+  #   1. already-exported session environment (SSO / assume-role chains)
+  #   2. aws configure export-credentials for the active profile
+  local key secret token exported
   if [[ -n "${AWS_ACCESS_KEY_ID:-}" && -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
     key="${AWS_ACCESS_KEY_ID}"; secret="${AWS_SECRET_ACCESS_KEY}"; token="${AWS_SESSION_TOKEN:-}"
   else
-    local exported
     exported="$(aws configure export-credentials \
                   ${AWS_PROFILE:+--profile "${AWS_PROFILE}"} \
                   --format env-no-export 2>/dev/null || true)"
@@ -105,9 +92,28 @@ resolve_trivy_credentials() {
   printf 'AWS_SECRET_ACCESS_KEY=%s\n' "${secret}"
   [[ -n "${token}" ]] && printf 'AWS_SESSION_TOKEN=%s\n' "${token}"
   printf 'AWS_REGION=%s\nAWS_DEFAULT_REGION=%s\n' "${AWS_REGION}" "${AWS_REGION}"
-  return 0
 }
 
+# Reviewed, expiring vulnerability exceptions (fail-closed: expired entries
+# grant nothing). Enforced identically on the ECR recount below and on the
+# Trivy results client-side. Package/reason fields are review metadata only.
+EXCEPTIONS_FILE="${SCRIPT_DIR}/trivy-exceptions.json"
+TODAY="$(date -u +%Y-%m-%d)"
+ACTIVE_EXCEPTION_IDS="$(jq -r --arg today "${TODAY}" \
+  '[.exceptions[] | select(.expires >= $today) | .id] | join(" ")' \
+  "${EXCEPTIONS_FILE}" 2>/dev/null || echo "")"
+echo "Active vulnerability exceptions: ${ACTIVE_EXCEPTION_IDS:-none}"
+
+# --- Preflight --------------------------------------------------------------
+if [[ "${TRIVY_BIN}" == *:* ]]; then
+  echo "Using trivy via Docker container (${TRIVY_BIN})"
+  docker pull "${TRIVY_BIN}" >/dev/null 2>&1 || { echo "Failed to pull trivy Docker image" >&2; exit 2; }
+elif command -v "${TRIVY_BIN}" >/dev/null 2>&1; then
+  : # native binary or custom path
+else
+  echo "Trivy is required; refusing to promote without an independent scan" >&2
+  exit 2
+fi
 
 REGISTRY="${IMAGE%%/*}"
 REPOSITORY_AND_DIGEST="${IMAGE#*/}"
@@ -164,16 +170,6 @@ if [[ "$(jq -r '.imageScanStatus.status // empty' <<<"${SCAN_JSON}")" != "COMPLE
   done
 fi
 [[ "$(jq -r '.imageScanStatus.status // empty' <<<"${SCAN_JSON}")" == "COMPLETE" ]] || { echo "ECR scan did not complete" >&2; exit 1; }
-# Reviewed, expiring vulnerability exceptions (fail-closed: expired entries
-# grant nothing). Enforced identically on the ECR gate below and on the Trivy
-# run via a generated ignorefile. Package/reason fields are review metadata.
-EXCEPTIONS_FILE="${REPO_ROOT}/infra/pulumi/scripts/trivy-exceptions.json"
-TODAY="$(date -u +%F)"
-ACTIVE_EXCEPTION_IDS="$(jq -r --arg today "${TODAY}" \
-  '[.exceptions[] | select(.expires >= $today) | .id] | join(" ")' \
-  "${EXCEPTIONS_FILE}" 2>/dev/null || echo "")"
-echo "Active vulnerability exceptions: ${ACTIVE_EXCEPTION_IDS:-none}"
-
 if [[ -n "${ACTIVE_EXCEPTION_IDS// /|}" ]]; then
   EC_RE="^($(echo "${ACTIVE_EXCEPTION_IDS}" | sed 's/ /|/g'))$"
   FILTERED_JSON="$(jq --arg re "${EC_RE}" \
@@ -185,31 +181,55 @@ fi
 ECR_CRITICAL="$(jq -r '[.imageScanFindings.findings[]? | select(.severity == "CRITICAL")] | length' <<<"${FILTERED_JSON}")"
 ECR_HIGH="$(jq -r '[.imageScanFindings.findings[]? | select(.severity == "HIGH")] | length' <<<"${FILTERED_JSON}")"
 [[ "${ECR_CRITICAL}" -eq 0 && "${ECR_HIGH}" -eq 0 ]] || { echo "ECR scan failed after exceptions: critical=${ECR_CRITICAL} high=${ECR_HIGH}" >&2; exit 1; }
-
 # Do not use --ignore-unfixed: an unfixed critical/high remains an unresolved
 # release risk and needs an explicit, reviewed exception rather than hiding it.
+# The container receives ONLY the image ref and a creds env-file; all policy
+# (exception allowlist, severity gate) is evaluated client-side below, so no
+# host paths are ever shared with the daemon.
+scan_failed=0
 if [[ "${TRIVY_BIN}" == *:* ]]; then
-  # Containerized scanner: credentials are injected through the docker API
-  # (unix socket / SSH / TLS — plaintext tcp endpoints are refused by the
-  # transit guard). Nothing is bind-mounted and values never appear in argv
-  # or logs; they sit only in a 0600 temp file shredded immediately after use.
   docker_trivy_transit_guard
   TRIVY_CREDS="$(mktemp "${TMPDIR:-/tmp}/trivy-creds.XXXXXX")"
   chmod 600 "${TRIVY_CREDS}"
   resolve_trivy_credentials > "${TRIVY_CREDS}" || { rm -f "${TRIVY_CREDS}"; exit 2; }
-  TRIVY_IGNORE="$(mktemp "${TMPDIR:-/tmp}/trivy-ignore.XXXXXX")"
-  [[ -n "${ACTIVE_EXCEPTION_IDS}" ]] && printf '%s\n' ${ACTIVE_EXCEPTION_IDS} > "${TRIVY_IGNORE}"
-  local_docker_rc=0
+  TRIVY_JSON="$(mktemp "${TMPDIR:-/tmp}/trivy-scan.XXXXXX")"
+
+  docker_rc=0
   docker run --rm --env-file "${TRIVY_CREDS}" \
     "${TRIVY_BIN}" image --platform "${PLATFORM}" --scanners vuln \
-    --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}" || local_docker_rc=$?
-  rm -f "${TRIVY_IGNORE}"
+    --severity CRITICAL,HIGH --format json --no-progress \
+    "${IMAGE}" > "${TRIVY_JSON}" || docker_rc=$?
   shred -u "${TRIVY_CREDS}" 2>/dev/null || rm -f "${TRIVY_CREDS}"
-  exit "${local_docker_rc}"
+  [[ "${docker_rc}" -eq 0 ]] || { rm -f "${TRIVY_JSON}"; exit "${docker_rc}"; }
+  [[ -s "${TRIVY_JSON}" ]] || { rm -f "${TRIVY_JSON}"; echo "Trivy produced empty JSON output" >&2; exit 1; }
+  if ! jq -e 'type == "object" and (.Results | type == "array")' \
+    < "${TRIVY_JSON}" >/dev/null; then
+    rm -f "${TRIVY_JSON}"
+    echo "Trivy produced invalid JSON output; refusing to promote" >&2
+    exit 1
+  fi
+
+  TRIVY_RE="^(${ACTIVE_EXCEPTION_IDS// /|})$"
+  REMAINING_JSON="$(jq --arg re "${TRIVY_RE}" \
+    '[.Results[]?.Vulnerabilities[]? | select((.VulnerabilityID | test($re)) | not)]' \
+    < "${TRIVY_JSON}")"
+  TRIVY_CRITICAL="$(jq -r '[.[] | select(.Severity == "CRITICAL")] | length' <<<"${REMAINING_JSON}")"
+  TRIVY_HIGH="$(jq -r '[.[] | select(.Severity == "HIGH")] | length' <<<"${REMAINING_JSON}")"
+  rm -f "${TRIVY_JSON}"
+  TRIVY_CRITICAL="${TRIVY_CRITICAL:-0}"; TRIVY_HIGH="${TRIVY_HIGH:-0}"
+
+  if [[ "${TRIVY_CRITICAL}" -eq 0 && "${TRIVY_HIGH}" -eq 0 ]]; then
+    echo "Trivy: 0 critical/high after reviewed exceptions."
+  else
+    echo "Trivy found unresolved critical/high findings after exceptions:" >&2
+    jq -r '.[] | "\(.Severity)\t\(.VulnerabilityID)\t\(.PkgName)"' <<<"${REMAINING_JSON}" >&2
+    scan_failed=1
+  fi
 else
   "${TRIVY_BIN}" image --platform "${PLATFORM}" --scanners vuln \
-    --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}"
+    --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}" || scan_failed=$?
 fi
+[[ "${scan_failed}" -eq 0 ]] || exit "${scan_failed}"
 
 SBOM="$(docker buildx imagetools inspect --format '{{json .SBOM}}' "${IMAGE}")"
 PROVENANCE="$(docker buildx imagetools inspect --format '{{json .Provenance}}' "${IMAGE}")"
@@ -239,7 +259,7 @@ fi
 
 ECR_COMPLETED_AT="$(jq -r '.imageScanFindings.imageScanCompletedAt' <<<"${SCAN_JSON}")"
 # Get trivy version - handle both local binary and Docker container
-if [[ "${TRIVY_BIN}" == docker* ]]; then
+if [[ "${TRIVY_BIN}" == *:* ]]; then
   TRIVY_VERSION="$(docker run --rm "${TRIVY_BIN}" --version | awk 'NR == 1 { print $2 }')"
 else
   TRIVY_VERSION="$(${TRIVY_BIN} --version | awk 'NR == 1 { print $2 }')"
