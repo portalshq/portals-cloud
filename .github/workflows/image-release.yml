@@ -50,6 +50,12 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
+      # Trivy runs containerized inside verify-and-promote-image.sh (no host
+      # install). It consumes the AWS_* session variables exported above via
+      # the OIDC role; plaintext tcp docker endpoints are refused by design.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
       - name: Build and promote Auth Gateway
         run: control-plane/scripts/publish-auth-gateway.sh
 

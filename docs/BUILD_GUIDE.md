@@ -134,9 +134,19 @@ pulumi config set loreCpuArchitecture ARM64        # Lore Fargate architecture
 pulumi config set authGatewayCpuArchitecture ARM64 # Auth Gateway Fargate architecture
 ```
 
-> Note: buildx may print an `InvalidDefaultArgInFrom` warning about
-> `ARG BASE_IMAGE`. This is cosmetic — publishers pass the base image as a
-> digest-pinned `--build-arg`; the linter only inspects the empty static default.
+> Notes on expected build output:
+>
+> - `InvalidDefaultArgInFrom` for `ARG BASE_IMAGE` is cosmetic — publishers
+>   pass the base image as a digest-pinned `--build-arg`; the linter only sees
+>   the empty static default.
+> - `RedundantTargetPlatform` on runtime stages is intentional: the guard makes
+>   stage-platform selection explicit for security-pinned base images even
+>   though the global flag would imply it.
+> - Trivy always runs **inside Docker** (default `aquasec/trivy:latest`); there
+>   is no host install. Credentials are resolved on the invoking host
+>   (`aws configure export-credentials` or exported session vars) and injected
+>   via a 0600 temp env-file that is shredded after use; plaintext `tcp://`
+>   docker endpoints are refused so secrets never transit unencrypted.
 
 Build and deployment architectures must match for each service.
 

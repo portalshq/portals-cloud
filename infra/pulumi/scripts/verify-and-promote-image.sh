@@ -9,7 +9,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 SERVICE="${1:?usage: verify-and-promote-image.sh <service> <image@sha256> [linux/arm64]}"
 IMAGE="${2:?usage: verify-and-promote-image.sh <service> <image@sha256> [linux/arm64]}"
 PLATFORM="${3:-linux/arm64}"
-TRIVY_BIN="${TRIVY_BIN:-trivy}"
+TRIVY_BIN="${TRIVY_BIN:-}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-false}"
 EXPECTED_SOURCE_COMMIT="${EXPECTED_SOURCE_COMMIT:-}"
@@ -29,17 +29,75 @@ command -v aws >/dev/null || { echo "aws CLI is required" >&2; exit 2; }
 command -v docker >/dev/null || { echo "docker with buildx is required" >&2; exit 2; }
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
 
-# Handle trivy check - support both local binary and Docker container
-if [[ "${TRIVY_BIN}" == "trivy" ]]; then
-  command -v trivy >/dev/null || { echo "Trivy is required; refusing to promote without an independent scan (install: https://aquasecurity.github.io/trivy/latest/getting-started/installation/)" >&2; exit 2; }
-elif [[ "${TRIVY_BIN}" == docker* ]]; then
-  # Verify docker is available (already checked above) and the trivy image can be pulled
-  echo "Using trivy via Docker container"
-  docker pull aquasec/trivy:latest >/dev/null 2>&1 || { echo "Failed to pull trivy Docker image" >&2; exit 2; }
-else
-  # Custom TRIVY_BIN path provided
-  command -v "${TRIVY_BIN}" >/dev/null || { echo "Trivy is required; refusing to promote without an independent scan" >&2; exit 2; }
+# Handle trivy check. Default is the containerized scanner — no host install.
+TRIVY_IMAGE="${TRIVY_IMAGE:-aquasec/trivy:latest}"
+if [[ -z "${TRIVY_BIN}" ]]; then
+  if command -v trivy >/dev/null 2>&1; then
+    TRIVY_BIN="trivy"
+  else
+    TRIVY_BIN="${TRIVY_IMAGE}"
+    echo "No native trivy found; using containerized scanner (${TRIVY_IMAGE})"
+  fi
 fi
+if [[ "${TRIVY_BIN}" == *:* ]]; then
+  # Image reference (contains a tag separator); native/custom paths never do
+  echo "Using trivy via Docker container (${TRIVY_BIN})"
+  docker pull "${TRIVY_BIN}" >/dev/null 2>&1 || { echo "Failed to pull trivy Docker image" >&2; exit 2; }
+elif command -v "${TRIVY_BIN}" >/dev/null 2>&1; then
+  : # native binary or custom path
+else
+  echo "Trivy is required; refusing to promote without an independent scan" >&2
+  exit 2
+fi
+
+# When credentials are injected into a Trivy container, they transit the docker
+# API to whichever daemon will run it. Refuse plaintext remote endpoints so
+# secrets never cross an unencrypted channel.
+docker_trivy_transit_guard() {
+  local endpoint
+  endpoint="$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)"
+  endpoint="${endpoint:-${DOCKER_HOST:-}}"
+  case "${endpoint}" in
+    ""|unix://*|npipe://*|ssh://*) : ;; # local socket or SSH/TLS-wrapped remote: encrypted in transit
+    tcp://*|http://*)
+      echo "Refusing to inject AWS credentials over unencrypted docker endpoint '${endpoint}'." >&2
+      echo "Use a local daemon, an ssh:// context, or a TLS-configured context." >&2
+      exit 2 ;;
+    *) : ;; # e.g. https:// or desktop-specific schemes
+  esac
+}
+
+# Resolve AWS credentials on the host and print them as KEY=VALUE lines on
+# stdout. Values never appear in argv, logs, or files on disk. Order:
+#   1. already-exported session environment (SSO / assume-role chains)
+#   2. `aws configure export-credentials` for the active profile
+# Fails the promotion early when neither source yields a usable pair.
+resolve_trivy_credentials() {
+  local key secret token
+  if [[ -n "${AWS_ACCESS_KEY_ID:-}" && -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+    key="${AWS_ACCESS_KEY_ID}"; secret="${AWS_SECRET_ACCESS_KEY}"; token="${AWS_SESSION_TOKEN:-}"
+  else
+    local exported
+    exported="$(aws configure export-credentials \
+                  ${AWS_PROFILE:+--profile "${AWS_PROFILE}"} \
+                  --format env-no-export 2>/dev/null || true)"
+    key="$(sed -n 's/^AWS_ACCESS_KEY_ID=//p' <<<"${exported}")"
+    secret="$(sed -n 's/^AWS_SECRET_ACCESS_KEY=//p' <<<"${exported}")"
+    token="$(sed -n 's/^AWS_SESSION_TOKEN=//p' <<<"${exported}")"
+  fi
+  if [[ -z "${key}" || -z "${secret}" ]]; then
+    echo "No usable AWS credentials for the containerized Trivy scanner:" >&2
+    echo "export AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY (plus AWS_SESSION_TOKEN for temporary sessions)" >&2
+    echo "or configure ~/.aws for profile '${AWS_PROFILE:-default}' so 'aws configure export-credentials' succeeds." >&2
+    return 1
+  fi
+  printf 'AWS_ACCESS_KEY_ID=%s\n' "${key}"
+  printf 'AWS_SECRET_ACCESS_KEY=%s\n' "${secret}"
+  [[ -n "${token}" ]] && printf 'AWS_SESSION_TOKEN=%s\n' "${token}"
+  printf 'AWS_REGION=%s\nAWS_DEFAULT_REGION=%s\n' "${AWS_REGION}" "${AWS_REGION}"
+  return 0
+}
+
 
 REGISTRY="${IMAGE%%/*}"
 REPOSITORY_AND_DIGEST="${IMAGE#*/}"
@@ -98,16 +156,21 @@ ECR_HIGH="$(jq -r '.imageScanFindings.findingSeverityCounts.HIGH // 0' <<<"${SCA
 
 # Do not use --ignore-unfixed: an unfixed critical/high remains an unresolved
 # release risk and needs an explicit, reviewed exception rather than hiding it.
-if [[ "${TRIVY_BIN}" == docker* ]]; then
-  # When using Docker, add AWS credential environment variables
-  docker run --rm \
-    -v ~/.aws:/root/.aws:ro \
-    -e AWS_ACCESS_KEY_ID \
-    -e AWS_SECRET_ACCESS_KEY \
-    -e AWS_SESSION_TOKEN \
-    -e AWS_REGION \
-    aquasec/trivy:latest image --platform "${PLATFORM}" --scanners vuln \
-    --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}"
+if [[ "${TRIVY_BIN}" == *:* ]]; then
+  # Containerized scanner: credentials are injected through the docker API
+  # (unix socket / SSH / TLS — plaintext tcp endpoints are refused by the
+  # transit guard). Nothing is bind-mounted and values never appear in argv
+  # or logs; they sit only in a 0600 temp file shredded immediately after use.
+  docker_trivy_transit_guard
+  TRIVY_CREDS="$(mktemp "${TMPDIR:-/tmp}/trivy-creds.XXXXXX")"
+  chmod 600 "${TRIVY_CREDS}"
+  resolve_trivy_credentials > "${TRIVY_CREDS}" || { rm -f "${TRIVY_CREDS}"; exit 2; }
+  local_docker_rc=0
+  docker run --rm --env-file "${TRIVY_CREDS}" \
+    "${TRIVY_BIN}" image --platform "${PLATFORM}" --scanners vuln \
+    --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}" || local_docker_rc=$?
+  shred -u "${TRIVY_CREDS}" 2>/dev/null || rm -f "${TRIVY_CREDS}"
+  exit "${local_docker_rc}"
 else
   "${TRIVY_BIN}" image --platform "${PLATFORM}" --scanners vuln \
     --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}"
@@ -142,7 +205,7 @@ fi
 ECR_COMPLETED_AT="$(jq -r '.imageScanFindings.imageScanCompletedAt' <<<"${SCAN_JSON}")"
 # Get trivy version - handle both local binary and Docker container
 if [[ "${TRIVY_BIN}" == docker* ]]; then
-  TRIVY_VERSION="$(docker run --rm aquasec/trivy:latest --version | awk 'NR == 1 { print $2 }')"
+  TRIVY_VERSION="$(docker run --rm "${TRIVY_BIN}" --version | awk 'NR == 1 { print $2 }')"
 else
   TRIVY_VERSION="$(${TRIVY_BIN} --version | awk 'NR == 1 { print $2 }')"
 fi
