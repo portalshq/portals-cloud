@@ -31,7 +31,7 @@ cd /Users/vibrantceo/Projects/portals/cloud
 export ECR_REGISTRY=907199504810.dkr.ecr.us-east-1.amazonaws.com
 export ENVIRONMENT=prod                    # 'dev' or 'prod'
 export REQUIRE_SIGNATURE=true             # Must be true for production
-export COSIGN_KEY=aws-kms://alias/portals-artifact-signing
+export COSIGN_KEY=awskms:///alias/portals-artifact-signing
 
 # Optional environment variables
 export ECR_NAMESPACE=portals-prod          # Defaults to portals-${ENVIRONMENT}
@@ -62,7 +62,7 @@ cd /Users/vibrantceo/Projects/portals/cloud/control-plane
 export ECR_REGISTRY=907199504810.dkr.ecr.us-east-1.amazonaws.com
 export ENVIRONMENT=prod                    # 'dev' or 'prod'
 export REQUIRE_SIGNATURE=true             # Must be true for production
-export COSIGN_KEY=aws-kms://alias/portals-artifact-signing
+export COSIGN_KEY=awskms:///alias/portals-artifact-signing
 
 # Optional environment variables
 export ECR_NAMESPACE=portals-prod          # Defaults to portals-${ENVIRONMENT}
@@ -111,12 +111,32 @@ export AUTH_TARGETARCH=amd64   # Auth Gateway on AMD64 (compatibility)
 - Individual services verify only their target architecture
 - Pulumi deployment uses matching architecture per service
 
+**Platform stamping guarantees (2026-08-22)**:
+
+- Builder stages declare `FROM --platform=$BUILDPLATFORM`, so compilation always
+  runs natively on the build machine and cross-compiles the target ELF via the
+  pinned `aarch64` GNU toolchain — **no QEMU emulation on any builder**, local
+  or remote, arm or amd64.
+- Runtime stages declare `FROM --platform=$TARGETPLATFORM` (including the
+  digest-pinned `${BASE_IMAGE}` index), so the pushed manifest is stamped with
+  the architecture that is actually inside it.
+- Single-arch (prod-mode) builds pass an explicit `--platform linux/${arch}` —
+  output no longer inherits a remote/amd64 builder's native platform.
+- Both images fail fast on any non-arm64 `$TARGETPLATFORM`
+  (`unsupported TARGETPLATFORM …`): only `linux/arm64` is produced today
+  (Fargate ARM64); amd64 support would require parameterizing the Rust target.
+- Regression coverage: `infra/lore/scripts/test-arch-detection.sh`.
+
 **Pulumi Configuration**:
 ```bash
 cd cloud/infra/pulumi
 pulumi config set loreCpuArchitecture ARM64        # Lore Fargate architecture
 pulumi config set authGatewayCpuArchitecture ARM64 # Auth Gateway Fargate architecture
 ```
+
+> Note: buildx may print an `InvalidDefaultArgInFrom` warning about
+> `ARG BASE_IMAGE`. This is cosmetic — publishers pass the base image as a
+> digest-pinned `--build-arg`; the linter only inspects the empty static default.
 
 Build and deployment architectures must match for each service.
 
@@ -197,7 +217,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
           REQUIRE_SIGNATURE: ${{ github.event.inputs.environment == 'prod' && 'true' || 'false' }}
-          COSIGN_KEY: ${{ github.event.inputs.environment == 'prod' && 'aws-kms://alias/portals-artifact-signing' || '' }}
+          COSIGN_KEY: ${{ github.event.inputs.environment == 'prod' && 'awskms:///alias/portals-artifact-signing' || '' }}
           LORE_TARGETARCH: ${{ github.event.inputs.lore_architecture || 'arm64' }}
         run: |
           ./infra/lore/scripts/docker-buildx-lore.sh
@@ -239,7 +259,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
           REQUIRE_SIGNATURE: ${{ github.event.inputs.environment == 'prod' && 'true' || 'false' }}
-          COSIGN_KEY: ${{ github.event.inputs.environment == 'prod' && 'aws-kms://alias/portals-artifact-signing' || '' }}
+          COSIGN_KEY: ${{ github.event.inputs.environment == 'prod' && 'awskms:///alias/portals-artifact-signing' || '' }}
           AUTH_TARGETARCH: ${{ github.event.inputs.auth_architecture || 'arm64' }}
         run: |
           ./control-plane/scripts/publish-auth-gateway.sh
@@ -313,11 +333,11 @@ After building, verify the images are correctly signed and recorded:
 cat infra/lore/versions.yaml
 
 # Verify Lore image signature
-cosign verify --key aws-kms://alias/portals-artifact-signing \
+cosign verify --key awskms:///alias/portals-artifact-signing \
   907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@<digest>
 
 # Verify Auth Gateway image signature
-cosign verify --key aws-kms://alias/portals-artifact-signing \
+cosign verify --key awskms:///alias/portals-artifact-signing \
   907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/auth-gateway@<digest>
 
 # Check ECR scan results
