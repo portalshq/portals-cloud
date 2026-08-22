@@ -17,8 +17,12 @@ SERVER_REPOSITORY="${REPOSITORY}"
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-false}"
 TARGETARCH="${LORE_TARGETARCH:-${TARGETARCH:-arm64}}"
-BASE_TAG="${VERSION}-base"
-SERVER_TAG="${VERSION}"
+
+# Generate unique build identifier for reproducible builds
+# BUILD_ID can be set externally for automation, or generated automatically
+BUILD_ID="${BUILD_ID:-$(date +%Y%m%d-%H%M%S)-$(git -C "${REPO_ROOT}" rev-parse --short HEAD)}"
+BASE_TAG="${VERSION}-build-${BUILD_ID}-base"
+SERVER_TAG="${VERSION}-build-${BUILD_ID}"
 SOURCE_ROOT="${REPO_ROOT}/infra/lore/lore"
 SOURCE_COMMIT="$(git -C "${SOURCE_ROOT}" rev-parse HEAD)"
 PACKAGING_COMMIT="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
@@ -61,6 +65,7 @@ for arch in "${ARCHS[@]}"; do
       -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver.base" \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
+      --label "io.portals.build-id=${BUILD_ID}" \
       -t "${BASE_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
       "${SOURCE_ROOT}"
   else
@@ -69,6 +74,7 @@ for arch in "${ARCHS[@]}"; do
       -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver.base" \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
+      --label "io.portals.build-id=${BUILD_ID}" \
       -t "${BASE_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
       "${SOURCE_ROOT}"
   fi
@@ -98,6 +104,7 @@ for arch in "${ARCHS[@]}"; do
       -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver" \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
+      --label "io.portals.build-id=${BUILD_ID}" \
       -t "${SERVER_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
       "${REPO_ROOT}"
   else
@@ -107,6 +114,7 @@ for arch in "${ARCHS[@]}"; do
       -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver" \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
+      --label "io.portals.build-id=${BUILD_ID}" \
       -t "${SERVER_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
       "${REPO_ROOT}"
   fi
@@ -146,4 +154,4 @@ awk -v base="${BASE_PIN}" '
 ' "${VERSIONS_FILE}" > "${VERSIONS_FILE}.tmp"
 mv "${VERSIONS_FILE}.tmp" "${VERSIONS_FILE}"
 
-printf 'Lore image pinned: %s\n' "${SERVER_PIN}"
+printf 'Lore image pinned: %s (build ID: %s)\n' "${SERVER_PIN}" "${BUILD_ID}"

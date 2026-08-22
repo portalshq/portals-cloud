@@ -3,10 +3,22 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PROMOTE_SCRIPT="${ROOT}/infra/pulumi/scripts/verify-and-promote-image.sh"
+VERSIONS_FILE="${ROOT}/infra/lore/versions.yaml"
 : "${ECR_REGISTRY:?Set ECR_REGISTRY (for example 123456789012.dkr.ecr.us-east-1.amazonaws.com)}"
 ECR_NAMESPACE="${ECR_NAMESPACE:-portals-${ENVIRONMENT:-dev}}"
 REPOSITORY="${AUTH_GATEWAY_ECR_REPOSITORY:-${ECR_REGISTRY}/${ECR_NAMESPACE}/auth-gateway}"
-TAG="$(git -C "${ROOT}" rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)"
+
+# Generate unique build identifier for reproducible builds
+# BUILD_ID can be set externally for automation, or generated automatically
+BUILD_ID="${BUILD_ID:-$(date +%Y%m%d-%H%M%S)-$(git -C "${ROOT}" rev-parse --short HEAD)}"
+
+# Extract release version from versions.yaml for consistent tagging
+# If not found, fall back to a default version
+AUTH_VERSION="${AUTH_VERSION:-$(grep -A 2 '^release:' "${VERSIONS_FILE}" | grep 'version:' | awk '{print $2}' | tr -d '"')}"
+if [[ -z "${AUTH_VERSION}" ]]; then
+  AUTH_VERSION="0.2.0-portals.6"
+fi
+TAG="${AUTH_VERSION}-build-${BUILD_ID}"
 TAGGED_IMAGE="${REPOSITORY}:${TAG}"
 TARGETARCH="${AUTH_TARGETARCH:-${TARGETARCH:-arm64}}"
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
@@ -51,12 +63,14 @@ for arch in "${ARCHS[@]}"; do
     docker buildx build --platform "linux/${arch}" --provenance=true --sbom=true --push \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.protocol-revision=${PROTOCOL_COMMIT}" \
+      --label "io.portals.build-id=${BUILD_ID}" \
       -t "${REPOSITORY}:${ARCH_TAG}" -f "${ROOT}/docker/auth-gateway/Dockerfile" "${ROOT}"
   else
     # Single-arch: cross-compile natively (Dockerfile handles target)
     docker buildx build --provenance=true --sbom=true --push \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.protocol-revision=${PROTOCOL_COMMIT}" \
+      --label "io.portals.build-id=${BUILD_ID}" \
       -t "${REPOSITORY}:${ARCH_TAG}" -f "${ROOT}/docker/auth-gateway/Dockerfile" "${ROOT}"
   fi
 done
@@ -84,4 +98,4 @@ fi
 EXPECTED_SOURCE_COMMIT="${SOURCE_COMMIT}" EXPECTED_PROTOCOL_COMMIT="${PROTOCOL_COMMIT}" \
   REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE}" COSIGN_KEY="${COSIGN_KEY:-}" \
   TRIVY_BIN="${TRIVY_BIN:-trivy}" "${PROMOTE_SCRIPT}" control-plane "${PIN}" "linux/${TARGETARCH}"
-printf 'Auth Gateway image pinned: %s\n' "${PIN}"
+printf 'Auth Gateway image pinned: %s (build ID: %s)\n' "${PIN}" "${BUILD_ID}"

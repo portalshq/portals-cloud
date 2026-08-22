@@ -24,7 +24,7 @@ Every release follows the same loop:
    atomically update `infra/lore/versions.yaml` plus its receipts.
 5. **Gated deploy** — `pulumi preview --diff` review, then `pulumi up`, with
    all release assertions false until their evidence exists; assertions are
-   enabled only in the fixed order of §4.
+   enabled only in the fixed order of §5.
 6. **Verify** — store-aware readiness, authenticated E2E matrix, external
    surface probe (`verify-external-surface.sh`), alarm and backup checks.
 
@@ -34,7 +34,35 @@ the promotion scripts; a manual digest edit bypasses scan/sign/receipt binding,
 and Pulumi will either refuse the pin or trust an unverified one. Hand-editing
 them is a release-gate bypass, not a convenience.
 
-## 2. Phase-by-phase procedure
+## 2. Build tag strategy
+
+Each build generates a unique intermediate tag to avoid ECR immutable tag conflicts and support multiple build attempts:
+
+### Tag format
+- Intermediate build tags: `{release-version}-build-{timestamp}-{git-sha}`
+- Examples: `0.8.4-portals.6-build-20250822-143022-cc9bdfd`, `0.2.0-portals.6-build-20250822-150145-1a2b3c4`
+- Production references: Only immutable `@sha256:...` digests in `versions.yaml`
+
+### Benefits
+- **No release number pollution**: Failed builds don't consume release versions
+- **Clear audit trail**: Each build attempt is uniquely identifiable
+- **Debuggability**: Failed builds can be inspected without namespace conflicts
+- **Rollback support**: Specific build artifacts can be redeployed if needed
+- **ECR compatibility**: Works with immutable tag policies
+
+### Build ID generation
+- Format: `YYYYMMDD-HHMMSS-git-short-sha`
+- Can be set externally via `BUILD_ID` environment variable for coordinated builds
+- Automatically generated if not provided
+- Shared across coordinated multi-service builds via `build-prod-images.sh`
+
+### Production references
+- **No convenience release tags**: Only immutable digests are used in production
+- `versions.yaml` contains only `@sha256:...` references
+- Intermediate build tags are for organization and debugging only
+- ECR lifecycle policies can clean up old build tags while preserving digests
+
+## 4. Phase-by-phase procedure
 
 Each phase: owner, command(s), typical duration, dependency, verification.
 Do not start a phase until its dependency's verification has passed.
@@ -44,18 +72,18 @@ Do not start a phase until its dependency's verification has passed.
 | 1 | Source change | Engineer | normal dev workflow | varies | approved change/ticket | PR review approved |
 | 2 | Clean-tree commit | Release engineer | commit on reviewed branch; confirm `git status` clean | minutes | Phase 1 | `git status` clean; commits pushed to remote |
 | 3 | Lore CLI tag cut | Lore CLI maintainer (`portalshq/lore`) | `infra/lore/lore/scripts/bump-release.sh vX.Y.Z` then `infra/lore/lore/scripts/release-local.sh vX.Y.Z` (tag + GitHub-OIDC signed release) | 5–10 m | Phase 2 | GitHub release exists with `SHA256SUMS` + Sigstore bundle |
-| 4a | Lore server image build + publish | Release engineer | export non-secret env (below); `infra/lore/scripts/docker-buildx-lore.sh vX.Y.Z` | 5–15 m | Phases 1–2; artifact-signing key exists | script writes verified digest/receipt; ECR + Trivy zero critical/high; SBOM/provenance decode; `cosign verify` passes |
-| 4b | Auth Gateway image build + publish | Release engineer | same env exports; `control-plane/scripts/publish-auth-gateway.sh` | 5–15 m | Phases 1–2; artifact-signing key exists | same as 4a |
+| 4a | Lore server image build + publish | Release engineer | export non-secret env (below); `infra/lore/scripts/docker-buildx-lore.sh vX.Y.Z` | 5–15 m | Phases 1–2; artifact-signing key exists | script writes verified digest/receipt; ECR + Trivy zero critical/high; SBOM/provenance decode; `cosign verify` passes; unique build tag generated (format: `{version}-build-{timestamp}-{git-sha}`) |
+| 4b | Auth Gateway image build + publish | Release engineer | same env exports; `control-plane/scripts/publish-auth-gateway.sh` | 5–15 m | Phases 1–2; artifact-signing key exists | same as 4a; release version auto-extracted from `versions.yaml`; unique build tag generated |
 | 5a | Promote Lore CLI release | Release engineer | `infra/pulumi/scripts/verify-and-promote-lore-client-release.sh vX.Y.Z` | 3–8 m | Phase 3 | `versions.yaml` `lore-client` entry updated by script; checksums verified; submodule gitlink untouched |
 | 5b | Promote server images ×2 | Release engineer | `infra/pulumi/scripts/verify-and-promote-image.sh` for `lore`, then for `auth-gateway` (service, digest, platform, expected source/protocol/packaging commits) | 3–8 m each | Phases 4a–4b | `verified-images.json` receipts bound to exact index + platform digests |
 | 5c | Promote Nap release | Release engineer | `infra/pulumi/scripts/verify-and-promote-nap-release.sh vX.Y.Z` (Nap CI pipeline itself runs 15–30 m before this) | 15–30 m total | Phase 5a (Nap dependency must match promoted lore client) | Sigstore bundles + all checksums verified; `versions.yaml` `nap-client` entry + `verified-releases.json` receipt written |
 | 6 | Commit release BOM | Release engineer | `git add infra/lore/versions.yaml infra/lore/verified-images.json infra/lore/verified-releases.json && git commit` | minutes | Phases 5a–5c | diff contains only script-written pins/releases; committed with release source |
 | 7 | Pulumi config/up (contained deploy) | Platform operator | `cd infra/pulumi`; set desired counts and switches (below); `pulumi preview --diff`; `pulumi up` | 5–15 m | Phase 6 | preview creates/enables nothing public; private tasks healthy; no `dev` stack destruction |
 | 8 | JWKS bootstrap | Platform operator | see JWKS bootstrap ordering below | 15–45 m incl. applies | Phase 7 | live JWKS at `https://auth.portals.works/.well-known/jwks.json` contains expected `kid`; private Lore fetched that `kid` |
-| 9 | Release gates set | Reviewer + platform operator | `pulumi config set authGatewayReady true`; `pulumi config set securityReviewDate YYYY-MM-DD` (≤90 d old); `pulumi config set releaseGateApproved true`; confirm `release.status: approved` in BOM | review-dependent | Phase 8 + E2E matrix passed + §6 checklist | every assertion evidenced in the change record; date backed by a real review |
+| 9 | Release gates set | Reviewer + platform operator | `pulumi config set authGatewayReady true`; `pulumi config set securityReviewDate YYYY-MM-DD` (≤90 d old); `pulumi config set releaseGateApproved true`; confirm `release.status: approved` in BOM | review-dependent | Phase 8 + E2E matrix passed + §8 checklist | every assertion evidenced in the change record; date backed by a real review |
 | 10 | Final preview review checkpoint | Human approver (cannot be automated) | read `pulumi preview --diff` end-to-end | 10–20 m | Phase 9 | preview touches only the public TLS `443` edge; no NLB, public IP, or new listeners |
-| 11 | Opening window (`publicIngressEnabled=true`) | Operator pair, supervised | `pulumi config set publicIngressEnabled true && pulumi preview --diff && pulumi up`; then immediately run E2E matrix + external probe | ~45 m supervised window | Phase 10 approval | E2E matrix passes and `infra/pulumi/scripts/verify-external-surface.sh lore.portals.works release` passes; otherwise execute §7 rollback immediately |
-| 12 | Rollback / containment drill | On-call + platform | walk §7 tabletop; optionally rehearse containment against a contained stack | 30–60 m | Phase 11 | drill recorded in issue/change record with findings |
+| 11 | Opening window (`publicIngressEnabled=true`) | Operator pair, supervised | `pulumi config set publicIngressEnabled true && pulumi preview --diff && pulumi up`; then immediately run E2E matrix + external probe | ~45 m supervised window | Phase 10 approval | E2E matrix passes and `infra/pulumi/scripts/verify-external-surface.sh lore.portals.works release` passes; otherwise execute §9 rollback immediately |
+| 12 | Rollback / containment drill | On-call + platform | walk §9 tabletop; optionally rehearse containment against a contained stack | 30–60 m | Phase 11 | drill recorded in issue/change record with findings |
 | 13 | OIDC path & deployer retirement | Platform + security | create GitHub-OIDC release role; short-session human role; test contained preview/deploy/rollback/snapshot + CloudTrail attribution through them; deactivate + delete access key; detach temporary policies; delete `portals-pulumi-deployer` | multi-day program | steady-state releases running via new roles | one successful full cycle via new roles; legacy user/key gone; CloudTrail + Access Analyzer reviewed afterward |
 
 Non-secret shell identifiers for build phases 4a–4b (never put key material in
@@ -74,7 +102,7 @@ With `ENVIRONMENT=prod`, both publishers hard-require `REQUIRE_SIGNATURE=true`
 and fail rather than write an unsigned production pin. Never use the JWT KMS
 key as `COSIGN_KEY`.
 
-Contained-deploy config for phase 7 (all closed by default):
+Contained-deploy config for phase 8 (all closed by default):
 
 ```bash
 pulumi config set environment prod
@@ -84,7 +112,7 @@ pulumi config set authGatewayDesiredCount 0
 pulumi config set publicIngressEnabled false
 ```
 
-### JWKS bootstrap ordering (phase 8)
+### JWKS bootstrap ordering (phase 9)
 
 Publish-before-use, never sign-before-publish:
 
@@ -100,7 +128,7 @@ Publish-before-use, never sign-before-publish:
 During later key rotations, publish the new JWK alongside the still-active old
 key; retain retired public keys for eight hours plus ten minutes.
 
-## 3. Special notes A — domain migration `.sh` → `.works`
+## 5. Special notes A — domain migration `.sh` → `.works`
 
 - **Audience cut invalidates tokens.** The recipient-protection audience root
   moves `portals.sh` → `portals.works`, and the issuer becomes
@@ -123,7 +151,7 @@ key; retain retired public keys for eight hours plus ten minutes.
 - Superseded certificates must not be retried: see the dated migration entry
   in [rollout-status-2026-08-10.md](rollout-status-2026-08-10.md).
 
-## 4. Special notes B — contained → public first release
+## 6. Special notes B — contained → public first release
 
 The first opening exposes TCP `443` in two stages, never as one big-bang flip:
 
@@ -141,7 +169,7 @@ last. The stack rejects the full public edge while signing is disabled, and
 rejects public ingress with under-seven-days automated PITR unless the
 low-cost snapshot bridge (`lowCostRdsSnapshotsEnabled=true`) is enabled.
 
-## 5. Decisions ledger — recorded 2026-08-21
+## 7. Decisions ledger — recorded 2026-08-21
 
 | Decision | Choice | Consequence / rationale |
 |---|---|---|
@@ -151,7 +179,7 @@ low-cost snapshot bridge (`lowCostRdsSnapshotsEnabled=true`) is enabled.
 | Receipt-ledger format | **v2 adopted** | Promotion receipts bind source/protocol/packaging commits, exact index + platform digests, scan results, and signature state under the v2 schema. |
 | Restore rehearsal cadence | **Quarterly manual drill** | Free-tier-compatible: restore quarterly into an isolated account/VPC, validate hashes and branch pointers, acquire/release a lock, destroy the test restore, record evidence. |
 
-## 6. Gate checklist + E2E matrix
+## 8. Gate checklist + E2E matrix
 
 ### Build/release gates
 
@@ -205,7 +233,7 @@ infra/pulumi/scripts/verify-external-surface.sh lore.portals.works release
 
 First execution is operator-supervised; promote it to staging CI afterwards.
 
-## 7. Rollback & containment
+## 9. Rollback & containment
 
 Rollback order — if any post-open test fails, stop and contain before
 investigating:
@@ -229,7 +257,7 @@ pass E2E. The ten-minute stale-key window is an availability concession;
 restart gives immediate invalidation. Set retired KMS key ARNs in
 `jwtRetiredKmsKeyArns` before activating the new key.
 
-## 8. Timeline estimates
+## 10. Timeline estimates
 
 Fill the **Actual** column during execution.
 
@@ -246,7 +274,7 @@ Fill the **Actual** column during execution.
 | Opening window (preview → up → immediate E2E + probe) | ~45 m supervised | |
 | Rollback / containment drill walkthrough | 30–60 m | |
 
-## 9. Issues & deviations log
+## 11. Issues & deviations log
 
 | # | Time (2026-08-21) | Issue | Resolution |
 |---|---|---|---|
@@ -255,6 +283,13 @@ Fill the **Actual** column during execution.
 | 3 | Wave 1A | First request denied — policy requires `aws:RequestTag/Project=portals` | Re-requested with tag; issued `32f56a6f` |
 | 4 | Wave 1A | `acm:DeleteCertificate` not granted to deployer role | Operator deleted both stale certs via console |
 | 5 | Waves 1C/D | Parallel subagent runs interrupted mid-flight; lore track died 3x | Operator completed gateway+nap migrations concurrently; agent work verified complete post-mortem; ledger v2 applied directly |
+| 8 | Wave 2 | Prod Cognito RP ID fell back to authHostname (authDomainPrefix unset in prod) | Set `portals-prod-auth-907199504810`; preview now creates hosted domain + keeps RP ID on Cognito prefix (passkeys safe) |
+| 9 | Wave 2 | Dev blocked on legacy v1 receipts after v2 gate landed | Added transitional v1-read compat (image-match enforced); full v2 receipts regenerate at promotion |
+| 10 | Wave 2 | `pulumi-language-nodejs` missing from PATH | Prepend `/Users/vibrantceo/.pulumi/bin` — documented for future runs |
+| 13 | Wave 3 | Image publishing had no CI consumer for the new OIDC role | Added `.github/workflows/image-release.yml` (tag v* → assume portals-github-release → same publisher scripts); first live proof deferred to Wave-7 contained run |
+| 12 | Wave 3 | Egress hardening (#7) implemented in code as `EgressControls` (6 interface endpoints + endpoints SG + private zone alias auth→ALB), flag `egressEndpointsEnabled` default false, enabled on prod | Prod preview +10 create / 0 delete; dev untouched; SG tightening deferred until endpoints verified |
+| 11 | Wave 3 | Path decision: single clean deploy after .works images land (no bootstrap-on-old-image) | Operator chose standardized no-shortcut path; stage-1 JWKS apply deferred until promotions complete |
+
 | 7 | Wave 1H | Console policy error "Has prohibited field Principal" — trust JSON pasted into permissions slot | Swapped: trust is assume-role policy, permissions is managed policy; posted both via IAM (provider+role 2026-08-22) |
 | 6 | Wave 1E | v2 lookup initially failed tests — legacy `receipt?.image === image` clause survived refactor | Clause removed (key equality supersedes); security.test.ts prod.toml assertion updated to `.works` |
 Live log — append rows during execution; never delete entries.
@@ -262,7 +297,7 @@ Live log — append rows during execution; never delete entries.
 | Date/time (UTC) | Phase | Issue / deviation | Owner | Resolution / link |
 |---|---|---|---|---|
 
-## 10. Sign-off
+## 12. Sign-off
 
 Human checkpoints — approval cannot be delegated to automation:
 

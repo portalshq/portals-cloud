@@ -127,6 +127,20 @@ aws kms describe-key --key-id alias/portals-artifact-signing --region us-east-1
 Perform this only from clean, reviewed commits. The scripts refuse dirty source
 for the files they package.
 
+### Build tag strategy
+
+Each build generates a unique intermediate tag to avoid ECR immutable tag conflicts:
+- Format: `{release-version}-build-{timestamp}-{git-sha}`
+- Example: `0.8.4-portals.6-build-20250822-143022-cc9bdfd`
+- Production references use only immutable `@sha256:...` digests
+- No convenience release tags are created; digests are the sole production references
+
+This ensures:
+- Multiple build attempts don't pollute the release namespace
+- Clear audit trail of which build artifacts were tested
+- Failed builds can be debugged without consuming release numbers
+- Rollback to specific build artifacts if needed
+
 1. Release the Lore CLI from the `portalshq/lore` fork. Verify and record it:
 
    ```bash
@@ -145,12 +159,17 @@ for the files they package.
    export COSIGN_KEY='awskms:///alias/portals-artifact-signing'
    ```
 
-3. Build and promote the Lore server. This pushes a temporary tag, resolves its
+3. Build and promote the Lore server. This pushes a unique build tag, resolves its
    immutable digest, signs that digest, scans it, checks SBOM/provenance, and
    writes the verified digest/receipt only if all checks pass.
 
    ```bash
    infra/lore/scripts/docker-buildx-lore.sh vX.Y.Z
+   ```
+
+   Optional: Set `BUILD_ID` externally for coordinated multi-service builds:
+   ```bash
+   export BUILD_ID=$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)
    ```
 
 4. Build and promote the Auth Gateway, which is the active control-plane
@@ -159,6 +178,9 @@ for the files they package.
    ```bash
    control-plane/scripts/publish-auth-gateway.sh
    ```
+
+   The script automatically extracts the release version from `versions.yaml`
+   and generates a unique build tag.
 
 5. Review the resulting changes to `infra/lore/versions.yaml` and
    `infra/lore/verified-images.json`, then commit them with the release source.
