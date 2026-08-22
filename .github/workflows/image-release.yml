@@ -1,0 +1,63 @@
+# Image release pipeline — consumes portals-github-release OIDC role.
+#
+# Triggered ONLY by v* tag pushes on this repository (trust policy matches
+# repo:DigitalCreationsCo/portals-cloud:ref:refs/tags/v*). Runs the same
+# publisher/promoter scripts used for manual releases: clean-tree enforced,
+# ECR+Trivy scans, SBOM/provenance checks, cosign signing via
+# alias/portals-artifact-signing, then versions.yaml + verified-images.json
+# updates. Reviewer commits the resulting BOM changes.
+#
+# Staged per docs/security/release-cycle-portals-works.md §5: publication-only.
+# ECS rollout / read-only inspection roles come with CI deploys.
+
+name: Image Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  publish-images:
+    name: Build, scan, sign, promote production images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC federation to AWS
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials (portals-github-release)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::907199504810:role/portals-github-release
+          aws-region: us-east-1
+
+      - name: Publisher environment
+        run: |
+          echo "AWS_REGION=us-east-1" >> "$GITHUB_ENV"
+          echo "ECR_REGISTRY=907199504810.dkr.ecr.us-east-1.amazonaws.com" >> "$GITHUB_ENV"
+          echo "ENVIRONMENT=prod" >> "$GITHUB_ENV"
+          echo "REQUIRE_SIGNATURE=true" >> "$GITHUB_ENV"
+          echo "COSIGN_KEY=awskms:///alias/portals-artifact-signing" >> "$GITHUB_ENV"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Build and promote Auth Gateway
+        run: control-plane/scripts/publish-auth-gateway.sh
+
+      - name: Build and promote Lore server
+        # Tag argument = workspace version of the pinned portalshq/lore client
+        # release recorded in versions.yaml; adjust when cutting a new fork tag.
+        run: infra/lore/scripts/docker-buildx-lore.sh "${{ github.ref_name }}"
+
+      - name: Summarize BOM diff for reviewer
+        run: |
+          git --no-pager diff -- infra/lore/versions.yaml infra/lore/verified-images.json || true

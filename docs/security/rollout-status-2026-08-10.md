@@ -101,6 +101,8 @@ current/normative guidance elsewhere in the docs now uses `.works`.
   - lore.portals.works: `_89ee0ba0e9f32b41e4a102a9e09a0c5c.lore.portals.works.` → `_b7ecfe0ac0de1a28acc87d43568f90e7.jkddzztszm.acm-validations.aws.`
   - auth.portals.works: `_9a3f3b7dc27fdd50f70fe0ad4e54ca41.auth.portals.works.` → `_80865a66c346d01bf2da4cae77e67070.jkddzztszm.acm-validations.aws.`
 
+**Service DNS + deploy posture (2026-08-22)**: `lore.portals.works` and `auth.portals.works` resolve to the prod ALB (`portals-prod-alb-fe7ca3e-…`) as DNS-only. Pulumi config on both stacks carries the ISSUED cert ARN, `.works` hostnames/callbacks, JWKS endpoint, and issuer without trailing slash. Prod RP ID moved to the Cognito prefix domain via new `authDomainPrefix`. Deploy follows the two-stage 443 sequence AFTER the `.works` images are built and promoted (single clean churn, no bootstrap on stale audience images).
+
 **OIDC (2026-08-22)**: GitHub OIDC provider `token.actions.githubusercontent.com` created; managed policy `portals-github-oidc-release-permissions` (ECR `portals-prod/*` push + `kms:Sign` on `alias/portals-artifact-signing` only) and role `arn:aws:iam::907199504810:role/portals-github-release` (trust: `DigitalCreationsCo/portals-cloud` tag `v*`) deployed. Trust uses `https://github.com/portalshq/lore`? no — portals-cloud only.
   replace with the real ARN when issued; status `PENDING_VALIDATION`.
 - Forward-looking public hostnames are `lore.portals.works` and

@@ -8,6 +8,25 @@ and decisions recorded in the 2026-08-21 [security review](security-review-2026-
 It contains no credentials, private keys, account passwords, or mutable image
 tags.
 
+
+## 0. Execution status — live snapshot
+
+_Updated 2026-08-22. This section is rewritten as the cycle progresses; the
+issues log below is append-only._
+
+| Workstream | State |
+|---|---|
+| ACM `.works` certificate | **ISSUED** 2026-08-22T14:52Z (`32f56a6f…`, NotAfter 2027-03-07); both validation domains SUCCESS |
+| Service DNS | `lore`/`auth.portals.works` → prod ALB, DNS-only, live |
+| Source migration | Complete in all three repos (gateway audience const, lore strict-gate/TOMLs/tests, Nap routing incl. auth/api URLs); compile+tests green |
+| Receipt ledger | **v2 shipped** (digest-keyed, append-only) + legacy-compat shim; currently `schemaVersion:2, receipts:{}` awaiting real promotions — previews fail-closed by design until then |
+| OIDC | Provider + `portals-github-release` role (publication-only) + managed policy live; `.github/workflows/image-release.yml` wired (tag-triggered) |
+| Egress hardening (#7) | `EgressControls` coded (6 interface endpoints + SG + private-zone alias auth→ALB), flag on prod; preview +33/−0 |
+| Alarm contacts | SNS topic + `eng@portals.works` sub wired to all 7 alarms (confirm inbox after first apply) |
+| Pulumi config | Both stacks: cert ARN, `.works` hostnames/callbacks, JWKS endpoint, issuer no-trailing-slash; prod also `authDomainPrefix`, `egressEndpointsEnabled=true` |
+| Builds | Operator re-cutting with immutable build-identity fixes; earlier today-digests non-canonical |
+| Next gates | promotions → BOM trio commit → `up dev` → stage-1 JWKS bootstrap → stage-2 private Lore → checklist §8 → checkpoint #5 opening window |
+
 ## 1. Normal release cycle overview
 
 Every release follows the same loop:
@@ -286,6 +305,10 @@ Fill the **Actual** column during execution.
 | 8 | Wave 2 | Prod Cognito RP ID fell back to authHostname (authDomainPrefix unset in prod) | Set `portals-prod-auth-907199504810`; preview now creates hosted domain + keeps RP ID on Cognito prefix (passkeys safe) |
 | 9 | Wave 2 | Dev blocked on legacy v1 receipts after v2 gate landed | Added transitional v1-read compat (image-match enforced); full v2 receipts regenerate at promotion |
 | 10 | Wave 2 | `pulumi-language-nodejs` missing from PATH | Prepend `/Users/vibrantceo/.pulumi/bin` — documented for future runs |
+| 14 | Wave 3 | ECR repos flicker in/out of API visibility during concurrent operator pulumi churn; lifecycle-policy put hit transient RepositoryNotFound + spurious schema-validation failure on canonical JSON | Deferred lifecycle policies (untagged>14d expiry) until APIs settle; ledger confirmed noise-free by construction; retry after builds settle |
+| 14 | Wave 4 | Alarm contacts wired: `SecurityControls` now provisions SNS topic+email sub when `alarmNotificationEndpoint` set; topic ARN threaded into all 7 alarm actions (5 edge/target, 2 RDS-backup). Set `eng@portals.works` both stacks — inbox confirmation required after first apply | Component reorder (securityControls above cluster) to satisfy declaration order; tsc clean |
+| 16 | Wave 4 | Builds re-cut in progress — operator correcting immutable build-identity issues before promotion; earlier today-digests treated as non-canonical intermediates | Agent standing down from ECR fingerprinting; canonical selection rule unchanged (newest index-with-attestation per repo once operator signals done). Nap repo committed (routing `.works`) |
+| 15 | Wave 4 | Concurrent publisher run triggered v1→v2 ledger migration, leaving `{schemaVersion:2, receipts:{}}` empty when its promote step did not complete → previews/tests correctly fail-closed on missing receipts | Expected transitional state; real receipts land as each `verify-and-promote-image.sh` succeeds. Ops serialization in effect |
 | 13 | Wave 3 | Image publishing had no CI consumer for the new OIDC role | Added `.github/workflows/image-release.yml` (tag v* → assume portals-github-release → same publisher scripts); first live proof deferred to Wave-7 contained run |
 | 12 | Wave 3 | Egress hardening (#7) implemented in code as `EgressControls` (6 interface endpoints + endpoints SG + private zone alias auth→ALB), flag `egressEndpointsEnabled` default false, enabled on prod | Prod preview +10 create / 0 delete; dev untouched; SG tightening deferred until endpoints verified |
 | 11 | Wave 3 | Path decision: single clean deploy after .works images land (no bootstrap-on-old-image) | Operator chose standardized no-shortcut path; stage-1 JWKS apply deferred until promotions complete |
