@@ -6,13 +6,21 @@ process.env.LEADS_EMAIL_FROM = 'leads@portals.test'
 process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {POST} from '../../../app/api/leads/route'
+import {PATCH as PATCH_PILOT} from '../../../app/api/pilot/[id]/route'
 import {processLeadOutbox} from './processor'
-import {consumeMagicLink, getApplicationUserByEmail, issueMagicLink, pilotMembershipRole} from './application-auth'
+import {
+  consumeMagicLink,
+  getApplicationUserByEmail,
+  invitePilotMember,
+  issueMagicLink,
+  pilotMembershipRole,
+} from './application-auth'
 import {
   getProfileByToken,
   getPilotById,
   latestPilotByProfile,
   takeDueOutbox,
+  updatePilot,
   type StoredPilot,
 } from './store'
 
@@ -52,6 +60,23 @@ function post(
       headers,
       body: JSON.stringify(body),
     }),
+  )
+}
+
+function patchPilot(
+  id: string,
+  body: Record<string, unknown>,
+  init: {cookie?: string} = {},
+) {
+  const headers: Record<string, string> = {'content-type': 'application/json'}
+  if (init.cookie) headers.cookie = init.cookie
+  return PATCH_PILOT(
+    new Request(`http://localhost/api/pilot/${id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(body),
+    }),
+    {params: Promise.resolve({id})},
   )
 }
 
@@ -241,6 +266,15 @@ test('a revision preserves the submitter email and re-emails the pilot plan', as
   assert.equal(reloaded?.answers.name, 'Ava')
   assert.equal(reloaded?.state, 'reviewing')
   assert.equal(reloaded?.answers.email, email.toLowerCase())
+  assert.equal(reloaded?.version, pilot.version + 1)
+  assert.equal(reloaded?.draft?.baseVersion, reloaded?.version)
+  assert.equal(reloaded?.revisions.length, pilot.revisions.length + 1)
+  assert.ok(
+    reloaded?.revisions.at(-1)?.changes.some(
+      (change) => change.field === 'answers.pilotWorkflow',
+    ),
+    'the full-form revision is committed into revision history',
+  )
   assert.equal(
     reloaded?.history.some((entry) => entry.note === 'revision submitted'),
     true,
@@ -253,11 +287,96 @@ test('a revision preserves the submitter email and re-emails the pilot plan', as
     ),
     'a revised pilot email is queued',
   )
+  assert.ok(
+    queued.some(
+      (row) =>
+        row.action_type === 'pilot_email' &&
+        row.action_key.includes(':terms_changed:') &&
+        row.action_key.includes(':event:revision:'),
+    ),
+    'the same term-change notification path used by Save Changes is queued',
+  )
 
   await processLeadOutbox(20)
-  const sent = fetches.find((entry) => entry.body.subject === 'your pilot plan was updated')
+  const sent = fetches.find(
+    (entry) =>
+      entry.body.subject === 'your pilot plan was updated' &&
+      String(entry.body.text).includes('back under review'),
+  )
   assert.ok(sent, 'the revised plan email is sent')
   assert.equal(sent.body.to, email.toLowerCase())
+})
+
+test('non-owner pilot members can invite reviewers, but reviewer admin actions stay owner-only', async (t) => {
+  const ownerEmail = `owner-${crypto.randomUUID()}@studio.example`
+  const participantEmail = `participant-${crypto.randomUUID()}@studio.example`
+  const reviewerEmail = `security-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+
+  const created = await post(pilotBody(ownerEmail))
+  const token = profileTokenFrom(created)
+  const {pilot} = await pilotForProfile(token)
+  assert.ok(pilot)
+  const teamReviewPilot = await updatePilot(pilot.id, {state: 'team_review'})
+
+  const invitedMember = await invitePilotMember({
+    pilotId: teamReviewPilot.id,
+    email: participantEmail,
+    displayName: 'Participant',
+    role: 'participant',
+  })
+  const magicLink = await issueMagicLink({
+    userId: invitedMember.user.id,
+    purpose: 'sign_in',
+  })
+  const authenticated = await consumeMagicLink(magicLink)
+  assert.ok(authenticated)
+  const cookie = `portals_session=${authenticated.sessionToken}`
+
+  const invite = await patchPilot(teamReviewPilot.id, {
+    action: 'invite_reviewer',
+    invite: {
+      role: 'security_reviewer',
+      email: reviewerEmail,
+      name: 'Security Reviewer',
+    },
+  }, {cookie})
+  assert.equal(invite.status, 200)
+  assert.equal((await invite.json()).ok, true)
+
+  const resend = await patchPilot(teamReviewPilot.id, {
+    action: 'invite_reviewer',
+    invite: {
+      role: 'security_reviewer',
+      email: reviewerEmail,
+      name: 'Security Reviewer',
+    },
+  }, {cookie})
+  assert.equal(resend.status, 200)
+  assert.equal((await resend.json()).ok, true)
+
+  const reloaded = await getPilotById(teamReviewPilot.id)
+  const target = reloaded?.reviewers.find((reviewer) => reviewer.email === reviewerEmail)
+  assert.ok(target, 'the non-owner invite creates or updates the reviewer row')
+
+  const remove = await patchPilot(teamReviewPilot.id, {
+    action: 'remove_reviewer',
+    reviewerId: target.id,
+  }, {cookie})
+  assert.equal(remove.status, 403)
+
+  const role = await patchPilot(teamReviewPilot.id, {
+    action: 'reviewer_role',
+    reviewerId: target.id,
+    role: 'approver',
+  }, {cookie})
+  assert.equal(role.status, 403)
+
+  const claim = await patchPilot(teamReviewPilot.id, {
+    action: 'claim_role',
+    reviewerId: target.id,
+  }, {cookie})
+  assert.equal(claim.status, 403)
 })
 
 test('a disqualified pilot request is held for clarification', async (t) => {

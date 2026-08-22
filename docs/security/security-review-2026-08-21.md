@@ -160,7 +160,7 @@ This security review covers the Lore production deployment readiness as of 2026-
 - ✅ Only verified release manifest can enable public ingress
 
 ### Security Invariants
-- ✅ Only `lore.portals.sh` and `auth.portals.sh` will be public
+- ✅ Only `lore.portals.works` and `auth.portals.works` will be public (amended 2026-08-21: hostnames migrated, same review scope)
 - ✅ Only TLS 443 will be externally reachable
 - ✅ No NLB, no public direct Lore listener
 - ✅ Ports 8083, 41337, 41339 remain externally closed

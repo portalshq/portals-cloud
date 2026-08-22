@@ -12,6 +12,7 @@ import {
   createPilotRecord,
   getPilotById,
   getPilotByPaymentSession,
+  takeDueOutbox,
   updatePilot,
 } from './store'
 import {
@@ -21,6 +22,18 @@ import {
   updatePilotDraft,
   type PilotMutableTerms,
 } from './pilot-collaboration'
+import {
+  changedPilotRoomFields,
+  notifyPilotRoomEvent,
+  pilotRoomSectionsForChanges,
+} from './pilot-room-notifications'
+import {
+  commitPilotTermRevision,
+  pilotMutableTermsFromState,
+} from './pilot-room-revisions'
+import {ensurePilotRecipientAccess} from './application-auth'
+
+process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
 
 const eligible = {
   email: 'ava@studio.example',
@@ -39,14 +52,15 @@ const eligible = {
 }
 
 async function createEligiblePilot() {
+  const submissionId = `submission-${crypto.randomUUID()}`
   const answers = {...eligible}
   const classification = classifyPilot(answers)
   const criteria = buildSuccessCriteria(answers)
   const security = buildSecurityDecisions(answers)
   const unresolved = computeUnresolved(answers, {route: classification.route})
   const pilot = await createPilotRecord({
-    profileId: 'profile-1',
-    initialSubmissionId: 'submission-1',
+    profileId: `profile-${crypto.randomUUID()}`,
+    initialSubmissionId: submissionId,
     answers,
     route: classification.route,
     state: 'reviewing',
@@ -55,7 +69,7 @@ async function createEligiblePilot() {
     successCriteria: criteria,
     securityDecisions: security,
   })
-  await attachSubmissionToPilot('submission-1', pilot.id)
+  await attachSubmissionToPilot(submissionId, pilot.id)
   return pilot
 }
 
@@ -260,4 +274,207 @@ test('draft commit merges concurrent collaborative text changes', () => {
   assert.equal(resolved.conflicts.length, 0)
   assert.match(merged, /retrieve approved assets/)
   assert.match(merged, /under one minute/)
+})
+
+test('committing pilot term revisions appends history and resets the collaborative draft', () => {
+  const pilotTerms = {
+    startDate: null,
+    valueConfirmed: false,
+    criteria: buildSuccessCriteria(eligible),
+  }
+  const pilot = {
+    id: 'pilot-revision-helper',
+    version: 1,
+    resolvedStartDate: null,
+    proposal: null,
+    successCriteria: pilotTerms.criteria,
+    revisions: [
+      {
+        pilotId: 'pilot-revision-helper',
+        version: 1,
+        baseVersion: 0,
+        committedAt: '2026-08-01T00:00:00.000Z',
+        terms: pilotTerms,
+        changes: [],
+      },
+    ],
+    draft: createPilotDraft({
+      terms: {...pilotTerms, startDate: '2026-09-01'},
+      baseVersion: 1,
+      actor: 'ava@studio.example',
+    }),
+  }
+  const nextTerms: PilotMutableTerms = {
+    ...pilotTerms,
+    startDate: '2026-09-01',
+    valueConfirmed: true,
+  }
+
+  const committed = commitPilotTermRevision({
+    pilot: pilot as Parameters<typeof commitPilotTermRevision>[0]['pilot'],
+    nextTerms,
+    actor: 'ava@studio.example',
+    baseVersion: 1,
+    at: '2026-08-02T00:00:00.000Z',
+  })
+
+  assert.equal(committed.version, 2)
+  assert.equal(committed.draft?.baseVersion, 2)
+  assert.equal(committed.draft?.changes.length, 0)
+  assert.equal(committed.revisions.length, 2)
+  assert.equal(committed.revisions[1].version, 2)
+  assert.deepEqual(pilotTermsFromDraft(committed.draft, pilotTerms), nextTerms)
+  assert.deepEqual(
+    committed.changes.map((change) => change.field),
+    ['startDate', 'valueConfirmed'],
+  )
+})
+
+test('draft autosaves do not queue pilot-room notification emails', async () => {
+  const pilot = await createEligiblePilot()
+  const base = pilotMutableTermsFromState(pilot)
+  const draft = updatePilotDraft({
+    draft: pilot.draft,
+    baseTerms: base,
+    baseVersion: pilot.version,
+    nextTerms: {...base, startDate: '2026-09-01'},
+    actor: 'ava@studio.example',
+  })
+
+  await updatePilot(pilot.id, {draft})
+
+  const queued = (await takeDueOutbox()).filter((row) => row.action_key.startsWith(`${pilot.id}:`))
+  assert.deepEqual(queued, [])
+})
+
+test('pilot-room term notifications dedupe recipients and route section owners', async () => {
+  const pilot = await createEligiblePilot()
+  await ensurePilotRecipientAccess({
+    pilotId: pilot.id,
+    email: 'participant@studio.example',
+    displayName: 'Participant',
+    pilotRole: 'participant',
+  })
+  const updated = await updatePilot(pilot.id, {
+    answers: {
+      ...pilot.answers,
+      signerEmail: 'signer@studio.example',
+    },
+    reviewers: pilot.reviewers.map((reviewer) =>
+      reviewer.role === 'production_owner'
+        ? {
+            ...reviewer,
+            email: 'owner.section@studio.example',
+            status: 'invited' as const,
+          }
+        : reviewer,
+    ),
+  })
+  const changes = [
+    {
+      field: 'startDate',
+      label: 'Pilot start date',
+      kind: 'structured' as const,
+      value: '2026-09-01',
+      updatedAt: '2026-08-02T00:00:00.000Z',
+    },
+  ]
+
+  await notifyPilotRoomEvent({
+    pilot: updated,
+    event: 'terms_changed',
+    sections: pilotRoomSectionsForChanges(changes),
+    eventKey: 'terms-event-one',
+  })
+  await notifyPilotRoomEvent({
+    pilot: updated,
+    event: 'terms_changed',
+    sections: pilotRoomSectionsForChanges(changes),
+    eventKey: 'terms-event-one',
+  })
+  await notifyPilotRoomEvent({
+    pilot: updated,
+    event: 'terms_changed',
+    sections: pilotRoomSectionsForChanges(changes),
+    eventKey: 'terms-event-two',
+  })
+
+  const queued = (await takeDueOutbox()).filter((row) => row.action_key.startsWith(`${pilot.id}:`))
+  assert.equal(
+    queued.filter((row) => row.action_key.includes(':event:terms-event-one')).length,
+    4,
+    'one event queues owner, participant, signer, and section owner once each',
+  )
+  assert.equal(
+    queued.filter((row) => row.action_key.includes(':event:terms-event-two')).length,
+    4,
+    'a distinct event key queues the same committed change again',
+  )
+  assert.ok(
+    queued.some((row) =>
+      row.action_key.includes(':pilot_email:scope_changed:owner.section@studio.example:event:terms-event-one'),
+    ),
+    'the scope section owner gets the section-specific variant',
+  )
+  assert.ok(
+    queued.some((row) =>
+      row.action_key.includes(':pilot_email:terms_changed:participant@studio.example:event:terms-event-one'),
+    ),
+    'shared room members get the general term-change variant',
+  )
+  assert.equal(
+    queued.some((row) => row.action_key.includes('ops@portals.test')),
+    false,
+    'the Portals inbox is not included in general term-change member sends',
+  )
+})
+
+test('pilot-room stage notifications route owner and Portals only once per recipient', async () => {
+  const pilot = await createEligiblePilot()
+
+  await notifyPilotRoomEvent({
+    pilot,
+    event: 'reviewer_invited',
+    eventKey: 'reviewer-stage-one',
+  })
+  await notifyPilotRoomEvent({
+    pilot,
+    event: 'reviewer_invited',
+    eventKey: 'reviewer-stage-one',
+  })
+
+  const queued = (await takeDueOutbox()).filter((row) => row.action_key.startsWith(`${pilot.id}:`))
+  assert.deepEqual(
+    queued.map((row) => row.action_key).sort(),
+    [
+      `${pilot.id}:pilot_email:reviewer_invited:ava@studio.example:event:reviewer-stage-one`,
+      `${pilot.id}:pilot_email:reviewer_invited:ops@portals.test:event:reviewer-stage-one`,
+    ],
+  )
+})
+
+test('pilot room field changes map full-form revisions to notification sections', async () => {
+  const pilot = await createEligiblePilot()
+  const changes = changedPilotRoomFields({
+    before: pilot,
+    after: {
+      answers: {
+        ...pilot.answers,
+        pilotWorkflow: 'asset variant production',
+        annualDeploymentOption: 'enterprise',
+        securityRequirements: 'security review required',
+        approverEmail: 'approver@studio.example',
+        signerEmail: 'signer@studio.example',
+      },
+      securityDecisions: [
+        ...pilot.securityDecisions,
+        {key: 'custom', label: 'Custom review', decision: 'exception', note: ''},
+      ],
+    },
+  })
+
+  assert.deepEqual(
+    pilotRoomSectionsForChanges(changes).sort(),
+    ['commercial', 'procurement', 'scope', 'security', 'signature'],
+  )
 })

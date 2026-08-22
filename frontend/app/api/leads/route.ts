@@ -24,6 +24,12 @@ import {
 } from '@/lib/leads/pilot'
 import {processLeadOutbox} from '@/lib/leads/processor'
 import {
+  changedPilotRoomFields,
+  notifyPilotRoomEvent,
+  pilotRoomSectionsForChanges,
+} from '@/lib/leads/pilot-room-notifications'
+import {commitPilotTermRevision, pilotMutableTermsFromState} from '@/lib/leads/pilot-room-revisions'
+import {
   attachSubmissionToPilot,
   consumeRateLimit,
   createPilotRecord,
@@ -285,39 +291,54 @@ async function syncPilotRecord(
     if (pilot.profileId !== profileId) return response
     const transition = applyTransition(pilot.state, 'revise')
     if (!transition.allowed && pilot.state !== 'not_eligible') return response
-    const frozen =
-      pilot.state === 'team_review' ||
-      pilot.state === 'scope_confirmed' ||
-      pilot.state === 'exception_review' ||
-      pilot.state === 'ready_sign' ||
-      pilot.state === 'signed'
-    const version = frozen ? pilot.version + 1 : pilot.version
+    const nextAnswers = {
+      ...(pilot.answers as Record<string, unknown>),
+      ...answers,
+      ...(submitterEmail ? {email: submitterEmail} : {}),
+      ...(submitterName ? {name: submitterName} : {}),
+    }
+    const proposal = buildCommercialSnapshot(answers, [], {
+      startDate: pilot.resolvedStartDate || undefined,
+    })
+    const at = new Date().toISOString()
+    const roomChanges = changedPilotRoomFields({
+      before: pilot,
+      after: {answers: nextAnswers, securityDecisions},
+      at,
+      by: submitterEmail,
+    })
+    const committed = commitPilotTermRevision({
+      pilot,
+      nextTerms: pilotMutableTermsFromState({
+        resolvedStartDate: pilot.resolvedStartDate,
+        proposal,
+        successCriteria,
+      }),
+      actor: submitterEmail,
+      extraChanges: roomChanges,
+      at,
+    })
     const updated = await updatePilot(pilot.id, {
       state: assessmentOverride ? 'exception_review' : 'reviewing',
       action: 'revise',
       route: classification.route,
-      answers: {
-        ...(pilot.answers as Record<string, unknown>),
-        ...answers,
-        ...(submitterEmail ? {email: submitterEmail} : {}),
-        ...(submitterName ? {name: submitterName} : {}),
-      },
+      answers: nextAnswers,
       exceptions: classification.exceptions,
       unresolved,
       successCriteria,
       securityDecisions,
-      proposal: buildCommercialSnapshot(answers, [], {
-        startDate: pilot.resolvedStartDate || undefined,
-      }),
-      version,
+      proposal,
+      version: committed.version,
+      draft: committed.draft,
+      revisions: committed.revisions,
       historyNote: 'revision submitted',
     })
-    if (version > pilot.version) {
+    if (committed.version > pilot.version) {
       const stale = updated.reviewers.filter(
         (reviewer) =>
           reviewer.status !== 'revoked' &&
           reviewer.status !== 'proposed' &&
-          reviewer.versionSeen < version &&
+          reviewer.versionSeen < committed.version &&
           reviewer.email,
       )
       for (const reviewer of stale) {
@@ -327,6 +348,12 @@ async function syncPilotRecord(
           console.error('revised_ready email failed', cause)
         }
       }
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'terms_changed',
+        sections: pilotRoomSectionsForChanges(committed.changes),
+        eventKey: `revision:${updated.version}`,
+      })
     }
     try {
       await enqueuePilotEmail(updated.id, 'revised')

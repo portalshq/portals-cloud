@@ -2,7 +2,6 @@ import {after, NextResponse} from 'next/server'
 import Stripe from 'stripe'
 import {applyTransition} from '@/lib/leads/pilot'
 import {
-  enqueuePilotEmail,
   getPilotByPaymentSession,
   getPilotById,
   leadsDryRun,
@@ -15,6 +14,7 @@ import {
 } from '@/lib/leads/store'
 import {enqueueCrmEvent, processCrmOutbox} from '@/lib/leads/crm-events'
 import {linkPilotStripeCustomer} from '@/lib/leads/application-auth'
+import {notifyPilotRoomEvent} from '@/lib/leads/pilot-room-notifications'
 
 export const runtime = 'nodejs'
 
@@ -57,7 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         )
         const transition = applyTransition(pilot.state, 'pay')
         if (transition.allowed) {
-          await updatePilot(pilot.id, {
+          const updated = await updatePilot(pilot.id, {
             state: 'paid',
             payment: {
               ...(pilot.payment || {}),
@@ -66,7 +66,11 @@ export async function POST(request: Request): Promise<NextResponse> {
             },
             historyNote: `payment received (${session.amount_total ? `$${(session.amount_total / 100).toLocaleString('en-US')}` : 'confirmed'})`,
           })
-          await enqueuePilotEmail(pilot.id, 'paid')
+          await notifyPilotRoomEvent({
+            pilot: updated,
+            event: 'paid',
+            eventKey: `paid:${event.id}`,
+          })
           await enqueueCrmEvent({
             sourceType: 'pilot',
             sourceId: pilot.id,

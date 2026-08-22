@@ -5,11 +5,11 @@ import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@
 import {applyTransition} from '@/lib/leads/pilot'
 import {siteUrl} from '@/lib/leads/email'
 import {
-  enqueuePilotEmail,
   getPilotById,
   leadsDryRun,
   updatePilot,
 } from '@/lib/leads/store'
+import {notifyPilotRoomEvent} from '@/lib/leads/pilot-room-notifications'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -49,7 +49,11 @@ export async function POST(
       },
       historyNote: `payment recorded (simulated)`,
     })
-    await enqueuePilotEmail(id, 'paid')
+    await notifyPilotRoomEvent({
+      pilot: updated,
+      event: 'paid',
+      eventKey: `paid:${updated.version}:simulated:${Date.now()}`,
+    })
     return NextResponse.json({ok: true, url: null, pilot: updated})
   }
 

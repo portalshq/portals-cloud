@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean),
+  serverExternalPackages: ['@automerge/automerge'],
   images: {
     unoptimized: true,
   },
@@ -13,10 +14,23 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || '/',
   },
   outputFileTracingIncludes: {
-    '/*': ['./public/fonts/pdf/*', './public/images/pdf/*'],
+    '/*': [
+      './public/fonts/pdf/*',
+      './public/images/pdf/*',
+      './node_modules/@automerge/automerge/dist/**/*.wasm',
+    ],
   },
   typescript: {
     ignoreBuildErrors: false,
+  },
+  webpack: (config) => {
+    config.experiments = {
+      ...(config.experiments || {}),
+      asyncWebAssembly: true,
+      syncWebAssembly: true,
+    }
+
+    return config
   },
 }
 

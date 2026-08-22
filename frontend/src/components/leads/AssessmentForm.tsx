@@ -281,7 +281,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
               ? 'pilot candidate'
               : outcome === 'clarify'
                 ? 'complete pilot readiness'
-                : 'explore the workflow'}
+                : 'not pilot ready'}
           </h2>
           <p className="max-w-[38em] t-p-sans">{result.message}</p>
         </div>
@@ -302,62 +302,66 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         {result.missingFields?.length ? <p className="max-w-[680px] t-p-sans">
           Still needed: {result.missingFields.map((field) => field.replaceAll(/([A-Z])/g, ' $1').toLowerCase()).join(', ')}.
         </p> : null}
-        {result.nextAction === 'pilot_scope' ? (
-          <div className="max-w-[680px] space-y-16">
-            <p className="t-p-sans">
-              Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
-            </p>
-            <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
-              Build my customized pilot plan
-              <ArrowRight aria-hidden="true" size={18} />
-            </CTAButton>
-          </div>
-        ) : result.nextAction === 'commercial_clarification' || result.nextAction === 'assessment_review' ? (
-          <CTAButton
-            type="button"
-            onClick={() => setReviewOpen(true)}
-            analyticsLabel="Complete Pilot Readiness"
-            analyticsIntent="commercial_readiness"
-          >
-            Complete pilot readiness
-            <ArrowRight aria-hidden="true" size={18} />
-          </CTAButton>
-        ) : (
-          <div className="max-w-[760px] space-y-20">
-            <CTAButton
-              href={`/ai-production-workflow-risks#${workflow}`}
-              analyticsLabel="Explore the Relevant Workflow"
-              analyticsUseCase={workflow}
-              onClick={() => void trackEvent('education_use_case_clicked', { workflow })}
-            >
-              explore the relevant production use case
-              <ArrowRight aria-hidden="true" size={18} />
-            </CTAButton>
-            <div className="border-l border-white/50 pl-20">
-              <p className="t-p-lg-serif">
-                Think your workflow could benefit from a production repository and memory system? You’re invited to build a customized pilot plan.
+        <div className="max-w-[720px] space-y-16">
+          {result.nextAction === 'pilot_scope' && (
+              <p className="t-p-sans">
+                Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
               </p>
-              <p className="mt-8 t-p-sans">
-                Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
-              </p>
+          )}
+          <div className="flex items-center gap-16">
+            {result.nextAction === 'pilot_scope' ? (
+                <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
+                  Build my customized pilot plan
+                  <ArrowRight aria-hidden="true" size={18} />
+                </CTAButton>
+            ) : result.nextAction === 'commercial_clarification' || result.nextAction === 'assessment_review' ? (
               <CTAButton
-                href="/paid-pilot?from=assessment-override#scope"
-                analyticsLabel="Build a Customized Pilot Plan"
-                onClick={() => void trackEvent('assessment_override_started', { workflow })}
-                className="mt-14"
+                type="button"
+                onClick={() => setReviewOpen(true)}
+                analyticsLabel="Complete Pilot Readiness"
+                analyticsIntent="commercial_readiness"
               >
-                Build a customized pilot plan
+                Complete pilot readiness
                 <ArrowRight aria-hidden="true" size={18} />
               </CTAButton>
-            </div>
+            ) : (
+              <div>
+                <CTAButton
+                  href={`/ai-production-workflow-risks#${workflow}`}
+                  analyticsLabel="Explore the Relevant Workflow"
+                  analyticsUseCase={workflow}
+                  onClick={() => void trackEvent('education_use_case_clicked', { workflow })}
+                >
+                  explore the relevant production use case
+                  <ArrowRight aria-hidden="true" size={18} />
+                </CTAButton>
+                <div className="border-l border-white/50 pl-20">
+                  <p className="t-p-lg-serif">
+                    Think your workflow could benefit from a production repository and memory system? You’re invited to build a free customized pilot plan.
+                  </p>
+                  {/* <p className="mt-8 t-p-sans">
+                    Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
+                  </p> */}
+                  <CTAButton
+                    href="/paid-pilot?from=assessment-override#scope"
+                    analyticsLabel="Build a Customized Pilot Plan"
+                    onClick={() => void trackEvent('assessment_override_started', { workflow })}
+                    className="mt-14"
+                  >
+                    Build a customized pilot plan
+                    <ArrowRight aria-hidden="true" size={18} />
+                  </CTAButton>
+                </div>
+              </div>
+            )}
+            {result.downloadUrl ? (
+              <CTAButton href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
+                <ArrowDownToLine aria-hidden="true" size={18} />
+                Download my evaluation
+              </CTAButton>
+            ) : null}
           </div>
-        )}
-        {result.downloadUrl ? (
-          <CTAButton href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
-            <ArrowDownToLine aria-hidden="true" size={18} />
-            Download my evaluation
-          </CTAButton>
-        ) : null}
+        </div>
         {reviewOpen ? (
           <div className="mt-40 max-w-[680px]">
             <WorkflowReviewForm

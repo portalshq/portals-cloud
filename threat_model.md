@@ -59,7 +59,7 @@ S3/DynamoDB/RDS stores.
 - AWS IAM/KMS/Cognito and TLS primitives behave as documented.
 - Platform operators protect Pulumi state and use individual audited identities.
 - The VPC remains isolated until h2c is replaced.
-- Clients validate `lore.portals.sh` certificates and do not enable insecure TLS.
+- Clients validate `lore.portals.works` certificates and do not enable insecure TLS.
 - Auth Gateway completes PKCE verification and never trusts caller-supplied claims.
 
 ## Residual risks

@@ -3,6 +3,7 @@ import test, {type TestContext} from 'node:test'
 process.env.LEADS_DRY_RUN = 'true'
 process.env.RESEND_API_KEY = 'test-resend-key'
 process.env.LEADS_EMAIL_FROM = 'leads@portals.test'
+process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {sendLeadConfirmation, sendPilotStatusEmail} from './email'
 import {leadRequestSchema} from './contracts'
@@ -111,6 +112,21 @@ test('sendPilotStatusEmail directs an explicit signer recipient through the secu
   const session = await consumeMagicLink(tokenFrom(String(calls[0].text)))
   assert.equal(session?.user.email, 'ava@studio.example')
   assert.equal(await pilotMembershipRole(pilot.id, session!.user.id), 'signer')
+})
+
+test('sendPilotStatusEmail gives the Portals notification inbox secure room access', async (t) => {
+  const pilot = await createPilot()
+  const calls = resendStub(t)
+
+  await sendPilotStatusEmail(pilot.id, 'reviewer_invited', 'ops@portals.test', 'stage-one')
+
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].to, 'ops@portals.test')
+  assert.equal(calls[0].idempotency, `${pilot.id}-status-reviewer_invited-ops@portals.test-stage-one`)
+  assert.match(String(calls[0].text), /https:\/\/portals\.test\/auth\/verify\?token=/)
+  const session = await consumeMagicLink(tokenFrom(String(calls[0].text)))
+  assert.equal(session?.user.email, 'ops@portals.test')
+  assert.equal(await pilotMembershipRole(pilot.id, session!.user.id), 'approver')
 })
 
 test('sendPilotStatusEmail rejects when no recipient can be resolved', async (t) => {

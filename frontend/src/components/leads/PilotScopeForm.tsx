@@ -581,7 +581,7 @@ export function PilotScopeForm({
                     ? 'border-white'
                     : index === stage
                       ? 'border-white'
-                      : 'border-white/30'
+                      : 'border-white/80'
                 }`}
               >
                 {index < stage ? '✓' : index + 1}

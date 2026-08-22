@@ -17,10 +17,12 @@ config:
   portals-platform:threatDetectionEnabled: "false"
   portals-platform:securityReviewDate: ""
   portals-platform:authDomainPrefix: portals-dev-auth-907199504810
-  portals-platform:authCallbackUrls: https://auth.portals.sh/callback
-  portals-platform:authLogoutUrls: https://auth.portals.sh/logout
-  portals-platform:authHostname: auth.portals.sh
+  portals-platform:authCallbackUrls: https://auth.portals.works/callback
+  portals-platform:authLogoutUrls: https://auth.portals.works/logout
+  portals-platform:authHostname: auth.portals.works
+  portals-platform:loreHostname: lore.portals.works
+  portals-platform:loreJwksEndpoint: https://auth.portals.works/.well-known/jwks.json
+  portals-platform:loreJwtIssuer: https://auth.portals.works
   portals-platform:jwtSigningEnabled: "false"
   portals-platform:credentialRotationEpoch: 2026-08-10-lore-security-rollout-v2
   portals-platform:securityControlsEnabled: "true"
-  portals-platform:publicCertificateArn: arn:aws:acm:us-east-1:907199504810:certificate/cdef7138-4653-4719-93bf-8136308ce10b

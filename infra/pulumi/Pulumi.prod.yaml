@@ -16,3 +16,11 @@ config:
   portals-platform:databaseInstanceClass: db.t4g.micro
   portals-platform:databaseAllocatedStorage: "20"
   portals-platform:databaseVersion: "15.18"
+  # publicCertificateArn is set via `pulumi config set --stack portals-platform/prod
+  # portals-platform:publicCertificateArn` after the ACM certificate reaches ISSUED.
+  portals-platform:authHostname: auth.portals.works
+  portals-platform:loreHostname: lore.portals.works
+  portals-platform:authCallbackUrls: https://auth.portals.works/callback
+  portals-platform:authLogoutUrls: https://auth.portals.works/logout
+  portals-platform:loreJwksEndpoint: https://auth.portals.works/.well-known/jwks.json
+  portals-platform:loreJwtIssuer: https://auth.portals.works

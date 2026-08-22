@@ -151,7 +151,7 @@ export class ControlPlaneService extends pulumi.ComponentResource {
           { name: "IDEMPOTENCY_ENABLED", value: args.idempotencyEnabled ?? "true" },
           { name: "METRICS_ENABLED", value: args.metricsEnabled ?? "true" },
           { name: "DP_TOKEN_EXPIRY_SECS", value: args.dpTokenExpirySecs ?? "300" },
-          { name: "CORS_ALLOWED_ORIGINS", value: args.corsAllowedOrigins ?? "https://auth.portals.sh" },
+          { name: "CORS_ALLOWED_ORIGINS", value: args.corsAllowedOrigins ?? "https://auth.portals.works" },
           // ── Observability ──
           { name: "RUST_LOG", value: args.rustLog ?? "info,lorecloud_control_plane=debug,sqlx=warn" },
           // ── Optional infra ──

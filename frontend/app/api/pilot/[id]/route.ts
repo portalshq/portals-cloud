@@ -29,8 +29,6 @@ import {
   type StoredPilot,
 } from '@/lib/leads/store'
 import {
-  changedPilotFields,
-  createPilotDraft,
   pilotTermsFromDraft,
   resolvePilotDraftCommit,
   updatePilotDraft,
@@ -38,6 +36,8 @@ import {
   type PilotDraftConflict,
   type PilotMutableTerms,
 } from '@/lib/leads/pilot-collaboration'
+import {notifyPilotRoomEvent, pilotRoomSectionsForChanges} from '@/lib/leads/pilot-room-notifications'
+import {commitPilotTermRevision, pilotMutableTermsFromState} from '@/lib/leads/pilot-room-revisions'
 
 type PatchAction =
   | 'update'
@@ -85,6 +85,8 @@ type PatchBody = {
   payment?: Record<string, unknown>
   kickoff?: Record<string, unknown>
 }
+
+export const runtime = 'nodejs'
 
 const TEAM_REVIEW_STATES: PilotState[] = ['team_review', 'scope_confirmed', 'exception_review']
 const INVITATION_STATES: PilotState[] = ['team_review', 'scope_confirmed', 'exception_review']
@@ -175,11 +177,7 @@ function recompute(
 }
 
 function mutableTermsFromPilot(pilot: StoredPilot): PilotMutableTerms {
-  return {
-    startDate: pilot.resolvedStartDate || null,
-    valueConfirmed: Boolean(pilot.proposal?.valueModel?.confirmed),
-    criteria: pilot.successCriteria,
-  }
+  return pilotMutableTermsFromState(pilot)
 }
 
 function mutableTermsFromBody(
@@ -218,12 +216,27 @@ function conflictResponse(conflicts: PilotDraftConflict[]): NextResponse {
   )
 }
 
-async function authenticatedPilot(requestedId: string): Promise<{
+function cookieFromRequest(request: Request, name: string): string | undefined {
+  return request.headers
+    .get('cookie')
+    ?.split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.slice(name.length + 1)
+}
+
+async function currentPilotRequestUser(request: Request) {
+  const session = cookieFromRequest(request, APP_SESSION_COOKIE)
+    || (await cookies()).get(APP_SESSION_COOKIE)?.value
+  return currentApplicationUser(session)
+}
+
+async function authenticatedPilot(requestedId: string, request: Request): Promise<{
   user: NonNullable<Awaited<ReturnType<typeof currentApplicationUser>>>
   pilot: StoredPilot
   accessRole: NonNullable<Awaited<ReturnType<typeof pilotMembershipRole>>>
 } | NextResponse> {
-  const user = await currentApplicationUser((await cookies()).get(APP_SESSION_COOKIE)?.value)
+  const user = await currentPilotRequestUser(request)
   if (!user) {
     return NextResponse.json({ok: false, message: 'sign in is required'}, {status: 401})
   }
@@ -239,11 +252,11 @@ async function authenticatedPilot(requestedId: string): Promise<{
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   {params}: {params: Promise<{id: string}>},
 ): Promise<NextResponse> {
   const {id} = await params
-  const result = await authenticatedPilot(id)
+  const result = await authenticatedPilot(id, request)
   if (result instanceof NextResponse) return result
   return NextResponse.json({ok: true, pilot: result.pilot, accessRole: result.accessRole})
 }
@@ -262,7 +275,7 @@ export async function PATCH(
   if (!body.action) {
     return NextResponse.json({ok: false, message: 'action is required'}, {status: 400})
   }
-  const user = await currentApplicationUser((await cookies()).get(APP_SESSION_COOKIE)?.value)
+  const user = await currentPilotRequestUser(request)
   if (!user) {
     return NextResponse.json({ok: false, message: 'sign in is required'}, {status: 401})
   }
@@ -373,30 +386,12 @@ export async function PATCH(
         valueConfirmed: resolved.terms.valueConfirmed,
       }
       const next = recompute(pilot, commitBody)
-      const committedChanges = changedPilotFields(currentTerms, resolved.terms, {
-        by: user.email,
-      })
-      const version = committedChanges.length > 0 ? pilot.version + 1 : pilot.version
-      const draft = createPilotDraft({
-        terms: resolved.terms,
-        baseVersion: version,
+      const committed = commitPilotTermRevision({
+        pilot,
+        nextTerms: resolved.terms,
         actor: user.email,
+        baseVersion,
       })
-      const revisions =
-        committedChanges.length > 0
-          ? [
-              ...pilot.revisions,
-              {
-                pilotId: pilot.id,
-                version,
-                baseVersion,
-                committedAt: new Date().toISOString(),
-                committedBy: user.email,
-                terms: resolved.terms,
-                changes: committedChanges,
-              },
-            ]
-          : pilot.revisions
       const updated = await updatePilot(id, {
         route: next.route,
         answers: next.answers,
@@ -405,15 +400,21 @@ export async function PATCH(
         proposal: next.proposal,
         successCriteria: next.criteria,
         securityDecisions: next.security,
-        version,
-        draft,
-        revisions,
+        version: committed.version,
+        draft: committed.draft,
+        revisions: committed.revisions,
         resolvedStartDate: resolved.terms.startDate,
-        historyNote: committedChanges.length > 0 ? 'pilot terms saved' : undefined,
+        historyNote: committed.changes.length > 0 ? 'pilot terms saved' : undefined,
         by: user.email,
       })
-      if (version > pilot.version) {
+      if (committed.version > pilot.version) {
         await notifyStaleReviewers(updated)
+        await notifyPilotRoomEvent({
+          pilot: updated,
+          event: 'terms_changed',
+          sections: pilotRoomSectionsForChanges(committed.changes),
+          eventKey: `commit:${updated.version}`,
+        })
       }
       return NextResponse.json({ok: true, pilot: updated})
     }
@@ -452,7 +453,14 @@ export async function PATCH(
         historyNote: `${user.email} requested changes to ${section}`,
         by: user.email,
       })
-      await enqueuePilotEmail(id, 'change_requested')
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: section.toLowerCase().includes('security')
+          ? 'security_change_requested'
+          : 'change_requested',
+        sections: section.toLowerCase().includes('security') ? ['security'] : undefined,
+        eventKey: `change-request:${updated.version}:${Date.now()}`,
+      })
       return NextResponse.json({ok: true, pilot: updated})
     }
 
@@ -472,13 +480,15 @@ export async function PATCH(
         historyNote: 'submitter confirmed the draft is ready for team review',
         by: body.by,
       })
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'team_review_started',
+        eventKey: `team-review:${updated.version}:${Date.now()}`,
+      })
       return NextResponse.json({ok: true, pilot: updated})
     }
 
     if (body.action === 'invite_reviewer') {
-      if (accessRole !== 'owner') {
-        return NextResponse.json({ok: false, message: 'only the submitter can invite reviewers'}, {status: 403})
-      }
       const invite = body.invite
       if (
         !invite ||
@@ -523,6 +533,7 @@ export async function PATCH(
               notes: [],
             },
           ]
+      const inviteEventKey = `reviewer-invited:${pilot.version}:${email}:${randomUUID()}`
       const updated = await updatePilot(id, {
         reviewers,
         historyNote: `${invite.role.replaceAll('_', ' ')} ${email} invited to the room`,
@@ -539,8 +550,13 @@ export async function PATCH(
         purpose: 'invite',
         customerAccountId: invited.customerAccountId,
         role: 'member',
-        idempotencyKey: `pilot-reviewer-invite:${pilot.id}:${invited.user.id}:${invite.role}`,
+        idempotencyKey: `pilot-reviewer-invite:${pilot.id}:${invited.user.id}:${invite.role}:${inviteEventKey}`,
         nextPath: `/paid-pilot/room/${pilot.id}`,
+      })
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'reviewer_invited',
+        eventKey: inviteEventKey,
       })
       return NextResponse.json({ok: true, pilot: updated})
     }
@@ -728,6 +744,11 @@ export async function PATCH(
         historyNote: body.note,
         by: body.by,
       })
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'pilot_terms_confirmed',
+        eventKey: `terms-confirmed:${updated.version}:${Date.now()}`,
+      })
       return NextResponse.json({ok: true, pilot: updated})
     }
 
@@ -749,11 +770,11 @@ export async function PATCH(
       resolve_exceptions: null,
       qualify: null,
       disqualify: null,
-      finalize: 'ready_sign',
+      finalize: null,
       sign: null,
-      pay: 'paid',
+      pay: null,
       kickoff: null,
-      activate: 'kickoff',
+      activate: null,
       share: null,
     }
 
@@ -814,6 +835,11 @@ export async function PATCH(
         historyNote: `signed by ${name} (${email})`,
         by: body.by,
       })
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'signed',
+        eventKey: `signed:${updated.version}:${Date.now()}`,
+      })
       return NextResponse.json({ok: true, pilot: updated})
     }
 
@@ -832,8 +858,11 @@ export async function PATCH(
         historyNote: body.note,
         by: body.by,
       })
-      const variant = emailVariant[body.action]
-      if (variant) await enqueuePilotEmail(id, variant)
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'paid',
+        eventKey: `paid:${updated.version}:${Date.now()}`,
+      })
       return NextResponse.json({ok: true, pilot: updated})
     }
 
@@ -851,6 +880,11 @@ export async function PATCH(
         },
         historyNote: body.note,
         by: body.by,
+      })
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'kickoff_scheduled',
+        eventKey: `kickoff:${updated.version}:${Date.now()}`,
       })
       return NextResponse.json({ok: true, pilot: updated})
     }
@@ -931,6 +965,20 @@ export async function PATCH(
     })
     const variant = emailVariant[body.action]
     if (variant) await enqueuePilotEmail(id, variant)
+    if (transition === 'finalize') {
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'agreement_ready',
+        eventKey: `agreement-ready:${updated.version}:${Date.now()}`,
+      })
+    }
+    if (transition === 'activate') {
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'pilot_active',
+        eventKey: `active:${updated.version}:${Date.now()}`,
+      })
+    }
     return NextResponse.json({ok: true, pilot: updated})
   } catch (error) {
     return NextResponse.json(

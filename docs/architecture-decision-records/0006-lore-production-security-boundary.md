@@ -13,8 +13,8 @@ Health checks did not prove the backing stores or an authenticated data path.
 
 ## Decision
 
-The only public socket is ALB/WAF TLS `443`: `lore.portals.sh` routes gRPC to
-Lore, while `auth.portals.sh` routes the Auth gRPC protocol, OAuth callback,
+The only public socket is ALB/WAF TLS `443`: `lore.portals.works` routes gRPC to
+Lore, while `auth.portals.works` routes the Auth gRPC protocol, OAuth callback,
 health, and JWKS paths to the gateway. The NLB and direct listeners are removed. Lore, the Auth
 Gateway and ReBAC mutations run in private subnets without public IPs. The
 legacy control-plane issuer is retired and absent from production; any future
@@ -25,12 +25,12 @@ invitation-only Cognito user pool with authorization code plus PKCE, passkeys
 preferred and TOTP available. No Cognito identity pool exists, so a Cognito
 user receives neither AWS credentials nor application-network access.
 The WebAuthn RP ID is the actual Cognito managed-login domain. The gateway's
-`auth.portals.sh` hostname is not reused as a Cognito domain; a future branded
+`auth.portals.works` hostname is not reused as a Cognito domain; a future branded
 login domain must be distinct and migrated together with the RP ID.
 
 Lore independently treats the JWT verifier as authoritative. Production
 startup fails unless an HTTPS JWKS endpoint, exact HTTPS issuer, audiences
-`lore` and `portals.sh`, deployment environment, expiration, known `kid`, and
+`lore` and `portals.works`, deployment environment, expiration, known `kid`, and
 RS256 are enforced. Authorization tokens contain exactly one concrete
 repository. Wildcards are rejected.
 

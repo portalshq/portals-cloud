@@ -53,10 +53,10 @@ config:
     default: ""
   loreHostname:
     description: Public Lore gRPC hostname
-    default: "lore.portals.sh"
+    default: "lore.portals.works"
   authHostname:
     description: Public Auth Gateway hostname on the shared HTTPS edge
-    default: "auth.portals.sh"
+    default: "auth.portals.works"
   allowedIngressCidrs:
     description: Comma-separated CIDRs admitted to HTTPS 443
     default: "0.0.0.0/0"

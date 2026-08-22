@@ -10,7 +10,7 @@ The operator-facing release sequence is
 
 The ALB is the only internet-facing application resource and has no ingress or
 listener by default. When all release assertions are satisfied, it exposes
-only HTTPS/gRPC `443` for `lore.portals.sh`, protected by WAF. There is no NLB,
+only HTTPS/gRPC `443` for `lore.portals.works`, protected by WAF. There is no NLB,
 public control plane, public health port, or direct QUIC/gRPC listener.
 
 Lore and the Auth Gateway run in private subnets without public IPs. Lore
@@ -157,7 +157,7 @@ Record a repeatable external probe (use the ALB DNS name during containment):
 infra/pulumi/scripts/verify-external-surface.sh HOST containment
 ```
 
-After release, run it with `lore.portals.sh release`; it validates the TLS
+After release, run it with `lore.portals.works release`; it validates the TLS
 hostname/chain and fails unless exactly `443` is reachable.
 
 ## Secure deployment
@@ -167,13 +167,18 @@ npm ci
 npm test
 npm run build
 
-pulumi config set loreJwksEndpoint https://auth.portals.sh/.well-known/jwks.json
-pulumi config set loreJwtIssuer https://auth.portals.sh/
+pulumi config set loreJwksEndpoint https://auth.portals.works/.well-known/jwks.json
+pulumi config set loreJwtIssuer https://auth.portals.works
 pulumi config set publicCertificateArn arn:aws:acm:REGION:ACCOUNT:certificate/ID
 pulumi config set loreServiceDesiredCount 1
 pulumi preview --diff
 pulumi up
 ```
+
+Do not append a trailing slash to `loreJwtIssuer`: Lore compares the JWT `iss`
+claim byte-for-byte against this value, so `https://auth.portals.works/` (with
+trailing slash) mismatches tokens issued for `https://auth.portals.works` and
+Lore rejects every request.
 
 Do not set an image URI in Pulumi config: deployment reads the reviewed image
 digest from `infra/lore/versions.yaml` only.
@@ -201,3 +206,28 @@ unauthenticated config. Reopen only after all negative and data-plane gates pass
 The stack exports the ALB DNS name, private service SGs, store names/ARNs,
 Cognito pool/client IDs, and KMS signing-key ARN. It intentionally has no NLB
 output and does not output credential material.
+
+## Scripts
+
+The `scripts/` directory contains utilities for secure release verification and promotion:
+
+### record-lore-client-release.mjs
+Records a verified Lore client release to `infra/lore/versions.yaml`. This script is called by `verify-and-promote-lore-client-release.sh` after successful verification. It updates the Lore client version, source commit, installer SHA256, artifact manifest URLs, and signature bundle information in the versions file.
+
+### record-nap-release.mjs
+Records a verified Nap release to `infra/lore/versions.yaml` and creates a verification receipt in `infra/lore/verified-releases.json`. This script is called by `verify-and-promote-nap-release.sh` after successful verification. It validates that the Nap release's Lore dependency matches the independently promoted Lore client entry before updating the Nap version and creating a cryptographic receipt of the verification.
+
+### verify-and-promote-image.sh
+Verifies a Docker image for production deployment by checking ECR scan results, running Trivy vulnerability scanning, validating SBOM/provenance attestations, and optionally verifying cosign signatures. After all checks pass, it calls `record-verified-image.mjs` to atomically update the image pin in `infra/lore/versions.yaml` with the verified digest. Requires service name, image digest, platform, and expected source/protocol/packaging commits.
+
+### verify-and-promote-lore-client-release.sh
+Downloads a Lore client release from GitHub, verifies its GitHub-OIDC Sigstore signature bundles, validates all artifact checksums against SHA256SUMS, and promotes the verified release to `infra/lore/versions.yaml`. This script operates independently of Nap and does not modify the Lore submodule gitlink or release status. Requires a Lore release tag (e.g., `v0.8.4-portals.5`).
+
+### verify-and-promote-nap-release.sh
+Downloads a Nap release from GitHub, verifies its GitHub-OIDC Sigstore signature bundles for both SHA256SUMS and release-metadata.json, validates all artifact checksums, and cross-checks that Nap's Lore dependency matches the independently promoted Lore client release. After successful verification, it updates the Nap entry in `infra/lore/versions.yaml` and creates a verification receipt. Requires a Nap release tag (e.g., `v0.5.10`).
+
+### scan-repository-secrets.sh
+Scans the repository for accidentally committed secrets and credentials. It checks for AWS access keys (patterns like `AKIA[0-9A-Z]{16}`), private keys (RSA/EC/OPENSSH), and obsolete deployment TLS keys. This script should be run in CI/CD pipelines to prevent secrets from being committed to the repository.
+
+### verify-external-surface.sh
+Validates the external network surface of a deployed host to ensure it matches expected security states. It checks ports 443, 8083, 41337, and 41339 against expected open/closed states for either `containment` mode (all ports closed) or `release` mode (only 443 open). In release mode, it also validates TLS hostname and certificate chain verification. This script is used to verify deployment security before and after releases.

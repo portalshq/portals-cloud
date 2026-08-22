@@ -220,8 +220,8 @@ The primary CTA is a compact glass control:
 - `1px` white/10 border
 - White/12 fill
 - `50px` backdrop blur
-- White text in 18px medium sans
-- 500ms color transition to white/30 on hover
+- White text in medium sans
+- 100ms border transition to white on hover
 
 There is no solid accent button, shadow, lift, or transform.
 
@@ -249,7 +249,7 @@ The comparison is a typographic three-column matrix:
 - Without Portals
 - With Portals
 
-Rows use white/20 top rules. Desktop columns use white/20 left rules. Secondary content drops to 80% opacity. The table remains visually integrated with the canvas rather than enclosed in a card.
+Rows use white/50 top rules. Desktop columns use white/50 left rules. Secondary content drops to 80% opacity. The table remains visually integrated with the canvas rather than enclosed in a card.
 
 ### Capability group
 
@@ -275,7 +275,7 @@ The treatment is quieter and more compact than the capability group.
 
 ### Quotes
 
-Quotes use a single white/30 left rule with `18px` left padding, large editorial serif copy, and a mono citation below. A side rule is appropriate here because it denotes quotation, not decoration.
+Quotes use a single white left rule with `18px` left padding, large editorial serif copy, and a mono citation below. A side rule is appropriate here because it denotes quotation, not decoration.
 
 ### Icons
 
@@ -353,4 +353,4 @@ Use these patterns when extending the page:
 
 ## 9. Source-of-truth rule
 
-`src/pages/vcs-current.tsx`, together with `src/saga-repro.css`, `src/saga.css`, and `public/saga-webgl.js`, defines the current design language. This document should follow those implementations. If the page and this document diverge, update this document to describe the page rather than preserving obsolete guidance.
+`src/views/vcs-current/a.tsx`, together with `src/saga-repro.css`, `src/saga.css`, and `public/saga-webgl.js`, defines the current design language. This document should follow those implementations. If the page and this document diverge, update this document to describe the page rather than preserving obsolete guidance.

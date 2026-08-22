@@ -1,6 +1,6 @@
 use crate::{
     config::GatewayConfig,
-    jwt::{Claims, KmsJwtSigner, ResourcePermission},
+    jwt::{Claims, KmsJwtSigner, ResourcePermission, JWT_AUDIENCES},
     oauth::CognitoOauth,
     proto::epic_urc::{
         self,
@@ -183,7 +183,7 @@ impl UrcAuthApi for AuthService {
             iss: self.state.config.jwt_issuer.clone(),
             iat: Utc::now().timestamp(),
             exp,
-            aud: vec!["lore".into(), "portals.sh".into()],
+            aud: JWT_AUDIENCES.iter().map(|a| (*a).to_string()).collect(),
             env: self.state.config.environment.clone(),
             name: session.display_name,
             preferred_username: session.preferred_username,
@@ -512,7 +512,7 @@ impl AuthService {
             iss: self.state.config.jwt_issuer.clone(),
             iat: Utc::now().timestamp(),
             exp,
-            aud: vec!["lore".into(), "portals.sh".into()],
+            aud: JWT_AUDIENCES.iter().map(|a| (*a).to_string()).collect(),
             env: self.state.config.environment.clone(),
             name: principal.display_name,
             preferred_username: principal.preferred_username,

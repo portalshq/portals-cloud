@@ -11,7 +11,20 @@ export const metadata: Metadata = {
 }
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
+function StaticPilotRoomBackground() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 z-0"
+      style={{
+        backgroundImage:
+          'linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
+      }}
+    />
+  )
+}
 export default async function PilotRoomPage({
   params,
   searchParams,
@@ -27,8 +40,16 @@ export default async function PilotRoomPage({
   const accessRole = pilot ? await pilotMembershipRole(pilot.id, user.id) : null
 
   return (
-    <main className="relative z-(--z-main) min-h-screen bg-white lowercase text-[#07112C]">
-      <section className="w-full max-w-5xl mx-auto px-24 py-24 md:py-40">
+    <main className="relative z-(--z-main) min-h-screen overflow-hidden lowercase">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none h-px w-full"
+        data-webgl-marker="scrollFrom"
+        data-webgl-position="0"
+        data-webgl-easing="easeInOut"
+      />
+      <StaticPilotRoomBackground />
+      <section className="relative z-10 w-full max-w-5xl mx-auto px-24 py-24 md:py-40">
         {!pilot ? (
           <div className="max-w-[34em] mx-auto">
             <h1 className="t-h1-sans">this content could not be found.</h1>

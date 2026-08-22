@@ -29,7 +29,7 @@ keys, and retire the user before the identity revision is complete.
 
 ## Non-negotiable invariants
 
-- Public DNS exposes only `lore.portals.sh` and `auth.portals.sh` on TLS `443`.
+- Public DNS exposes only `lore.portals.works` and `auth.portals.works` on TLS `443`.
 - `8083`, `41337`, and `41339` are closed externally; there is no NLB.
 - ECS tasks use private subnets, no public IPs, scoped task roles, and no static
   AWS credentials.
@@ -49,8 +49,8 @@ keys, and retire the user before the identity revision is complete.
 
 | Endpoint | Exposure | Caller | Purpose |
 |---|---|---|---|
-| `lore.portals.sh:443` | Public through ALB/WAF | Nap/Lore clients | TLS gRPC and authenticated repository operations |
-| `auth.portals.sh:443` | Public through ALB/WAF | Nap/browser | gRPC auth exchange, OAuth callback, and JWKS publication |
+| `lore.portals.works:443` | Public through ALB/WAF | Nap/Lore clients | TLS gRPC and authenticated repository operations |
+| `auth.portals.works:443` | Public through ALB/WAF | Nap/browser | gRPC auth exchange, OAuth callback, and JWKS publication |
 | Lore `41337` | Private task network | ALB only | Plaintext h2c gRPC residual-risk hop |
 | Lore `41339` | Task-local | ECS readiness only | Store-aware container readiness |
 | Legacy control plane `8083` | Absent; desired count locked to zero | None | Retired unfinished issuer/API; local migration work only |
@@ -85,7 +85,7 @@ flowchart TB
     end
 
     subgraph Edge["Public edge — only TCP 443"]
-        DNS["lore.portals.sh<br/>auth.portals.sh"]
+        DNS["lore.portals.works<br/>auth.portals.works"]
         WAF["WAF rate and reputation controls"]
         ALB["ALB + ACM public certificate<br/>TLS terminates here"]
         DNS --> WAF --> ALB
@@ -101,8 +101,8 @@ flowchart TB
         S3["Private versioned S3<br/>repository objects"]
         Dynamo["DynamoDB + PITR<br/>metadata, pointers, locks"]
 
-        ALB -->|"auth.portals.sh"| AuthHop --> Gateway
-        ALB -->|"lore.portals.sh"| LoreHop --> Lore
+        ALB -->|"auth.portals.works"| AuthHop --> Gateway
+        ALB -->|"lore.portals.works"| LoreHop --> Lore
         Gateway --> RDS
         Gateway --> Secrets
         Lore --> S3
@@ -179,9 +179,9 @@ credentials or connect to application services.
 
 Passkeys bind to the domain that renders Cognito managed login. While the AWS
 prefix domain is used, `WebAuthnConfiguration.relyingPartyId` must be that full
-`<prefix>.auth.<region>.amazoncognito.com` hostname. `auth.portals.sh` is the
+`<prefix>.auth.<region>.amazoncognito.com` hostname. `auth.portals.works` is the
 gateway callback/JWKS endpoint, not the managed-login origin. A future custom
-Cognito domain should use a separate hostname such as `login.portals.sh`; move
+Cognito domain should use a separate hostname such as `login.portals.works`; move
 the RP ID only with that domain and verify registration/sign-in before release.
 
 ## Token contract
@@ -190,15 +190,15 @@ Authentication tokens live for at most eight hours. Authorization tokens live
 for at most five minutes and contain:
 
 - exact HTTPS `iss`;
-- audiences containing `lore` and recipient-protection root `portals.sh`;
+- audiences containing `lore` and recipient-protection root `portals.works`;
 - `env` equal to the Lore deployment environment;
 - `iat` and `exp`;
 - an RS256 header with a known, nonempty `kid`;
 - one and only one `resource_id` in the form `urc-<repository-id>`;
 - only the permissions derived server-side from relationships.
 
-Audience-domain matching uses DNS label boundaries: `portals.sh` and
-`api.portals.sh` match; `evilportals.sh`, wildcards, empty roots, and suffix
+Audience-domain matching uses DNS label boundaries: `portals.works` and
+`api.portals.works` match; `evilportals.sh`, wildcards, empty roots, and suffix
 lookalikes do not. Normal operations require read/write. Sharing and deletion
 require `owner` and are not represented by wildcard data-plane permissions.
 

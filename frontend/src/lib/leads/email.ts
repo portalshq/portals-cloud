@@ -58,6 +58,14 @@ function recipientRole(pilot: StoredPilot, email: string): {
   displayName?: string
 } | null {
   const normalized = email.trim().toLowerCase()
+  const portalsEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
+  if (portalsEmail && normalized === portalsEmail) {
+    return {
+      pilotRole: 'approver',
+      customerRole: 'member',
+      displayName: 'portals team',
+    }
+  }
   if (String(pilot.answers.email || '').trim().toLowerCase() === normalized) {
     return {
       pilotRole: 'owner',
@@ -249,6 +257,141 @@ export async function pilotCopy(
         ].join('\n'),
       }
     }
+    case 'terms_changed': {
+      return {
+        subject: 'your pilot plan was updated',
+        text: [
+          'your pilot plan was updated.',
+          '',
+          'open your pilot approval room to review the latest committed terms:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'scope_changed':
+    case 'commercial_changed':
+    case 'success_criteria_changed':
+    case 'security_changed':
+    case 'procurement_changed':
+    case 'signature_changed': {
+      return {
+        subject: 'your pilot plan was updated',
+        text: [
+          'a section you own in the pilot plan was updated.',
+          '',
+          'open your pilot approval room to review the latest committed terms:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'team_review_started': {
+      return {
+        subject: 'pilot team review started',
+        text: [
+          'the pilot plan is ready for team review.',
+          '',
+          'open the pilot approval room:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'reviewer_invited': {
+      return {
+        subject: 'a reviewer was invited to the pilot room',
+        text: [
+          'a reviewer was invited to the pilot approval room.',
+          '',
+          'open the pilot approval room:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'security_change_requested': {
+      return {
+        subject: 'security changes requested for your pilot plan',
+        text: [
+          'security changes were requested for the pilot plan.',
+          '',
+          'open the pilot approval room to review the request:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'pilot_terms_confirmed': {
+      return {
+        subject: 'pilot terms confirmed',
+        text: [
+          'the pilot terms were confirmed.',
+          '',
+          'open the pilot approval room:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'agreement_ready': {
+      return {
+        subject: 'pilot agreement ready',
+        text: [
+          'the pilot agreement is ready.',
+          '',
+          'open the pilot approval room:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'signed': {
+      return {
+        subject: 'pilot agreement signed',
+        text: [
+          'the pilot agreement was signed.',
+          '',
+          'open the pilot approval room:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'kickoff_scheduled': {
+      return {
+        subject: 'pilot kickoff scheduled',
+        text: [
+          'the pilot kickoff was scheduled.',
+          '',
+          'open the pilot approval room:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'pilot_active': {
+      return {
+        subject: 'pilot activated',
+        text: [
+          'the pilot was activated.',
+          '',
+          'open the pilot approval room:',
+          roomUrl,
+          '',
+          'portals',
+        ].join('\n'),
+      }
+    }
     case 'revised_ready': {
       return {
         subject: 'the pilot plan was revised — please re-review',
@@ -412,6 +555,7 @@ export async function sendPilotStatusEmail(
   pilotId: string,
   variant: string,
   recipient?: string,
+  eventKey?: string,
 ): Promise<void> {
   const pilot = await getPilotById(pilotId)
   if (!pilot) throw new Error('Pilot record not found.')
@@ -421,7 +565,7 @@ export async function sendPilotStatusEmail(
   if (!target) throw new Error('Pilot recipient email is missing.')
   const copy = await pilotCopy(pilot, variant, target)
   await sendEmail({
-    idempotencyKey: `${pilot.id}-status-${variant}-${target}`,
+    idempotencyKey: `${pilot.id}-status-${variant}-${target}${eventKey ? `-${eventKey}` : ''}`,
     to: target,
     ...copy,
   })

@@ -23,12 +23,12 @@ import type {
   UnresolvedItem,
 } from './pilot'
 import {recommendedReviewers} from './pilot'
-import {
-  createPilotDraft,
-  type PilotCollaborativeDraft,
-  type PilotCommittedRevision,
-  type PilotMutableTerms,
-} from './pilot-collaboration'
+import {createPilotDraft} from './pilot-collaboration'
+import type {
+  PilotCollaborativeDraft,
+  PilotCommittedRevision,
+  PilotMutableTerms,
+} from './pilot-collaboration-types'
 import {
   BillingCustomer,
   BillingSubscription,
@@ -537,10 +537,12 @@ export async function enqueuePilotEmail(
   pilotId: string,
   variant: string,
   recipient?: string,
+  eventKey?: string,
 ): Promise<void> {
   const submissionId = await latestSubmissionIdForPilot(pilotId)
   if (!submissionId) throw new Error('Pilot has no submission to attach the email to.')
-  const actionKey = `${pilotId}:pilot_email:${variant}:${(recipient || '').toLowerCase()}`
+  const eventSuffix = eventKey ? `:event:${eventKey}` : ''
+  const actionKey = `${pilotId}:pilot_email:${variant}:${(recipient || '').toLowerCase()}${eventSuffix}`
   if (leadsDryRun()) {
     if (memory().outbox.has(actionKey)) return
     memory().outbox.set(actionKey, {

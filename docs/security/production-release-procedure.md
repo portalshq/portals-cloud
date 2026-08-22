@@ -177,22 +177,22 @@ application deployment.
 
 1. In AWS Certificate Manager, open the pending certificate and copy each
    CNAME **name** and **value** exactly as shown.
-2. In Cloudflare, open the `portals.sh` DNS zone and create a CNAME for each
+2. In Cloudflare, open the `portals.works` DNS zone and create a CNAME for each
    ACM record. Use **DNS only** (grey cloud), not proxied.
 3. Wait for ACM to show `ISSUED`. Do not create the ALB listener first and do
    not point either hostname at an ECS task or an NLB.
 4. After the production ALB exists, create DNS-only CNAME records:
 
    ```text
-   lore.portals.sh  -> <production-ALB-DNS-name>
-   auth.portals.sh  -> <production-ALB-DNS-name>
+   lore.portals.works  -> <production-ALB-DNS-name>
+   auth.portals.works  -> <production-ALB-DNS-name>
    ```
 
 5. Verify DNS and certificate ownership before opening service routes:
 
    ```bash
-   openssl s_client -connect lore.portals.sh:443 -servername lore.portals.sh \
-     -verify_hostname lore.portals.sh -verify_return_error </dev/null
+    openssl s_client -connect lore.portals.works:443 -servername lore.portals.works \
+      -verify_hostname lore.portals.works -verify_return_error </dev/null
    ```
 
 The exact currently pending validation records are kept in the dated
@@ -208,7 +208,7 @@ timed-out certificate.
 ## How a person logs in with Cognito
 
 Cognito is the browser-facing identity provider. A user does **not** log in to
-AWS, the ECS service, or a generic `auth.portals.sh` web page. They start in
+AWS, the ECS service, or a generic `auth.portals.works` web page. They start in
 Nap, which directs the browser to Cognito's managed login page.
 
 After the secured Nap release is installed, the normal command is:
@@ -220,7 +220,7 @@ nap auth login
 The exact journey is:
 
 1. Nap opens a TLS gRPC connection to the Auth Gateway at
-   `https://auth.portals.sh` and starts a one-time login session.
+   `https://auth.portals.works` and starts a one-time login session.
 2. The gateway returns a unique Cognito managed-login URL of the form
    `https://<cognito-domain>.auth.us-east-1.amazoncognito.com/oauth2/authorize?...`.
    Nap opens that URL in the user's browser, or prints it when browser launch
@@ -228,7 +228,7 @@ The exact journey is:
 3. The person completes the invitation-only Cognito login with their passkey
    or password/TOTP recovery. This is the only browser sign-in screen.
 4. Cognito redirects the browser to
-   `https://auth.portals.sh/callback?code=...&state=...`. The Auth Gateway
+   `https://auth.portals.works/callback?code=...&state=...`. The Auth Gateway
    checks the PKCE-bound response, exchanges the short-lived code with Cognito,
    and records completion of that one-time CLI session.
 5. Nap polls the Auth Gateway and receives Portals' eight-hour authentication
@@ -248,14 +248,14 @@ certificate replacement is complete.
 ## JWKS: no separate server
 
 You do **not** deploy a separate JWKS server. The Auth Gateway publishes
-`https://auth.portals.sh/.well-known/jwks.json`; it obtains the public key from
+`https://auth.portals.works/.well-known/jwks.json`; it obtains the public key from
 the dedicated JWT KMS key and signs tokens only when explicitly enabled. Lore
 downloads and caches that public key set to verify tokens.
 
 **Current status (2026-08-19)**: The implementation blocker that prohibited `jwtSigningEnabled` when `jwksPublicationEnabled` was true has been corrected. The safe sequence is now:
 
 1. Deploy Auth Gateway privately and pass readiness.
-2. Publish JWKS/health only on `auth.portals.sh:443`.
+2. Publish JWKS/health only on `auth.portals.works:443`.
 3. Verify the expected `kid` is present in the live JWKS.
 4. Enable JWT signing, deploy Lore privately, and verify Lore fetched that
    `kid`.
@@ -290,7 +290,7 @@ aws accessanalyzer list-analyzers --type ACCOUNT
 Run the external assertion after the release edge is present:
 
 ```bash
-infra/pulumi/scripts/verify-external-surface.sh lore.portals.sh release
+infra/pulumi/scripts/verify-external-surface.sh lore.portals.works release
 ```
 
 The first execution should be operator-supervised. Turn this table into a
@@ -309,8 +309,8 @@ In the **production** Pulumi stack only:
 pulumi config set loreServiceDesiredCount 1
 pulumi config set controlPlaneDesiredCount 0
 pulumi config set authGatewayDesiredCount 1
-pulumi config set loreJwksEndpoint https://auth.portals.sh/.well-known/jwks.json
-pulumi config set loreJwtIssuer https://auth.portals.sh/
+pulumi config set loreJwksEndpoint https://auth.portals.works/.well-known/jwks.json
+pulumi config set loreJwtIssuer https://auth.portals.works
 pulumi config set jwtSigningEnabled true
 pulumi config set authGatewayReady true
 pulumi config set securityReviewDate YYYY-MM-DD
@@ -318,6 +318,11 @@ pulumi config set releaseGateApproved true
 pulumi config set publicIngressEnabled true
 pulumi preview --diff
 ```
+
+**Critical (issuer exact match)**: `loreJwtIssuer` must be `https://auth.portals.works`
+with **no trailing slash**. Lore compares the token `iss` claim byte-for-byte
+against this value; configuring `https://auth.portals.works/` (trailing slash)
+mismatches every issued token and Lore fails closed.
 
 Review the preview. It must create or enable only the public TLS `443` edge and
 must not add an NLB, public IP, `8083`, `41337`, or `41339` listener. Apply only

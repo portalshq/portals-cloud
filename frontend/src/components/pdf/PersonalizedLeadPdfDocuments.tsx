@@ -400,10 +400,10 @@ const reasonCodeLabels: Record<QualificationReasonCode, string> = {
   'strong-workflow-fit': 'Strong workflow fit for portals',
   'repeatable-production': 'Repeatable production workflow',
   'measurable-rework-risk': 'Measurable rework risk',
-  'production-context-fragmented': 'Production context is fragmented',
-  'approved-version-risk': 'Approved version tracking is risky',
-  'commercial-readiness-needed': 'Commercial readiness needed',
-  'workflow-definition-needed': 'Workflow definition needed',
+  'production-context-fragmented': 'Siloed production context',
+  'approved-version-risk': 'Version tracking risk',
+  'commercial-readiness-needed': 'We don\'t know your commercial readiness',
+  'workflow-definition-needed': 'We don\'t have your workflow definition',
   'limited-current-risk': 'Limited current risk',
 }
 

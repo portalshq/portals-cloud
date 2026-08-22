@@ -1,54 +1,30 @@
 import * as Automerge from '@automerge/automerge'
 import type {SuccessCriterion} from './contracts'
-
-export type PilotMutableTerms = {
-  startDate: string | null
-  valueConfirmed: boolean
-  criteria: SuccessCriterion[]
-}
-
-export type PilotDraftChange = {
-  field: string
-  label: string
-  kind: 'structured' | 'text'
-  value: unknown
-  updatedAt: string
-  updatedBy?: string
-}
-
-export type PilotCollaborativeDraft = {
-  baseVersion: number
-  automerge: string
-  heads: string[]
-  changes: PilotDraftChange[]
-  updatedAt: string
-  updatedBy?: string
-}
-
-export type PilotCommittedRevision = {
-  pilotId: string
-  version: number
-  baseVersion: number
-  committedAt: string
-  committedBy?: string
-  terms: PilotMutableTerms
-  changes: PilotDraftChange[]
-}
-
-export type PilotDraftConflict = {
-  field: string
-  label: string
-  kind: 'structured' | 'text'
-  baseValue: unknown
-  currentValue: unknown
-  mineValue: unknown
-}
-
-export type ConflictResolution = 'current' | 'mine'
+import type {
+  ConflictResolution,
+  PilotCollaborativeDraft,
+  PilotDraftChange,
+  PilotDraftConflict,
+  PilotMutableTerms,
+} from './pilot-collaboration-types'
+export type {
+  ConflictResolution,
+  PilotCollaborativeDraft,
+  PilotCommittedRevision,
+  PilotDraftChange,
+  PilotDraftConflict,
+  PilotMutableTerms,
+} from './pilot-collaboration-types'
 
 type DraftDoc = {
   terms: PilotMutableTerms
   edits: Record<string, PilotDraftChange>
+}
+
+function assertServerRuntime(): void {
+  if (typeof window !== 'undefined') {
+    throw new Error('Pilot collaboration uses Automerge WebAssembly and must run on the server.')
+  }
 }
 
 function encode(bytes: Uint8Array): string {
@@ -186,6 +162,7 @@ export function createPilotDraft(input: {
   actor?: string
   at?: string
 }): PilotCollaborativeDraft {
+  assertServerRuntime()
   const at = input.at || new Date().toISOString()
   const doc = Automerge.from<DraftDoc>(
     {
@@ -208,6 +185,7 @@ export function pilotTermsFromDraft(
   draft: PilotCollaborativeDraft | undefined,
   fallback: PilotMutableTerms,
 ): PilotMutableTerms {
+  assertServerRuntime()
   if (!draft?.automerge) return cloneTerms(fallback)
   try {
     const doc = Automerge.load<DraftDoc>(decode(draft.automerge))
@@ -225,6 +203,7 @@ export function updatePilotDraft(input: {
   actor?: string
   at?: string
 }): PilotCollaborativeDraft {
+  assertServerRuntime()
   const at = input.at || new Date().toISOString()
   const existing =
     input.draft?.automerge

@@ -16,6 +16,8 @@ use rsa::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 
+pub const JWT_AUDIENCES: [&str; 2] = ["lore", "portals.works"];
+
 const AUTHENTICATION_LIFETIME_HOURS: i64 = 8;
 const AUTHORIZATION_LIFETIME_MINUTES: i64 = 5;
 
@@ -217,7 +219,7 @@ impl KmsJwtSigner {
             iss: self.issuer.clone(),
             iat: now.timestamp(),
             exp,
-            aud: vec!["lore".into(), "portals.sh".into()],
+            aud: JWT_AUDIENCES.iter().map(|a| (*a).to_string()).collect(),
             env: self.environment.clone(),
             name: name.into(),
             preferred_username: preferred_username.into(),
@@ -296,12 +298,12 @@ impl KmsJwtSigner {
             .ok_or_else(|| anyhow::anyhow!("unknown JWT kid"))?;
         let mut validation = Validation::new(Algorithm::RS256);
         validation.set_issuer(&[self.issuer.as_str()]);
-        validation.set_audience(&["lore", "portals.sh"]);
+        validation.set_audience(&JWT_AUDIENCES);
         validation.validate_exp = true;
         let claims = decode::<Claims>(token, decoding_key, &validation)?.claims;
         anyhow::ensure!(claims.env == self.environment, "JWT environment mismatch");
         anyhow::ensure!(
-            claims.aud.iter().any(|a| a == "lore") && claims.aud.iter().any(|a| a == "portals.sh"),
+            JWT_AUDIENCES.iter().all(|mandatory| claims.aud.iter().any(|a| a == *mandatory)),
             "mandatory JWT audience missing"
         );
         Ok(claims)
@@ -319,7 +321,7 @@ mod tests {
         KmsJwtSigner::load_local(
             pem.as_bytes(),
             "test-kid".into(),
-            "https://auth.portals.sh".into(),
+            "https://auth.portals.works".into(),
             environment.into(),
         )
         .unwrap()
@@ -363,14 +365,14 @@ mod tests {
         let dev = KmsJwtSigner::load_local(
             same_pem.as_bytes(),
             "same-kid".into(),
-            "https://auth.portals.sh".into(),
+            "https://auth.portals.works".into(),
             "dev".into(),
         )
         .unwrap();
         let wrong_environment = KmsJwtSigner::load_local(
             same_pem.as_bytes(),
             "same-kid".into(),
-            "https://auth.portals.sh".into(),
+            "https://auth.portals.works".into(),
             "staging".into(),
         )
         .unwrap();
@@ -388,7 +390,7 @@ mod tests {
         assert!(KmsJwtSigner::load_local(
             pem.as_bytes(),
             "kid".into(),
-            "https://auth.portals.sh".into(),
+            "https://auth.portals.works".into(),
             "prod".into()
         )
         .is_err());

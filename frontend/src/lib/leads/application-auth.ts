@@ -467,6 +467,30 @@ export async function pilotMembershipRole(pilotId: string, userId: string): Prom
   return result.rows[0]?.role || null
 }
 
+export async function activePilotMemberEmails(pilotId: string): Promise<string[]> {
+  if (leadsDryRun()) {
+    const prefix = `${pilotId}:`
+    return [...memoryStore().pilotMemberships.keys()]
+      .filter((key) => key.startsWith(prefix))
+      .map((key) => key.slice(prefix.length))
+      .map((userId) => memoryStore().users.get(userId))
+      .filter((user): user is ApplicationUser => Boolean(user && user.status === 'active'))
+      .map((user) => user.email)
+  }
+  const result = await leadPool().query<{identity_ciphertext: string}>(
+    `SELECT users.identity_ciphertext
+       FROM pilot_memberships membership
+       JOIN application_users users ON users.id = membership.user_id
+      WHERE membership.pilot_id = $1
+        AND membership.revoked_at IS NULL
+        AND users.status = 'active'`,
+    [pilotId],
+  )
+  return result.rows
+    .map((row) => decryptJson<{email: string}>(row.identity_ciphertext).email)
+    .filter(Boolean)
+}
+
 export async function invitePilotMember(input: {
   pilotId: string
   email: string

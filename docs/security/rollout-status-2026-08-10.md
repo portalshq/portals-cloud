@@ -88,6 +88,31 @@ or rely on them.
 
 **Updated 2026-08-20**: CNAME validation records created in Cloudflare as **DNS-only** (grey cloud) per operator confirmation. ACM still reports `PENDING_VALIDATION` as of `2026-08-20T21:53Z` — propagation/validation pending. Do not recreate records. Update `publicCertificateArn` in the target Pulumi stack only after ACM reports `ISSUED`. Then point the two hostnames at the ALB—not an ECS task or NLB—and keep Cloudflare proxying off until gRPC compatibility and TLS ownership are deliberately validated.
 
+## 2026-08-21 domain migration (portals.sh → portals.works)
+
+Public hostnames migrate to `*.portals.works`. Entries earlier in this log stay
+verbatim as the historical record of what was done on their dates; all
+current/normative guidance elsewhere in the docs now uses `.works`.
+
+- Prior certificate `cdef7138-4653-4719-93bf-8136308ce10b` is
+  `VALIDATION_TIMED_OUT`; replacement `bf777a6b-1ba8-4ad5-a4c2-2ee3e1b74554` is
+  superseded by the `.works` certificate with deletion pending once the new
+  certificate is live. Do not retry either.
+- Replacement ACM certificate requested for the `.works` names
+  (`lore.portals.works`, `auth.portals.works`): ARN placeholder
+  `arn:aws:acm:us-east-1:907199504810:certificate/<WORKS-CERT-PENDING>` —
+  replace with the real ARN when issued; status `PENDING_VALIDATION`.
+- Forward-looking public hostnames are `lore.portals.works` and
+  `auth.portals.works` on TLS `443` behind the production ALB.
+- Two DNS-only phases apply: first the ACM validation CNAME records for the
+  `.works` names in the `portals.works` zone, then — only after `ISSUED` — the
+  ALB CNAME records for both hostnames. Both phases use DNS-only (grey cloud)
+  records; no proxying in either phase.
+- Token contract cut: audience root moves `portals.sh` → `portals.works` and
+  the issuer becomes `https://auth.portals.works` with **no trailing slash**.
+  Tokens issued under the old audience/issuer stop validating; users and CI
+  must authenticate again after cutover.
+
 ## Implemented code and verification
 
 - The Auth Gateway implements Cognito/PKCE login, KMS-backed RS256 signing and
