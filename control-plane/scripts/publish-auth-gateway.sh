@@ -10,7 +10,8 @@ REPOSITORY="${AUTH_GATEWAY_ECR_REPOSITORY:-${ECR_REGISTRY}/${ECR_NAMESPACE}/auth
 
 # Generate unique build identifier for reproducible builds
 # BUILD_ID can be set externally for automation, or generated automatically
-BUILD_ID="${BUILD_ID:-$(date +%Y%m%d-%H%M%S)-$(git -C "${ROOT}" rev-parse --short HEAD)}"
+# Uses nanosecond precision to ensure uniqueness even for rapid successive builds
+BUILD_ID="${BUILD_ID:-$(date +%Y%m%d-%H%M%S-%N)-$(git -C "${ROOT}" rev-parse --short HEAD)}"
 
 # Extract release version from versions.yaml for consistent tagging
 # If not found, fall back to a default version

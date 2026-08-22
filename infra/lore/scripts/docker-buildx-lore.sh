@@ -20,7 +20,8 @@ TARGETARCH="${LORE_TARGETARCH:-${TARGETARCH:-arm64}}"
 
 # Generate unique build identifier for reproducible builds
 # BUILD_ID can be set externally for automation, or generated automatically
-BUILD_ID="${BUILD_ID:-$(date +%Y%m%d-%H%M%S)-$(git -C "${REPO_ROOT}" rev-parse --short HEAD)}"
+# Uses nanosecond precision to ensure uniqueness even for rapid successive builds
+BUILD_ID="${BUILD_ID:-$(date +%Y%m%d-%H%M%S-%N)-$(git -C "${REPO_ROOT}" rev-parse --short HEAD)}"
 BASE_TAG="${VERSION}-build-${BUILD_ID}-base"
 SERVER_TAG="${VERSION}-build-${BUILD_ID}"
 SOURCE_ROOT="${REPO_ROOT}/infra/lore/lore"
