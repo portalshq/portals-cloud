@@ -141,5 +141,5 @@ fi
 
 EXPECTED_SOURCE_COMMIT="${SOURCE_COMMIT}" EXPECTED_PROTOCOL_COMMIT="${PROTOCOL_COMMIT}" \
   REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE}" COSIGN_KEY="${COSIGN_KEY:-}" \
-  TRIVY_BIN="${TRIVY_BIN:-trivy}" "${PROMOTE_SCRIPT}" control-plane "${PIN}" "linux/${TARGETARCH}"
+  "${PROMOTE_SCRIPT}" control-plane "${PIN}" "linux/${TARGETARCH}"
 printf 'Auth Gateway image pinned: %s (build ID: %s)\n' "${PIN}" "${BUILD_ID}"

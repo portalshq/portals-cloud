@@ -176,7 +176,7 @@ fi
 # decoding. The promotion helper updates the runtime pin last.
 EXPECTED_SOURCE_COMMIT="${SOURCE_COMMIT}" EXPECTED_PACKAGING_COMMIT="${PACKAGING_COMMIT}" \
   REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE}" COSIGN_KEY="${COSIGN_KEY:-}" \
-  TRIVY_BIN="${TRIVY_BIN:-trivy}" "${PROMOTE_SCRIPT}" lore "${SERVER_PIN}" "linux/${TARGETARCH}"
+  "${PROMOTE_SCRIPT}" lore "${SERVER_PIN}" "linux/${TARGETARCH}"
 awk -v base="${BASE_PIN}" '
   /^lore:/ { in_lore = 1 }
   in_lore && /^  base_image:/ { sub(/^  base_image:.*/, "  base_image: \"" base "\"") }
