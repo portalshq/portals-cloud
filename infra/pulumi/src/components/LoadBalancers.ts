@@ -284,6 +284,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
             TargetGroup: targetGroup.arnSuffix,
           },
           alarmDescription: `${description} is failing for an ALB target`,
+        alarmActions: args.alarmNotificationTopicArn ? [args.alarmNotificationTopicArn] : undefined,
           tags: { Project: args.projectName, Environment: args.environment },
         }, {
           parent: this,
@@ -304,6 +305,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
       treatMissingData: "notBreaching",
       dimensions: { LoadBalancer: this.alb.arnSuffix },
       alarmDescription: "Lore public edge is returning elevated ALB 5xx errors",
+      alarmActions: args.alarmNotificationTopicArn ? [args.alarmNotificationTopicArn] : undefined,
       tags: { Project: args.projectName, Environment: args.environment },
       }, { parent: this });
 
@@ -318,6 +320,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
         treatMissingData: "notBreaching",
         dimensions: { LoadBalancer: this.alb.arnSuffix },
         alarmDescription: "The public edge is receiving elevated rejected or unauthorized requests",
+        alarmActions: args.alarmNotificationTopicArn ? [args.alarmNotificationTopicArn] : undefined,
         tags: { Project: args.projectName, Environment: args.environment },
       }, { parent: this });
 
@@ -337,6 +340,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
             Rule: "ALL",
           },
           alarmDescription: "WAF is blocking an elevated request volume",
+          alarmActions: args.alarmNotificationTopicArn ? [args.alarmNotificationTopicArn] : undefined,
           tags: { Project: args.projectName, Environment: args.environment },
         }, { parent: this });
       }

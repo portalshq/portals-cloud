@@ -11,6 +11,7 @@ import { SecurityControls } from "./src/components/SecurityControls";
 import { AuthGatewayService } from "./src/components/AuthGatewayService";
 import { ImageRepositories } from "./src/components/ImageRepositories";
 import { LowCostRdsBackups } from "./src/components/LowCostRdsBackups";
+import { EgressControls } from "./src/components/EgressControls";
 import {
   assertNapReleaseVerified,
   assertPublicReleaseApproved,
@@ -43,6 +44,8 @@ const threatDetectionEnabled = config.getBoolean("threatDetectionEnabled") ?? fa
 const securityReviewDate = config.get("securityReviewDate") ?? "";
 const releaseGateApproved = config.getBoolean("releaseGateApproved") ?? false;
 const recoveryControlsEnabled = config.getBoolean("recoveryControlsEnabled") ?? true;
+const egressEndpointsEnabled = config.getBoolean("egressEndpointsEnabled") ?? false;
+const alarmNotificationEndpoint = config.get("alarmNotificationEndpoint") || undefined;
 const databaseBackupRetentionDays = parseInt(config.get("databaseBackupRetentionDays") ?? (environment === "prod" ? "35" : "1"));
 const lowCostRdsSnapshotsEnabled = config.getBoolean("lowCostRdsSnapshotsEnabled") ?? false;
 const manualSnapshotRetentionCount = parseInt(config.get("manualSnapshotRetentionCount") ?? "7");
@@ -201,6 +204,15 @@ const platformNetwork = new PlatformNetwork(`${projectName}-network`, {
   environment,
 });
 
+const securityControls = new SecurityControls(`${projectName}-security`, {
+  enabled: securityControlsEnabled,
+  projectName,
+  environment,
+  vpcId: platformNetwork.vpc.id,
+  threatDetectionEnabled,
+  notificationEndpoint: alarmNotificationEndpoint,
+});
+
 // Create Platform Cluster (ECS Fargate + IAM + CloudWatch)
 const platformCluster = new PlatformCluster(`${projectName}-cluster`, {
   vpcId: platformNetwork.vpc.id,
@@ -234,6 +246,7 @@ if (lowCostRdsSnapshotsEnabled) {
     databaseInstanceId: platformDataStore.databaseInstance.identifier,
     databaseInstanceArn: platformDataStore.databaseInstance.arn,
     retentionCount: manualSnapshotRetentionCount,
+    alarmNotificationTopicArn: securityControls.alertTopic?.arn,
   });
 }
 
@@ -260,14 +273,6 @@ const authFoundation = authFoundationEnabled ? new AuthFoundation(`${projectName
   logoutUrls: authLogoutUrls, domainPrefix: authDomainPrefix, rotationEpoch: credentialRotationEpoch,
 }) : undefined;
 
-const securityControls = new SecurityControls(`${projectName}-security`, {
-  enabled: securityControlsEnabled,
-  projectName,
-  environment,
-  vpcId: platformNetwork.vpc.id,
-  threatDetectionEnabled,
-});
-
 // Create the fail-closed HTTPS edge. No NLB or direct service listeners exist.
 const loadBalancers = new LoadBalancers(`${projectName}-loadbalancers`, {
   vpcId: platformNetwork.vpc.id,
@@ -285,6 +290,22 @@ const loadBalancers = new LoadBalancers(`${projectName}-loadbalancers`, {
   alarmsEnabled: securityControlsEnabled,
   deletionProtectionEnabled: recoveryControlsEnabled,
 });
+
+// Stage-1 egress hardening: VPC interface endpoints + private auth alias so
+// Lore's JWKS refresh never leaves the VPC. SG tightening follows separately.
+const egressControls = egressEndpointsEnabled
+  ? new EgressControls(`${projectName}-egress`, {
+      projectName,
+      environment,
+      region: awsRegion,
+      vpcId: platformNetwork.vpc.id,
+      vpcCidr,
+      privateSubnetIds: pulumi.all(platformNetwork.privateSubnets.map(s => s.id)),
+      authHostname,
+      albDnsName: loadBalancers.alb.dnsName,
+      albZoneId: loadBalancers.alb.zoneId,
+    })
+  : undefined;
 
 let authGatewayService: AuthGatewayService | undefined;
 if (authGatewayDesiredCount > 0) {

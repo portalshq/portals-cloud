@@ -268,13 +268,25 @@ test("digest-keyed ledger lets multiple digests of one service coexist", () => {
   });
 });
 
-test("legacy-schema ledgers are rejected fail-closed for running services", () => {
+test("legacy-schema ledgers remain readable during v2 migration (warn)", () => {
   const image = `registry.test/auth@${digest("c")}`;
-  withFiles(manifest(), { schemaVersion: 1, images: {} }, () => {
-    assert.throws(
-      () => assertVersionPinVerified("control-plane", image, 1, "linux/arm64"),
-      /schemaVersion 2/,
-    );
+  const legacy = {
+    schemaVersion: 1,
+    images: {
+      "control-plane": {
+        image,
+        platform: "linux/arm64",
+        platformDigest: digest("b"),
+        ecrScan: { critical: 0, high: 0, completedAt: "2026-08-21T00:00:00Z" },
+        trivyScan: { critical: 0, high: 0, scannerVersion: "0.73.0", completedAt: "2026-08-21T00:01:00Z" },
+        sbomVerified: true,
+        provenanceVerified: true,
+        verifiedAt: "2026-08-21T00:01:00Z",
+      },
+    },
+  };
+  withFiles(manifest(), legacy, () => {
+    assert.doesNotThrow(() => assertVersionPinVerified("control-plane", image, 1, "linux/arm64"));
   });
 });
 

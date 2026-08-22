@@ -96,6 +96,12 @@ config:
   lowCostRdsSnapshotsEnabled:
     description: Schedule one native manual RDS snapshot daily when the account limits automated PITR retention
     default: "false"
+  egressEndpointsEnabled:
+    description: Stage-1 egress hardening; creates VPC interface endpoints and the private auth-hostname alias
+    default: "false"
+  alarmNotificationEndpoint:
+    description: Email endpoint subscribed to the alarm SNS topic (target health, 4xx/5xx, WAF, RDS backups)
+    default: ""
   manualSnapshotRetentionCount:
     description: Number of daily Portals RDS snapshots to retain (7-35)
     default: "7"

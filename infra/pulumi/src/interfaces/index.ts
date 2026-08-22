@@ -2,6 +2,21 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
 /**
+ * Interface for EgressControls component arguments (stage-1 egress hardening)
+ */
+export interface EgressControlsArgs {
+  readonly projectName: string;
+  readonly environment: string;
+  readonly region: string;
+  readonly vpcId: pulumi.Input<string>;
+  readonly vpcCidr: string;
+  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
+  readonly authHostname: string;
+  readonly albDnsName: pulumi.Input<string>;
+  readonly albZoneId: pulumi.Input<string>;
+}
+
+/**
  * Interface for PlatformNetwork component arguments
  */
 export interface PlatformNetworkArgs {
@@ -71,6 +86,7 @@ export interface LoadBalancersArgs {
   readonly accessLogsBucket?: pulumi.Input<string>;
   readonly alarmsEnabled: boolean;
   readonly deletionProtectionEnabled: boolean;
+  readonly alarmNotificationTopicArn?: pulumi.Input<string>;
 }
 
 export interface AuthGatewayServiceArgs {

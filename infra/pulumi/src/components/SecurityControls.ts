@@ -7,11 +7,15 @@ export interface SecurityControlsArgs {
   readonly environment: string;
   readonly vpcId: pulumi.Input<string>;
   readonly threatDetectionEnabled: boolean;
+  /** When set, provisions the alarm SNS topic and an email subscription. */
+  readonly notificationEndpoint?: string;
 }
 
 /** Account/VPC audit baseline. Paid managed threat detection is optional. */
 export class SecurityControls extends pulumi.ComponentResource {
   public readonly auditBucket?: aws.s3.Bucket;
+  /** Set when notificationEndpoint is provided; wire into alarm actions. */
+  public readonly alertTopic?: aws.sns.Topic;
 
   constructor(name: string, args: SecurityControlsArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:security:SecurityControls", name, {}, opts);
@@ -152,6 +156,18 @@ export class SecurityControls extends pulumi.ComponentResource {
         enableDefaultStandards: true,
         controlFindingGenerator: "SECURITY_CONTROL",
         autoEnableControls: true,
+      }, { parent: this });
+    }
+
+    if (args.notificationEndpoint) {
+      this.alertTopic = new aws.sns.Topic(`${prefix}-alerts`, {
+        name: `${prefix}-alerts`,
+        tags: { Project: args.projectName, Environment: args.environment, Purpose: "alarm-notifications" },
+      }, { parent: this });
+      new aws.sns.TopicSubscription(`${prefix}-alerts-email`, {
+        topic: this.alertTopic.arn,
+        protocol: "email",
+        endpoint: args.notificationEndpoint,
       }, { parent: this });
     }
 

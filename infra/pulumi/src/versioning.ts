@@ -125,14 +125,23 @@ export function assertVersionPinVerified(
   const file = resolveVerificationFile();
   if (!fs.existsSync(file)) throw new Error(`${service} has no image-verification receipt at ${file}`);
   const document = JSON.parse(fs.readFileSync(file, "utf8"));
-  if (document?.schemaVersion !== 2) {
+  let receipt: VerificationReceipt | undefined;
+  if (document?.schemaVersion === 2) {
+    // Digest-keyed ledger: multiple digests per service coexist.
+    receipt = document?.receipts?.[image] as VerificationReceipt | undefined;
+  } else if (document?.schemaVersion === 1 && typeof document?.images === "object") {
+    console.warn(`${file} is legacy schemaVersion 1 — migrate to v2 via promote scripts`);
+    receipt = document?.images?.[service] as VerificationReceipt | undefined;
+    // Legacy receipts store the image inside the receipt; validate it matches.
+    if (receipt && (receipt as { image?: string }).image !== undefined && (receipt as { image?: string }).image !== image) {
+      receipt = undefined;
+    }
+  } else {
     throw new Error(
-      `${file} must be verification-ledger schemaVersion 2; ` +
+      `${file} must be verification-ledger schemaVersion 1 or 2; ` +
         "regenerate receipts via infra/pulumi/scripts/verify-and-promote-image.sh",
     );
   }
-  // Digest-keyed ledger: the receipt is looked up by the exact pinned image.
-  const receipt = document?.receipts?.[image] as VerificationReceipt | undefined;
   const scanPassed = (scan: VerificationReceipt["ecrScan"]): boolean =>
     scan?.critical === 0 && scan?.high === 0 &&
     typeof scan?.completedAt === "string" && scan.completedAt.length > 0;

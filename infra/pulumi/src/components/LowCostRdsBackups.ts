@@ -8,6 +8,7 @@ export interface LowCostRdsBackupsArgs {
   readonly databaseInstanceId: pulumi.Input<string>;
   readonly databaseInstanceArn: pulumi.Input<string>;
   readonly retentionCount: number;
+  readonly alarmNotificationTopicArn?: pulumi.Input<string>;
 }
 
 /**
@@ -126,6 +127,7 @@ export class LowCostRdsBackups extends pulumi.ComponentResource {
       treatMissingData: "notBreaching",
       dimensions: { FunctionName: fn.name },
       alarmDescription: "The daily RDS recovery snapshot automation failed",
+      alarmActions: args.alarmNotificationTopicArn ? [args.alarmNotificationTopicArn] : undefined,
       tags: { Project: args.projectName, Environment: args.environment, Purpose: "recovery" },
     }, { parent: this });
 
@@ -141,6 +143,7 @@ export class LowCostRdsBackups extends pulumi.ComponentResource {
       treatMissingData: "breaching",
       dimensions: { FunctionName: fn.name },
       alarmDescription: "No scheduled RDS recovery snapshot ran for two consecutive days",
+      alarmActions: args.alarmNotificationTopicArn ? [args.alarmNotificationTopicArn] : undefined,
       tags: { Project: args.projectName, Environment: args.environment, Purpose: "recovery" },
     }, { parent: this });
 
