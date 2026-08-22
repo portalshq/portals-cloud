@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "exceptions": [
+    {
+      "id": "CVE-2026-14456",
+      "severity": "HIGH",
+      "package": "libssl3t64",
+      "status": "fix_deferred",
+      "expires": "2026-11-22",
+      "approved_by": "operator (release cycle 2026-08-22, runbook row 20)",
+      "reason": "Debian 13 marks this OpenSSL QUIC-server DoS fix_deferred with no fixed version. Neither runtime image operates an OpenSSL QUIC server: Lore QUIC is config-disabled and both services terminate TLS at the ALB using rustls. libssl3t64 is present only as a distroless cc runtime dependency. Re-review on expiry or when Debian ships a fixed libssl3t64."
+    }
+  ]
+}

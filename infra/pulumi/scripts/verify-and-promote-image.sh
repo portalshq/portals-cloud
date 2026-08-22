@@ -164,9 +164,27 @@ if [[ "$(jq -r '.imageScanStatus.status // empty' <<<"${SCAN_JSON}")" != "COMPLE
   done
 fi
 [[ "$(jq -r '.imageScanStatus.status // empty' <<<"${SCAN_JSON}")" == "COMPLETE" ]] || { echo "ECR scan did not complete" >&2; exit 1; }
-ECR_CRITICAL="$(jq -r '.imageScanFindings.findingSeverityCounts.CRITICAL // 0' <<<"${SCAN_JSON}")"
-ECR_HIGH="$(jq -r '.imageScanFindings.findingSeverityCounts.HIGH // 0' <<<"${SCAN_JSON}")"
-[[ "${ECR_CRITICAL}" -eq 0 && "${ECR_HIGH}" -eq 0 ]] || { echo "ECR scan failed: critical=${ECR_CRITICAL} high=${ECR_HIGH}" >&2; exit 1; }
+# Reviewed, expiring vulnerability exceptions (fail-closed: expired entries
+# grant nothing). Enforced identically on the ECR gate below and on the Trivy
+# run via a generated ignorefile. Package/reason fields are review metadata.
+EXCEPTIONS_FILE="${REPO_ROOT}/infra/pulumi/scripts/trivy-exceptions.json"
+TODAY="$(date -u +%F)"
+ACTIVE_EXCEPTION_IDS="$(jq -r --arg today "${TODAY}" \
+  '[.exceptions[] | select(.expires >= $today) | .id] | join(" ")' \
+  "${EXCEPTIONS_FILE}" 2>/dev/null || echo "")"
+echo "Active vulnerability exceptions: ${ACTIVE_EXCEPTION_IDS:-none}"
+
+if [[ -n "${ACTIVE_EXCEPTION_IDS// /|}" ]]; then
+  EC_RE="^($(echo "${ACTIVE_EXCEPTION_IDS}" | sed 's/ /|/g'))$"
+  FILTERED_JSON="$(jq --arg re "${EC_RE}" \
+    '{imageScanFindings: {findings: [.imageScanFindings.findings[]? | select((.name | test($re)) | not)]}}' \
+    <<<"${SCAN_JSON}")"
+else
+  FILTERED_JSON="${SCAN_JSON}"
+fi
+ECR_CRITICAL="$(jq -r '[.imageScanFindings.findings[]? | select(.severity == "CRITICAL")] | length' <<<"${FILTERED_JSON}")"
+ECR_HIGH="$(jq -r '[.imageScanFindings.findings[]? | select(.severity == "HIGH")] | length' <<<"${FILTERED_JSON}")"
+[[ "${ECR_CRITICAL}" -eq 0 && "${ECR_HIGH}" -eq 0 ]] || { echo "ECR scan failed after exceptions: critical=${ECR_CRITICAL} high=${ECR_HIGH}" >&2; exit 1; }
 
 # Do not use --ignore-unfixed: an unfixed critical/high remains an unresolved
 # release risk and needs an explicit, reviewed exception rather than hiding it.
@@ -179,10 +197,13 @@ if [[ "${TRIVY_BIN}" == *:* ]]; then
   TRIVY_CREDS="$(mktemp "${TMPDIR:-/tmp}/trivy-creds.XXXXXX")"
   chmod 600 "${TRIVY_CREDS}"
   resolve_trivy_credentials > "${TRIVY_CREDS}" || { rm -f "${TRIVY_CREDS}"; exit 2; }
+  TRIVY_IGNORE="$(mktemp "${TMPDIR:-/tmp}/trivy-ignore.XXXXXX")"
+  [[ -n "${ACTIVE_EXCEPTION_IDS}" ]] && printf '%s\n' ${ACTIVE_EXCEPTION_IDS} > "${TRIVY_IGNORE}"
   local_docker_rc=0
   docker run --rm --env-file "${TRIVY_CREDS}" \
     "${TRIVY_BIN}" image --platform "${PLATFORM}" --scanners vuln \
     --severity CRITICAL,HIGH --exit-code 1 --no-progress "${IMAGE}" || local_docker_rc=$?
+  rm -f "${TRIVY_IGNORE}"
   shred -u "${TRIVY_CREDS}" 2>/dev/null || rm -f "${TRIVY_CREDS}"
   exit "${local_docker_rc}"
 else
