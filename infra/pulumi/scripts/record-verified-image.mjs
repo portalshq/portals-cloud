@@ -44,15 +44,26 @@ versions.setIn([service, "source_commit"], sourceCommit);
 if (service === "lore") versions.setIn([service, "packaging_commit"], packagingCommit);
 if (service === "control-plane") versions.setIn([service, "protocol_commit"], protocolCommit);
 
-const receipts = fs.existsSync(receiptsFile)
-  ? JSON.parse(fs.readFileSync(receiptsFile, "utf8"))
-  : { schemaVersion: 1, images: {} };
-if (receipts.schemaVersion !== 1 || typeof receipts.images !== "object") {
+let receipts;
+if (fs.existsSync(receiptsFile)) {
+  receipts = JSON.parse(fs.readFileSync(receiptsFile, "utf8"));
+} else {
+  receipts = { schemaVersion: 2, receipts: {} };
+}
+if (receipts.schemaVersion === 1) {
+  // Legacy component-keyed entries describe superseded dirty-source dev
+  // digests; the first v2 promotion replaces them wholesale.
+  console.warn(`migrating legacy schema-v1 ${receiptsFile}: discarding stale entries`);
+  receipts = { schemaVersion: 2, receipts: {} };
+}
+if (receipts.schemaVersion !== 2 || typeof receipts.receipts !== "object") {
   throw new Error(`unsupported verification receipt schema in ${receiptsFile}`);
 }
 
-receipts.images[service] = {
-  image,
+// Append-only digest-keyed ledger: multiple digests per component (dev/prod,
+// successive releases) coexist; lookups are by exact pinned image URI.
+receipts.receipts[image] = {
+  service,
   platform,
   platformDigest,
   ecrScan: { critical: 0, high: 0, completedAt: ecrCompletedAt },

@@ -13,6 +13,21 @@ export AWS_REGION="${AWS_REGION:-us-east-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# Load local configuration from an untracked .env file.
+# Real environment variables take precedence over values from the file.
+ENV_FILE="${ENV_FILE:-${REPO_ROOT}/.env}"
+if [[ -f "${ENV_FILE}" ]]; then
+  echo "Loading configuration from ${ENV_FILE}"
+  while IFS='=' read -r key value; do
+    value="${value%$'\r'}"
+    [[ -z "${key}" || "${key}" == \#* ]] && continue
+    [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    if [[ -z "${!key+x}" ]]; then
+      export "${key}=${value}"
+    fi
+  done < "${ENV_FILE}"
+fi
+
 # Parse build mode argument
 BUILD_MODE="${1:-prod}"
 if [[ "${BUILD_MODE}" != "prod" && "${BUILD_MODE}" != "multiarch" ]]; then
@@ -20,12 +35,14 @@ if [[ "${BUILD_MODE}" != "prod" && "${BUILD_MODE}" != "multiarch" ]]; then
   exit 1
 fi
 
-# Default values
-ECR_REGISTRY="${ECR_REGISTRY:-907199504810.dkr.ecr.us-east-1.amazonaws.com}"
+# Infrastructure identifiers must come from the environment or .env (no inline defaults)
+: "${ECR_REGISTRY:?Set ECR_REGISTRY in your environment or ${REPO_ROOT}/.env}"
+: "${COSIGN_KEY:?Set COSIGN_KEY in your environment or ${REPO_ROOT}/.env}"
+: "${ECR_NAMESPACE:?Set ECR_NAMESPACE in your environment or ${REPO_ROOT}/.env}"
+
+# Safe generic defaults
 ENVIRONMENT="${ENVIRONMENT:-prod}"
 REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-true}"
-COSIGN_KEY="${COSIGN_KEY:-awskms:///alias/portals-artifact-signing}"
-ECR_NAMESPACE="${ECR_NAMESPACE:-portals-prod}"
 
 # Separate architecture configuration for each service
 LORE_TARGETARCH="${LORE_TARGETARCH:-arm64}"
@@ -94,8 +111,10 @@ fi
 # Check AWS credentials
 aws sts get-caller-identity >/dev/null 2>&1 || { echo "AWS credentials not configured" >&2; exit 1; }
 
-# Check KMS key access
-aws kms describe-key --key-id alias/portals-artifact-signing --region us-east-1 >/dev/null 2>&1 || { echo "Cannot access artifact-signing KMS key" >&2; exit 1; }
+# Check KMS key access (only applies to awskms:// key references)
+if [[ "${COSIGN_KEY}" == awskms:///* ]]; then
+  aws kms describe-key --key-id "${COSIGN_KEY#awskms:///}" --region "${AWS_REGION}" >/dev/null 2>&1 || { echo "Cannot access artifact-signing KMS key (${COSIGN_KEY})" >&2; exit 1; }
+fi
 
 # ECR login (guarded, idempotent; tokens expire ~12h)
 echo "=== Logging into ECR ==="

@@ -205,7 +205,7 @@ test("production Lore config requires scoped auth and disables AdminService", ()
     path.join(repositoryRoot, "infra/lore/lore/lore-server/config/prod.toml"),
     "utf8",
   );
-  assert.match(config, /jwt_audience\s*=\s*\[[^\]]*"lore"[^\]]*"portals\.sh"/);
+  assert.match(config, /jwt_audience\s*=\s*\[[^\]]*"lore"[^\]]*"portals\.works"/);
   assert.match(config, /admin_service_enabled\s*=\s*false/);
   assert.match(config, /store_health_check\s*=\s*true/);
 });

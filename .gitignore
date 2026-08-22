@@ -1,5 +1,8 @@
 # Local env — contains secrets, never commit
 .env.compose.local
+.env
+.env.*
+!.env.example
 *.local
 infra/lore/certs/*.pem
 

@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
+  assertPinsHaveReceipts,
   assertPublicReleaseApproved,
   assertNapReleaseVerified,
   assertVersionPinVerified,
@@ -202,10 +203,10 @@ test("Nap release receipt must match both Nap and Lore cryptographic evidence", 
 test("public image evidence must match signature and clean source commits", () => {
   const image = `registry.test/lore@${digest("a")}`;
   const receipt = {
-    schemaVersion: 1,
-    images: {
-      lore: {
-        image,
+    schemaVersion: 2,
+    receipts: {
+      [image]: {
+        service: "lore",
         platform: "linux/arm64",
         platformDigest: digest("b"),
         ecrScan: { critical: 0, high: 0, completedAt: "2026-08-13T00:00:00Z" },
@@ -234,11 +235,55 @@ test("public image evidence must match signature and clean source commits", () =
 
 test("contained services still require scans, but stopped services need no receipt", () => {
   const image = `registry.test/auth@${digest("c")}`;
-  withFiles(manifest(), { schemaVersion: 1, images: {} }, () => {
+  withFiles(manifest(), { schemaVersion: 2, receipts: {} }, () => {
     assert.doesNotThrow(() => assertVersionPinVerified("control-plane", image, 0, "linux/arm64"));
     assert.throws(
       () => assertVersionPinVerified("control-plane", image, 1, "linux/arm64"),
       /no matching successful/,
     );
   });
+});
+
+test("digest-keyed ledger lets multiple digests of one service coexist", () => {
+  const mkReceipt = (platformDigest: string) => ({
+    service: "lore",
+    platform: "linux/arm64",
+    platformDigest,
+    ecrScan: { critical: 0, high: 0, completedAt: "2026-08-21T00:00:00Z" },
+    trivyScan: { critical: 0, high: 0, scannerVersion: "0.73.0", completedAt: "2026-08-21T00:01:00Z" },
+    sbomVerified: true,
+    provenanceVerified: true,
+    verifiedAt: "2026-08-21T00:01:00Z",
+  });
+  const dev = `registry.test/lore@${digest("e")}`;
+  const prod = `registry.test/lore@${digest("f")}`;
+  const ledger = { schemaVersion: 2, receipts: { [dev]: mkReceipt(digest("b")), [prod]: mkReceipt(digest("9")) } };
+  withFiles(manifest(), ledger, () => {
+    assert.doesNotThrow(() => assertVersionPinVerified("lore", dev, 1, "linux/arm64"));
+    assert.doesNotThrow(() => assertVersionPinVerified("lore", prod, 1, "linux/arm64"));
+    assert.throws(
+      () => assertVersionPinVerified("lore", `registry.test/lore@${digest("1")}`, 1, "linux/arm64"),
+      /no matching successful/,
+    );
+  });
+});
+
+test("legacy-schema ledgers are rejected fail-closed for running services", () => {
+  const image = `registry.test/auth@${digest("c")}`;
+  withFiles(manifest(), { schemaVersion: 1, images: {} }, () => {
+    assert.throws(
+      () => assertVersionPinVerified("control-plane", image, 1, "linux/arm64"),
+      /schemaVersion 2/,
+    );
+  });
+});
+
+test("every versions.yaml pin resolves to a receipt once the v2 ledger exists", () => {
+  let pins;
+  try {
+    pins = readVersionPins();
+  } catch {
+    return; // versions.yaml not resolvable from this working directory
+  }
+  assertPinsHaveReceipts(pins);
 });

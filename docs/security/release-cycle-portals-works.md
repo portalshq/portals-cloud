@@ -248,6 +248,14 @@ Fill the **Actual** column during execution.
 
 ## 9. Issues & deviations log
 
+| # | Time (2026-08-21) | Issue | Resolution |
+|---|---|---|---|
+| 1 | Wave 1A | `AWS_PROFILE=portals-pulumi-deployer` absent from agent shell | Default profile resolves to the deployer identity; dropped explicit profile |
+| 2 | Wave 1A | `RequestCertificate` rejected idempotency token with hyphens (`\w+` constraint) | Retried with `portalsworks20260821` |
+| 3 | Wave 1A | First request denied — policy requires `aws:RequestTag/Project=portals` | Re-requested with tag; issued `32f56a6f` |
+| 4 | Wave 1A | `acm:DeleteCertificate` not granted to deployer role | Operator deleted both stale certs via console |
+| 5 | Waves 1C/D | Parallel subagent runs interrupted mid-flight; lore track died 3x | Operator completed gateway+nap migrations concurrently; agent work verified complete post-mortem; ledger v2 applied directly |
+| 6 | Wave 1E | v2 lookup initially failed tests — legacy `receipt?.image === image` clause survived refactor | Clause removed (key equality supersedes); security.test.ts prod.toml assertion updated to `.works` |
 Live log — append rows during execution; never delete entries.
 
 | Date/time (UTC) | Phase | Issue / deviation | Owner | Resolution / link |

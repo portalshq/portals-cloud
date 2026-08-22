@@ -125,13 +125,18 @@ export function assertVersionPinVerified(
   const file = resolveVerificationFile();
   if (!fs.existsSync(file)) throw new Error(`${service} has no image-verification receipt at ${file}`);
   const document = JSON.parse(fs.readFileSync(file, "utf8"));
-  const receipt = document?.schemaVersion === 1
-    ? document?.images?.[service] as VerificationReceipt | undefined
-    : undefined;
+  if (document?.schemaVersion !== 2) {
+    throw new Error(
+      `${file} must be verification-ledger schemaVersion 2; ` +
+        "regenerate receipts via infra/pulumi/scripts/verify-and-promote-image.sh",
+    );
+  }
+  // Digest-keyed ledger: the receipt is looked up by the exact pinned image.
+  const receipt = document?.receipts?.[image] as VerificationReceipt | undefined;
   const scanPassed = (scan: VerificationReceipt["ecrScan"]): boolean =>
     scan?.critical === 0 && scan?.high === 0 &&
     typeof scan?.completedAt === "string" && scan.completedAt.length > 0;
-  const valid = receipt?.image === image && receipt.platform === platform &&
+  const valid = receipt !== undefined && receipt.platform === platform &&
     typeof receipt.platformDigest === "string" && SHA256_PATTERN.test(receipt.platformDigest) &&
     scanPassed(receipt.ecrScan) && scanPassed(receipt.trivyScan) &&
     typeof receipt.trivyScan?.scannerVersion === "string" &&
@@ -226,6 +231,33 @@ export function assertNapReleaseVerified(nap: NapClientPin, loreClient: LoreClie
     receipt?.loreSignatureVerified === true &&
     typeof receipt?.verifiedAt === "string" && receipt.verifiedAt.length > 0;
   if (!valid) throw new Error("Nap/Lore client pins have no matching cryptographic verification receipt");
+}
+
+/**
+ * Fail closed once the v2 ledger exists: every pinned image must have a
+ * matching receipt. Legacy-schema ledgers are skipped with a warning until
+ * regenerated.
+ */
+export function assertPinsHaveReceipts(pins: VersionPins): void {
+  const file = resolveVerificationFile();
+  if (!fs.existsSync(file)) return;
+  const document = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (document?.schemaVersion !== 2) {
+    console.warn(`pin-receipt consistency skipped: ${file} is still legacy schema`);
+    return;
+  }
+  for (const [service, image] of [
+    ["lore", pins.loreImageUri],
+    ["control-plane", pins.controlPlaneImageUri],
+  ] as const) {
+    const receipt = document?.receipts?.[image];
+    if (!receipt) {
+      throw new Error(
+        `${service} pin ${image} has no matching receipt in ${file}; ` +
+          "run infra/pulumi/scripts/verify-and-promote-image.sh",
+      );
+    }
+  }
 }
 
 /** Read the single deployment/release bill of materials. */
