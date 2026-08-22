@@ -26,3 +26,4 @@ config:
   portals-platform:jwtSigningEnabled: "false"
   portals-platform:credentialRotationEpoch: 2026-08-10-lore-security-rollout-v2
   portals-platform:securityControlsEnabled: "true"
+  portals-platform:publicCertificateArn: arn:aws:acm:us-east-1:907199504810:certificate/32f56a6f-6348-4573-8df1-c930b5acedb6

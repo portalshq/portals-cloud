@@ -255,6 +255,7 @@ Fill the **Actual** column during execution.
 | 3 | Wave 1A | First request denied — policy requires `aws:RequestTag/Project=portals` | Re-requested with tag; issued `32f56a6f` |
 | 4 | Wave 1A | `acm:DeleteCertificate` not granted to deployer role | Operator deleted both stale certs via console |
 | 5 | Waves 1C/D | Parallel subagent runs interrupted mid-flight; lore track died 3x | Operator completed gateway+nap migrations concurrently; agent work verified complete post-mortem; ledger v2 applied directly |
+| 7 | Wave 1H | Console policy error "Has prohibited field Principal" — trust JSON pasted into permissions slot | Swapped: trust is assume-role policy, permissions is managed policy; posted both via IAM (provider+role 2026-08-22) |
 | 6 | Wave 1E | v2 lookup initially failed tests — legacy `receipt?.image === image` clause survived refactor | Clause removed (key equality supersedes); security.test.ts prod.toml assertion updated to `.works` |
 Live log — append rows during execution; never delete entries.
 

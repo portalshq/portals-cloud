@@ -24,3 +24,4 @@ config:
   portals-platform:authLogoutUrls: https://auth.portals.works/logout
   portals-platform:loreJwksEndpoint: https://auth.portals.works/.well-known/jwks.json
   portals-platform:loreJwtIssuer: https://auth.portals.works
+  portals-platform:publicCertificateArn: arn:aws:acm:us-east-1:907199504810:certificate/32f56a6f-6348-4573-8df1-c930b5acedb6

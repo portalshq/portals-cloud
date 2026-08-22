@@ -97,11 +97,11 @@ current/normative guidance elsewhere in the docs now uses `.works`.
 - Prior certificate `cdef7138-4653-4719-93bf-8136308ce10b` (timed out) and
   `bf777a6b-1ba8-4ad5-a4c2-2ee3e1b74554` (superseded) were **deleted by the
   operator on 2026-08-21**. Do not recreate either.
-- Replacement ACM certificate requested 2026-08-21, status `PENDING_VALIDATION`,
-  awaiting Cloudflare DNS-only records:
-  ARN `arn:aws:acm:us-east-1:907199504810:certificate/32f56a6f-6348-4573-8df1-c930b5acedb6`
+- Replacement ACM certificate requested 2026-08-21, status `ISSUED` 2026-08-22T14:52Z (Cloudflare validation CNAMES verified; both domains SUCCESS) — ARN `arn:aws:acm:us-east-1:907199504810:certificate/32f56a6f-6348-4573-8df1-c930b5acedb6`, NotAfter 2027-03-07
   - lore.portals.works: `_89ee0ba0e9f32b41e4a102a9e09a0c5c.lore.portals.works.` → `_b7ecfe0ac0de1a28acc87d43568f90e7.jkddzztszm.acm-validations.aws.`
   - auth.portals.works: `_9a3f3b7dc27fdd50f70fe0ad4e54ca41.auth.portals.works.` → `_80865a66c346d01bf2da4cae77e67070.jkddzztszm.acm-validations.aws.`
+
+**OIDC (2026-08-22)**: GitHub OIDC provider `token.actions.githubusercontent.com` created; managed policy `portals-github-oidc-release-permissions` (ECR `portals-prod/*` push + `kms:Sign` on `alias/portals-artifact-signing` only) and role `arn:aws:iam::907199504810:role/portals-github-release` (trust: `DigitalCreationsCo/portals-cloud` tag `v*`) deployed. Trust uses `https://github.com/portalshq/lore`? no — portals-cloud only.
   replace with the real ARN when issued; status `PENDING_VALIDATION`.
 - Forward-looking public hostnames are `lore.portals.works` and
   `auth.portals.works` on TLS `443` behind the production ALB.
