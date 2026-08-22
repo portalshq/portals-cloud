@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import YAML from "yaml";
+import { atomicWriteYaml, readYamlDocument } from "./version-file-utils.mjs";
 
 const [tag, sourceCommit, installerSha256, releaseBaseUrl, manifestSha256] = process.argv.slice(2);
 const tagPattern = /^v(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/;
@@ -21,7 +20,7 @@ if (!match || !/^[a-f0-9]{40}$/.test(sourceCommit ?? "") ||
 
 const scriptDir = path.dirname(new URL(import.meta.url).pathname);
 const versionsFile = path.resolve(scriptDir, "../../lore/versions.yaml");
-const versions = YAML.parseDocument(fs.readFileSync(versionsFile, "utf8"));
+const versions = readYamlDocument(versionsFile);
 if (versions.getIn(["schema_version"]) !== 2 ||
     versions.getIn(["lore-client", "source_repository"]) !== "https://github.com/portalshq/lore" ||
     versions.getIn(["lore-client", "upstream_repository"]) !== "https://github.com/EpicGames/lore" ||
@@ -38,6 +37,5 @@ versions.setIn(["lore-client", "installer_sha256"], installerSha256);
 versions.setIn(["lore-client", "artifact_manifest_url"], `${releaseBaseUrl}/SHA256SUMS`);
 versions.setIn(["lore-client", "artifact_manifest_sha256"], manifestSha256);
 versions.setIn(["lore-client", "signature_bundle_url"], `${releaseBaseUrl}/SHA256SUMS.sigstore.json`);
-fs.writeFileSync(`${versionsFile}.tmp`, versions.toString());
-fs.renameSync(`${versionsFile}.tmp`, versionsFile);
+atomicWriteYaml(versionsFile, versions);
 console.log(`Lore client ${version} promoted from ${sourceCommit}; upstream pin unchanged`);

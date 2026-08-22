@@ -15,6 +15,7 @@ REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-false}"
 EXPECTED_SOURCE_COMMIT="${EXPECTED_SOURCE_COMMIT:-}"
 EXPECTED_PACKAGING_COMMIT="${EXPECTED_PACKAGING_COMMIT:-}"
 EXPECTED_PROTOCOL_COMMIT="${EXPECTED_PROTOCOL_COMMIT:-}"
+EXPECTED_BASE_IMAGE="${EXPECTED_BASE_IMAGE:-}"
 
 [[ "${SERVICE}" =~ ^(lore|control-plane)$ ]] || { echo "unsupported service: ${SERVICE}" >&2; exit 2; }
 [[ "${IMAGE}" =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ ]] || { echo "image must be pinned by sha256" >&2; exit 2; }
@@ -22,6 +23,7 @@ EXPECTED_PROTOCOL_COMMIT="${EXPECTED_PROTOCOL_COMMIT:-}"
 [[ "${EXPECTED_SOURCE_COMMIT}" =~ ^[a-f0-9]{40}$ ]] || { echo "EXPECTED_SOURCE_COMMIT must be a full clean Git commit" >&2; exit 2; }
 if [[ "${SERVICE}" == "lore" ]]; then
   [[ "${EXPECTED_PACKAGING_COMMIT}" =~ ^[a-f0-9]{40}$ ]] || { echo "Lore requires EXPECTED_PACKAGING_COMMIT" >&2; exit 2; }
+  [[ -z "${EXPECTED_BASE_IMAGE}" || "${EXPECTED_BASE_IMAGE}" =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ ]] || { echo "EXPECTED_BASE_IMAGE must be sha256-pinned" >&2; exit 2; }
 else
   [[ "${EXPECTED_PROTOCOL_COMMIT}" =~ ^[a-f0-9]{40}$ ]] || { echo "control-plane requires EXPECTED_PROTOCOL_COMMIT" >&2; exit 2; }
 fi
@@ -266,4 +268,4 @@ else
 fi
 node "${SCRIPT_DIR}/record-verified-image.mjs" "${SERVICE}" "${IMAGE}" "${PLATFORM}" \
   "${PLATFORM_DIGEST}" "${ECR_COMPLETED_AT}" "${TRIVY_VERSION}" "${SIGNATURE_VERIFIED}" \
-  "${EXPECTED_SOURCE_COMMIT}" true "${EXPECTED_PACKAGING_COMMIT}" "${EXPECTED_PROTOCOL_COMMIT}"
+  "${EXPECTED_SOURCE_COMMIT}" true "${EXPECTED_PACKAGING_COMMIT}" "${EXPECTED_PROTOCOL_COMMIT}" "${EXPECTED_BASE_IMAGE}"

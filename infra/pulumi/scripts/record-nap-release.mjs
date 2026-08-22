@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import YAML from "yaml";
+import { atomicWriteJson, atomicWriteYaml, readJsonObject, readYamlDocument } from "./version-file-utils.mjs";
 
 const [metadataFile, releaseBaseUrl, verifiedLoreSourceCommit] = process.argv.slice(2);
 if (!metadataFile || !/^https:\/\//.test(releaseBaseUrl ?? "") ||
@@ -15,7 +15,7 @@ if (!metadataFile || !/^https:\/\//.test(releaseBaseUrl ?? "") ||
   process.exit(2);
 }
 
-const metadata = JSON.parse(fs.readFileSync(metadataFile, "utf8"));
+const metadata = readJsonObject(metadataFile);
 const commitPattern = /^[a-f0-9]{40}$/;
 const digestPattern = /^sha256:[a-f0-9]{64}$/;
 const semverPattern = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
@@ -36,7 +36,7 @@ if (metadata.schema_version !== 1 || !semverPattern.test(metadata.version ?? "")
 const scriptDir = path.dirname(new URL(import.meta.url).pathname);
 const versionsFile = path.resolve(scriptDir, "../../lore/versions.yaml");
 const receiptsFile = path.resolve(scriptDir, "../../lore/verified-releases.json");
-const versions = YAML.parseDocument(fs.readFileSync(versionsFile, "utf8"));
+const versions = readYamlDocument(versionsFile);
 if (versions.getIn(["schema_version"]) !== 2) {
   throw new Error("versions.yaml schema_version must be 2");
 }
@@ -62,12 +62,11 @@ versions.setIn(["nap-client", "artifact_manifest_url"], `${releaseBaseUrl}/SHA25
 versions.setIn(["nap-client", "artifact_manifest_sha256"], metadata.artifact_manifest_sha256);
 versions.setIn(["nap-client", "signature_bundle_url"], `${releaseBaseUrl}/SHA256SUMS.sigstore.json`);
 versions.setIn(["nap-client", "lore_client_version"], metadata.lore_client_version);
-fs.writeFileSync(`${versionsFile}.tmp`, versions.toString());
-fs.renameSync(`${versionsFile}.tmp`, versionsFile);
 const receipts = fs.existsSync(receiptsFile)
-  ? JSON.parse(fs.readFileSync(receiptsFile, "utf8"))
+  ? readJsonObject(receiptsFile)
   : { schemaVersion: 1, releases: {} };
-if (receipts.schemaVersion !== 1 || typeof receipts.releases !== "object") {
+if (receipts.schemaVersion !== 1 || receipts.releases === null ||
+    Array.isArray(receipts.releases) || typeof receipts.releases !== "object") {
   throw new Error(`unsupported release receipt schema in ${receiptsFile}`);
 }
 receipts.releases["nap-client"] = {
@@ -84,6 +83,7 @@ receipts.releases["nap-client"] = {
   loreSignatureVerified: true,
   verifiedAt: new Date().toISOString(),
 };
-fs.writeFileSync(`${receiptsFile}.tmp`, `${JSON.stringify(receipts, null, 2)}\n`);
-fs.renameSync(`${receiptsFile}.tmp`, receiptsFile);
+// Keep the BOM from ever pointing at a release whose receipt was not written.
+atomicWriteJson(receiptsFile, receipts);
+atomicWriteYaml(versionsFile, versions);
 console.log(`Nap ${metadata.version} promoted from ${metadata.source_commit}`);

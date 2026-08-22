@@ -5,7 +5,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-VERSIONS_FILE="${REPO_ROOT}/infra/lore/versions.yaml"
 PROMOTE_SCRIPT="${REPO_ROOT}/infra/pulumi/scripts/verify-and-promote-image.sh"
 
 # Tag components must stay safe for every registry and consumer that echoes
@@ -175,14 +174,8 @@ fi
 # the derived runtime has passed both ECR and Trivy scans plus attestation
 # decoding. The promotion helper updates the runtime pin last.
 EXPECTED_SOURCE_COMMIT="${SOURCE_COMMIT}" EXPECTED_PACKAGING_COMMIT="${PACKAGING_COMMIT}" \
+  EXPECTED_BASE_IMAGE="${BASE_PIN}" \
   REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE}" COSIGN_KEY="${COSIGN_KEY:-}" \
   "${PROMOTE_SCRIPT}" lore "${SERVER_PIN}" "linux/${TARGETARCH}"
-awk -v base="${BASE_PIN}" '
-  /^lore:/ { in_lore = 1 }
-  in_lore && /^  base_image:/ { sub(/^  base_image:.*/, "  base_image: \"" base "\"") }
-  in_lore && /^  image:/ { in_lore = 0 }
-  { print }
-' "${VERSIONS_FILE}" > "${VERSIONS_FILE}.tmp"
-mv "${VERSIONS_FILE}.tmp" "${VERSIONS_FILE}"
 
 printf 'Lore image pinned: %s (build ID: %s)\n' "${SERVER_PIN}" "${BUILD_ID}"

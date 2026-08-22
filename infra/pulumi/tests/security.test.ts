@@ -109,6 +109,26 @@ test("image promotion is scan-gated and public release also requires a signature
     path.join(repositoryRoot, "infra/pulumi/scripts/verify-and-promote-image.sh"),
     "utf8",
   );
+  const recorder = fs.readFileSync(
+    path.join(repositoryRoot, "infra/pulumi/scripts/record-verified-image.mjs"),
+    "utf8",
+  );
+  const releaseRecorder = fs.readFileSync(
+    path.join(repositoryRoot, "infra/pulumi/scripts/record-nap-release.mjs"),
+    "utf8",
+  );
+  const versionPinWriter = fs.readFileSync(
+    path.join(repositoryRoot, "infra/pulumi/scripts/update-version-pin.mjs"),
+    "utf8",
+  );
+  const lorePublisher = fs.readFileSync(
+    path.join(repositoryRoot, "infra/lore/scripts/docker-buildx-lore.sh"),
+    "utf8",
+  );
+  const driftRepair = fs.readFileSync(
+    path.join(repositoryRoot, "control-plane/scripts/verify-and-update-versions.sh"),
+    "utf8",
+  );
   assert.match(program, /assertVersionPinVerified\(\s*"control-plane"/);
   assert.match(program, /assertPublicReleaseApproved\(versionPins\.release\)/);
   assert.match(
@@ -123,6 +143,18 @@ test("image promotion is scan-gated and public release also requires a signature
   assert.match(publisher, /Trivy produced empty JSON output/);
   assert.match(publisher, /Trivy produced invalid JSON output; refusing to promote/);
   assert.match(publisher, /\.Results \| type == "array"/);
+  assert.match(recorder, /readYamlDocument\(versionsFile\)/);
+  assert.match(recorder, /readJsonObject\(receiptsFile\)/);
+  assert.match(recorder, /atomicWriteJson\(receiptsFile, receipts\)[\s\S]*atomicWriteYaml\(versionsFile, versions\)/);
+  assert.match(releaseRecorder, /readYamlDocument\(versionsFile\)/);
+  assert.match(releaseRecorder, /atomicWriteJson\(receiptsFile, receipts\)[\s\S]*atomicWriteYaml\(versionsFile, versions\)/);
+  assert.match(versionPinWriter, /readYamlDocument\(versionsFile\)/);
+  assert.match(versionPinWriter, /atomicWriteYaml\(versionsFile, versions\)/);
+  assert.match(lorePublisher, /EXPECTED_BASE_IMAGE="\$\{BASE_PIN\}"/);
+  assert.match(driftRepair, /update-version-pin\.mjs" get control-plane image/);
+  assert.match(driftRepair, /update-version-pin\.mjs" set control-plane image/);
+  assert.doesNotMatch(lorePublisher, /awk -v base/);
+  assert.doesNotMatch(driftRepair, /awk -v image/);
   assert.doesNotMatch(publisher, /trivy[^\n]*--ignore-unfixed/i);
   assert.match(publisher, /\.SBOM/);
   assert.match(publisher, /\.Provenance/);

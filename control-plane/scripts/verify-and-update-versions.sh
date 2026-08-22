@@ -18,16 +18,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VERSIONS_FILE="$ROOT/infra/lore/versions.yaml"
+UPDATE_PIN_SCRIPT="$ROOT/infra/pulumi/scripts/update-version-pin.mjs"
 
 PROJECT_NAME="${PROJECT_NAME:-portals}"
 ENVIRONMENT="${1:-dev}"
 WRITE="${2:-}"
 
 # ── Read the pinned image from versions.yaml ────────────────────────────────
-PINNED="$(awk '
-    /^control-plane:/ { in_cp = 1 }
-    in_cp && /^  image:/ { sub(/^  image: *"?/, ""); sub(/"?$/, ""); print; exit }
-' "$VERSIONS_FILE")"
+PINNED="$(node "$UPDATE_PIN_SCRIPT" get control-plane image)"
 
 if [[ -z "$PINNED" ]]; then
     echo "ERROR: control-plane.image is not set in ${VERSIONS_FILE}" >&2
@@ -69,11 +67,7 @@ echo "    deployed: ${DEPLOYED}" >&2
 if [[ "$WRITE" == "--write" ]]; then
     echo ""
     echo "==> Updating ${VERSIONS_FILE} to the deployed image"
-    awk -v image="$DEPLOYED" '
-        $0 ~ /^control-plane:/ { in_cp = 1 }
-        in_cp && /^  image:/ { sub(/^  image:.*/, "  image: \"" image "\""); in_cp = 0 }
-        { print }
-    ' "$VERSIONS_FILE" > "$VERSIONS_FILE.tmp" && mv "$VERSIONS_FILE.tmp" "$VERSIONS_FILE"
+    node "$UPDATE_PIN_SCRIPT" set control-plane image "$DEPLOYED"
     echo "OK: versions.yaml now matches what is deployed"
     exit 0
 fi

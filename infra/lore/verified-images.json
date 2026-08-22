@@ -1,4 +1,28 @@
 {
   "schemaVersion": 2,
-  "receipts": {}
+  "receipts": {
+    "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:11c12e88365ee46e2093bd625ce26a7acf895a8af7bffdc21b5f6a934fe5741a": {
+      "service": "lore",
+      "platform": "linux/arm64",
+      "platformDigest": "sha256:2544843cb2c115b34f11d4cd8ff27c4c03f036dd153d257589e164dac747fbc8",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-22T19:09:46-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.74.0",
+        "completedAt": "2026-08-22T23:10:30.559Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": true,
+      "sourceCommit": "d0ff3c502f882209194c9138eadbab1e0e23e354",
+      "packagingCommit": "f90c3e8aa5f9056f3acb2507aecf41bc35a9b766",
+      "sourceTreeClean": true,
+      "verifiedAt": "2026-08-22T23:10:30.559Z"
+    }
+  }
 }
