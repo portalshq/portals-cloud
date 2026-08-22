@@ -16,7 +16,7 @@
 
 # The publisher must pass an ECR repository@sha256 value.
 ARG BASE_IMAGE
-FROM ${BASE_IMAGE}
+FROM --platform=$TARGETPLATFORM ${BASE_IMAGE}
 
 # ---------------------------------------------------------------------------
 # Runtime Directory Layout

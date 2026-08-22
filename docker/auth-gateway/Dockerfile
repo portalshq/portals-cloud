@@ -1,4 +1,11 @@
-FROM rust:1.97-slim-bookworm@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3 AS builder
+# Builder runs natively on the build machine ($BUILDPLATFORM); the arm64 ELF
+# is produced by the cross toolchain below, never by emulation.
+FROM --platform=$BUILDPLATFORM rust:1.97-slim-bookworm@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3 AS builder
+
+# Fail fast if a non-arm64 target is ever requested: only linux/arm64 images
+# are produced today (Fargate ARM64); the cross toolchain is arm64-only.
+ARG TARGETPLATFORM
+RUN [ "$TARGETPLATFORM" = "linux/arm64" ] || { echo "unsupported TARGETPLATFORM: $TARGETPLATFORM (only linux/arm64)" >&2; exit 1; }
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config libssl-dev protobuf-compiler \
     gcc-aarch64-linux-gnu libc6-dev-arm64-cross binutils-aarch64-linux-gnu \
@@ -13,7 +20,7 @@ RUN cd /app/control-plane && \
     RUSTFLAGS="-Cdebuginfo=0 -Clinker=aarch64-linux-gnu-gcc" \
     cargo build --release --target aarch64-unknown-linux-gnu --bin lore-auth-gateway
 
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775 AS runtime
+FROM --platform=$TARGETPLATFORM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775 AS runtime
 COPY --from=builder /app/control-plane/target/aarch64-unknown-linux-gnu/release/lore-auth-gateway /usr/local/bin/lore-auth-gateway
 # Region-scoped AWS RDS trust roots. The checksum makes CA-bundle changes an
 # explicit reviewed image update instead of an unpinned network dependency.

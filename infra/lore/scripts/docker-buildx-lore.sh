@@ -101,8 +101,9 @@ for arch in "${ARCHS[@]}"; do
       -t "${BASE_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
       "${SOURCE_ROOT}"
   else
-    # Single-arch: cross-compile natively (Dockerfile handles target)
-    docker buildx build \
+    # Single-arch: cross-compile natively (builder runs $BUILDPLATFORM; the
+    # flag stamps the manifest and selects the runtime stage's target arch)
+    docker buildx build --platform "linux/${arch}" \
       -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver.base" \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
@@ -139,8 +140,8 @@ for arch in "${ARCHS[@]}"; do
       -t "${SERVER_REPOSITORY}:${ARCH_TAG}" --provenance=true --sbom=true --push \
       "${REPO_ROOT}"
   else
-    # Single-arch: cross-compile natively
-    docker buildx build \
+    # Single-arch: cross-compile natively (stamped to linux/${arch})
+    docker buildx build --platform "linux/${arch}" \
       --build-arg "BASE_IMAGE=${BASE_PIN}" \
       -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver" \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \

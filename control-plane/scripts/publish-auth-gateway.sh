@@ -111,8 +111,8 @@ for arch in "${ARCHS[@]}"; do
       --label "io.portals.build-id=${BUILD_ID}" \
       -t "${REPOSITORY}:${ARCH_TAG}" -f "${ROOT}/docker/auth-gateway/Dockerfile" "${ROOT}"
   else
-    # Single-arch: cross-compile natively (Dockerfile handles target)
-    docker buildx build --provenance=true --sbom=true --push \
+    # Single-arch: cross-compile natively (stamped to linux/${arch})
+    docker buildx build --platform "linux/${arch}" --provenance=true --sbom=true --push \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.protocol-revision=${PROTOCOL_COMMIT}" \
       --label "io.portals.build-id=${BUILD_ID}" \

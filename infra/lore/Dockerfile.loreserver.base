@@ -20,7 +20,9 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Builder — compile the custom loreserver binary
 # ---------------------------------------------------------------------------
-FROM rust:slim-trixie@sha256:3b2879047d42784ca9403ad20c51ed3df361a50f1df96f5777d39b4e33aa65cd AS builder
+# Builder runs natively on the build machine ($BUILDPLATFORM); the arm64 ELF
+# is produced by the cross toolchain below, never by emulation.
+FROM --platform=$BUILDPLATFORM rust:slim-trixie@sha256:3b2879047d42784ca9403ad20c51ed3df361a50f1df96f5777d39b4e33aa65cd AS builder
 
 # Prevent apt from prompting for configuration
 ARG DEBIAN_FRONTEND=noninteractive
@@ -55,6 +57,9 @@ RUN rm -f lore-server/src/plugins/hashicorp.rs \
 # On ARM64 (Apple Silicon build machines), strip the Graviton-specific
 # target-cpu flag that breaks on non-Graviton CPUs
 ARG TARGETPLATFORM
+# Fail fast if a non-arm64 target is ever requested: only linux/arm64 images
+# are produced today (Fargate ARM64); the cross toolchain is arm64-only.
+RUN [ "$TARGETPLATFORM" = "linux/arm64" ] || { echo "unsupported TARGETPLATFORM: $TARGETPLATFORM (only linux/arm64)" >&2; exit 1; }
 RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         sed -i '/target-cpu=neoverse-512tvb/d' .cargo/config.toml; \
     fi
@@ -80,7 +85,7 @@ RUN aarch64-linux-gnu-strip /loreserver-bin
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime base — shell-free, nonroot distroless image
 # ---------------------------------------------------------------------------
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775
+FROM --platform=$TARGETPLATFORM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775
 
 # Copy the compiled binary
 COPY --chown=65532:65532 --from=builder /loreserver-bin /usr/local/bin/loreserver
