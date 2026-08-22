@@ -19,11 +19,9 @@ nap-client:
   source_commit: "8501e7db577d2cc0860a9dc5bc085ef1634ba0a8"
   release_tag: "v0.5.12"
   security_contract: "lore-auth-v1"
-  artifact_manifest_url: "https://github.com/portalshq/narrativeengine/releases/d\
-    ownload/v0.5.12/SHA256SUMS"
+  artifact_manifest_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.5.12/SHA256SUMS"
   artifact_manifest_sha256: "sha256:2ce79d5b68e0d38b2ed22156936db17db41631d7c9be0dffecdcd17e90f20ca3"
-  signature_bundle_url: "https://github.com/portalshq/narrativeengine/releases/do\
-    wnload/v0.5.12/SHA256SUMS.sigstore.json"
+  signature_bundle_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.5.12/SHA256SUMS.sigstore.json"
   # Nap must install this exact top-level Lore client release. Its artifacts
   # and source provenance are recorded once under lore-client below.
   lore_client_version: "0.8.4-portals.5"
@@ -42,34 +40,30 @@ lore-client:
   release_tag: "v0.8.4-portals.5"
   security_contract: "lore-auth-v1"
   installer_sha256: "8e7cc96d1b9100610af6c1bd15ec2febbcb48d26cc7f19de3862496897810b74"
-  artifact_manifest_url: "https://github.com/portalshq/lore/releases/download/v0.\
-    8.4-portals.5/SHA256SUMS"
+  artifact_manifest_url: "https://github.com/portalshq/lore/releases/download/v0.8.4-portals.5/SHA256SUMS"
   artifact_manifest_sha256: "sha256:6285c50ff490870a8417db442f75ab73d53578f52eacacd31011cd350b957457"
-  signature_bundle_url: "https://github.com/portalshq/lore/releases/download/v0.8\
-    .4-portals.5/SHA256SUMS.sigstore.json"
+  signature_bundle_url: "https://github.com/portalshq/lore/releases/download/v0.8.4-portals.5/SHA256SUMS.sigstore.json"
 
 lore:
   # source_commit and packaging_commit updated 2026-08-21 with production build
   source_repository: "https://github.com/portalshq/lore"
   source_commit: "d0ff3c502f882209194c9138eadbab1e0e23e354"
-  packaging_commit: "f90c3e8aa5f9056f3acb2507aecf41bc35a9b766"
+  packaging_commit: "7d2e5c407b94f279467faeec4ae261328e662764"
   upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
   upstream_tag: ""
   security_contract: "lore-auth-v1"
-  base_image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:becd92f35c5e829b26232df79c923363165a76f36b23c255e135de63774376a9"
-  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:1\
-    1c12e88365ee46e2093bd625ce26a7acf895a8af7bffdc21b5f6a934fe5741a"
+  base_image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:019407ef5b7906ca70012059e865f17723c9d6984d146cb0c891f9c9dc0c96eb"
+  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:bb0604892e76fc7eac73b771162472c0b1b42a70ee3e8994770bcdec5abbb896"
 
 # The active control-plane runtime is the private Auth Gateway. The old
 # caller-selected-claims issuer is separately and permanently retired below.
 control-plane:
   implementation: "auth-gateway"
   source_repository: "https://github.com/DigitalCreationsCo/portals-cloud.git"
-  source_commit: "4885f927645dffbd813a1f04b86d0c8fb6ea0cbf"
-  protocol_commit: "1c0de969560779d55966152715a909eea45241e8"
+  source_commit: "7d2e5c407b94f279467faeec4ae261328e662764"
+  protocol_commit: "d0ff3c502f882209194c9138eadbab1e0e23e354"
   security_contract: "lore-auth-v1"
-  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/auth-gateway@\
-    sha256:1f23c9a95b1661d5bcf73b067cec0e0fc6df8258dc04b2a55ca6ace97804b9a1"
+  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/auth-gateway@sha256:5d8e87ce3a2e0426aae6de23110a306396ce99b2241e285c95ccd2f7e7e6397a"
 
 legacy-control-plane:
   status: "retired"
