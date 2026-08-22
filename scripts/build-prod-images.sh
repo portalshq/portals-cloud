@@ -48,10 +48,9 @@ REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-true}"
 LORE_TARGETARCH="${LORE_TARGETARCH:-arm64}"
 AUTH_TARGETARCH="${AUTH_TARGETARCH:-arm64}"
 
-# Generate consistent build ID for coordinated multi-service builds
-# This ensures Lore and Auth Gateway builds from the same invocation share a build identifier
-# Uses nanosecond precision to ensure uniqueness even for rapid successive builds
-BUILD_ID="${BUILD_ID:-$(date +%Y%m%d-%H%M%S-%N)-$(git -C "${REPO_ROOT}" rev-parse --short HEAD)}"
+# Note: BUILD_ID is generated inside individual build scripts, not here.
+# This ensures each build attempt (including retries) gets a unique identifier,
+# preventing ECR tag conflicts when the retry logic is triggered.
 
 # For backward compatibility, if TARGETARCH is set, use it for both
 if [[ -n "${TARGETARCH:-}" ]]; then
@@ -82,7 +81,6 @@ export AUTH_PLATFORMS
 export LORE_TARGETARCH
 export AUTH_TARGETARCH
 export TARGETARCH  # For backward compatibility
-export BUILD_ID    # For consistent build identification across services
 
 echo "=== Production Image Build Configuration ==="
 echo "ECR Registry: ${ECR_REGISTRY}"
@@ -91,7 +89,6 @@ echo "ECR Namespace: ${ECR_NAMESPACE}"
 echo "Platforms: ${PLATFORMS}"
 echo "Lore Target Architecture: ${LORE_TARGETARCH}"
 echo "Auth Gateway Target Architecture: ${AUTH_TARGETARCH}"
-echo "Build ID: ${BUILD_ID}"
 echo "Require Signature: ${REQUIRE_SIGNATURE}"
 echo "Cosign Key: ${COSIGN_KEY}"
 echo ""

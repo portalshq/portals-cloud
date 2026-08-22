@@ -8,8 +8,36 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 VERSIONS_FILE="${REPO_ROOT}/infra/lore/versions.yaml"
 PROMOTE_SCRIPT="${REPO_ROOT}/infra/pulumi/scripts/verify-and-promote-image.sh"
 
+# Tag components must stay safe for every registry and consumer that echoes
+# them back; fail before any build work instead of late at docker push.
+require_tag_component() {
+  local name="$1" value="$2"
+  if [[ ! "${value}" =~ ^[A-Za-z0-9._-]{1,64}$ ]]; then
+    echo "ERROR: ${name} '${value}' must match ^[A-Za-z0-9._-]{1,64}\$" >&2
+    exit 2
+  fi
+}
+
+# ECR reads can lag a just-created manifest briefly; retry rather than kill a
+# fully-built push at the final step.
+resolve_digest() {
+  local ref="$1" attempt out=""
+  for attempt in 1 2 3; do
+    out="$(docker buildx imagetools inspect "${ref}" 2>/dev/null | awk '/^Digest:/ {print $2; exit}' || true)"
+    if [[ "${out}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+      printf '%s\n' "${out}"
+      return 0
+    fi
+    echo "Digest resolve attempt ${attempt}/3 failed for ${ref}; sleeping 5s..." >&2
+    sleep 5
+  done
+  echo "ERROR: unable to resolve digest for ${ref}" >&2
+  return 1
+}
+
 : "${ECR_REGISTRY:?Set ECR_REGISTRY (for example 123456789012.dkr.ecr.us-east-1.amazonaws.com)}"
 VERSION="${1:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD)}"
+require_tag_component VERSION "${VERSION}"
 ECR_NAMESPACE="${ECR_NAMESPACE:-portals-${ENVIRONMENT:-dev}}"
 REPOSITORY="${LORE_ECR_REPOSITORY:-${ECR_REGISTRY}/${ECR_NAMESPACE}/lore}"
 BASE_REPOSITORY="${REPOSITORY}"
@@ -18,10 +46,13 @@ PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-false}"
 TARGETARCH="${LORE_TARGETARCH:-${TARGETARCH:-arm64}}"
 
-# Generate unique build identifier for reproducible builds
-# BUILD_ID can be set externally for automation, or generated automatically
-# Uses nanosecond precision to ensure uniqueness even for rapid successive builds
-BUILD_ID="${BUILD_ID:-$(date +%Y%m%d-%H%M%S-%N)-$(git -C "${REPO_ROOT}" rev-parse --short HEAD)}"
+# Build identifier: UTC timestamp + 32-bit urandom suffix. Honors an external
+# BUILD_ID for automation — external IDs are caller-guaranteed unique; fresh
+# generated IDs are what keep rapid successive builds conflict-free against
+# ECR immutability. Commit hashes deliberately live in OCI labels/provenance,
+# not in the tag (tag-tail hashes refer to the packaging repo only).
+BUILD_ID="${BUILD_ID:-$(date -u +%Y%m%d-%H%M%S)-$(od -An -tx4 -N4 /dev/urandom | tr -d ' ')}"
+require_tag_component BUILD_ID "${BUILD_ID}"
 BASE_TAG="${VERSION}-build-${BUILD_ID}-base"
 SERVER_TAG="${VERSION}-build-${BUILD_ID}"
 SOURCE_ROOT="${REPO_ROOT}/infra/lore/lore"
@@ -91,8 +122,7 @@ else
   docker buildx imagetools create -t "${BASE_REPOSITORY}:${BASE_TAG}" "${BASE_REPOSITORY}:${BASE_TAG}-${ARCHS[0]}"
 fi
 
-BASE_DIGEST="$(docker buildx imagetools inspect "${BASE_REPOSITORY}:${BASE_TAG}" | awk '/^Digest:/ {print $2; exit}')"
-[[ "${BASE_DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Could not resolve base digest" >&2; exit 1; }
+BASE_DIGEST="$(resolve_digest "${BASE_REPOSITORY}:${BASE_TAG}")"
 BASE_PIN="${BASE_REPOSITORY}@${BASE_DIGEST}"
 
 # Build server image for each architecture
@@ -131,8 +161,7 @@ else
   docker buildx imagetools create -t "${SERVER_REPOSITORY}:${SERVER_TAG}" "${SERVER_REPOSITORY}:${SERVER_TAG}-${ARCHS[0]}"
 fi
 
-SERVER_DIGEST="$(docker buildx imagetools inspect "${SERVER_REPOSITORY}:${SERVER_TAG}" | awk '/^Digest:/ {print $2; exit}')"
-[[ "${SERVER_DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Could not resolve server digest" >&2; exit 1; }
+SERVER_DIGEST="$(resolve_digest "${SERVER_REPOSITORY}:${SERVER_TAG}")"
 SERVER_PIN="${SERVER_REPOSITORY}@${SERVER_DIGEST}"
 
 if [[ "${REQUIRE_SIGNATURE}" == "true" ]]; then

@@ -167,10 +167,9 @@ This ensures:
    infra/lore/scripts/docker-buildx-lore.sh vX.Y.Z
    ```
 
-   Optional: Set `BUILD_ID` externally for coordinated multi-service builds:
-   ```bash
-   export BUILD_ID=$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)
-   ```
+   Note: BUILD_ID is automatically generated per build attempt to prevent ECR tag
+   conflicts during retry logic. Each build attempt (including retries) gets a
+   unique identifier.
 
 4. Build and promote the Auth Gateway, which is the active control-plane
    runtime:
