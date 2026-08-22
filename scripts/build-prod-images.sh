@@ -97,19 +97,15 @@ echo ""
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
 command -v cosign >/dev/null || { echo "cosign is required (install: https://docs.sigstore.dev/cosign/installation/)" >&2; exit 1; }
 
-# Use trivy via Docker if not available locally
+# Trivy runs containerized inside verify-and-promote-image.sh (default), so
+# nothing is exported here. The promote script resolves AWS credentials on
+# this host and refuses plaintext tcp:// docker endpoints. Do NOT set
+# TRIVY_BIN to a docker command string — the promote script treats values as
+# either a native binary name/path or a single image reference.
 if command -v trivy >/dev/null 2>&1; then
-  export TRIVY_BIN="trivy"
+  echo "native trivy detected (will be used)"
 else
-  echo "trivy not found locally, using Docker container for vulnerability scanning"
-  # Mount AWS credentials and region for ECR access
-  export TRIVY_BIN="docker run --rm \
-    -v ~/.aws:/root/.aws:ro \
-    -e AWS_ACCESS_KEY_ID \
-    -e AWS_SECRET_ACCESS_KEY \
-    -e AWS_SESSION_TOKEN \
-    -e AWS_REGION \
-    aquasec/trivy:latest"
+  echo "trivy will run via Docker container inside the promotion script"
 fi
 
 # Check AWS credentials

@@ -136,8 +136,12 @@ if ! jq -e . >/dev/null 2>&1 <<<"${SCAN_JSON}"; then
   SCAN_JSON='{}'
 fi
 if [[ "$(jq -r '.imageScanStatus.status // empty' <<<"${SCAN_JSON}")" != "COMPLETE" ]]; then
+  # scanOnPush repositories auto-start a scan on push; an explicit re-start
+  # hits the per-image quota (LimitExceededException). Either way a scan is
+  # running or complete — fall through to the findings poll.
   aws ecr start-image-scan --region "${AWS_REGION}" --repository-name "${REPOSITORY}" \
-    --image-id "imageDigest=${PLATFORM_DIGEST}" >/dev/null
+    --image-id "imageDigest=${PLATFORM_DIGEST}" >/dev/null 2>&1 || \
+    echo "start-image-scan skipped (already started via scanOnPush or quota); polling findings"
   for _ in {1..60}; do
     SCAN_JSON="$(aws ecr describe-image-scan-findings \
       --region "${AWS_REGION}" --repository-name "${REPOSITORY}" \
