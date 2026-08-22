@@ -30,6 +30,16 @@ command -v docker >/dev/null || { echo "docker with buildx is required" >&2; exi
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
 
 # Handle trivy check. Default is the containerized scanner — no host install.
+# A binary name or image reference never contains whitespace; reject poisoned
+# values (e.g. an exported 'docker run …' command string) loudly instead of
+# misrouting them.
+case "${TRIVY_BIN:-}" in
+  *[[:space:]]*)
+    echo "TRIVY_BIN contains whitespace and cannot be executed safely:" >&2
+    echo "  '${TRIVY_BIN}'" >&2
+    echo "Unset it (the containerized scanner is the default) or set it to a single binary path / image reference." >&2
+    exit 2 ;;
+esac
 TRIVY_IMAGE="${TRIVY_IMAGE:-aquasec/trivy:latest}"
 if [[ -z "${TRIVY_BIN}" ]]; then
   if command -v trivy >/dev/null 2>&1; then
