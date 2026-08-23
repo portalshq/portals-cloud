@@ -199,10 +199,15 @@ current/normative guidance elsewhere in the docs now uses `.works`.
    routes. Then publish and verify the live JWKS, deploy Lore privately, and
    confirm all store-aware health gates.
 5. [x] New Nap release available (2026-08-20) — promote its signed checksums and the exact secured `portalshq/lore` client pin into `versions.yaml` (workflow now refuses without them), then run authenticated staging E2E: login, create, clone, commit, push, pull, sync, publish, lock acquire/release, logout/expiry denial, and CI API-key exchange (must exercise real S3/Dynamo and lock service).
-6. Upgrade RDS retention to 35 days, run and record an isolated restore
-   rehearsal, wire alarm notifications/on-call contacts, migrate deployment
-   from the long-lived IAM user to short-lived SSO/OIDC, and rotate that legacy
-   credential afterward.
+6. ~~Upgrade RDS retention to 35 days~~ (declined 2026-08-22: keep 1-day
+   automated + 7-day manual snapshot bridge), run and record an isolated
+   restore rehearsal — quarterly **data-recovery** drill: restore newest RDS
+   snapshot into an isolated instance, verify content hashes + a lock
+   round-trip, destroy (distinct from service rollback, which reverses image
+   digest/config and never touches snapshots) — [x] alarm notifications wired +
+   subscription confirmed eng@portals.works 2026-08-22; migrate deployment from
+   the long-lived IAM user to short-lived SSO/OIDC (OIDC role live; IAM-user
+   retirement deferred behind first OIDC CI release — runbook row 25).
 7. Narrow general HTTPS egress with VPC endpoints or an egress allowlist, or
    record explicit time-bounded risk acceptance. The accepted plaintext
    ALB-to-Lore and ALB-to-Auth-Gateway target-hop risk does not cover broad
