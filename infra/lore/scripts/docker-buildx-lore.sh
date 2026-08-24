@@ -82,6 +82,8 @@ if [[ "${PLATFORMS}" == *","* ]]; then
   # Multi-arch mode: build each arch separately, then create manifest list
   BUILD_STRATEGY="multiarch"
   IFS=',' read -ra ARCHS <<< "${PLATFORMS}"
+  # Tag-safe arch names: strip the linux/ prefix (a slash is invalid in tags).
+  ARCHS=("${ARCHS[@]//linux\//}")
 else
   # Single-arch mode: cross-compile natively on host (no --platform)
   BUILD_STRATEGY="single"
