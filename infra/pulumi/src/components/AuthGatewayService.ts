@@ -115,10 +115,17 @@ export class AuthGatewayService extends pulumi.ComponentResource {
     this.service = new aws.ecs.Service(`${prefix}-auth-gateway-service`, {
       cluster: args.clusterArn, taskDefinition: task.arn, desiredCount: args.desiredCount, launchType: "FARGATE",
       networkConfiguration: { subnets: args.privateSubnetIds, securityGroups: [this.securityGroup.id, args.sharedTaskSecurityGroupId], assignPublicIp: false },
-      loadBalancers: args.attachToAlb ? [
-        { targetGroupArn: args.grpcTargetGroupArn, containerName: "auth-gateway", containerPort: 8084 },
-        { targetGroupArn: args.httpTargetGroupArn, containerName: "auth-gateway", containerPort: 8085 },
-      ] : [],
+      // JWKS-bootstrap mode registers only the HTTP target group: the gRPC
+      // target group has no listener rule until public ingress opens, and ECS
+      // rejects services referencing unassociated target groups.
+      loadBalancers: !args.attachToAlb ? [] : (
+        args.publicIngressEnabled ? [
+          { targetGroupArn: args.grpcTargetGroupArn, containerName: "auth-gateway", containerPort: 8084 },
+          { targetGroupArn: args.httpTargetGroupArn, containerName: "auth-gateway", containerPort: 8085 },
+        ] : [
+          { targetGroupArn: args.httpTargetGroupArn, containerName: "auth-gateway", containerPort: 8085 },
+        ]
+      ),
       healthCheckGracePeriodSeconds: args.attachToAlb ? 60 : undefined,
       serviceConnectConfiguration: {
         enabled: true,

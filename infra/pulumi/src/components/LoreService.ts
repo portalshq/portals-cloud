@@ -196,6 +196,10 @@ export class LoreService extends pulumi.ComponentResource {
           { name: "LORE_SECURITY_MODE", value: "strict" },
           { name: "LORE__SERVER__AUTH__JWK__ENDPOINT", value: args.jwksEndpoint },
           { name: "LORE__SERVER__AUTH__JWT_ISSUER", value: args.jwtIssuer },
+          // Advertised to clients via the environment endpoint so `nap auth
+          // login` can discover the auth provider and repo URLs.
+          { name: "LORE__ENVIRONMENT__ENDPOINT__AUTH_URL", value: args.authEndpointUrl },
+          { name: "LORE__ENVIRONMENT__ENDPOINT__REPOSITORY_URL", value: args.repoEndpointUrl },
           { name: "LORE_REBAC_URL", value: args.rebacUrl },
           // Immutable store: S3 + DynamoDB (aws plugin)
           { name: "LORE__IMMUTABLE_STORE__MODE", value: "aws" },
@@ -248,13 +252,15 @@ export class LoreService extends pulumi.ComponentResource {
         securityGroups: [this.securityGroup.id],
         assignPublicIp: false,
       },
-      loadBalancers: [
+      // Bootstrap mode deploys Lore without ALB registration: the lore gRPC
+      // target group gains its listener rule only when public ingress opens.
+      loadBalancers: args.publicIngressEnabled ? [
         {
           targetGroupArn: args.albTargetGroupArn,
           containerName: "lore",
           containerPort: 41337,
         },
-      ],
+      ] : [],
       serviceConnectConfiguration: {
         enabled: true,
         namespace: args.serviceConnectNamespaceArn,

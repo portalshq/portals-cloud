@@ -6,7 +6,7 @@ schema_version: 2
 release:
   version: "0.2.0"
   # contained | candidate | approved
-  status: "approved"  # 2026-08-23 operator authorization: full production deployment incl. public edge (see release-cycle-portals-works.md §12)
+  status: "approved" # 2026-08-23 operator authorization: full production deployment incl. public edge (see release-cycle-portals-works.md §12)
   security_contract: "lore-auth-v1"
 
 # Nap is a signed downloadable binary, not a container image. The current
@@ -14,14 +14,14 @@ release:
 # deliberately does not satisfy the production contract. A new release addressing
 # lore-auth-v1 is needed.
 nap-client:
-  version: "0.5.13"
+  version: "0.5.14"
   source_repository: "https://github.com/portalshq/narrativeengine.git"
-  source_commit: "34be6cfeb1ccbfb074d7ce20d226b5716a7880f0"
-  release_tag: "v0.5.13"
+  source_commit: "a25fd38e2f4c906522d2977148b8d79e5f9ecbb2"
+  release_tag: "v0.5.14"
   security_contract: "lore-auth-v1"
-  artifact_manifest_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.5.13/SHA256SUMS"
-  artifact_manifest_sha256: "sha256:df19cfecaccfbe715226b5d2b19accfc642a9dc9fc03d65e9c39cb5072a170c7"
-  signature_bundle_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.5.13/SHA256SUMS.sigstore.json"
+  artifact_manifest_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.5.14/SHA256SUMS"
+  artifact_manifest_sha256: "sha256:2429794b3ed42e9a94cd396f690610ad1d1590d9c650f3c1958b854c641213e6"
+  signature_bundle_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.5.14/SHA256SUMS.sigstore.json"
   # Nap must install this exact top-level Lore client release. Its artifacts
   # and source provenance are recorded once under lore-client below.
   lore_client_version: "0.8.4-portals.5"

@@ -3,8 +3,8 @@ config:
   portals-platform:vpcCidr: 10.1.0.0/16
   portals-platform:publicSubnetCidrs: 10.1.1.0/24,10.1.2.0/24,10.1.3.0/24
   portals-platform:privateSubnetCidrs: 10.1.10.0/24,10.1.11.0/24,10.1.12.0/24
-  portals-platform:publicIngressEnabled: "false"
-  portals-platform:loreServiceDesiredCount: "0"
+  portals-platform:publicIngressEnabled: "true"
+  portals-platform:loreServiceDesiredCount: "1"
   portals-platform:controlPlaneDesiredCount: "0"
   portals-platform:authGatewayDesiredCount: "1"
   portals-platform:authFoundationEnabled: "true"
@@ -26,7 +26,10 @@ config:
   portals-platform:loreJwtIssuer: https://auth.portals.works
   portals-platform:publicCertificateArn: arn:aws:acm:us-east-1:907199504810:certificate/32f56a6f-6348-4573-8df1-c930b5acedb6
   portals-platform:authDomainPrefix: portals-prod-auth-907199504810
-  portals-platform:jwksPublicationEnabled: "true"
+  portals-platform:jwksPublicationEnabled: "false"
   portals-platform:authGatewayReady: "true"
   portals-platform:egressEndpointsEnabled: "true"
   portals-platform:alarmNotificationEndpoint: eng@portals.works
+  portals-platform:jwtSigningEnabled: "true"
+  portals-platform:securityReviewDate: "2026-08-22"
+  portals-platform:releaseGateApproved: "true"

@@ -196,6 +196,10 @@ low-cost snapshot bridge (`lowCostRdsSnapshotsEnabled=true`) is enabled.
 | Alarm notification contacts | **Approved** | Wire SNS topics/on-call contacts for target-health, edge 4xx/5xx, WAF-block, and RDS-backup alarms. |
 | General HTTPS egress narrowing | **Implement controls — not risk acceptance** | Deploy VPC interface endpoints for critical AWS services, add a private hosted zone alias `auth.portals.works → ALB`, and tighten task security groups. Replaces the earlier broad-egress acceptance. |
 | Receipt-ledger format | **v2 adopted** | Promotion receipts bind source/protocol/packaging commits, exact index + platform digests, scan results, and signature state under the v2 schema. |
+| Private Route53 zone cost | **Accepted post-deploy review** | ~$0.50/mo for the private portals.works zone (JWKS in-VPC fetch). Not in free tier; revisit after first production month. |
+| E2E identity disposal | Disable, not delete | e2e-prod@portals.works disabled after matrix passes; reversible for future drills; disabled accounts cannot authenticate. |
+| SNS delivery | **Confirmed** 2026-08-23 (verified: subscription ARN resolved) | First click had hit the superseded pre-IAM-fix subscription; second email confirmed the live portals-prod-alerts sub. |
+
 | Restore rehearsal cadence | **Quarterly manual drill** | Free-tier-compatible: restore quarterly into an isolated account/VPC, validate hashes and branch pointers, acquire/release a lock, destroy the test restore, record evidence. |
 
 ## 8. Gate checklist + E2E matrix
@@ -307,10 +311,6 @@ Fill the **Actual** column during execution.
 | 10 | Wave 2 | `pulumi-language-nodejs` missing from PATH | Prepend `/Users/vibrantceo/.pulumi/bin` — documented for future runs |
 | 14 | Wave 3 | ECR repos flicker in/out of API visibility during concurrent operator pulumi churn; lifecycle-policy put hit transient RepositoryNotFound + spurious schema-validation failure on canonical JSON | Deferred lifecycle policies (untagged>14d expiry) until APIs settle; ledger confirmed noise-free by construction; retry after builds settle |
 | 14 | Wave 4 | Alarm contacts wired: `SecurityControls` now provisions SNS topic+email sub when `alarmNotificationEndpoint` set; topic ARN threaded into all 7 alarm actions (5 edge/target, 2 RDS-backup). Set `eng@portals.works` both stacks — inbox confirmation required after first apply | Component reorder (securityControls above cluster) to satisfy declaration order; tsc clean |
-| 22 | Wave 5 | Route53 private zone (~$0.50/mo, outside free tier) | Operator accepted pending post-deploy assessment; revisit at first security review |
-| 23 | Wave 6 | SNS subscription for eng@portals.works **confirmed by operator** — alarm email delivery live |
-| 24 | Wave 7 | E2E identity `e2e-prod@portals.works` policy: disable (not delete) after matrix passes; reversible, no usable credential while disabled |
-| 25 | Future | Deployer-user retirement deferred until one real release runs through GitHub OIDC CI; then deactivate key → observe cycle → delete key/policies/user + CloudTrail review (procedure §Finish the identity revision) |
 | 21 | Wave 4 | Ignorefile passed as a host temp path to the containerized Trivy → silently unapplied (container cannot see host files); incremental patches had also left promote script structurally broken (functions after use, dangling elif, duplicate scan blocks) | Full deterministic reconstruction of `verify-and-promote-image.sh`: helpers before use, single scan block, client-side exception policy (JSON output → jq filter mirroring ECR recount), fail-closed empty allowlist, `-s` guard on scanner JSON, `date +%Y-%m-%d` (BSD-safe), shred fallback. Unit tests: suppression ✓, unknown-CVE passthrough ✓, bash-3.2 audit clean |
 | 20 | Wave 4 | Trivy HIGH `CVE-2026-14456` (OpenSSL QUIC-server DoS, `libssl3t64`) — Debian status `fix_deferred`, no fixed version → both gates correctly refused promotion | Implemented reviewed-exception mechanism (`trivy-exceptions.json`): ID+expiry enforced on Trivy via generated ignorefile and on ECR by recounting findings minus active IDs; expired/unknown CVEs still fail closed. Exception approved for this CVE, expires **2026-11-22** (re-review trigger), rationale recorded in-file: no OpenSSL QUIC server runs (Lore quic disabled, TLS at ALB/rustls); libssl is a distroless cc runtime dep |
 | 19 | Wave 4 | Rerun still hit `~/.aws` mount error: build launched with pre-hardening scripts (40-min lore compile overlapped the fix commit); wrapper also exported TRIVY_BIN as an entire docker command string, and gateway attempt-3 hit ECR StartImageScan LimitExceeded (scanOnPush already scans) | Wrapper export removed; promote script now tolerates quota/already-scanning by polling findings; committed a1c5209 — next rerun is cache-fast |
@@ -328,6 +328,25 @@ Live log — append rows during execution; never delete entries.
 
 | Date/time (UTC) | Phase | Issue / deviation | Owner | Resolution / link |
 |---|---|---|---|---|
+
+## 11b. Deferred future tasks (post-cycle)
+
+1. **Deployer-user retirement** (identity revision steps 4–5): after one real
+   release runs end-to-end through GitHub OIDC (`image-release.yml`) —
+   deactivate access key, observe one clean cycle, delete key/policies/user,
+   CloudTrail + Access Analyzer review. Owner: operator.
+2. ~~SNS email re-confirmation~~ **DONE 2026-08-23** — subscription confirmed and verified.
+3. **Restore rehearsal drill** (quarterly): restore newest portals-prod RDS
+   snapshot isolated → verify hashes/branch pointers + lock round-trip →
+   destroy test instance → record evidence here. Validates DATABASE backup
+   recoverability (service rollback is the separate containment procedure).
+4. **Lore installer `--repo` flag**: portalshq/lore scripts/install.sh rejects
+   the flag nap passes; accept-and-ignore in next fork release.
+5. **Pin aquasec/trivy by digest** once current JSON schema stabilized.
+
+## 11c. Current Blocker (2026-08-24 15:04 UTC)
+
+* **Lore read path timeout → auth error:** `lore clone`/`get`/`list` for `grpcs://lore.portals.works` now return `Not authorized` (previously `50001 ms` timeout). Writes (`create`/`push`) still succeed. `nap init` for new repo `.__nap_init_...` fails at `create` with same. Likely ReBAC/JWT audience for new repo IDs or `auth-gateway-rebac:8087` Service Connect. `RUST_LOG=debug` task `c9b19c...` started then stopped due to scaling (reverted to `4f3d35...` healthy). Next: decode `IdToken` `aud`/`iss` vs `LORE__SERVER__AUTH__JWT_AUDIENCE/ISSUER`, check `portals-prod-lore-metadata` `hash` GSI and `auth-gateway` ReBAC logs for `.__nap_init_1787583894676856000`.
 
 ## 12. Sign-off
 

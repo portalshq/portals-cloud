@@ -164,6 +164,22 @@ export class SecurityControls extends pulumi.ComponentResource {
         name: `${prefix}-alerts`,
         tags: { Project: args.projectName, Environment: args.environment, Purpose: "alarm-notifications" },
       }, { parent: this });
+      // CloudWatch alarms publish to this topic; without the topic-policy
+      // statement every alarmAction delivery fails with authorization errors.
+      new aws.sns.TopicPolicy(`${prefix}-alerts-policy`, {
+        arn: this.alertTopic.arn,
+        policy: pulumi.all([this.alertTopic.arn]).apply(([arn]) => JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [{
+            Sid: "AllowCloudWatchAlarmPublish",
+            Effect: "Allow",
+            Principal: { Service: "cloudwatch.amazonaws.com" },
+            Action: "sns:Publish",
+            Resource: arn,
+            Condition: { StringEquals: { "AWS:SourceArn": arn } },
+          }],
+        })),
+      }, { parent: this });
       new aws.sns.TopicSubscription(`${prefix}-alerts-email`, {
         topic: this.alertTopic.arn,
         protocol: "email",

@@ -19,6 +19,8 @@ export interface EgressControlsArgs {
   readonly vpcCidr: string;
   readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
   readonly authHostname: string;
+  /** Resolved hosted-zone id for the portals.works private zone (plain string). */
+  readonly privateZoneId: string;
   readonly albDnsName: pulumi.Input<string>;
   readonly albZoneId: pulumi.Input<string>;
 }
@@ -90,7 +92,7 @@ export class EgressControls extends pulumi.ComponentResource {
     }, { parent: this });
 
     new aws.route53.Record(`${prefix}-auth-private-alias`, {
-      zoneId: this.privateZone.zoneId,
+      zoneId: args.privateZoneId,
       name: args.authHostname,
       type: "A",
       aliases: [{

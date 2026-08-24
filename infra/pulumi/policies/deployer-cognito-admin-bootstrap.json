@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AdministerPortalsCognitoUsers",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:AdminCreateUser", "cognito-idp:AdminSetUserPassword",
+        "cognito-idp:AdminDeleteUser", "cognito-idp:AdminGetUser",
+        "cognito-idp:ListUsers", "cognito-idp:AdminDisableUser",
+        "cognito-idp:AdminEnableUser", "cognito-idp:AdminUserGlobalSignOut",
+        "cognito-idp:AdminSetUserMFAPreference", "cognito-idp:SetUserMFAPreference",
+        "cognito-idp:AssociateSoftwareToken", "cognito-idp:VerifySoftwareToken",
+        "cognito-idp:DescribeUserPoolClient", "cognito-idp:DescribeUserPool"
+      ],
+      "Resource": [
+        "arn:aws:cognito-idp:us-east-1:907199504810:userpool/us-east-1_IpSPOHKSW",
+        "arn:aws:cognito-idp:us-east-1:907199504810:userpool/us-east-1_dY5D7gzRP"
+      ]
+    }
+  ]
+}

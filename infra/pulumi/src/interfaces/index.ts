@@ -104,6 +104,7 @@ export interface AuthGatewayServiceArgs {
   readonly httpTargetGroupArn: pulumi.Input<string>;
   /** Attach target groups only after the TLS edge exists. */
   readonly attachToAlb: boolean;
+  readonly publicIngressEnabled: boolean;
   readonly projectName: string;
   readonly environment: string;
   readonly desiredCount: number;
@@ -139,6 +140,9 @@ export interface LoreServiceArgs {
   readonly vpcId: pulumi.Input<string>;
   readonly vpcCidr: string;
   readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
+  readonly publicIngressEnabled: boolean;
+  readonly authEndpointUrl: string;
+  readonly repoEndpointUrl: string;
   readonly albTargetGroupArn: pulumi.Input<string>;
   readonly albSecurityGroupId: pulumi.Input<string>;
   readonly projectName: string;
