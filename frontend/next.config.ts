@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   trailingSlash: true,
+  async redirects() {
+    return [
+      {source: '/assessment', destination: '/workflow/assessment', permanent: true},
+      {source: '/assessment/opengraph-image', destination: '/workflow/assessment/opengraph-image', permanent: true},
+      {source: '/ai-production-workflow-risks', destination: '/workflow/ai-production-workflow-risks', permanent: true},
+      {source: '/use-cases', destination: '/workflow/ai-production-workflow-risks', permanent: true},
+    ]
+  },
   env: {
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || '/',
   },

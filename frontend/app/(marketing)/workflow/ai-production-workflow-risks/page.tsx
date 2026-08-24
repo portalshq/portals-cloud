@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   if (!document) return {}
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
-  const canonicalPath = '/ai-production-workflow-risks'
+  const canonicalPath = '/workflow/ai-production-workflow-risks'
 
   return {
     title: document.seo?.metaTitle || document.title,

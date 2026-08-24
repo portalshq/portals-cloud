@@ -11,7 +11,7 @@ import {getFaqsByCategories} from '@/lib/faqs'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
 
 function StructuredData() {
-  const pageUrl = `${SITE_URL}/ai-production-workflow-risks`
+  const pageUrl = `${SITE_URL}/workflow/ai-production-workflow-risks`
 
   return (
     <script
@@ -245,7 +245,7 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
               {value: 'not-sure', label: 'not sure yet'},
             ]}
             downloadLabel="Download the guide"
-            sourcePage="/ai-production-workflow-risks"
+            sourcePage="/workflow/ai-production-workflow-risks"
           />
         </div>
       </div>
@@ -281,7 +281,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
                 <span className="t-p-sans">{cta.primaryCta.label}</span>
               </a>
               <CTAButton
-                href="/assessment"
+                href="/workflow/assessment"
                 appearance="plain"
                 className="underline underline-offset-4"
                 analyticsLabel="Assess Your AI Creative Production Workflow"
@@ -353,7 +353,7 @@ function FinalCTA() {
           <div className="flex flex-col sm:flex-row gap-16 items-center justify-center">
             <CTAButton href="/paid-pilot#scope">Scope a pilot</CTAButton>
             <CTAButton
-              href="/assessment"
+              href="/workflow/assessment"
               appearance="plain"
               className="underline underline-offset-4"
               analyticsLabel="Assess Your AI Creative Production Workflow"

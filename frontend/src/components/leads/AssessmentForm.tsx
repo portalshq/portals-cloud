@@ -188,7 +188,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         provider: 'browser',
         identity: submittedIdentity,
         attribution: buildAttribution({
-          sourcePage: '/assessment',
+          sourcePage: '/workflow/assessment',
           ctaLabel: 'Assess production workflow',
           intent: 'workflow_assessment',
         }),
@@ -314,7 +314,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             ) : (
               <div>
                 <CTAButton
-                  href={`/ai-production-workflow-risks#${workflow}`}
+                  href={`/workflow/ai-production-workflow-risks#${workflow}`}
                   analyticsLabel="Explore the Relevant Workflow"
                   analyticsUseCase={workflow}
                   onClick={() => void trackEvent('education_use_case_clicked', { workflow })}

@@ -206,7 +206,7 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
 
 function pricingTierHref(tier: PricingTier): string {
   return tier.slug === PACKAGE_SPEC_SLUGS.productionTeam
-    ? '/assessment'
+    ? '/workflow/assessment'
     : scopeAPilotMailto;
 }
 
@@ -655,7 +655,7 @@ function SolutionSection() {
           </p>
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
-            <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+            <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
               Assess production workflow
             </CTAButton>
           </div>
@@ -719,7 +719,7 @@ function CapabilitiesSection() {
           ))}
         </div>
         <div className='col-span-full'>
-          <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+          <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
             Assess production workflow
           </CTAButton>
         </div>
@@ -927,13 +927,13 @@ export function VCS({
             <p className="t-h3-sans max-w-[24ch]">reduce costs, extend successful work, and scale production across teams and tools.</p>
             <div className="saga-hero-assess flex flex-col gap-12 pt-12 sm:flex-row">
               <CTAButton
-                href="/assessment"
+                href="/workflow/assessment"
                 analyticsLabel="Assess Your Workflow"
                 analyticsIntent="assessment"
               >
                 Assess production workflow
               </CTAButton>
-              <CTAButton className="!hidden" href="/ai-production-workflow-risks" analyticsLabel="Explore Use Cases" analyticsIntent="education">
+              <CTAButton className="!hidden" href="/workflow/ai-production-workflow-risks" analyticsLabel="Explore Use Cases" analyticsIntent="education">
                 Explore use cases
               </CTAButton>
             </div>
@@ -976,8 +976,8 @@ export function VCS({
                 Deliver faster at lower cost with  complete asset history and identity from first generation through shipped production.
               </p>
               <div className="flex items-center gap-16">
-                <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton>
-                <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+                <CTAButton href={"/workflow/ai-production-workflow-risks"}>Explore use cases</CTAButton>
+                <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
                   Assess production workflow
                 </CTAButton>
               </div>

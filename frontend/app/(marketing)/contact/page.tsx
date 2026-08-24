@@ -34,7 +34,7 @@ export default async function ContactPage({
           </p>
           <div className="flex gap-24">
             <CTAButton
-              href="/assessment"
+              href="/workflow/assessment"
               appearance="plain"
               className="underline underline-offset-4"
               analyticsLabel="Assess Your AI Creative Production Workflow"

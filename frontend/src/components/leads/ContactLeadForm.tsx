@@ -99,7 +99,7 @@ export function ContactLeadForm({
       >
         <h2 className="t-h1-sans">request received.</h2>
         <p className="max-w-[38em] t-p-lg-serif text-white">{message}</p>
-        <CTAButton href="/ai-production-workflow-risks" analyticsLabel="Explore Use Cases">
+        <CTAButton href="/workflow/ai-production-workflow-risks" analyticsLabel="Explore Use Cases">
           explore use cases
           <ArrowRight aria-hidden="true" size={18} />
         </CTAButton>

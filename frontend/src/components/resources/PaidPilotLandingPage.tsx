@@ -462,7 +462,7 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
             <p className="t-p-sans text-white/80">
-              Not ready to scope? <br/><a className="underline underline-offset-4" href="/assessment">Assess your creative production workflow first.</a>
+              Not ready to scope? <br/><a className="underline underline-offset-4" href="/workflow/assessment">Assess your creative production workflow first.</a>
             </p>
           </div>
         </div>

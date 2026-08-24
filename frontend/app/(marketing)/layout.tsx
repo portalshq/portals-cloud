@@ -48,8 +48,8 @@ function Footer() {
               <li><a href="/privacy-policy" className="hover:text-white transition-colors">Privacy</a></li>
               <li><a href="/terms-of-service" className="hover:text-white transition-colors">terms of service</a></li>
               <li><a href="/security-and-architecture" className="hover:text-white transition-colors">security</a></li>
-              <li><a href="/ai-production-workflow-risks" className="hover:text-white transition-colors">use cases</a></li>
-              <li><a href="/assessment" className="hover:text-white transition-colors">assess production workflow</a></li>
+              <li><a href="/workflow/ai-production-workflow-risks" className="hover:text-white transition-colors">use cases</a></li>
+              <li><a href="/workflow/assessment" className="hover:text-white transition-colors">assess production workflow</a></li>
             </ul>
             
             <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">

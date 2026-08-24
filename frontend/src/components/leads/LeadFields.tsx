@@ -185,7 +185,7 @@ export function NoScriptLeadFallback() {
       <style>{'.js-lead-submit{display:none!important}'}</style>
       <p className="t-p-sm-sans text-white">
         This request form needs javascript to deliver and record the next step. you can still{' '}
-        <a className="underline underline-offset-4" href="/ai-production-workflow-risks">
+        <a className="underline underline-offset-4" href="/workflow/ai-production-workflow-risks">
           Explore use cases
         </a>.
       </p>
