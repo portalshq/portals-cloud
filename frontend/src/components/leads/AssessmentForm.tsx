@@ -3,7 +3,7 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDownToLine, ArrowRight } from 'lucide-react'
 import { CTAButton } from '@/components/CTAButton'
-import { LeadSelectField, LeadTextareaField } from '@/components/mui/fields'
+import { LeadSelectField, LeadTextField, LeadTextareaField } from '@/components/mui/fields'
 import {
   analyticsConsent,
   buildAttribution,
@@ -19,7 +19,6 @@ import {
 } from '@/lib/leads/contracts'
 import { ConditionalReveal } from './ConditionalReveal'
 import { ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback } from './LeadFields'
-import { WorkflowReviewForm } from './WorkflowReviewForm'
 import { useFormDraft } from './useFormDraft'
 import { usePreservedSwap } from './usePreservedSwap'
 
@@ -43,9 +42,7 @@ function restoredResult(context: KnownLeadContext): LeadResponse | null {
     nextAction:
       context.qualificationOutcome === 'pilot_candidate'
         ? 'pilot_scope'
-        : context.qualificationOutcome === 'clarify'
-          ? 'commercial_clarification'
-          : 'use_case',
+        : 'use_case',
     qualificationOutcome: context.qualificationOutcome,
     reasonCodes: context.reasonCodes,
     missingFields: context.missingFields,
@@ -55,9 +52,7 @@ function restoredResult(context: KnownLeadContext): LeadResponse | null {
     message:
       context.qualificationOutcome === 'pilot_candidate'
         ? 'Your workflow is a viable candidate for a paid production pilot.'
-        : context.qualificationOutcome === 'clarify'
-          ? 'A few practical details will clarify whether this workflow is ready for a pilot.'
-          : 'The relevant production workflow is the most useful place to continue.',
+        : 'Your assessment points to a production workflow worth improving. Explore the relevant pattern to see how to reduce repeat work before deciding on a pilot.',
   }
 }
 
@@ -110,7 +105,6 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
     () => (leadContext.answerValues?.incidentType as string | undefined) || '',
   )
   const [result, setResult] = useState<LeadResponse | null>(() => restoredResult(leadContext))
-  const [reviewOpen, setReviewOpen] = useState(false)
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [error, setError] = useState('')
   const started = useRef(false)
@@ -178,6 +172,11 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         assetVolume: String(values.assetVolume || ''),
         annualAffectedValue: String(values.annualAffectedValue || ''),
         activeWorkflow: String(values.activeWorkflow || ''),
+        targetStartPeriod: String(values.targetStartPeriod || ''),
+        productionOwner: String(values.productionOwner || ''),
+        approvalPath: String(values.approvalPath || ''),
+        primaryObjection: String(values.primaryObjection || ''),
+        objectionDetail: String(values.objectionDetail || ''),
         pricingOrPilotViewed: behavior.pricingOrPilotViewed,
         securityDiligence: behavior.securityDiligence,
         message: String(values.message || ''),
@@ -185,7 +184,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
       const response = await submitLead({
         submissionType: 'assessment',
         idempotencyKey,
-        formVersion: 'assessment.v1',
+        formVersion: 'assessment.v2',
         provider: 'browser',
         identity: submittedIdentity,
         attribution: buildAttribution({
@@ -279,9 +278,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           <h2 className="t-d2-sans max-w-[12em]">
             {outcome === 'pilot_candidate'
               ? 'pilot candidate'
-              : outcome === 'clarify'
-                ? 'complete pilot readiness'
-                : 'not pilot ready'}
+              : 'your clearest next step'}
           </h2>
           <p className="max-w-[38em] t-p-sans">{result.message}</p>
         </div>
@@ -314,16 +311,6 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
                   Build my customized pilot plan
                   <ArrowRight aria-hidden="true" size={18} />
                 </CTAButton>
-            ) : result.nextAction === 'commercial_clarification' || result.nextAction === 'assessment_review' ? (
-              <CTAButton
-                type="button"
-                onClick={() => setReviewOpen(true)}
-                analyticsLabel="Complete Pilot Readiness"
-                analyticsIntent="commercial_readiness"
-              >
-                Complete pilot readiness
-                <ArrowRight aria-hidden="true" size={18} />
-              </CTAButton>
             ) : (
               <div>
                 <CTAButton
@@ -362,14 +349,6 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             ) : null}
           </div>
         </div>
-        {reviewOpen ? (
-          <div className="mt-40 max-w-[680px]">
-            <WorkflowReviewForm
-              context={leadContext}
-              recommendedWorkflow={result.recommendedWorkflow}
-            />
-          </div>
-        ) : null}
       </div>
     )
   }
@@ -386,6 +365,12 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         onFocus={onStarted}
         className="space-y-20"
       >
+        <div className="max-w-[40em] space-y-10 border-t border-white/20 pt-20">
+          <h2 className="t-h3-sans">map one workflow you want to make faster</h2>
+          <p className="t-p-sans text-white/80">
+            Tell us where approved work, creative context, or handoffs break down. We’ll return a practical view of the repeat work you can reduce and the production capability most worth exploring.
+          </p>
+        </div>
         <IdentityFields
           context={leadContext}
           email={email}
@@ -451,7 +436,16 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           <AssessmentSelect id="workflowCollaborators" name="workflowCollaborators" label="people involved in production" required options={['1', '2-4', '5-9', '10-plus']} />
         ) : null}
         {!known.has('toolsUsed') ? (
-          <AssessmentSelect id="toolsUsed" name="toolsUsed" label="ai creative tools used" required options={['1', '2', '3-4', '5-plus']} />
+          <LeadField label="tools used *" name="toolsUsed">
+            <LeadTextField
+              id="toolsUsed"
+              name="toolsUsed"
+              required
+              slotProps={{htmlInput: {maxLength: 500}}}
+              placeholder="e.g. Adobe Firefly, Runway, Midjourney, ChatGPT"
+              onChange={onStarted}
+            />
+          </LeadField>
         ) : null}
         {!known.has('approvedVersionMethod') ? (
           <AssessmentSelect id="approvedVersionMethod" name="approvedVersionMethod" label="current approved version method" required options={['canonical-system', 'documented-review', 'folder-naming', 'chat-spreadsheet', 'creator-memory', 'inconsistent']} />
@@ -523,9 +517,89 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         ) : null}
         {!known.has('activeWorkflow') ? (
           <LeadField label="active workflow to test *" name="activeWorkflow">
-            <LeadTextareaField id="activeWorkflow" name="activeWorkflow" minRows={4} resizable={false} required />
+            <LeadTextareaField
+              id="activeWorkflow"
+              name="activeWorkflow"
+              minRows={4}
+              resizable={false}
+              required
+              placeholder="Describe one recurring deliverable or production workflow your team wants to make faster, cheaper, or easier to reproduce."
+            />
           </LeadField>
         ) : null}
+        <div className="space-y-20 border-t border-white/20 pt-20">
+          <div className="max-w-[38em] space-y-8">
+            <h3 className="t-h3-sans">make the recommendation useful</h3>
+            <p className="t-p-sans text-white/80">
+              These details help us distinguish a real production opportunity from a generic tooling search. They do not commit you to a pilot or a meeting.
+            </p>
+          </div>
+          {!known.has('targetStartPeriod') ? (
+            <LeadField label="when would improving this workflow matter? *" name="targetStartPeriod">
+              <LeadSelectField id="targetStartPeriod" name="targetStartPeriod" required defaultValue="">
+                <option value="" disabled>select timing</option>
+                <option value="within-30-days">within 30 days</option>
+                <option value="within-60-days">within 60 days</option>
+                <option value="this-quarter">this quarter</option>
+                <option value="later">later</option>
+              </LeadSelectField>
+            </LeadField>
+          ) : null}
+          {!known.has('productionOwner') ? (
+            <LeadField label="who is closest to this workflow? *" name="productionOwner">
+              <LeadTextField
+                id="productionOwner"
+                name="productionOwner"
+                required
+                slotProps={{htmlInput: {maxLength: 300}}}
+                placeholder="Name or role, such as senior producer or creative operations lead"
+                onChange={onStarted}
+              />
+            </LeadField>
+          ) : null}
+          {!known.has('approvalPath') ? (
+            <LeadField label="if you found a worthwhile way to improve this, how would your team approve a small test? *" name="approvalPath">
+              <LeadSelectField id="approvalPath" name="approvalPath" required defaultValue="">
+                <option value="" disabled>select the closest answer</option>
+                <option value="self">I can approve it</option>
+                <option value="other">I would involve a colleague</option>
+                <option value="procurement">procurement is involved</option>
+                <option value="not-established">we are still figuring that out</option>
+                <option value="no">it is not a near-term priority</option>
+              </LeadSelectField>
+            </LeadField>
+          ) : null}
+          {!known.has('primaryObjection') ? (
+            <LeadField label="what would make this assessment useful to you? *" name="primaryObjection">
+              <LeadSelectField id="primaryObjection" name="primaryObjection" required defaultValue="">
+                <option value="" disabled>select the closest answer</option>
+                <option value="value">reduce rework and the cost of producing variants</option>
+                <option value="workflow-fit">find approved work and production context without hunting</option>
+                <option value="pilot-scope">make a repeatable workflow easier to run at volume</option>
+                <option value="security">understand security or governance requirements</option>
+                <option value="integration">understand existing-tool or integration needs</option>
+                <option value="procurement">help align a team, budget, or approval path</option>
+                <option value="timing-budget">decide whether the timing and investment make sense</option>
+                <option value="stakeholder-alignment">get the right stakeholders aligned</option>
+                <option value="other">something else</option>
+              </LeadSelectField>
+            </LeadField>
+          ) : null}
+          {!known.has('objectionDetail') ? (
+            <LeadField label="what is breaking down today, or what do you need answered? *" name="objectionDetail">
+              <LeadTextareaField
+                id="objectionDetail"
+                name="objectionDetail"
+                minRows={4}
+                resizable={false}
+                required
+                slotProps={{htmlInput: {maxLength: 2000}}}
+                placeholder="For example: approved prompts and references are spread across drives and chat, so every new version starts with rediscovery."
+                onChange={onStarted}
+              />
+            </LeadField>
+          ) : null}
+        </div>
         <LeadField label="anything else we should know?" name="message">
           <LeadTextareaField id="message" name="message" minRows={4} resizable={false} onChange={onStarted} />
         </LeadField>

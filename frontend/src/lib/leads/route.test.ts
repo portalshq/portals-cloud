@@ -99,7 +99,7 @@ async function pilotForProfile(token: string): Promise<{profile: NonNullable<Awa
 const assessmentBody = (email: string) => ({
   submissionType: 'assessment',
   idempotencyKey: `assessment:${email}`,
-  formVersion: 'assessment.v1',
+  formVersion: 'assessment.v2',
   provider: 'browser',
   identity: {email, company: 'Studio Example', role: 'producer', website: ''},
   attribution: {sourcePage: '/assessment'},
@@ -109,7 +109,7 @@ const assessmentBody = (email: string) => ({
     teamType: 'creative-studio',
     teamSize: '5-9',
     workflowCollaborators: '5-9',
-    toolsUsed: '5-plus',
+    toolsUsed: 'Adobe Firefly, Runway, Midjourney, ChatGPT, ComfyUI',
     approvedVersionMethod: 'creator-memory',
     productionContextMethod: 'memory-inconsistent',
     recreationFrequency: 'weekly',
@@ -120,6 +120,11 @@ const assessmentBody = (email: string) => ({
     recurringWorkflow: 'weekly',
     assetVolume: '500-plus',
     activeWorkflow: 'live campaign',
+    targetStartPeriod: 'within-30-days',
+    productionOwner: 'Ava Nguyen, Senior Producer',
+    approvalPath: 'self',
+    primaryObjection: 'value',
+    objectionDetail: 'We keep rebuilding approved campaign variants because the production context is spread across several tools.',
   },
 })
 
@@ -171,9 +176,10 @@ test('pilot_request through POST delivers the approval-room email to the submitt
 
   const assessment = await post(assessmentBody(email))
   assert.equal(assessment.status, 200)
-  assert.ok(
-    ['pilot_scope', 'assessment_review'].includes((await assessment.json()).nextAction),
-    'the assessment qualifies into the review funnel',
+  assert.equal(
+    (await assessment.json()).nextAction,
+    'pilot_scope',
+    'the assessment establishes pilot context without a second readiness step',
   )
   const token = profileTokenFrom(assessment)
 

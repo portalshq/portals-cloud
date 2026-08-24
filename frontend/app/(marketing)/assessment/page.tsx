@@ -19,7 +19,7 @@ const assessmentImageUrl = new URL(
 
 export const metadata: Metadata = {
   title: 'AI Creative Production Workflow Assessment | portals',
-  description: 'Creative teams can assess approved-version control, generation history, handoffs, reproducibility, and production-memory risk in four minutes.',
+  description: 'Assess your creative production workflows. Find the workflow gaps in approval, context, handoffs, and reproducibility. Fix creative production costs with production memory.',
   keywords: [
     'AI creative production workflow assessment',
     'AI production workflow assessment',
@@ -40,13 +40,13 @@ export const metadata: Metadata = {
     url: assessmentUrl,
     siteName: 'portals',
     title: 'AI Creative Production Workflow Assessment | portals',
-    description: 'Assess approved versions, prompt and generation history, handoffs, reproducibility, and production-memory risk in four minutes.',
+    description: 'Assess your creative production workflows. Find the workflow gaps in approval, context, handoffs, and reproducibility. Fix creative production costs with production memory.',
     images: [{url: assessmentImageUrl, width: 1200, height: 630, alt: 'portals AI creative production workflow assessment'}],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'AI Creative Production Workflow Assessment | portals',
-    description: 'Assess approved versions, generation history, handoffs, and AI content reproducibility in four minutes.',
+    description: 'Assess your creative production workflows. Find the workflow gaps in approval, context, handoffs, and reproducibility. Fix creative production costs with production memory.',
     images: [assessmentImageUrl],
   },
 }
@@ -69,16 +69,16 @@ const pageLinks = [
 
 const nextSteps = [
   {
-    label: 'we score your workflow',
-    detail: 'we evaluate your workflow\'s cost risk and determine whether a pilot is the best next step for you.',
+    label: 'you map your workflow friction',
+    detail: 'tell us about one workflow where continuity issues, finding approved work, or handoffs keep forcing your team to rediscover or remake work.',
   },
   {
-    label: 'you get the assessment',
-    detail: 'you get a downloadable evaluation that shows where cost risk is concentrated across your workflow.',
+    label: 'you see where time and cost leak',
+    detail: 'get a practical evaluation of version-control, context, continuity, and handoff risk—plus the production capability we enable that’s most relevant to your team.',
   },
   {
     label: 'you choose the next step',
-    detail: 'strong candidates can build a free customized pilot plan. schedule a call only when your needs fall outside the standard pilot scope.',
+    detail: 'explore the workflow pattern that can make production faster and more cost-effective, or build a pilot plan when the fit is clear.',
   },
 ]
 
@@ -144,7 +144,7 @@ export default async function WorkflowAssessmentPage() {
           <div className="ui-grid relative z-10 w-full gap-y-fluid-[30,52] py-fluid-[76,106] pt-[max(var(--spacing-Header-h),24svh)] text-white">
             <div className="col-span-full lg:col-span-14">
               <h1 className="mt-20 max-w-[10em] t-d2-sans">
-                Is your creative team paying the hidden AI production tax?
+                Save your creative team the hidden costs of AI production
               </h1>
               <p className="mt-28 max-w-[38em] t-p-serif text-white">
                 Assess how well your team preserves approved work, production context, handoffs, continuity, and reproducibility.
@@ -153,7 +153,7 @@ export default async function WorkflowAssessmentPage() {
                 For agencies, creative studios, production companies, in-house brand and marketing teams, film and animation teams, game and entertainment teams.
               </p>
               <p className="mt-20 max-w-[42em] t-p-sm-sans text-white">
-                Complete in four minutes. Depending on your result, you may answer a short pilot-readiness clarification and build a customized pilot plan at no cost. No meeting is required unless the completed scope needs an integration review.
+                Complete in four minutes. You’ll receive a practical evaluation of where your team can become faster, more repeatable, and more cost-effective. Depending on your result, you may build a customized pilot plan at no cost. No meeting is required unless the completed scope needs an integration review.
               </p>
             </div>
             <nav
@@ -265,9 +265,9 @@ export default async function WorkflowAssessmentPage() {
                 make your production workflow cost-effective
               </h2>
               <p className="mt-24 max-w-[34em] t-p-lg-serif text-white">
-                Your assessment result recommends the right next action: 
+                Your assessment points to the clearest next action:
                 <br/>
-                scope a paid pilot, or explore a relevant production use case.
+                explore a relevant production workflow, or scope a pilot when the fit is clear.
               </p>
               <div className="mt-32 flex flex-wrap items-center gap-16">
                 <CTAButton href="#the-assessment" analyticsLabel="View My Recommended Next Step" analyticsIntent="workflow_assessment">

@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-14.apollo.v1",
+  "version": "2026-08-24.apollo.v2",
   "lists": [
     {"name": "Inbound Leads", "modality": "contacts", "history": true},
     {"name": "Guide Downloads", "modality": "contacts", "history": true},
@@ -32,7 +32,7 @@
     {"key":"company_type","label":"Company type","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["agency","creative-studio","production-company","in-house-creative","brand-marketing","film-animation","game-entertainment","independent-creator","other"]},
     {"key":"team_size","label":"Team size","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["1","2-4","5-9","10-24","25-plus"]},
     {"key":"workflow_collaborators","label":"Workflow collaborators","modalities":["contact"],"type":"string"},
-    {"key":"tools_used","label":"Tools used","modalities":["contact"],"type":"string"},
+    {"key":"tools_used","label":"Tools used","modalities":["contact"],"type":"string","inputKind":"text","maxLength":500,"categories":["general","pilot"]},
     {"key":"approved_version_method","label":"Approved-version method","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["canonical-system","documented-review","folder-naming","chat-spreadsheet","creator-memory","inconsistent"]},
     {"key":"production_context_method","label":"Production-context method","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["attached-record","project-document","multiple-tools","chat-personal-notes","memory-inconsistent"]},
     {"key":"recreation_frequency","label":"Recreation frequency","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["never","quarterly","monthly","weekly","daily"]},

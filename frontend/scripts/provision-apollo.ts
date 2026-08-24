@@ -9,9 +9,16 @@ if (!apiKey) throw new Error('APOLLO_API_KEY is required. Use a Master API key s
 
 type Modality = 'contact' | 'account' | 'opportunity'
 type FieldType = 'string' | 'textarea' | 'number' | 'boolean'
+type FieldCategory = 'general' | 'assessment' | 'pilot' | 'system'
 type ApolloConfig = {
   lists: Array<{name: string; modality: 'contacts' | 'accounts'}>
-  customFields: Array<{key: string; label: string; modalities: Modality[]; type: FieldType}>
+  customFields: Array<{
+    key: string
+    label: string
+    modalities: Modality[]
+    type: FieldType
+    categories?: FieldCategory[]
+  }>
   dealStages: string[]
 }
 type ApolloList = {id: string; name: string; modality: 'contacts' | 'accounts'}
@@ -89,7 +96,8 @@ for (const field of config.customFields) {
       continue
     }
     createdFields += 1
-    process.stdout.write(`created custom field: ${key} (${field.type})\n`)
+    const categories = field.categories?.length ? ` [${field.categories.join(', ')}]` : ''
+    process.stdout.write(`created custom field: ${key} (${field.type})${categories}\n`)
   }
 }
 

@@ -132,6 +132,31 @@ function teamTypeSignal(answers: QualificationAnswers): Signal {
   return {maximum: 8, value: 2}
 }
 
+function toolsUsedSignal(answers: QualificationAnswers): Signal {
+  const value = text(answers, 'toolsUsed')
+  const legacyValues: Record<string, number> = {
+    '1': 0,
+    '2': 3,
+    '3-4': 5,
+    '5-plus': 6,
+  }
+  if (Object.prototype.hasOwnProperty.call(legacyValues, value)) {
+    return {maximum: 6, value: legacyValues[value]}
+  }
+  if (!value) return {maximum: 6}
+
+  const count = new Set(
+    value
+      .split(/[,;\n/]+/)
+      .map((tool) => tool.trim())
+      .filter(Boolean),
+  ).size
+  return {
+    maximum: 6,
+    value: count <= 1 ? 0 : count === 2 ? 3 : count <= 4 ? 5 : 6,
+  }
+}
+
 function incidentSignal(answers: QualificationAnswers): Signal {
   const incident = text(answers, 'incidentType')
   const frequency = text(answers, 'recreationFrequency')
@@ -193,12 +218,7 @@ export function calculateQualification(
       '5-9': 6,
       '10-plus': 6,
     }),
-    mapped(answers, 'toolsUsed', 6, {
-      '1': 0,
-      '2': 3,
-      '3-4': 5,
-      '5-plus': 6,
-    }),
+    toolsUsedSignal(answers),
     mapped(answers, 'recurringWorkflow', 6, {
       'one-off': 0,
       quarterly: 2,
@@ -385,6 +405,8 @@ export function commercialReadinessComplete(answers: QualificationAnswers): bool
   return (
     credibleActiveWorkflow(answers) &&
     Boolean(text(answers, 'productionOwner')) &&
+    Boolean(text(answers, 'primaryObjection')) &&
+    Boolean(text(answers, 'objectionDetail')) &&
     ['self', 'other', 'procurement'].includes(approvalPath) &&
     ['within-30-days', 'within-60-days', 'this-quarter'].includes(targetStartPeriod)
   )

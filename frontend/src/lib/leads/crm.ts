@@ -494,7 +494,9 @@ function contactFields(submission: StoredSubmission): Record<string, unknown> {
     company_type: answers.teamType,
     team_size: answers.teamSize,
     workflow_collaborators: answers.workflowCollaborators,
-    tools_used: answers.toolsUsed ? String(answers.toolsUsed) : undefined,
+    tools_used: typeof answers.toolsUsed === 'string'
+      ? answers.toolsUsed.trim() || undefined
+      : undefined,
     approved_version_method: answers.approvedVersionMethod,
     production_context_method: answers.productionContextMethod,
     recreation_frequency: answers.recreationFrequency,

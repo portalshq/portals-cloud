@@ -34,6 +34,14 @@ test('explicit no-incident answers resolve conditional pain to zero', () => {
   assert.equal(scores.pain.coverage, 100)
 })
 
+test('a named-tools list preserves the tool-complexity score', () => {
+  const scores = calculateQualification({
+    toolsUsed: 'Adobe Firefly, Runway, Midjourney, ChatGPT, ComfyUI',
+  })
+
+  assert.equal(scores.fit.earned, 6)
+})
+
 test('strong fit and pain with incomplete intent routes to review', () => {
   const scores = calculateQualification({
     teamType: 'creative-studio',

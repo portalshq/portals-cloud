@@ -304,6 +304,8 @@ export function PilotScopeForm({
       assetVolume: string('assetVolume'),
       annualAffectedValue: string('annualAffectedValue'),
       activeWorkflow: string('activeWorkflow'),
+      primaryObjection: string('primaryObjection'),
+      objectionDetail: string('objectionDetail'),
       pilotWorkflow: string('pilotWorkflow') || string('activeWorkflow'),
       productionOwner: string('productionOwner'),
       productionOwnerEmail: string('productionOwnerEmail'),

@@ -78,11 +78,39 @@ const resourceAnswersSchema = z.object({
   message: optionalText(2000),
 })
 
+const targetStartPeriodSchema = z.enum([
+  'within-30-days',
+  'within-60-days',
+  'this-quarter',
+  'later',
+])
+
+const approvalPathSchema = z.enum([
+  'self',
+  'other',
+  'procurement',
+  'not-established',
+  'no',
+])
+
+const primaryObjectionSchema = z.enum([
+  'none',
+  'workflow-fit',
+  'value',
+  'pilot-scope',
+  'security',
+  'integration',
+  'procurement',
+  'timing-budget',
+  'stakeholder-alignment',
+  'other',
+])
+
 export const assessmentAnswersSchema = z.object({
   teamType: optionalText(80),
   teamSize: optionalText(40),
   workflowCollaborators: optionalText(40),
-  toolsUsed: optionalText(40),
+  toolsUsed: optionalText(500),
   approvedVersionMethod: optionalText(80),
   productionContextMethod: optionalText(80),
   recreationFrequency: optionalText(40),
@@ -95,6 +123,11 @@ export const assessmentAnswersSchema = z.object({
   assetVolume: optionalText(40),
   annualAffectedValue: optionalText(40),
   activeWorkflow: optionalText(2000),
+  targetStartPeriod: optionalText(80),
+  approvalPath: optionalText(80),
+  productionOwner: optionalText(300),
+  primaryObjection: optionalText(80),
+  objectionDetail: optionalText(2000),
   pricingOrPilotViewed: z.boolean().optional(),
   securityDiligence: z.boolean().optional(),
   message: optionalText(3000),
@@ -110,21 +143,10 @@ export const workflowReviewAnswersSchema = z.object({
 })
 
 export const commercialReadinessAnswersSchema = z.object({
-  targetStartPeriod: z.enum(['within-30-days', 'within-60-days', 'this-quarter', 'later']),
-  approvalPath: z.enum(['self', 'other', 'procurement', 'not-established', 'no']),
+  targetStartPeriod: targetStartPeriodSchema,
+  approvalPath: approvalPathSchema,
   productionOwner: z.string().trim().min(1).max(300),
-  primaryObjection: z.enum([
-    'none',
-    'workflow-fit',
-    'value',
-    'pilot-scope',
-    'security',
-    'integration',
-    'procurement',
-    'timing-budget',
-    'stakeholder-alignment',
-    'other',
-  ]),
+  primaryObjection: primaryObjectionSchema,
   objectionDetail: optionalText(2000),
 })
 

@@ -166,7 +166,7 @@ function routeResponse(
     return {ok: true, nextAction: 'follow_up', message: 'Your request is recorded.'}
   }
   if (
-    request.submissionType === 'commercial_readiness' &&
+    ['assessment', 'commercial_readiness'].includes(request.submissionType) &&
     scores &&
     scores.fit.normalized >= 50 &&
     scores.pain.normalized >= 40 &&
@@ -184,7 +184,7 @@ function routeResponse(
       ),
       missingFields: [],
       recommendedWorkflow: workflow,
-      message: 'Your workflow and commercial readiness support building a customized pilot plan.',
+      message: 'Your workflow, the problem you described, and the practical context you shared support building a customized pilot plan.',
     }
   }
   if (request.submissionType === 'commercial_readiness' && scores) {
@@ -217,14 +217,30 @@ function routeResponse(
     }
   }
   if (tier === 'medium' || tier === 'incomplete') {
+    if (request.submissionType === 'assessment' || request.submissionType === 'commercial_readiness') {
+      return {
+        ok: true,
+        nextAction: 'use_case',
+        ...publicQualification,
+        qualificationOutcome: 'education',
+        reasonCodes: qualificationReasonCodes(
+          qualificationAnswers || request.answers,
+          scores!,
+          'education',
+        ),
+        missingFields: [],
+        recommendedWorkflow: workflow,
+        ...(request.submissionType === 'assessment'
+          ? {downloadUrl: '/api/leads/documents/assessment-result'}
+          : {}),
+        message: 'Your answers point to a concrete workflow to improve. Explore that production pattern to see how Portals can reduce repeat work before deciding on a pilot.',
+      }
+    }
     return {
       ok: true,
       nextAction: 'commercial_clarification',
       ...publicQualification,
       recommendedWorkflow: workflow,
-      ...(request.submissionType === 'assessment'
-        ? {downloadUrl: '/api/leads/documents/assessment-result'}
-        : {}),
       message: 'This workflow may be viable; a few practical details will clarify pilot readiness.',
     }
   }
@@ -486,7 +502,7 @@ async function handleLeadRequest(
     ...(effectiveLeadRequest.submissionType === 'workflow_review'
       ? [{workflowReviewRequested: true}]
       : []),
-    ...(effectiveLeadRequest.submissionType === 'commercial_readiness'
+    ...(effectiveLeadRequest.submissionType === 'assessment' || effectiveLeadRequest.submissionType === 'commercial_readiness'
       ? [{commercialReadinessCompleted: true}]
       : []),
     ...(effectiveLeadRequest.submissionType === 'pilot_request'
@@ -504,7 +520,7 @@ async function handleLeadRequest(
         qualificationAnswers.pilotWorkflow || qualificationAnswers.activeWorkflow,
     })
   }
-  if (effectiveLeadRequest.submissionType === 'commercial_readiness') {
+  if (effectiveLeadRequest.submissionType === 'assessment' || effectiveLeadRequest.submissionType === 'commercial_readiness') {
     const readiness = effectiveLeadRequest.answers
     qualificationAnswers = mergeQualificationAnswers(qualificationAnswers, {
       ...(readiness.objectionDetail
