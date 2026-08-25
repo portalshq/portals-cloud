@@ -1,11 +1,4 @@
-export const productionWorkflows: {
-  id: string
-  title: string
-  problem: string
-  outcome: string
-  quote?: string
-  source?: string
-}[] = [
+const productionWorkflowDefinitions = [
   {
     id: 'five-more-like-this',
     title: 'twelve more like this',
@@ -59,5 +52,19 @@ export const productionWorkflows: {
   },
 ] as const
 
-export type ProductionWorkflowId = (typeof productionWorkflows)[number]['id']
+export type ProductionWorkflowId = (typeof productionWorkflowDefinitions)[number]['id']
 
+export type ProductionWorkflow = {
+  id: ProductionWorkflowId
+  title: string
+  problem: string
+  outcome: string
+  quote?: string
+  source?: string
+}
+
+export const productionWorkflows: readonly ProductionWorkflow[] = productionWorkflowDefinitions
+
+export const productionWorkflowIds = productionWorkflows.map(
+  ({id}) => id,
+) as [ProductionWorkflowId, ...ProductionWorkflowId[]]

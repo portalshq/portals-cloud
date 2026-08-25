@@ -1,4 +1,5 @@
 import {z} from 'zod'
+import {productionWorkflowIds} from '@/lib/production-workflows'
 
 export const DISCLOSURE_VERSION = '2026-08-01'
 export const SCORE_VERSION = '2026-08-09.v2'
@@ -122,6 +123,7 @@ export const assessmentAnswersSchema = z.object({
   recurringWorkflow: optionalText(40),
   assetVolume: optionalText(40),
   annualAffectedValue: optionalText(40),
+  activeWorkflows: z.array(z.enum(productionWorkflowIds)).max(productionWorkflowIds.length).optional(),
   activeWorkflow: optionalText(2000),
   targetStartPeriod: optionalText(80),
   approvalPath: optionalText(80),
@@ -134,6 +136,7 @@ export const assessmentAnswersSchema = z.object({
 })
 
 export const workflowReviewAnswersSchema = z.object({
+  activeWorkflows: z.array(z.enum(productionWorkflowIds)).max(productionWorkflowIds.length).optional(),
   activeWorkflow: optionalText(2000),
   timeline: optionalText(80),
   currentSystems: optionalText(1200),

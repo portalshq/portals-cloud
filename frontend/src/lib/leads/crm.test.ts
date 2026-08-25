@@ -4,6 +4,7 @@ import {
   ApolloRequestError,
   apolloCustomFieldId,
   apolloSourceUrl,
+  contactFields,
   finalOperationalList,
   isDeletedApolloContactError,
   mapDealRoles,
@@ -11,6 +12,33 @@ import {
   prospectAccount,
   qualificationState,
 } from './crm'
+
+test('contact fields preserve active workflow categories and the primary workflow narrative', () => {
+  const fields = contactFields({
+    id: 'submission-1',
+    tier: 'medium',
+    identity: {},
+    profile: {
+      firstTouch: {sourcePage: '/assessment'},
+      lastTouch: {sourcePage: '/assessment'},
+      marketingConsent: false,
+      marketingSuppressed: false,
+      analyticsConsent: false,
+    },
+    response: {nextAction: 'use_case'},
+    request: {
+      submissionType: 'assessment',
+      attribution: {sourcePage: '/assessment'},
+      answers: {
+        activeWorkflows: ['character-continuity', 'production-handoff'],
+        activeWorkflow: 'A live character campaign moving from image generation into video.',
+      },
+    },
+  } as any)
+
+  assert.deepEqual(fields.active_workflows, ['character-continuity', 'production-handoff'])
+  assert.equal(fields.active_workflow, 'A live character campaign moving from image generation into video.')
+})
 
 const rank = {
   nurture: 0,

@@ -7,7 +7,7 @@ import {
   mergeQualificationAnswers,
   qualificationTier,
 } from './scoring'
-import {SCORE_VERSION, commercialReadinessAnswersSchema, pilotRequestAnswersSchema} from './contracts'
+import {SCORE_VERSION, assessmentAnswersSchema, commercialReadinessAnswersSchema, pilotRequestAnswersSchema} from './contracts'
 
 test('progressive answers preserve known values when hidden fields submit blanks', () => {
   const merged = mergeQualificationAnswers(
@@ -20,6 +20,16 @@ test('progressive answers preserve known values when hidden fields submit blanks
     activeWorkflow: 'campaign variants',
     toolsUsed: '3-4',
   })
+})
+
+test('assessment accepts multiple active workflow categories and rejects unknown ones', () => {
+  const answers = assessmentAnswersSchema.parse({
+    activeWorkflows: ['character-continuity', 'production-handoff'],
+    activeWorkflow: 'A live character campaign moving from image generation into video.',
+  })
+
+  assert.deepEqual(answers.activeWorkflows, ['character-continuity', 'production-handoff'])
+  assert.throws(() => assessmentAnswersSchema.parse({activeWorkflows: ['unknown-workflow']}))
 })
 
 test('explicit no-incident answers resolve conditional pain to zero', () => {

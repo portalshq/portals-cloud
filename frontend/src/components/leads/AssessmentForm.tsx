@@ -3,7 +3,7 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDownToLine, ArrowRight } from 'lucide-react'
 import { CTAButton } from '@/components/CTAButton'
-import { LeadSelectField, LeadTextField, LeadTextareaField } from '@/components/mui/fields'
+import { LeadCheckbox, LeadSelectField, LeadTextField, LeadTextareaField } from '@/components/mui/fields'
 import {
   analyticsConsent,
   buildAttribution,
@@ -11,6 +11,7 @@ import {
   trackEvent,
 } from '@/lib/leads/analytics-client'
 import { newSubmissionId, publicEmailNeedsWebsite, submitLead } from '@/lib/leads/client'
+import { productionWorkflows } from '@/lib/production-workflows'
 import {
   DISCLOSURE_VERSION,
   type KnownLeadContext,
@@ -143,7 +144,20 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
     event.preventDefault()
     setStatus('submitting')
     flush()
-    const values = Object.fromEntries(new FormData(event.currentTarget).entries())
+    const formData = new FormData(event.currentTarget)
+    const values = Object.fromEntries(formData.entries())
+    const selectedActiveWorkflows = productionWorkflows
+      .filter(({id}) => formData.get(`activeWorkflowOption:${id}`) === 'on')
+      .map(({id}) => id)
+    const activeWorkflows = known.has('activeWorkflows') && Array.isArray(leadContext.answerValues?.activeWorkflows)
+      ? leadContext.answerValues.activeWorkflows
+      : selectedActiveWorkflows
+    if (!known.has('activeWorkflows') && activeWorkflows.length === 0) {
+      setError('select at least one active workflow')
+      setStatus('error')
+      event.currentTarget.querySelector<HTMLElement>('[data-active-workflows]')?.focus()
+      return
+    }
     try {
       const behavior = qualificationBehavior()
       const submittedIdentity: LeadIdentity = Object.fromEntries(
@@ -171,6 +185,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         recurringWorkflow: String(values.recurringWorkflow || ''),
         assetVolume: String(values.assetVolume || ''),
         annualAffectedValue: String(values.annualAffectedValue || ''),
+        activeWorkflows,
         activeWorkflow: String(values.activeWorkflow || ''),
         targetStartPeriod: String(values.targetStartPeriod || ''),
         productionOwner: String(values.productionOwner || ''),
@@ -184,7 +199,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
       const response = await submitLead({
         submissionType: 'assessment',
         idempotencyKey,
-        formVersion: 'assessment.v2',
+        formVersion: 'assessment.v3',
         provider: 'browser',
         identity: submittedIdentity,
         attribution: buildAttribution({
@@ -515,15 +530,39 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         {!known.has('annualAffectedValue') ? (
           <AssessmentSelect id="annualAffectedValue" name="annualAffectedValue" label="annual value of the affected work" required={false} options={['under-10k', '10k-49k', '50k-99k', '100k-499k', '500k-plus']} />
         ) : null}
+        {!known.has('activeWorkflows') ? (
+          <fieldset
+            className="space-y-12"
+            data-active-workflows
+            tabIndex={-1}
+            aria-describedby="active-workflows-help"
+          >
+            <legend className="t-p-sm-sans text-white">active workflows today *</legend>
+            <p id="active-workflows-help" className="t-p-sm-sans text-white/80">
+              select every production pattern your team is actively running or expects to run next.
+            </p>
+            <div className="grid gap-10 sm:grid-cols-2">
+              {productionWorkflows.map((workflow) => (
+                <label key={workflow.id} className="flex items-start gap-10 t-p-sm-sans text-white">
+                  <LeadCheckbox
+                    name={`activeWorkflowOption:${workflow.id}`}
+                    onChange={onStarted}
+                  />
+                  <span>{workflow.title}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
         {!known.has('activeWorkflow') ? (
-          <LeadField label="active workflow to test *" name="activeWorkflow">
+          <LeadField label="most urgent active workflow *" name="activeWorkflow">
             <LeadTextareaField
               id="activeWorkflow"
               name="activeWorkflow"
               minRows={4}
               resizable={false}
               required
-              placeholder="Describe one recurring deliverable or production workflow your team wants to make faster, cheaper, or easier to reproduce."
+              placeholder="Describe the one recurring deliverable or production workflow that is most urgent to make faster, cheaper, or easier to reproduce."
             />
           </LeadField>
         ) : null}

@@ -467,7 +467,7 @@ function accountStageId(schema: ApolloSchema, submission: StoredSubmission): str
   return undefined
 }
 
-function contactFields(submission: StoredSubmission): Record<string, unknown> {
+export function contactFields(submission: StoredSubmission): Record<string, unknown> {
   const answers = submission.request.answers as Record<string, unknown>
   const attribution = submission.request.attribution
   const scores = submission.scores
@@ -508,6 +508,7 @@ function contactFields(submission: StoredSubmission): Record<string, unknown> {
     recurring_workflow: answers.recurringWorkflow,
     asset_volume: answers.assetVolume,
     annual_affected_value: answers.annualAffectedValue,
+    active_workflows: answers.activeWorkflows,
     active_workflow: answers.activeWorkflow || answers.pilotWorkflow,
     timeline: answers.timeline || answers.targetStartPeriod,
     current_systems: answers.currentSystems,

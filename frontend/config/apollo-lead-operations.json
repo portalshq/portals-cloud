@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-24.apollo.v2",
+  "version": "2026-08-24.apollo.v3",
   "lists": [
     {"name": "Inbound Leads", "modality": "contacts", "history": true},
     {"name": "Guide Downloads", "modality": "contacts", "history": true},
@@ -44,6 +44,7 @@
     {"key":"recurring_workflow","label":"Recurring workflow","modalities":["contact"],"type":"string"},
     {"key":"asset_volume","label":"Asset volume","modalities":["contact"],"type":"string"},
     {"key":"annual_affected_value","label":"Annual affected value","modalities":["contact"],"type":"string"},
+    {"key":"active_workflows","label":"Active workflows","modalities":["contact"],"type":"textarea","inputKind":"multi-select","allowedValues":["approved-version-retrieval","asset-reproduction","five-more-like-this","character-continuity","production-handoff","campaign-variant-control"],"categories":["assessment"]},
     {"key":"active_workflow","label":"Active workflow","modalities":["contact"],"type":"string"},
     {"key":"timeline","label":"Timeline","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["within-30-days","within-60-days","this-quarter","later","1-3-months","3-plus-months","not-planned"]},
     {"key":"current_systems","label":"Current systems","modalities":["contact"],"type":"textarea"},
