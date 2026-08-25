@@ -17,15 +17,16 @@ issues log below is append-only._
 | Workstream | State |
 |---|---|
 | ACM `.works` certificate | **ISSUED** 2026-08-22T14:52Z (`32f56a6f…`, NotAfter 2027-03-07); both validation domains SUCCESS |
-| Service DNS | `lore`/`auth.portals.works` → prod ALB, DNS-only, live |
-| Source migration | Complete in all three repos (gateway audience const, lore strict-gate/TOMLs/tests, Nap routing incl. auth/api URLs); compile+tests green |
-| Receipt ledger | **v2 shipped** (digest-keyed, append-only) + legacy-compat shim; currently `schemaVersion:2, receipts:{}` awaiting real promotions — previews fail-closed by design until then |
-| OIDC | Provider + `portals-github-release` role (publication-only) + managed policy live; `.github/workflows/image-release.yml` wired (tag-triggered) |
-| Egress hardening (#7) | `EgressControls` coded (6 interface endpoints + SG + private-zone alias auth→ALB), flag on prod; preview +33/−0 |
-| Alarm contacts | SNS topic + `eng@portals.works` sub wired to all 7 alarms (confirm inbox after first apply) |
-| Pulumi config | Both stacks: cert ARN, `.works` hostnames/callbacks, JWKS endpoint, issuer no-trailing-slash; prod also `authDomainPrefix`, `egressEndpointsEnabled=true` |
-| Builds | Operator re-cutting with immutable build-identity fixes; earlier today-digests non-canonical |
-| Next gates | promotions → BOM trio commit → `up dev` → stage-1 JWKS bootstrap → stage-2 private Lore → checklist §8 → checkpoint #5 opening window |
+| Service DNS | `lore`/`auth.portals.works` → prod ALB, DNS-only, live; `auth-gateway-rebac` Service Connect VIP fix in progress |
+| Source migration | Complete in all three repos (gateway audience const, lore strict-gate/TOMLs/tests incl. `fix(rebac):8087` `3694edb`, Nap routing incl. auth/api URLs); compile+tests green |
+| Receipt ledger | **v2 shipped** (digest-keyed, append-only); Nap `v0.5.15` (`676fa44`) and Lore `v0.8.4-portals.6` (`3694edb`) promotions pending GitHub release + image build |
+| OIDC | Provider + `portals-github-release` role + managed policy live; `.github/workflows/image-release.yml` wired; Lore `release.yml` `v0.8.4-portals.6` (`32778488149`) in_progress (6 builds) |
+| Egress hardening (#7) | `EgressControls` live (6 interface endpoints + SG + private-zone alias auth→ALB); Lore SG now `8087→100.64.0.0/10` + `80→0.0.0.0/0` hotfix for ReBAC VIP:80 dial |
+| Alarm contacts | SNS topic + `eng@portals.works` sub **CONFIRMED** 2026-08-23 (subscription ARN resolved) |
+| Pulumi config | Both stacks: cert ARN, `.works` hostnames/callbacks, JWKS endpoint `https://auth.portals.works/.well-known/jwks.json` (no trailing slash), issuer `https://auth.portals.works`; prod `authDomainPrefix` `portals-prod-auth-907199504810`, `egressEndpointsEnabled=true`, `publicIngressEnabled=true` |
+| Builds | Lore `v0.8.4-portals.6` (`3694edb`) GitHub release building (6 arch), Nap `v0.5.15` (`676fa44`) released + promoted to `verified-releases.json` |
+| Next gates | `v0.8.4-portals.6` image build → `verify-and-promote-image.sh` → Lore `replace` (new `portals-prod-lore:6` with `RUST_LOG=debug` + `ReBAC endpoint` log) → `RepositoryGet` `VIP:8087` <1 s → full E2E matrix → external probe → §12 sign-off |
+| Blocker | **Lore read path timeout → VIP:80 dial** (see §11c) — `8087` canonical fix in `3694edb`, SG hotfix live, awaiting image |
 
 ## 1. Normal release cycle overview
 
@@ -248,6 +249,8 @@ digests, tags, timestamp, and operator — never tokens, API keys, or database U
 | ECS/ALB readiness | All target groups healthy; Lore readiness proves its stores. |
 | External scan | Only TCP `443` reachable; `8083`, `41337`, `41339` closed. |
 
+Current blocker: Lore `RepositoryGet`/`Clone` hangs 50 s at ReBAC `VIP:80` (see §11c/Issues #22). Hotfix SG `80` live, proper `VIP:8087` fix in `v0.8.4-portals.6` (`3694edb`) building — `lore clone` expected <1 s after image deploy.
+
 External assertion after the release edge exists:
 
 ```bash
@@ -321,6 +324,7 @@ Fill the **Actual** column during execution.
 | 13 | Wave 3 | Image publishing had no CI consumer for the new OIDC role | Added `.github/workflows/image-release.yml` (tag v* → assume portals-github-release → same publisher scripts); first live proof deferred to Wave-7 contained run |
 | 12 | Wave 3 | Egress hardening (#7) implemented in code as `EgressControls` (6 interface endpoints + endpoints SG + private zone alias auth→ALB), flag `egressEndpointsEnabled` default false, enabled on prod | Prod preview +10 create / 0 delete; dev untouched; SG tightening deferred until endpoints verified |
 | 11 | Wave 3 | Path decision: single clean deploy after .works images land (no bootstrap-on-old-image) | Operator chose standardized no-shortcut path; stage-1 JWKS apply deferred until promotions complete |
+| 22 | 2026-08-24 | Lore read path timeout (ReBAC VIP:80) — `RepositoryGet` hung 50 s at `connecting to <ServiceConnect VIP>:80` (SG only allowed 8087), `RUST_LOG=debug` captured `100.50.45.236:80` vs. `LORE_REBAC_URL=http://auth-gateway-rebac:8087` | Root cause: SG `lore-rebac-egress` only `8087→10.1.0.0/16` (VIP is `100.64.0.0/10`) and `rebac.rs` stripped `:8087` to `:80` when falling back to `auth_url`. Hot-fixed SG to `8087→100.64.0.0/10` + `80→0.0.0.0/0`, patched `rebac.rs` to preserve `:8087` and log `ReBAC endpoint`, bumped `v0.8.4-portals.6` `3694edb`, GitHub release `32778488149` building |
 
 | 7 | Wave 1H | Console policy error "Has prohibited field Principal" — trust JSON pasted into permissions slot | Swapped: trust is assume-role policy, permissions is managed policy; posted both via IAM (provider+role 2026-08-22) |
 | 6 | Wave 1E | v2 lookup initially failed tests — legacy `receipt?.image === image` clause survived refactor | Clause removed (key equality supersedes); security.test.ts prod.toml assertion updated to `.works` |

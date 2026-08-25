@@ -69,6 +69,29 @@
       "protocolCommit": "d0ff3c502f882209194c9138eadbab1e0e23e354",
       "sourceTreeClean": true,
       "verifiedAt": "2026-08-22T23:52:34.595Z"
+    },
+    "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:bdba76395164c037c7065119b84ed57dd8ca05e557a28b7954c9a0ce4463bd85": {
+      "service": "lore",
+      "platform": "linux/arm64",
+      "platformDigest": "sha256:31f47367a642e2af0ac86ce0694c006731fbd8e372045ebf39f8f57621ae868a",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-24T21:24:07-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.74.0",
+        "completedAt": "2026-08-25T01:27:17.755Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": true,
+      "sourceCommit": "3694edbd48098c795a415ab2b25503a66dffefc8",
+      "packagingCommit": "c66d6e1892d68070b4a48689d85cb4e13048c5e8",
+      "sourceTreeClean": true,
+      "verifiedAt": "2026-08-25T01:27:17.755Z"
     }
   }
 }
