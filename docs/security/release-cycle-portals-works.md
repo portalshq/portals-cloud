@@ -11,7 +11,7 @@ tags.
 
 ## 0. Execution status — live snapshot
 
-_Updated 2026-08-22. This section is rewritten as the cycle progresses; the
+_Updated 2026-08-25 19:46 UTC. This section is rewritten as the cycle progresses; the
 issues log below is append-only._
 
 | Workstream | State |
