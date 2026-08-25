@@ -47,13 +47,13 @@ lore-client:
 lore:
   # source_commit and packaging_commit updated 2026-08-21 with production build
   source_repository: "https://github.com/portalshq/lore"
-  source_commit: "d0ff3c502f882209194c9138eadbab1e0e23e354"
-  packaging_commit: "7d2e5c407b94f279467faeec4ae261328e662764"
+  source_commit: "47333fc258220c38cf9f2ebbd3036dfb6c0dd800"
+  packaging_commit: "e2f1bed3327dba956bf2aad62794b240e75bef2a"
   upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
   upstream_tag: ""
   security_contract: "lore-auth-v1"
-  base_image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:019407ef5b7906ca70012059e865f17723c9d6984d146cb0c891f9c9dc0c96eb"
-  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:bb0604892e76fc7eac73b771162472c0b1b42a70ee3e8994770bcdec5abbb896"
+  base_image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:ba3f960590820f9c2c72bf5476ea640dfd7770208c6fae751745413f0969ed42"
+  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:72bc9186be4cc26c9b5a929c2e8ea33faf47b8ffe4ebe0867bddb4eee2244a79"
 
 # The active control-plane runtime is the private Auth Gateway. The old
 # caller-selected-claims issuer is separately and permanently retired below.

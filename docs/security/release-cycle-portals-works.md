@@ -17,16 +17,16 @@ issues log below is append-only._
 | Workstream | State |
 |---|---|
 | ACM `.works` certificate | **ISSUED** 2026-08-22T14:52Z (`32f56a6f…`, NotAfter 2027-03-07); both validation domains SUCCESS |
-| Service DNS | `lore`/`auth.portals.works` → prod ALB, DNS-only, live; `auth-gateway-rebac` Service Connect VIP fix in progress |
-| Source migration | Complete in all three repos (gateway audience const, lore strict-gate/TOMLs/tests incl. `fix(rebac):8087` `3694edb`, Nap routing incl. auth/api URLs); compile+tests green |
-| Receipt ledger | **v2 shipped** (digest-keyed, append-only); Nap `v0.5.15` (`676fa44`) and Lore `v0.8.4-portals.6` (`3694edb`) promotions pending GitHub release + image build |
-| OIDC | Provider + `portals-github-release` role + managed policy live; `.github/workflows/image-release.yml` wired; Lore `release.yml` `v0.8.4-portals.6` (`32778488149`) in_progress (6 builds) |
-| Egress hardening (#7) | `EgressControls` live (6 interface endpoints + SG + private-zone alias auth→ALB); Lore SG now `8087→100.64.0.0/10` + `80→0.0.0.0/0` hotfix for ReBAC VIP:80 dial |
-| Alarm contacts | SNS topic + `eng@portals.works` sub **CONFIRMED** 2026-08-23 (subscription ARN resolved) |
-| Pulumi config | Both stacks: cert ARN, `.works` hostnames/callbacks, JWKS endpoint `https://auth.portals.works/.well-known/jwks.json` (no trailing slash), issuer `https://auth.portals.works`; prod `authDomainPrefix` `portals-prod-auth-907199504810`, `egressEndpointsEnabled=true`, `publicIngressEnabled=true` |
-| Builds | Lore CLI `v0.8.4-portals.6` (`3694edb`) **RELEASED** + image `bdba7639` promoted & deployed (`lore:6`, healthy); follow-up **`v0.8.4-portals.7`** (`c1c4f17` — server-side ReBAC dial fix in `auth.rs`) GitHub release building; Nap `v0.5.15` (`676fa44`) released + promoted |
-| Next gates | `v0.8.4-portals.7` image build → promote → Lore `replace` (`auth.rs` honors `LORE_REBAC_URL :8087`) → verify `RepositoryGet` <1 s → remove temporary SG `80→0.0.0.0/0` → full E2E matrix → external probe → §12 sign-off |
-| Blocker | **Lore read path timeout → VIP:80 dial** (see Issues #22/#23) — root cause found in BOTH `rebac.rs` (fixed in `.6`) AND `auth.rs` (fixed in `.7`); SG hotfix live; awaiting `.7` image |
+| Service DNS | `lore`/`auth.portals.works` → prod ALB, DNS-only, live; `auth-gateway-rebac` Service Connect `VIP:8087` verified (UrcAuthApi via `https://auth.portals.works:443` → `:8084`, RebacApi via `http://auth-gateway-rebac:8087` → `127.255.0.1:8087`) |
+| Source migration | Complete in all three repos (gateway audience const, lore `0.8.4-portals.8` `47333fc` incl. `fix(rebac):8087` `3694edb` + `fix(auth):https` `f4ebbe5`, Nap `0.5.15` `676fa44`); `cargo check -p lore-server` green, compile+tests green |
+| Receipt ledger | **v2 shipped**; Nap `v0.5.15` (`676fa44`) and Lore `v0.8.4-portals.8` (`47333fc`/`f4ebbe5`) promoted — `infra/lore/versions.yaml` `lore@sha256:72bc9186…` `Verified OK` (cosign+Trivy 0 high), `verified-images.json` receipt bound |
+| OIDC | Provider + `portals-github-release` role live; `image-release.yml` wired; Lore `release.yml` `v0.8.4-portals.8` **completed success** (6/6 jobs) |
+| Egress hardening (#7) | `EgressControls` live; Lore SG `8087→100.64.0.0/10` (VIP) + `8087→VPC` + `443→0.0.0.0/0` (JWKS/ALB) + `53→VPC`; temporary `80→0.0.0.0/0` **removed 2026-08-25** |
+| Alarm contacts | SNS topic + `eng@portals.works` sub **CONFIRMED** 2026-08-23 |
+| Pulumi config | Both stacks: cert ARN, `.works` hostnames, JWKS `https://auth.portals.works/.well-known/jwks.json`, issuer `https://auth.portals.works`; `authDomainPrefix` `portals-prod-auth-907199504810`, `egressEndpointsEnabled=true`, `publicIngressEnabled=true`, `lore:8` `72bc9186` `HEALTHY` `c60b9ca368cf…` |
+| Builds | Lore `v0.8.4-portals.8` (`47333fc`) **RELEASED** + image `72bc9186` promoted & deployed (`lore:8`, `c60b9ca368cf…` `HEALTHY`, `RUST_LOG=debug`); Nap `v0.5.15` released + promoted |
+| Next gates | Full E2E matrix **passed** (`create 0.8 s` `01a03a7…`, `clone 1.06 s` `43 B` file, `push 0.77 s` `e881f13…`), `verify-external-surface.sh` `443 open / 8083,41337,41339 closed` → §12 sign-off |
+| Blocker | **None** — `RepositoryGet` now `https://auth.portals.works:443` (`UrcAuthApi` → `:8084` via ALB) + `VIP:8087` (`RebacApi` via Service Connect) verified `<1 s`; SG tightened |
 
 ## 1. Normal release cycle overview
 
@@ -249,7 +249,7 @@ digests, tags, timestamp, and operator — never tokens, API keys, or database U
 | ECS/ALB readiness | All target groups healthy; Lore readiness proves its stores. |
 | External scan | Only TCP `443` reachable; `8083`, `41337`, `41339` closed. |
 
-Current blocker: Lore `RepositoryGet`/`Clone` hangs 50 s at ReBAC `VIP:80` (see §11c/Issues #22). Hotfix SG `80` live, proper `VIP:8087` fix in `v0.8.4-portals.6` (`3694edb`) building — `lore clone` expected <1 s after image deploy.
+Current blocker: **None** — `v0.8.4-portals.8` verified (`create 0.8 s`/`clone 1.06 s`/`push 0.77 s`), SG tightened, external probe `PASS`.
 
 External assertion after the release edge exists:
 
@@ -324,6 +324,7 @@ Fill the **Actual** column during execution.
 | 13 | Wave 3 | Image publishing had no CI consumer for the new OIDC role | Added `.github/workflows/image-release.yml` (tag v* → assume portals-github-release → same publisher scripts); first live proof deferred to Wave-7 contained run |
 | 12 | Wave 3 | Egress hardening (#7) implemented in code as `EgressControls` (6 interface endpoints + endpoints SG + private zone alias auth→ALB), flag `egressEndpointsEnabled` default false, enabled on prod | Prod preview +10 create / 0 delete; dev untouched; SG tightening deferred until endpoints verified |
 | 11 | Wave 3 | Path decision: single clean deploy after .works images land (no bootstrap-on-old-image) | Operator chose standardized no-shortcut path; stage-1 JWKS apply deferred until promotions complete |
+| 24 | 2026-08-25 | `v0.8.4-portals.7` (`c1c4f17`) `lore:7` `f72985` fixed `RebacApi` via `VIP:8087` but broke `UrcAuthApi.check_user_permission` by reusing `LORE_REBAC_URL` → `auth-gateway-rebac:8087` (Rebac service) instead of `https://auth.portals.works:443` (Auth service `:8084` via ALB) → `Unimplemented` `6 ms` `NotFound` (log `Lore auth endpoint http://auth-gateway-rebac:8087` + `connecting to 127.255.0.1:8087` but wrong proto) | Patched `lore-server/src/authnz/auth.rs` to map `ucs-auth://`→`https://` (ALB) for `UrcAuthApi`, keep `rebac.rs` `LORE_REBAC_URL`→`VIP:8087` for `RebacApi`; bumped `v0.8.4-portals.8` `47333fc`/`f4ebbe5`, release `completed success`, image `72bc9186` `c60b9ca368cf…` verified `create 0.8 s`/`clone 1.06 s` with file |
 | 23 | 2026-08-25 | Reads STILL hung 50 s after `.6` deploy (`bdba7639`, task `1d4488…`): trace showed NO `ReBAC endpoint` log and dial to `34.203.49.247:80` (public ALB IP). Root cause #2: the read path uses `check_repository_query_authorization` → `grpc_get_auth_client(auth_url)` where `auth_url` is the advertised `ucs-auth://auth.portals.works`; tonic dials unknown schemes as plain HTTP port 80. The `.6` fix only covered `RebacClientHelper` (create path) | Patched `lore-server/src/authnz/auth.rs`: prefer `LORE_REBAC_URL`, map `ucs-auth://`→`https://`, force `http://`→`:8087`, debug-log dial URL. Bumped `v0.8.4-portals.7` `c1c4f17`, tag pushed, release building; parent gitlink `13b896f` |
 | 22 | 2026-08-24 | Lore read path timeout (ReBAC VIP:80) — `RepositoryGet` hung 50 s at `connecting to <ServiceConnect VIP>:80` (SG only allowed 8087), `RUST_LOG=debug` captured `100.50.45.236:80` vs. `LORE_REBAC_URL=http://auth-gateway-rebac:8087` | Root cause: SG `lore-rebac-egress` only `8087→10.1.0.0/16` (VIP is `100.64.0.0/10`) and `rebac.rs` stripped `:8087` to `:80` when falling back to `auth_url`. Hot-fixed SG to `8087→100.64.0.0/10` + `80→0.0.0.0/0`, patched `rebac.rs` to preserve `:8087` and log `ReBAC endpoint`, bumped `v0.8.4-portals.6` `3694edb`, GitHub release `32778488149` building |
 
@@ -349,14 +350,13 @@ Live log — append rows during execution; never delete entries.
    the flag nap passes; accept-and-ignore in next fork release.
 5. **Pin aquasec/trivy by digest** once current JSON schema stabilized.
 
-## 11c. Current Blocker (updated 2026-08-25 03:45 UTC)
+## 11c. Current Blocker (resolved 2026-08-25 19:46 UTC)
 
-* **Lore read path timeout → VIP:80 dial — TWO bugs, both now fixed:**
-  1. `rebac.rs` stripped `:8087` (fixed in `v0.8.4-portals.6` `3694edb`, image `bdba7639` deployed as `lore:6`).
-  2. **`auth.rs` fell back to the advertised `ucs-auth://auth.portals.works` and dialed it as plain HTTP port 80** (fixed in `v0.8.4-portals.7` `c1c4f17`): the read path (`check_repository_query_authorization`) uses `grpc_get_auth_client(auth_url)`, not `RebacClientHelper`.
-* Evidence chain (correlation `1845b42a` et al.): JWT ✅ → DynamoDB name→ID ✅ (~20 ms) → `Repository query authorization check for 01a031c…` → `connecting to <ALB>:80` → silence → server kills at `request_handler_timeout_seconds:50`.
-* Interim mitigations live: Lore SG `8087→100.64.0.0/10` (canonical) + temporary `80→0.0.0.0/0` hotfix.
-* Remaining: `v0.8.4-portals.7` release building (Linux+win-arm64 ✅, Apple+win-x64 in progress) → image build → promote → Lore replace → verify `<1 s` reads → drop the `80` rule → E2E matrix → external probe.
+* **No blocker — both ReBAC paths verified on `lore:8` (`72bc9186`, task `c60b9ca368cf…`):**
+  * `RebacApi.create_resource` → `ReBAC endpoint http://auth-gateway-rebac:8087` → `127.255.0.1:8087` `207 ms` `01a03a728…`.
+  * `UrcAuthApi.check_user_permission` → `Lore auth endpoint https://auth.portals.works` → ALB `443` → `auth-gateway:8084` `6 ms` → `allowed`.
+* `lore repository create test-verify8c-1787686980` `0.8 s` `01a03a728…`, `lore clone` `1.06 s` `Cloned 0/0`, `dirty+stage+commit+push 0.77 s` `e881f13…` → `clone 1.06 s` `hello.txt 43 B` verified; `verify-external-surface.sh` `PASS` (`443 open`); SG `80→0.0.0.0/0` removed.
+* Remaining: §12 sign-off + `RUST_LOG` revert to `info` (optional) + `rollout-status` close-out.
 
 ## 12. Sign-off
 

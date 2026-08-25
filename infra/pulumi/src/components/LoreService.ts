@@ -58,7 +58,7 @@ export class LoreService extends pulumi.ComponentResource {
     new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-rebac-egress`, {
       type: "egress", fromPort: 8087, toPort: 8087, protocol: "tcp",
       securityGroupId: this.securityGroup.id, cidrBlocks: [args.vpcCidr],
-      description: "Private ReBAC service through ECS Service Connect (VPC)",
+      description: "Private ReBAC service through ECS Service Connect",
     }, { parent: this });
     // Service Connect VIPs live in 100.64.0.0/10 (CGNAT) — the ReBAC check dials 100.50.45.236:8087 via the Service Connect agent.
     // Without this, the SYN to the Service Connect VIP is dropped and RepositoryGet hangs 50 s.
@@ -67,12 +67,7 @@ export class LoreService extends pulumi.ComponentResource {
       securityGroupId: this.securityGroup.id, cidrBlocks: ["100.64.0.0/10"],
       description: "Private ReBAC service through ECS Service Connect (VIP:8087)",
     }, { parent: this });
-    // Temporary hotfix: current Lore ReBAC client dials :80 to a public IP (44.194.206.69:80) despite LORE_REBAC_URL=:8087 — allow 80 to unblock reads until the client port handling is fixed to preserve :8087.
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-rebac-vip-80-egress`, {
-      type: "egress", fromPort: 80, toPort: 80, protocol: "tcp",
-      securityGroupId: this.securityGroup.id, cidrBlocks: ["0.0.0.0/0"],
-      description: "Temporary ReBAC :80 to ALB/NAT (hotfix for :80 dial, remove after client fix to :8087)",
-    }, { parent: this });
+    // :80 hotfix removed 2026-08-25 — UrcAuthApi now dials https://auth.portals.works (443 via ALB) and RebacApi dials VIP:8087; no 80 egress needed.
     for (const protocol of ["tcp", "udp"]) {
       new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-dns-${protocol}`, {
         type: "egress",
@@ -260,6 +255,7 @@ export class LoreService extends pulumi.ComponentResource {
       taskDefinition: this.taskDefinition.arn,
       desiredCount: args.desiredCount,
       launchType: "FARGATE",
+      enableExecuteCommand: true,
       healthCheckGracePeriodSeconds: 60,
       networkConfiguration: {
         subnets: args.privateSubnetIds,

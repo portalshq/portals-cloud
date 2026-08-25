@@ -92,6 +92,52 @@
       "packagingCommit": "c66d6e1892d68070b4a48689d85cb4e13048c5e8",
       "sourceTreeClean": true,
       "verifiedAt": "2026-08-25T01:27:17.755Z"
+    },
+    "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:f72985dd1f228016b41171fe4b89805098417755e31f15bf463c98dbecd9d434": {
+      "service": "lore",
+      "platform": "linux/arm64",
+      "platformDigest": "sha256:233e4eb045af281cb79c6903cffaf4798ac29c53e44080cfc65131fd83622550",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-25T01:19:12-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.74.0",
+        "completedAt": "2026-08-25T05:22:20.104Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": true,
+      "sourceCommit": "c1c4f17e69ac4c4c0356c7d724c006083c8727c5",
+      "packagingCommit": "e2f1bed3327dba956bf2aad62794b240e75bef2a",
+      "sourceTreeClean": true,
+      "verifiedAt": "2026-08-25T05:22:20.104Z"
+    },
+    "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:72bc9186be4cc26c9b5a929c2e8ea33faf47b8ffe4ebe0867bddb4eee2244a79": {
+      "service": "lore",
+      "platform": "linux/arm64",
+      "platformDigest": "sha256:2c9c333b7e820f8fe0b71f635b26e8b80c676d95df7d8f3c32427965eb37f96b",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-25T15:31:24-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.74.0",
+        "completedAt": "2026-08-25T19:32:28.095Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": true,
+      "sourceCommit": "47333fc258220c38cf9f2ebbd3036dfb6c0dd800",
+      "packagingCommit": "e2f1bed3327dba956bf2aad62794b240e75bef2a",
+      "sourceTreeClean": true,
+      "verifiedAt": "2026-08-25T19:32:28.095Z"
     }
   }
 }
