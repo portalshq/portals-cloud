@@ -6,6 +6,7 @@ import type {
   SuccessCriterion,
   SecurityDecision,
 } from '@/lib/leads/contracts'
+import {pilotControlledOptionLists, pilotRequestAnswersSchema} from '@/lib/leads/contracts'
 import {
   applyTransition,
   buildCommercialSnapshot,
@@ -25,6 +26,7 @@ import {sendApplicationAccessEmail} from '@/lib/leads/account-email'
 import {
   getPilotById,
   enqueuePilotEmail,
+  mutatePilot,
   updatePilot,
   type StoredPilot,
 } from '@/lib/leads/store'
@@ -38,6 +40,11 @@ import {
 } from '@/lib/leads/pilot-collaboration'
 import {notifyPilotRoomEvent, pilotRoomSectionsForChanges} from '@/lib/leads/pilot-room-notifications'
 import {commitPilotTermRevision, pilotMutableTermsFromState} from '@/lib/leads/pilot-room-revisions'
+import {
+  isPilotDirectAnswerField,
+  PILOT_DIRECT_ANSWER_FIELDS,
+  type PilotDirectAnswers,
+} from '@/lib/leads/pilot-room-fields'
 
 type PatchAction =
   | 'update'
@@ -70,6 +77,7 @@ type PatchBody = {
   note?: string
   by?: string
   answers?: Record<string, unknown>
+  draftAnswers?: PilotDirectAnswers
   criteria?: SuccessCriterion[]
   security?: SecurityDecision[]
   startDate?: string | null
@@ -81,6 +89,8 @@ type PatchBody = {
   decision?: 'confirm' | 'changes'
   role?: ReviewerRole
   baseVersion?: number
+  versionSeen?: number
+  fieldPaths?: string[]
   resolutions?: Record<string, ConflictResolution>
   sectionChange?: {section: string; note: string}
   payment?: Record<string, unknown>
@@ -91,6 +101,28 @@ export const runtime = 'nodejs'
 
 const TEAM_REVIEW_STATES: PilotState[] = ['team_review', 'scope_confirmed', 'exception_review']
 const INVITATION_STATES: PilotState[] = ['team_review', 'scope_confirmed', 'exception_review']
+const EDITABLE_DRAFT_STATES: PilotState[] = [
+  'reviewing',
+  'revision',
+  'team_review',
+  'exception_review',
+  'scope_confirmed',
+  'ready_sign',
+]
+const MAX_DRAFT_PAYLOAD_BYTES = 64 * 1024
+const MAX_DRAFT_FIELD_PATHS = 80
+
+class PilotDraftConflictError extends Error {
+  constructor(readonly conflicts: PilotDraftConflict[]) {
+    super('Pilot draft conflict')
+  }
+}
+
+class StaleReviewError extends Error {
+  constructor() {
+    super('This pilot changed before the review could be confirmed.')
+  }
+}
 
 function materialChange(pilot: StoredPilot, body: PatchBody): boolean {
   if (body.answers) return true
@@ -144,9 +176,7 @@ function recompute(
   const startDate =
     body.startDate !== undefined ? body.startDate : pilot.resolvedStartDate
   const answersChanged = Boolean(body.answers)
-  const criteria = answersChanged
-    ? buildSuccessCriteria(answers as PilotAnswers)
-    : body.criteria || pilot.successCriteria
+  const criteria = body.criteria || (answersChanged ? buildSuccessCriteria(answers as PilotAnswers) : pilot.successCriteria)
   const security = answersChanged
     ? buildSecurityDecisions(answers as PilotAnswers)
     : body.security || pilot.securityDecisions
@@ -184,17 +214,26 @@ function mutableTermsFromPilot(pilot: StoredPilot): PilotMutableTerms {
 function mutableTermsFromBody(
   pilot: StoredPilot,
   body: PatchBody,
+  fallback = mutableTermsFromPilot(pilot),
 ): PilotMutableTerms {
+  const selected = body.fieldPaths ? new Set(body.fieldPaths) : null
+  const includes = (field: string) => !selected || selected.has(field)
+  const includesCriteria = !selected || [...selected].some((field) => field.startsWith('criteria.'))
+  const answers = {...fallback.answers}
+  for (const field of PILOT_DIRECT_ANSWER_FIELDS) {
+    if (includes(`answers.${field}`) && body.draftAnswers?.[field] !== undefined) answers[field] = String(body.draftAnswers[field] || '')
+  }
   return {
     startDate:
-      body.startDate !== undefined
+      includes('startDate') && body.startDate !== undefined
         ? body.startDate
-        : pilot.resolvedStartDate || null,
+        : fallback.startDate,
     valueConfirmed:
-      body.valueConfirmed !== undefined
+      includes('valueConfirmed') && body.valueConfirmed !== undefined
         ? body.valueConfirmed
-        : Boolean(pilot.proposal?.valueModel?.confirmed),
-    criteria: body.criteria || pilot.successCriteria,
+        : fallback.valueConfirmed,
+    criteria: includesCriteria && body.criteria ? body.criteria : fallback.criteria,
+    answers,
   }
 }
 
@@ -202,7 +241,173 @@ function termsForRevision(
   pilot: StoredPilot,
   version: number,
 ): PilotMutableTerms | null {
-  return pilot.revisions.find((revision) => revision.version === version)?.terms || null
+  const terms = pilot.revisions.find((revision) => revision.version === version)?.terms
+  return terms || null
+}
+
+function isValidDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  return !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`))
+}
+
+function isAllowedDraftPath(path: string): boolean {
+  if (path === 'startDate' || path === 'valueConfirmed') return true
+  const answer = path.match(/^answers\.([A-Za-z0-9_]+)$/)
+  if (answer) return isPilotDirectAnswerField(answer[1])
+  return /^criteria\.[A-Za-z0-9-]{1,120}\.(status|target|participant|evidence|__removed)$/.test(path)
+}
+
+function validateCriteria(criteria: SuccessCriterion[]): string | null {
+  if (criteria.length > 12) return 'too many success criteria'
+  const keys = new Set<string>()
+  for (const criterion of criteria) {
+    if (!/^[A-Za-z0-9-]{1,120}$/.test(criterion.key) || keys.has(criterion.key)) {
+      return 'success criteria must have unique valid keys'
+    }
+    keys.add(criterion.key)
+    if (!criterion.label.trim() || criterion.label.length > 300) return 'success criterion labels are invalid'
+    if (!['accepted', 'modified', 'not-applicable'].includes(criterion.status)) {
+      return 'success criterion status is invalid'
+    }
+    for (const value of [criterion.target, criterion.participant, criterion.evidence]) {
+      if (value !== undefined && (typeof value !== 'string' || value.length > 2_000)) {
+        return 'success criterion details are invalid'
+      }
+    }
+  }
+  return null
+}
+
+function validateDraftPayload(body: PatchBody): string | null {
+  const payloadSize = Buffer.byteLength(
+    JSON.stringify({
+      draftAnswers: body.draftAnswers,
+      criteria: body.criteria,
+      fieldPaths: body.fieldPaths,
+      startDate: body.startDate,
+      valueConfirmed: body.valueConfirmed,
+    }),
+  )
+  if (payloadSize > MAX_DRAFT_PAYLOAD_BYTES) return 'draft payload is too large'
+  if (body.fieldPaths !== undefined) {
+    if (!Array.isArray(body.fieldPaths) || body.fieldPaths.length > MAX_DRAFT_FIELD_PATHS) {
+      return 'draft field paths are invalid'
+    }
+    if (body.fieldPaths.some((path) => typeof path !== 'string' || !isAllowedDraftPath(path))) {
+      return 'draft contains a field that cannot be edited in the room'
+    }
+  }
+  if (body.draftAnswers) {
+    if (typeof body.draftAnswers !== 'object' || Array.isArray(body.draftAnswers)) {
+      return 'draft answers are invalid'
+    }
+    for (const [field, value] of Object.entries(body.draftAnswers)) {
+      if (!isPilotDirectAnswerField(field) || typeof value !== 'string') {
+        return 'draft answers are invalid'
+      }
+    }
+    const parsed = pilotRequestAnswersSchema.partial().safeParse(body.draftAnswers)
+    if (!parsed.success) return 'draft answers are invalid'
+    for (const field of ['productionOwnerEmail', 'technicalEvaluatorEmail'] as const) {
+      const value = body.draftAnswers[field]?.trim()
+      if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return `${field} is invalid`
+    }
+    const historicalProject = body.draftAnswers.historicalProject
+    if (historicalProject && !pilotControlledOptionLists.historicalProject.includes(historicalProject as never)) {
+      return 'historical project is invalid'
+    }
+    const integrationMethod = body.draftAnswers.integrationMethod
+    if (integrationMethod && !pilotControlledOptionLists.integrationMethod.includes(integrationMethod as never)) {
+      return 'integration method is invalid'
+    }
+    const participantsRange = body.draftAnswers.participantsRange
+    if (participantsRange && !pilotControlledOptionLists.participantsRange.includes(participantsRange as never)) {
+      return 'participants are invalid'
+    }
+    for (const field of ['integrationSystemsJson', 'successCriterionKeysJson'] as const) {
+      const value = body.draftAnswers[field]?.trim()
+      if (!value) continue
+      try {
+        const parsedJson = JSON.parse(value)
+        if (!Array.isArray(parsedJson)) return `${field} must be a JSON array`
+        if (
+          field === 'successCriterionKeysJson' &&
+          parsedJson.some(
+            (key) =>
+              typeof key !== 'string' ||
+              !pilotControlledOptionLists.successCriterionKeys.includes(key as never),
+          )
+        ) {
+          return 'success criteria selection is invalid'
+        }
+      } catch {
+        return `${field} must be valid JSON`
+      }
+    }
+  }
+  if (body.startDate !== undefined && body.startDate !== null && !isValidDate(body.startDate)) {
+    return 'pilot start date is invalid'
+  }
+  if (body.valueConfirmed !== undefined && typeof body.valueConfirmed !== 'boolean') {
+    return 'value confirmation is invalid'
+  }
+  if (body.criteria !== undefined && !Array.isArray(body.criteria)) return 'success criteria are invalid'
+  return body.criteria ? validateCriteria(body.criteria) : null
+}
+
+function reconcileTermReviewers(
+  reviewers: Reviewer[],
+  answers: Record<string, unknown>,
+  version: number,
+): Reviewer[] {
+  const next = reviewers.map((reviewer) => ({...reviewer, notes: [...reviewer.notes]}))
+  const contacts: Array<{role: ReviewerRole; name: string; email: string}> = [
+    {
+      role: 'production_owner',
+      name: String(answers.productionOwner || '').trim(),
+      email: String(answers.productionOwnerEmail || '').trim().toLowerCase(),
+    },
+    {
+      role: 'technical_evaluator',
+      name: String(answers.technicalEvaluator || '').trim(),
+      email: String(answers.technicalEvaluatorEmail || '').trim().toLowerCase(),
+    },
+  ]
+  for (const contact of contacts) {
+    if (!contact.email) continue
+    const index = next.findIndex(
+      (reviewer) => reviewer.role === contact.role && reviewer.status !== 'revoked',
+    )
+    if (index < 0) {
+      next.push({
+        id: randomUUID(),
+        role: contact.role,
+        name: contact.name,
+        email: contact.email,
+        status: 'proposed',
+        versionSeen: version,
+        notes: [],
+      })
+      continue
+    }
+    const reviewer = next[index]
+    if (reviewer.email.toLowerCase() !== contact.email) {
+      next[index] = {
+        ...reviewer,
+        name: contact.name || reviewer.name,
+        email: contact.email,
+        status: 'proposed',
+        invitedAt: undefined,
+        openedAt: undefined,
+        reviewedAt: undefined,
+        requestedChanges: false,
+        versionSeen: version,
+      }
+    } else if (contact.name && reviewer.name !== contact.name) {
+      next[index] = {...reviewer, name: contact.name}
+    }
+  }
+  return next
 }
 
 function conflictResponse(conflicts: PilotDraftConflict[]): NextResponse {
@@ -294,6 +499,24 @@ export async function PATCH(
   if (!accessRole) {
     return NextResponse.json({ok: false, message: 'you do not have access to this pilot'}, {status: 403})
   }
+  if (body.action === 'submit_draft') {
+    return NextResponse.json(
+      {ok: false, message: 'submit_draft is no longer supported; use commit_draft'},
+      {status: 410},
+    )
+  }
+  if (['draft', 'commit_draft'].includes(body.action)) {
+    if (!EDITABLE_DRAFT_STATES.includes(pilot.state)) {
+      return NextResponse.json(
+        {ok: false, message: 'pilot terms cannot be edited in the current state'},
+        {status: 400},
+      )
+    }
+    const validationError = validateDraftPayload(body)
+    if (validationError) {
+      return NextResponse.json({ok: false, message: validationError}, {status: 400})
+    }
+  }
   const hasAssessmentQualification = pilot.exceptions.some(
     (item) => item.kind === 'assessment-qualification' && !item.resolvedAt,
   )
@@ -312,6 +535,9 @@ export async function PATCH(
   }
   if (body.action === 'sign' && accessRole !== 'owner' && accessRole !== 'signer') {
     return NextResponse.json({ok: false, message: 'only an assigned signer can sign the agreement'}, {status: 403})
+  }
+  if (['confirm_scope', 'finalize', 'pay', 'kickoff', 'activate'].includes(body.action) && accessRole !== 'owner') {
+    return NextResponse.json({ok: false, message: 'only the owner can advance the pilot'}, {status: 403})
   }
 
   try {
@@ -352,121 +578,116 @@ export async function PATCH(
     }
 
     if (body.action === 'draft') {
-      const currentTerms = mutableTermsFromPilot(pilot)
-      const baseVersion = body.baseVersion || pilot.version
-      const baseTerms = termsForRevision(pilot, baseVersion) || pilotTermsFromDraft(pilot.draft, currentTerms)
-      const draft = updatePilotDraft({
-        draft: pilot.draft,
-        baseTerms,
-        baseVersion,
-        nextTerms: mutableTermsFromBody(pilot, body),
-        actor: user.email,
+      const {pilot: updated, result} = await mutatePilot(id, (locked) => {
+        if (!EDITABLE_DRAFT_STATES.includes(locked.state)) {
+          throw new Error('pilot terms cannot be edited in the current state')
+        }
+        const currentTerms = mutableTermsFromPilot(locked)
+        const baseVersion = locked.draft?.baseVersion || locked.version
+        const baseTerms = termsForRevision(locked, baseVersion) || currentTerms
+        const draft = updatePilotDraft({
+          draft: locked.draft,
+          baseTerms,
+          baseVersion,
+          nextTerms: mutableTermsFromBody(
+            locked,
+            body,
+            pilotTermsFromDraft(locked.draft, currentTerms),
+          ),
+          fieldPaths: body.fieldPaths,
+          actor: user.email,
+        })
+        return {
+          patch: {draft},
+          result: {draftTerms: pilotTermsFromDraft(draft, currentTerms)},
+        }
       })
-      const updated = await updatePilot(id, {draft})
       return NextResponse.json({
         ok: true,
         pilot: updated,
-        draftTerms: pilotTermsFromDraft(draft, currentTerms),
+        draftTerms: result.draftTerms,
       })
-    }
-
-    if (body.action === 'submit_draft') {
-      const currentTerms = mutableTermsFromPilot(pilot)
-      const draftTerms = pilotTermsFromDraft(pilot.draft, currentTerms)
-      const baseTerms = termsForRevision(pilot, pilot.draft?.baseVersion || pilot.version) || currentTerms
-      if (JSON.stringify(draftTerms) === JSON.stringify(baseTerms)) {
-        return NextResponse.json({ok: false, message: 'make a change before submitting a revision'}, {status: 400})
-      }
-      const stateChange = applyTransition(pilot.state, 'revise')
-      if (!stateChange.allowed) {
-        return NextResponse.json({ok: false, message: 'the pilot cannot be revised in its current state'}, {status: 400})
-      }
-      const now = new Date().toISOString()
-      const draft = pilot.draft
-        ? {...pilot.draft, submittedAt: now, submittedBy: user.email}
-        : updatePilotDraft({
-            baseTerms,
-            baseVersion: pilot.version,
-            nextTerms: draftTerms,
-            actor: user.email,
-            at: now,
-          })
-      const updated = await updatePilot(id, {
-        state: stateChange.state,
-        draft,
-        historyNote: `${user.email} submitted a revision for owner review`,
-        by: user.email,
-      })
-      await notifyPilotRoomEvent({
-        pilot: updated,
-        event: 'change_requested',
-        eventKey: `revision-submitted:${updated.version}:${now}`,
-      })
-      return NextResponse.json({ok: true, pilot: updated, draftTerms})
     }
 
     if (body.action === 'commit_draft') {
-      if (accessRole !== 'owner') {
-        return NextResponse.json({ok: false, message: 'only the submitter can save changes'}, {status: 403})
-      }
-      const baseVersion = body.baseVersion || pilot.draft?.baseVersion || pilot.version
-      const baseTerms = termsForRevision(pilot, baseVersion) || mutableTermsFromPilot(pilot)
-      const currentTerms = mutableTermsFromPilot(pilot)
-      const draft = updatePilotDraft({
-        draft: pilot.draft,
-        baseTerms,
-        baseVersion,
-        nextTerms: mutableTermsFromBody(pilot, body),
-        actor: user.email,
+      const {pilot: updated, result} = await mutatePilot(id, (locked) => {
+        if (!EDITABLE_DRAFT_STATES.includes(locked.state)) {
+          throw new Error('pilot terms cannot be edited in the current state')
+        }
+        const currentTerms = mutableTermsFromPilot(locked)
+        const baseVersion = locked.draft?.baseVersion || locked.version
+        const baseTerms = termsForRevision(locked, baseVersion) || currentTerms
+        const draft = updatePilotDraft({
+          draft: locked.draft,
+          baseTerms,
+          baseVersion,
+          nextTerms: mutableTermsFromBody(
+            locked,
+            body,
+            pilotTermsFromDraft(locked.draft, currentTerms),
+          ),
+          fieldPaths: body.fieldPaths,
+          actor: user.email,
+        })
+        const incomingTerms = pilotTermsFromDraft(draft, currentTerms)
+        const resolved = resolvePilotDraftCommit({
+          baseTerms,
+          currentTerms,
+          incomingTerms,
+          resolutions: body.resolutions,
+        })
+        if (resolved.conflicts.length > 0) throw new PilotDraftConflictError(resolved.conflicts)
+        const commitBody: PatchBody = {
+          ...body,
+          action: 'commit_draft',
+          criteria: resolved.terms.criteria,
+          startDate: resolved.terms.startDate,
+          valueConfirmed: resolved.terms.valueConfirmed,
+          answers: resolved.terms.answers,
+        }
+        const next = recompute(locked, commitBody)
+        const committed = commitPilotTermRevision({
+          pilot: locked,
+          nextTerms: resolved.terms,
+          actor: user.email,
+          submittedBy: user.email,
+          baseVersion,
+          contributors: draft.changes,
+        })
+        if (committed.changes.length === 0) {
+          return {result: {committed, noOp: true}}
+        }
+        const reviewers = reconcileTermReviewers(locked.reviewers, next.answers, committed.version)
+        return {
+          patch: {
+            route: next.route,
+            answers: next.answers,
+            exceptions: next.exceptions,
+            unresolved: next.unresolved,
+            proposal: next.proposal,
+            successCriteria: next.criteria,
+            securityDecisions: next.security,
+            reviewers,
+            version: committed.version,
+            draft: committed.draft,
+            revisions: committed.revisions,
+            resolvedStartDate: resolved.terms.startDate,
+            historyNote: 'pilot terms saved',
+            by: user.email,
+          },
+          result: {committed, noOp: false},
+        }
       })
-      const incomingTerms = pilotTermsFromDraft(draft, currentTerms)
-      const resolved = resolvePilotDraftCommit({
-        baseTerms,
-        currentTerms,
-        incomingTerms,
-        resolutions: body.resolutions,
-      })
-      if (resolved.conflicts.length > 0) return conflictResponse(resolved.conflicts)
-      const commitBody: PatchBody = {
-        ...body,
-        action: 'commit_draft',
-        criteria: resolved.terms.criteria,
-        startDate: resolved.terms.startDate,
-        valueConfirmed: resolved.terms.valueConfirmed,
-      }
-      const next = recompute(pilot, commitBody)
-      const committed = commitPilotTermRevision({
-        pilot,
-        nextTerms: resolved.terms,
-        actor: user.email,
-        submittedBy: pilot.draft?.submittedBy || user.email,
-        baseVersion,
-      })
-      const updated = await updatePilot(id, {
-        route: next.route,
-        answers: next.answers,
-        exceptions: next.exceptions,
-        unresolved: next.unresolved,
-        proposal: next.proposal,
-        successCriteria: next.criteria,
-        securityDecisions: next.security,
-        version: committed.version,
-        draft: committed.draft,
-        revisions: committed.revisions,
-        resolvedStartDate: resolved.terms.startDate,
-        historyNote: committed.changes.length > 0 ? 'pilot terms saved' : undefined,
-        by: user.email,
-      })
-      if (committed.version > pilot.version) {
+      if (!result.noOp && result.committed.version > pilot.version) {
         await notifyStaleReviewers(updated)
         await notifyPilotRoomEvent({
           pilot: updated,
           event: 'terms_changed',
-          sections: pilotRoomSectionsForChanges(committed.changes),
+          sections: pilotRoomSectionsForChanges(result.committed.changes),
           eventKey: `commit:${updated.version}`,
         })
       }
-      return NextResponse.json({ok: true, pilot: updated})
+      return NextResponse.json({ok: true, pilot: updated, noOp: result.noOp})
     }
 
     if (body.action === 'section_change_request') {
@@ -475,33 +696,35 @@ export async function PATCH(
       if (!section || !note) {
         return NextResponse.json({ok: false, message: 'section and change request are required'}, {status: 400})
       }
-      const reviewer = pilot.reviewers.find(
-        (candidate) =>
-          candidate.status !== 'revoked' &&
-          candidate.email.toLowerCase() === user.email.toLowerCase(),
-      )
-      if (!reviewer && accessRole !== 'owner') {
-        return NextResponse.json({ok: false, message: 'you can only request changes for your own review'}, {status: 403})
-      }
-      const now = new Date().toISOString()
       const contextualNote = `${section}: ${note}`
-      const updated = await updatePilot(id, {
-        reviewers: reviewer
-          ? pilot.reviewers.map((candidate) =>
-              candidate.id === reviewer.id
-                ? {
-                    ...candidate,
-                    status: 'reviewed' as const,
-                    reviewedAt: now,
-                    requestedChanges: true,
-                    versionSeen: pilot.version,
-                    notes: [...candidate.notes, contextualNote],
-                  }
-                : candidate,
-            )
-          : pilot.reviewers,
-        historyNote: `${user.email} requested changes to ${section}`,
-        by: user.email,
+      const {pilot: updated} = await mutatePilot(id, (locked) => {
+        const reviewer = locked.reviewers.find(
+          (candidate) =>
+            candidate.status !== 'revoked' &&
+            candidate.email.toLowerCase() === user.email.toLowerCase(),
+        )
+        const now = new Date().toISOString()
+        return {
+          patch: {
+            reviewers: reviewer
+              ? locked.reviewers.map((candidate) =>
+                  candidate.id === reviewer.id
+                    ? {
+                        ...candidate,
+                        status: 'reviewed' as const,
+                        reviewedAt: now,
+                        requestedChanges: true,
+                        versionSeen: locked.version,
+                        notes: [...candidate.notes, contextualNote],
+                      }
+                    : candidate,
+                )
+              : locked.reviewers,
+            historyNote: `${user.email} requested changes to ${section}`,
+            by: user.email,
+          },
+          result: undefined,
+        }
       })
       await notifyPilotRoomEvent({
         pilot: updated,
@@ -553,41 +776,49 @@ export async function PATCH(
           {status: 400},
         )
       }
-      const now = new Date().toISOString()
       const email = String(invite.email).trim().toLowerCase()
-      const existing = pilot.reviewers.find(
-        (reviewer) => reviewer.email.toLowerCase() === email && reviewer.status !== 'revoked',
-      )
-      const reviewers: Reviewer[] = existing
-        ? pilot.reviewers.map((reviewer) =>
-            reviewer.id === existing.id
-              ? {
-                  ...reviewer,
-                  name: invite.name && invite.name.trim() ? invite.name.trim() : reviewer.name,
-                  status: 'invited',
-                  invitedAt: reviewer.invitedAt || now,
-                  versionSeen: pilot.version,
-                }
-              : reviewer,
-          )
-        : [
-            ...pilot.reviewers,
-            {
-              id: randomUUID(),
-              role: invite.role,
-              name: String(invite.name || '').trim(),
-              email,
-              status: 'invited' as const,
-              invitedAt: now,
-              versionSeen: pilot.version,
-              notes: [],
-            },
-          ]
       const inviteEventKey = `reviewer-invited:${pilot.version}:${email}:${randomUUID()}`
-      const updated = await updatePilot(id, {
-        reviewers,
-        historyNote: `${invite.role.replaceAll('_', ' ')} ${email} invited to the room`,
-        by: body.by,
+      const {pilot: updated} = await mutatePilot(id, (locked) => {
+        if (!INVITATION_STATES.includes(locked.state)) {
+          throw new Error('invitations unlock once the draft is ready for team review')
+        }
+        const now = new Date().toISOString()
+        const existing = locked.reviewers.find(
+          (reviewer) => reviewer.email.toLowerCase() === email && reviewer.status !== 'revoked',
+        )
+        const reviewers: Reviewer[] = existing
+          ? locked.reviewers.map((reviewer) =>
+              reviewer.id === existing.id
+                ? {
+                    ...reviewer,
+                    name: invite.name && invite.name.trim() ? invite.name.trim() : reviewer.name,
+                    status: 'invited',
+                    invitedAt: reviewer.invitedAt || now,
+                    versionSeen: locked.version,
+                  }
+                : reviewer,
+            )
+          : [
+              ...locked.reviewers,
+              {
+                id: randomUUID(),
+                role: invite.role,
+                name: String(invite.name || '').trim(),
+                email,
+                status: 'invited' as const,
+                invitedAt: now,
+                versionSeen: locked.version,
+                notes: [],
+              },
+            ]
+        return {
+          patch: {
+            reviewers,
+            historyNote: `${invite.role.replaceAll('_', ' ')} ${email} invited to the room`,
+            by: body.by,
+          },
+          result: undefined,
+        }
       })
       const invited = await invitePilotMember({
         pilotId: pilot.id,
@@ -627,29 +858,51 @@ export async function PATCH(
       ) {
         return NextResponse.json({ok: false, message: 'you can only record decisions for your own review'}, {status: 403})
       }
-      const now = new Date().toISOString()
-      const reviewers = pilot.reviewers.map((candidate) =>
-        candidate.id === reviewerId
-          ? {
-              ...candidate,
-              status: 'reviewed' as const,
-              reviewedAt: now,
-              requestedChanges: decision === 'changes',
-              versionSeen: pilot.version,
-              notes: body.note ? [...candidate.notes, body.note.trim()] : candidate.notes,
-            }
-          : candidate,
-      )
-      const updated = await updatePilot(id, {
-        reviewers,
-        historyNote: `${reviewer.email} ${decision === 'changes' ? 'requested changes' : 'confirmed'} (${reviewer.role.replaceAll('_', ' ')})`,
-        by: body.by,
+      if (decision === 'changes' && !String(body.note || '').trim()) return NextResponse.json({ok: false, message: 'a requested change must include a note'}, {status: 400})
+      if (!Number.isInteger(body.versionSeen) || body.versionSeen !== pilot.version) {
+        return NextResponse.json(
+          {ok: false, code: 'stale_review', message: 'This pilot changed before the review could be confirmed.'},
+          {status: 409},
+        )
+      }
+      const {pilot: updated, result} = await mutatePilot(id, (locked) => {
+        if (body.versionSeen !== locked.version) throw new StaleReviewError()
+        const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewerId)
+        if (!lockedReviewer) throw new Error('reviewer not found')
+        if (
+          accessRole !== 'owner' &&
+          lockedReviewer.email.toLowerCase() !== user.email.toLowerCase()
+        ) {
+          throw new Error('you can only record decisions for your own review')
+        }
+        const now = new Date().toISOString()
+        const reviewers = locked.reviewers.map((candidate) =>
+          candidate.id === reviewerId
+            ? {
+                ...candidate,
+                status: 'reviewed' as const,
+                reviewedAt: now,
+                requestedChanges: decision === 'changes',
+                versionSeen: locked.version,
+                notes: body.note ? [...candidate.notes, body.note.trim()] : candidate.notes,
+              }
+            : candidate,
+        )
+        return {
+          patch: {
+            reviewers,
+            historyNote: `${lockedReviewer.email} ${decision === 'changes' ? 'requested changes' : 'confirmed'} (${lockedReviewer.role.replaceAll('_', ' ')})`,
+            by: body.by,
+          },
+          result: {reviewer: lockedReviewer, reviewers},
+        }
       })
+      const {reviewers} = result
       if (decision === 'changes') {
         await enqueuePilotEmail(id, 'change_requested')
-      } else if (reviewer.role === 'technical_evaluator') {
+      } else if (result.reviewer.role === 'technical_evaluator') {
         await enqueuePilotEmail(id, 'technical_confirmed')
-      } else if (reviewer.role === 'economic_buyer') {
+      } else if (result.reviewer.role === 'economic_buyer') {
         await enqueuePilotEmail(id, 'terms_confirmed')
       }
       const buyer = reviewers.find(
@@ -679,14 +932,24 @@ export async function PATCH(
       if (!note) {
         return NextResponse.json({ok: false, message: 'note is required'}, {status: 400})
       }
-      const updated = await updatePilot(id, {
-        reviewers: pilot.reviewers.map((candidate) =>
-          candidate.id === reviewer.id
-            ? {...candidate, notes: [...candidate.notes, note]}
-            : candidate,
-        ),
-        historyNote: `${reviewer.email} added a review note`,
-        by: body.by,
+      const {pilot: updated} = await mutatePilot(id, (locked) => {
+        const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewer.id)
+        if (!lockedReviewer) throw new Error('reviewer not found')
+        if (accessRole !== 'owner' && lockedReviewer.email.toLowerCase() !== user.email.toLowerCase()) {
+          throw new Error('you can only add notes to your own review')
+        }
+        return {
+          patch: {
+            reviewers: locked.reviewers.map((candidate) =>
+              candidate.id === lockedReviewer.id
+                ? {...candidate, notes: [...candidate.notes, note]}
+                : candidate,
+            ),
+            historyNote: `${lockedReviewer.email} added a review note`,
+            by: body.by,
+          },
+          result: undefined,
+        }
       })
       return NextResponse.json({ok: true, pilot: updated})
     }
@@ -699,12 +962,19 @@ export async function PATCH(
       if (!reviewer) {
         return NextResponse.json({ok: false, message: 'reviewer not found'}, {status: 404})
       }
-      const updated = await updatePilot(id, {
-        reviewers: pilot.reviewers.map((candidate) =>
-          candidate.id === reviewer.id ? {...candidate, status: 'revoked'} : candidate,
-        ),
-        historyNote: `${reviewer.email} removed from the room`,
-        by: body.by,
+      const {pilot: updated} = await mutatePilot(id, (locked) => {
+        const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewer.id)
+        if (!lockedReviewer) throw new Error('reviewer not found')
+        return {
+          patch: {
+            reviewers: locked.reviewers.map((candidate) =>
+              candidate.id === lockedReviewer.id ? {...candidate, status: 'revoked'} : candidate,
+            ),
+            historyNote: `${lockedReviewer.email} removed from the room`,
+            by: body.by,
+          },
+          result: undefined,
+        }
       })
       return NextResponse.json({ok: true, pilot: updated})
     }
@@ -721,12 +991,19 @@ export async function PATCH(
         return NextResponse.json({ok: false, message: 'role is required'}, {status: 400})
       }
       const role = body.role as ReviewerRole
-      const updated = await updatePilot(id, {
-        reviewers: pilot.reviewers.map((candidate) =>
-          candidate.id === reviewer.id ? {...candidate, role} : candidate,
-        ),
-        historyNote: `${reviewer.email} moved to ${role.replaceAll('_', ' ')}`,
-        by: body.by,
+      const {pilot: updated} = await mutatePilot(id, (locked) => {
+        const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewer.id)
+        if (!lockedReviewer) throw new Error('reviewer not found')
+        return {
+          patch: {
+            reviewers: locked.reviewers.map((candidate) =>
+              candidate.id === lockedReviewer.id ? {...candidate, role} : candidate,
+            ),
+            historyNote: `${lockedReviewer.email} moved to ${role.replaceAll('_', ' ')}`,
+            by: body.by,
+          },
+          result: undefined,
+        }
       })
       return NextResponse.json({ok: true, pilot: updated})
     }
@@ -739,25 +1016,32 @@ export async function PATCH(
       if (!reviewer) {
         return NextResponse.json({ok: false, message: 'reviewer not found'}, {status: 404})
       }
-      const now = new Date().toISOString()
-      const updated = await updatePilot(id, {
-        reviewers: pilot.reviewers.map((candidate) =>
-          candidate.id === reviewer.id
-            ? {
-                ...candidate,
-                name:
-                  String(pilot.answers.productionOwner || '').split(',')[0].trim() ||
-                  user.email,
-                email: user.email.toLowerCase(),
-                status: 'reviewed' as const,
-                reviewedAt: now,
-                requestedChanges: false,
-                versionSeen: pilot.version,
-              }
-            : candidate,
-        ),
-        historyNote: `the submitter holds the ${reviewer.role.replaceAll('_', ' ')} role`,
-        by: body.by,
+      const {pilot: updated} = await mutatePilot(id, (locked) => {
+        const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewer.id)
+        if (!lockedReviewer) throw new Error('reviewer not found')
+        const now = new Date().toISOString()
+        return {
+          patch: {
+            reviewers: locked.reviewers.map((candidate) =>
+              candidate.id === lockedReviewer.id
+                ? {
+                    ...candidate,
+                    name:
+                      String(locked.answers.productionOwner || '').split(',')[0].trim() ||
+                      user.email,
+                    email: user.email.toLowerCase(),
+                    status: 'reviewed' as const,
+                    reviewedAt: now,
+                    requestedChanges: false,
+                    versionSeen: locked.version,
+                  }
+                : candidate,
+            ),
+            historyNote: `the submitter holds the ${lockedReviewer.role.replaceAll('_', ' ')} role`,
+            by: body.by,
+          },
+          result: undefined,
+        }
       })
       return NextResponse.json({ok: true, pilot: updated})
     }
@@ -1032,6 +1316,13 @@ export async function PATCH(
     }
     return NextResponse.json({ok: true, pilot: updated})
   } catch (error) {
+    if (error instanceof PilotDraftConflictError) return conflictResponse(error.conflicts)
+    if (error instanceof StaleReviewError) {
+      return NextResponse.json(
+        {ok: false, code: 'stale_review', message: error.message},
+        {status: 409},
+      )
+    }
     return NextResponse.json(
       {ok: false, message: error instanceof Error ? error.message : 'the pilot room could not be updated'},
       {status: 500},

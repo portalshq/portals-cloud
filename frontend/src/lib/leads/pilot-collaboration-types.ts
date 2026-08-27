@@ -1,9 +1,11 @@
 import type {SuccessCriterion} from './contracts'
+import type {PilotDirectAnswers} from './pilot-room-fields'
 
 export type PilotMutableTerms = {
   startDate: string | null
   valueConfirmed: boolean
   criteria: SuccessCriterion[]
+  answers: PilotDirectAnswers
 }
 
 export type PilotDraftChange = {

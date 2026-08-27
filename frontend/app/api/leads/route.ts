@@ -329,6 +329,7 @@ async function syncPilotRecord(
         resolvedStartDate: pilot.resolvedStartDate,
         proposal,
         successCriteria,
+        answers: nextAnswers,
       }),
       actor: submitterEmail,
       extraChanges: roomChanges,

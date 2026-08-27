@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -17,6 +17,11 @@ import {
 import { RoomCheckbox, RoomSelectField, RoomTextField, RoomTextareaField } from '@/components/mui/fields'
 import type { SuccessCriterion } from '@/lib/leads/contracts'
 import type { ConflictResolution, PilotDraftConflict } from '@/lib/leads/pilot-collaboration-types'
+import {
+  changedPilotTermPaths,
+  pilotDirectAnswersFrom,
+  type PilotDirectAnswers,
+} from '@/lib/leads/pilot-room-fields'
 import {
   reviewerRoleLabel,
   stateLabel,
@@ -35,6 +40,7 @@ const EDITABLE_STATES: PilotState[] = [
   'team_review',
   'exception_review',
   'scope_confirmed',
+  'ready_sign',
 ]
 
 const INVITATION_STATES: PilotState[] = ['team_review', 'scope_confirmed', 'exception_review']
@@ -59,6 +65,7 @@ type RoomTerms = {
   startDate: string | null
   valueConfirmed: boolean
   criteria: SuccessCriterion[]
+  answers: PilotDirectAnswers
 }
 
 type ReviewerStatusView = {
@@ -84,30 +91,12 @@ function termsFromPilot(pilot: StoredPilot): RoomTerms {
     startDate: pilot.resolvedStartDate || null,
     valueConfirmed: Boolean(pilot.proposal?.valueModel?.confirmed),
     criteria: pilot.successCriteria.map((criterion) => ({ ...criterion })),
+    answers: pilotDirectAnswersFrom(pilot.answers as Record<string, unknown>),
   }
-}
-
-function sameValue(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null)
 }
 
 function changedCount(base: RoomTerms, current: RoomTerms): number {
-  let count = 0
-  if (!sameValue(base.startDate, current.startDate)) count += 1
-  if (!sameValue(base.valueConfirmed, current.valueConfirmed)) count += 1
-  const criteria = new Map(base.criteria.map((criterion) => [criterion.key, criterion]))
-  for (const criterion of current.criteria) {
-    const prior = criteria.get(criterion.key)
-    if (!prior) {
-      count += 1
-      continue
-    }
-    if (!sameValue(prior.status, criterion.status)) count += 1
-    if (!sameValue(prior.target || '', criterion.target || '')) count += 1
-    if (!sameValue(prior.participant || '', criterion.participant || '')) count += 1
-    if (!sameValue(prior.evidence || '', criterion.evidence || '')) count += 1
-  }
-  return count
+  return changedPilotTermPaths(base, current).length
 }
 
 function toneClasses(tone: ReviewerStatusView['tone']) {
@@ -239,11 +228,13 @@ export function PilotApprovalRoom({
   const [criteria, setCriteria] = useState(initialDraftTerms.criteria)
   const [startDate, setStartDate] = useState(initialDraftTerms.startDate || '')
   const [valueConfirmed, setValueConfirmed] = useState(initialDraftTerms.valueConfirmed)
+  const [draftAnswers, setDraftAnswers] = useState<PilotDirectAnswers>(initialDraftTerms.answers)
   const [signerName, setSignerName] = useState(String(initial.answers.signerName || ''))
   const [signerEmail, setSignerEmail] = useState(String(initial.answers.signerEmail || ''))
   const [signerConsent, setSignerConsent] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [draftBusy, setDraftBusy] = useState(false)
+  const [draftSaveState, setDraftSaveState] = useState<'idle' | 'saving' | 'failed'>('idle')
+  const [draftRetry, setDraftRetry] = useState(0)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [conflicts, setConflicts] = useState<PilotDraftConflict[]>([])
@@ -258,10 +249,10 @@ export function PilotApprovalRoom({
 
   const editable = EDITABLE_STATES.includes(pilot.state)
   const canEditDraft = editable
-  const canCommitDraft = accessRole === 'owner'
+  const canCommitDraft = editable
   const canSign = accessRole === 'owner' || accessRole === 'signer'
   const invitationsUnlocked = INVITATION_STATES.includes(pilot.state)
-  const answers = pilot.answers as Record<string, string | boolean | undefined>
+  const answers: Record<string, string | boolean | undefined> = {...(pilot.answers as Record<string, string | boolean | undefined>), ...draftAnswers}
   const value = pilot.proposal?.valueModel
   const reviewers = pilot.reviewers
   const currentTerms: RoomTerms = useMemo(
@@ -269,12 +260,22 @@ export function PilotApprovalRoom({
       startDate: startDate || null,
       valueConfirmed,
       criteria,
+      answers: draftAnswers,
     }),
-    [criteria, startDate, valueConfirmed],
+    [criteria, draftAnswers, startDate, valueConfirmed],
   )
   const unsavedChanges = changedCount(baseTerms, currentTerms)
   const hasUnsavedChanges = unsavedChanges > 0
   const hasLocalDraftChanges = changedCount(draftBaseTerms, currentTerms) > 0
+  const currentTermsRef = useRef(currentTerms)
+  const draftBaseTermsRef = useRef(initialDraftTerms)
+  const baseVersionRef = useRef(initial.version)
+  const hasLocalDraftChangesRef = useRef(hasLocalDraftChanges)
+  const localDraftGenerationRef = useRef(0)
+  const draftSaveInFlightRef = useRef(false)
+  const draftFailureRetryableRef = useRef(true)
+  const draftRetryTimerRef = useRef<number | null>(null)
+  const unloadSavedGenerationRef = useRef(-1)
   const myReviewer = reviewers.find(
     (reviewer) =>
       reviewer.email.toLowerCase() === userEmail.toLowerCase() &&
@@ -293,6 +294,14 @@ export function PilotApprovalRoom({
       assessment_origin: answers.assessmentOrigin || 'standard',
     })
   }, [])
+
+  useEffect(() => {
+    if (changedPilotTermPaths(currentTermsRef.current, currentTerms).length > 0) {
+      localDraftGenerationRef.current += 1
+    }
+    currentTermsRef.current = currentTerms
+    hasLocalDraftChangesRef.current = hasLocalDraftChanges
+  }, [currentTerms, hasLocalDraftChanges])
 
   useEffect(() => {
     if (!sessionId || pilot.state === 'paid') return
@@ -323,7 +332,7 @@ export function PilotApprovalRoom({
       void saveDraft()
     }, 700)
     return () => clearTimeout(timer)
-  }, [canEditDraft, hasLocalDraftChanges, currentTerms, baseVersion])
+  }, [canEditDraft, hasLocalDraftChanges, currentTerms, baseVersion, draftRetry])
 
   useEffect(() => {
     if (!canEditDraft || hasLocalDraftChanges) return
@@ -333,7 +342,33 @@ export function PilotApprovalRoom({
     return () => window.clearInterval(timer)
   }, [canEditDraft, hasLocalDraftChanges, pilot.id])
 
+  useEffect(() => {
+    const flushDraft = () => {
+      if (!canEditDraft || !hasLocalDraftChangesRef.current) return
+      const generation = localDraftGenerationRef.current
+      if (unloadSavedGenerationRef.current === generation) return
+      unloadSavedGenerationRef.current = generation
+      const fields = saveFields(currentTermsRef.current)
+      void fetch(`/api/pilot/${pilot.id}`, {
+        method: 'PATCH',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({action: 'draft', ...fields}),
+        keepalive: true,
+      })
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushDraft()
+    }
+    window.addEventListener('pagehide', flushDraft)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.removeEventListener('pagehide', flushDraft)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [canEditDraft, pilot.id])
+
   async function refreshPilot() {
+    const generation = localDraftGenerationRef.current
     try {
       const response = await fetch(`/api/pilot/${pilot.id}`, { cache: 'no-store' })
       const json = (await response.json()) as {
@@ -343,7 +378,12 @@ export function PilotApprovalRoom({
       }
       if (response.ok && json.ok && json.pilot) {
         setPilot(json.pilot)
-        if (!hasLocalDraftChanges) syncFromPilot(json.pilot, json.draftTerms)
+        if (
+          generation === localDraftGenerationRef.current &&
+          !hasLocalDraftChangesRef.current
+        ) {
+          syncFromPilot(json.pilot, json.draftTerms)
+        }
       }
     } catch {
       // refresh is opportunistic
@@ -353,34 +393,42 @@ export function PilotApprovalRoom({
   function syncFromPilot(nextPilot: StoredPilot, nextDraftTerms?: RoomTerms) {
     const terms = termsFromPilot(nextPilot)
     const draft = nextDraftTerms || terms
+    currentTermsRef.current = draft
+    draftBaseTermsRef.current = draft
+    baseVersionRef.current = nextPilot.version
+    hasLocalDraftChangesRef.current = false
     setBaseTerms(terms)
     setDraftBaseTerms(draft)
     setBaseVersion(nextPilot.version)
     setCriteria(draft.criteria)
     setStartDate(draft.startDate || '')
     setValueConfirmed(draft.valueConfirmed)
+    setDraftAnswers(draft.answers)
     setConflicts([])
     setResolutions({})
   }
 
-  function saveFields() {
+  function saveFields(terms = currentTerms) {
     return {
-      criteria,
-      startDate: startDate || null,
-      valueConfirmed,
-      baseVersion,
+      criteria: terms.criteria,
+      startDate: terms.startDate,
+      valueConfirmed: terms.valueConfirmed,
+      draftAnswers: terms.answers,
+      baseVersion: baseVersionRef.current,
+      fieldPaths: changedPilotTermPaths(draftBaseTermsRef.current, terms),
     }
   }
 
   async function patch(
     body: Record<string, unknown>,
-    opts: { silent?: boolean; sync?: boolean } = {},
+    opts: { silent?: boolean; sync?: boolean; draftGeneration?: number } = {},
   ): Promise<boolean> {
     if (!opts.silent) {
       setBusy(true)
       setError('')
       setNotice('')
     }
+    if (opts.silent && body.action === 'draft') draftFailureRetryableRef.current = true
     try {
       const response = await fetch(`/api/pilot/${pilot.id}`, {
         method: 'PATCH',
@@ -397,6 +445,9 @@ export function PilotApprovalRoom({
         unresolved?: Array<{ key: string; label: string; resolution: string }>
       }
       if (!response.ok || !json.ok) {
+        if (opts.silent && body.action === 'draft') {
+          draftFailureRetryableRef.current = response.status >= 500
+        }
         if (json.code === 'conflict' && json.conflicts) {
           setConflicts(json.conflicts)
           throw new Error('Resolve the highlighted conflict before saving.')
@@ -406,7 +457,12 @@ export function PilotApprovalRoom({
       }
       if (json.pilot) {
         setPilot(json.pilot)
-        if (body.action === 'draft' && json.draftTerms) {
+        if (
+          body.action === 'draft' &&
+          json.draftTerms &&
+          opts.draftGeneration === localDraftGenerationRef.current
+        ) {
+          draftBaseTermsRef.current = json.draftTerms
           setDraftBaseTerms(json.draftTerms)
         }
         if (opts.sync) syncFromPilot(json.pilot)
@@ -423,9 +479,27 @@ export function PilotApprovalRoom({
   }
 
   async function saveDraft() {
-    setDraftBusy(true)
-    await patch({ action: 'draft', ...saveFields() }, { silent: true })
-    setDraftBusy(false)
+    if (draftSaveInFlightRef.current) return
+    const terms = currentTermsRef.current
+    const fields = saveFields(terms)
+    if (fields.fieldPaths.length === 0) return
+    const generation = localDraftGenerationRef.current
+    draftSaveInFlightRef.current = true
+    setDraftSaveState('saving')
+    const saved = await patch(
+      {action: 'draft', ...fields},
+      {silent: true, draftGeneration: generation},
+    )
+    draftSaveInFlightRef.current = false
+    if (saved && generation === localDraftGenerationRef.current) {
+      setDraftSaveState('idle')
+      return
+    }
+    setDraftSaveState('failed')
+    if (draftFailureRetryableRef.current && hasLocalDraftChangesRef.current) {
+      if (draftRetryTimerRef.current) window.clearTimeout(draftRetryTimerRef.current)
+      draftRetryTimerRef.current = window.setTimeout(() => setDraftRetry((value) => value + 1), 2_000)
+    }
   }
 
   async function onSave(extraResolutions = resolutions) {
@@ -434,9 +508,6 @@ export function PilotApprovalRoom({
         setNotice('Changes saved as the latest pilot revision.')
       }
       return
-    }
-    if (await patch({ action: 'submit_draft' })) {
-      setNotice('Changes submitted for owner review.')
     }
   }
 
@@ -545,11 +616,16 @@ export function PilotApprovalRoom({
       setError('Save changes before confirming your review.')
       return
     }
+    if (decision === 'changes' && !myNote.trim()) {
+      setError('Write the requested change before submitting.')
+      return
+    }
     if (await patch({
       action: 'reviewer_decision',
       reviewerId: myReviewer.id,
       decision,
       note: myNote.trim() || undefined,
+      versionSeen: pilot.version,
     })) {
       setNotice(decision === 'confirm' ? 'Your review is recorded.' : 'Your requested changes were recorded.')
       setMyNote('')
@@ -669,6 +745,16 @@ export function PilotApprovalRoom({
   function setConflictField(field: string, value: unknown) {
     if (field === 'startDate') setStartDate(value ? String(value) : '')
     if (field === 'valueConfirmed') setValueConfirmed(Boolean(value))
+    const answer = field.match(/^answers\.([A-Za-z0-9_]+)$/)
+    if (answer) {
+      setDraftAnswers((current) => ({...current, [answer[1]]: String(value || '')}))
+      return
+    }
+    const removal = field.match(/^criteria\.([^.]+)\.__removed$/)
+    if (removal && value) {
+      setCriteria((current) => current.filter((criterion) => criterion.key !== removal[1]))
+      return
+    }
     const match = field.match(/^criteria\.([^.]+)\.(status|target|participant|evidence)$/)
     if (!match) return
     const [, key, property] = match
@@ -693,7 +779,6 @@ export function PilotApprovalRoom({
   }
 
   function requestAction(section: string) {
-    if (!myReviewer && accessRole !== 'owner') return null
     return (
       <button
         type="button"
@@ -845,7 +930,7 @@ export function PilotApprovalRoom({
             {canEditDraft ? (
               <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={`${primaryButtonClasses} w-full sm:w-auto`}>
                 <Save aria-hidden="true" size={16} strokeWidth={1.8} />
-                Save Changes
+                Submit changes
               </button>
             ) : null}
           </div>
@@ -985,13 +1070,13 @@ export function PilotApprovalRoom({
         action={!canEditDraft ? requestAction('Scope') : null}
       >
         <dl className="grid gap-14 t-p-sm-sans md:grid-cols-2">
-          <div><dt className="text-white/60">Pilot workflow</dt><dd className="mt-2">{String(answers.pilotWorkflow || answers.activeWorkflow || '-')}</dd></div>
-          <div><dt className="text-white/60">Production owner</dt><dd className="mt-2">{String(answers.productionOwner || '-')}</dd></div>
+          <div><dt className="text-white/60">Pilot workflow</dt><dd className="mt-2">{canEditDraft ? <RoomTextareaField minRows={3} value={String(answers.pilotWorkflow || '')} onChange={(event) => setDraftAnswers((current) => ({...current, pilotWorkflow: event.target.value}))} /> : String(answers.pilotWorkflow || answers.activeWorkflow || '-')}</dd></div>
+          <div><dt className="text-white/60">Production owner</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.productionOwner || '')} onChange={(event) => setDraftAnswers((current) => ({...current, productionOwner: event.target.value}))} /> : String(answers.productionOwner || '-')}</dd></div>
           <div><dt className="text-white/60">Economic buyer</dt><dd className="mt-2">{String(answers.economicBuyer || '-')}</dd></div>
-          <div><dt className="text-white/60">Technical evaluator</dt><dd className="mt-2">{String(answers.technicalEvaluator || '-')}</dd></div>
-          <div><dt className="text-white/60">Historical projects</dt><dd className="mt-2">{String(answers.historicalProject || '-')}</dd></div>
-          <div><dt className="text-white/60">Participants</dt><dd className="mt-2">{String(answers.participantsRange || '-')}</dd></div>
-          <div><dt className="text-white/60">Integration method</dt><dd className="mt-2">{String(answers.integrationMethod || '-')}</dd></div>
+          <div><dt className="text-white/60">Technical evaluator</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.technicalEvaluator || '')} onChange={(event) => setDraftAnswers((current) => ({...current, technicalEvaluator: event.target.value}))} /> : String(answers.technicalEvaluator || '-')}</dd></div>
+          <div><dt className="text-white/60">Historical projects</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.historicalProject || '')} onChange={(event) => setDraftAnswers((current) => ({...current, historicalProject: event.target.value}))} /> : String(answers.historicalProject || '-')}</dd></div>
+          <div><dt className="text-white/60">Participants</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.participantsRange || '')} onChange={(event) => setDraftAnswers((current) => ({...current, participantsRange: event.target.value}))} /> : String(answers.participantsRange || '-')}</dd></div>
+          <div><dt className="text-white/60">Integration method</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.integrationMethod || '')} onChange={(event) => setDraftAnswers((current) => ({...current, integrationMethod: event.target.value}))} /> : String(answers.integrationMethod || '-')}</dd></div>
           <div><dt className="text-white/60">Data classification</dt><dd className="mt-2">{String(answers.dataClassification || '-')}</dd></div>
           <div>
             <dt className="text-white/60">Pilot start date</dt>
@@ -1268,7 +1353,11 @@ export function PilotApprovalRoom({
             </div>
             <div className="mt-16 border-t border-white/80">
               <h2 className="t-h3-sans pt-28">Add Reviewer</h2>
-              <div className="mt-8 grid gap-14 lg:grid-cols-[180px_1fr_2fr_auto] lg:items-end">
+              <div className="mt-8 grid gap-14 lg:grid-cols-[2fr_auto] lg:items-end">
+                <label className="t-p-sm-sans text-white/60">
+                  Email
+                  <RoomTextField className="mt-4" type="email" value={draftReviewerEmail} onChange={(event) => setDraftReviewerEmail(event.target.value)} placeholder="name@company.com" />
+                </label>
                 <label className="t-p-sm-sans text-white/60">
                   Role
                   <RoomSelectField className="mt-4" value={draftRole} onChange={(event) => setDraftRole(event.target.value as ReviewerRole)}>
@@ -1280,10 +1369,6 @@ export function PilotApprovalRoom({
                 <label className="t-p-sm-sans text-white/60">
                   Name
                   <RoomTextField className="mt-4" value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="name and title" />
-                </label>
-                <label className="t-p-sm-sans text-white/60">
-                  Email
-                  <RoomTextField className="mt-4" type="email" value={draftReviewerEmail} onChange={(event) => setDraftReviewerEmail(event.target.value)} placeholder="name@company.com" />
                 </label>
                 <button onClick={() => void onAddReviewer()} disabled={busy} className={`${primaryButtonClasses} w-full lg:w-auto`}>
                   <Send aria-hidden="true" size={16} strokeWidth={1.8} />
@@ -1298,7 +1383,7 @@ export function PilotApprovalRoom({
       {myReviewer ? (
         <SectionShell
           id="your-review"
-          title="Your Review"
+          title="Confirm pilot terms"
           mode="request"
           summary={`You are the ${reviewerRoleLabel(myReviewer.role).toLowerCase()} for this pilot. Review the current terms revision, then confirm or request a specific change.`}
         >
@@ -1316,13 +1401,13 @@ export function PilotApprovalRoom({
               />
             </label>
             <div className="flex flex-wrap items-center justify-end gap-10">
-              <button onClick={() => void onReviewerDecision('confirm')} disabled={busy || hasUnsavedChanges} className={accentButtonClasses}>
-                <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
-                Confirm my review
-              </button>
               <button onClick={() => void onReviewerDecision('changes')} disabled={busy} className={primaryButtonClasses}>
                 <Send aria-hidden="true" size={16} strokeWidth={1.8} />
                 Request changes
+              </button>
+              <button onClick={() => void onReviewerDecision('confirm')} disabled={busy || hasUnsavedChanges} className={accentButtonClasses}>
+                <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
+                Confirm terms
               </button>
             </div>
           </div>
@@ -1376,6 +1461,9 @@ export function PilotApprovalRoom({
       ) : null}
       {notice ? (
         <p className="mt-16 t-p-sm-sans text-white" role="status">{notice}</p>
+      ) : null}
+      {draftSaveState === 'failed' ? (
+        <p className="mt-16 t-p-sm-sans text-white" role="status">Save failed.</p>
       ) : null}
 
       {pilot.history.length > 1 ? (

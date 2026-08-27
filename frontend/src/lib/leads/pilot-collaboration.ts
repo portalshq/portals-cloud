@@ -7,6 +7,7 @@ import type {
   PilotDraftConflict,
   PilotMutableTerms,
 } from './pilot-collaboration-types'
+import {PILOT_DIRECT_ANSWER_FIELDS, PILOT_DIRECT_ANSWER_LABELS} from './pilot-room-fields'
 export type {
   ConflictResolution,
   PilotCollaborativeDraft,
@@ -48,6 +49,7 @@ function cloneTerms(terms: PilotMutableTerms): PilotMutableTerms {
     startDate: terms.startDate || null,
     valueConfirmed: Boolean(terms.valueConfirmed),
     criteria: terms.criteria.map((criterion) => ({...criterion})),
+    answers: {...terms.answers},
   }
 }
 
@@ -83,19 +85,23 @@ function fieldLabel(criterion: SuccessCriterion, property: keyof SuccessCriterio
   return `${criterion.label} ${suffix[property] || String(property)}`
 }
 
-function fieldKind(field: string): 'structured' | 'text' {
-  return field.endsWith('.target') || field.endsWith('.participant') || field.endsWith('.evidence')
-    ? 'text'
-    : 'structured'
+function fieldKind(_field: string): 'structured' | 'text' {
+  // Room controls are scalar saves. Automerge safely merges disjoint paths; a
+  // concurrent write to one control follows last saved value semantics.
+  return 'structured'
 }
 
 function getField(terms: PilotMutableTerms, field: string): unknown {
   if (field === 'startDate') return terms.startDate || null
   if (field === 'valueConfirmed') return terms.valueConfirmed
+  const answerMatch = field.match(/^answers\.([A-Za-z0-9_]+)$/)
+  if (answerMatch) return terms.answers?.[answerMatch[1] as keyof typeof terms.answers] || ''
+  const removalMatch = field.match(/^criteria\.([^.]+)\.__removed$/)
+  if (removalMatch) return !criterionByKey(terms, removalMatch[1])
   const match = field.match(/^criteria\.([^.]+)\.(status|target|participant|evidence)$/)
   if (!match) return undefined
   const criterion = criterionByKey(terms, match[1])
-  return criterion?.[match[2] as keyof SuccessCriterion] || ''
+  return criterion ? criterion[match[2] as keyof SuccessCriterion] || '' : undefined
 }
 
 function setField(terms: PilotMutableTerms, field: string, value: unknown): PilotMutableTerms {
@@ -106,6 +112,16 @@ function setField(terms: PilotMutableTerms, field: string, value: unknown): Pilo
   }
   if (field === 'valueConfirmed') {
     next.valueConfirmed = Boolean(value)
+    return next
+  }
+  const answerMatch = field.match(/^answers\.([A-Za-z0-9_]+)$/)
+  if (answerMatch) {
+    next.answers[answerMatch[1] as keyof typeof next.answers] = String(value || '')
+    return next
+  }
+  const removalMatch = field.match(/^criteria\.([^.]+)\.__removed$/)
+  if (removalMatch) {
+    if (value) next.criteria = next.criteria.filter((criterion) => criterion.key !== removalMatch[1])
     return next
   }
   const match = field.match(/^criteria\.([^.]+)\.(status|target|participant|evidence)$/)
@@ -139,6 +155,7 @@ export function changedPilotFields(
   }
   push('startDate', 'Pilot start date', next.startDate || null)
   push('valueConfirmed', 'Auditable value estimate', next.valueConfirmed)
+  for (const field of PILOT_DIRECT_ANSWER_FIELDS) push(`answers.${field}`, PILOT_DIRECT_ANSWER_LABELS[field], next.answers?.[field] || '')
   const keys = new Set([
     ...base.criteria.map((criterion) => criterion.key),
     ...next.criteria.map((criterion) => criterion.key),
@@ -148,6 +165,17 @@ export function changedPilotFields(
     const prior = criterionByKey(base, key)
     const source = current || prior
     if (!source) continue
+    if (!current && prior) {
+      changes.push({
+        field: `criteria.${key}.__removed`,
+        label: `${prior.label} removed`,
+        kind: 'structured',
+        value: true,
+        updatedAt: at,
+        updatedBy: opts.by,
+      })
+      continue
+    }
     push(`criteria.${key}.status`, fieldLabel(source, 'status'), current?.status || '')
     push(`criteria.${key}.target`, fieldLabel(source, 'target'), current?.target || '')
     push(`criteria.${key}.participant`, fieldLabel(source, 'participant'), current?.participant || '')
@@ -189,7 +217,8 @@ export function pilotTermsFromDraft(
   if (!draft?.automerge) return cloneTerms(fallback)
   try {
     const doc = Automerge.load<DraftDoc>(decode(draft.automerge))
-    return cloneTerms(doc.terms || fallback)
+    const terms = cloneTerms(doc.terms || fallback)
+    return {...terms, answers: {...fallback.answers, ...terms.answers}}
   } catch {
     return cloneTerms(fallback)
   }
@@ -200,6 +229,7 @@ export function updatePilotDraft(input: {
   baseTerms: PilotMutableTerms
   baseVersion: number
   nextTerms: PilotMutableTerms
+  fieldPaths?: string[]
   actor?: string
   at?: string
 }): PilotCollaborativeDraft {
@@ -212,10 +242,12 @@ export function updatePilotDraft(input: {
           {terms: cloneTerms(input.baseTerms), edits: {}},
           actorId(input.actor),
         )
-  const changes = changedPilotFields(input.baseTerms, input.nextTerms, {
+  const requested = input.fieldPaths ? new Set(input.fieldPaths) : null
+  const currentDraftTerms = cloneTerms(existing.terms || input.baseTerms)
+  const changes = changedPilotFields(requested ? currentDraftTerms : input.baseTerms, input.nextTerms, {
     at,
     by: input.actor,
-  })
+  }).filter((change) => !requested || requested.has(change.field))
   const doc = Automerge.change(existing, 'pilot draft update', (draft) => {
     draft.edits ||= {}
     for (const change of changes) {
@@ -223,25 +255,44 @@ export function updatePilotDraft(input: {
         draft.terms.startDate = input.nextTerms.startDate || null
       } else if (change.field === 'valueConfirmed') {
         draft.terms.valueConfirmed = input.nextTerms.valueConfirmed
+      } else if (change.field.startsWith('answers.')) {
+        const field = change.field.slice('answers.'.length) as keyof typeof draft.terms.answers
+        draft.terms.answers ||= {}
+        draft.terms.answers[field] = input.nextTerms.answers[field] || ''
       } else {
-        const match = change.field.match(/^criteria\.([^.]+)\.(status|target|participant|evidence)$/)
-        if (!match) continue
-        const [, key, property] = match as [string, string, 'status' | 'target' | 'participant' | 'evidence']
-        const nextCriterion = input.nextTerms.criteria.find((criterion) => criterion.key === key)
-        const index = draft.terms.criteria.findIndex((criterion) => criterion.key === key)
-        if (index < 0) {
-          if (nextCriterion) draft.terms.criteria.push({...nextCriterion})
-          continue
-        }
-        if (nextCriterion) {
-          if (property === 'status') {
-            draft.terms.criteria[index].status = nextCriterion.status
-          } else {
-            draft.terms.criteria[index][property] = nextCriterion[property]
+        const removalMatch = change.field.match(/^criteria\.([^.]+)\.__removed$/)
+        if (removalMatch) {
+          const index = draft.terms.criteria.findIndex(
+            (criterion) => criterion.key === removalMatch[1],
+          )
+          if (index >= 0) draft.terms.criteria.splice(index, 1)
+        } else {
+          const match = change.field.match(/^criteria\.([^.]+)\.(status|target|participant|evidence)$/)
+          if (!match) continue
+          const [, key, property] = match as [string, string, 'status' | 'target' | 'participant' | 'evidence']
+          const nextCriterion = input.nextTerms.criteria.find((criterion) => criterion.key === key)
+          if (nextCriterion) delete draft.edits[`criteria.${key}.__removed`]
+          const index = draft.terms.criteria.findIndex((criterion) => criterion.key === key)
+          if (index < 0) {
+            if (nextCriterion) {
+              draft.terms.criteria.push(JSON.parse(JSON.stringify(nextCriterion)) as SuccessCriterion)
+            }
+          } else if (nextCriterion) {
+            if (property === 'status') {
+              draft.terms.criteria[index].status = nextCriterion.status
+            } else {
+              const value = nextCriterion[property]
+              if (value === undefined) delete draft.terms.criteria[index][property]
+              else draft.terms.criteria[index][property] = value
+            }
           }
         }
       }
-      draft.edits[change.field] = change
+      if (sameValue(getField(input.baseTerms, change.field), getField(input.nextTerms, change.field))) {
+        delete draft.edits[change.field]
+      } else {
+        draft.edits[change.field] = change
+      }
     }
   })
   return {

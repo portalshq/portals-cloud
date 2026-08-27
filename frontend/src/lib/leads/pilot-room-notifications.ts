@@ -31,10 +31,14 @@ const ANSWER_SECTIONS: Record<string, PilotRoomSection> = {
   pilotWorkflow: 'scope',
   productionOwner: 'scope',
   productionOwnerEmail: 'scope',
+  targetStartPeriod: 'scope',
   participantsRange: 'scope',
   historicalProject: 'scope',
   integrationMethod: 'scope',
   integrationSystemsJson: 'scope',
+  requiredIntegrations: 'scope',
+  technicalEvaluator: 'scope',
+  technicalEvaluatorEmail: 'scope',
   dataClassification: 'scope',
   annualDeploymentOption: 'commercial',
   annualPriceAcknowledged: 'commercial',
@@ -206,6 +210,9 @@ export async function notifyPilotRoomEvent(input: {
 
   if (input.event === 'terms_changed') {
     const sections = input.sections || []
+    // The commercial owner sees every committed revision, even if their email
+    // is also configured as the Portals notification destination.
+    pushEmail(targets, ownerEmail)
     for (const email of await roomMemberEmails(input.pilot)) pushEmail(targets, email)
     const sectionVariant = sections.length === 1 ? SECTION_VARIANTS[sections[0]] : null
     if (sectionVariant) {

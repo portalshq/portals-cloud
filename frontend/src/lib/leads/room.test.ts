@@ -31,6 +31,7 @@ import {
   commitPilotTermRevision,
   pilotMutableTermsFromState,
 } from './pilot-room-revisions'
+import {changedPilotTermPaths} from './pilot-room-fields'
 import {ensurePilotRecipientAccess} from './application-auth'
 
 process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
@@ -241,6 +242,35 @@ test('collaborative draft preserves concurrent edits to different fields', () =>
   assert.equal(terms.valueConfirmed, true)
 })
 
+test('a removed criterion can be restored into the shared draft', () => {
+  const base: PilotMutableTerms = {
+    startDate: null,
+    valueConfirmed: false,
+    criteria: buildSuccessCriteria(eligible),
+  }
+  const withoutFirst = {...base, criteria: base.criteria.slice(1)}
+  const removed = updatePilotDraft({
+    draft: createPilotDraft({terms: base, baseVersion: 1, actor: 'ava@studio.example'}),
+    baseTerms: base,
+    baseVersion: 1,
+    nextTerms: withoutFirst,
+    fieldPaths: changedPilotTermPaths(base, withoutFirst),
+    actor: 'ava@studio.example',
+  })
+  assert.equal(pilotTermsFromDraft(removed, base).criteria.length, base.criteria.length - 1)
+
+  const restored = updatePilotDraft({
+    draft: removed,
+    baseTerms: base,
+    baseVersion: 1,
+    nextTerms: base,
+    fieldPaths: changedPilotTermPaths(withoutFirst, base),
+    actor: 'maya@studio.example',
+  })
+  assert.equal(pilotTermsFromDraft(restored, base).criteria.length, base.criteria.length)
+  assert.equal(restored.changes.length, 0)
+})
+
 test('draft commit preserves concurrent changes to different structured fields', () => {
   const base: PilotMutableTerms = {
     startDate: null,
@@ -274,7 +304,7 @@ test('draft commit detects concurrent changes to the same structured field', () 
   assert.equal(resolved.conflicts[0].field, 'startDate')
 })
 
-test('draft commit merges concurrent collaborative text changes', () => {
+test('draft commit asks for resolution when concurrent scalar text changes collide', () => {
   const criteria = buildSuccessCriteria(eligible)
   const key = criteria[0].key
   const base: PilotMutableTerms = {
@@ -295,10 +325,8 @@ test('draft commit merges concurrent collaborative text changes', () => {
     ),
   }
   const resolved = resolvePilotDraftCommit({baseTerms: base, currentTerms: current, incomingTerms: incoming})
-  const merged = resolved.terms.criteria.find((criterion) => criterion.key === key)?.target || ''
-  assert.equal(resolved.conflicts.length, 0)
-  assert.match(merged, /retrieve approved assets/)
-  assert.match(merged, /under one minute/)
+  assert.equal(resolved.conflicts.length, 1)
+  assert.equal(resolved.conflicts[0].field, `criteria.${key}.target`)
 })
 
 test('committing pilot term revisions appends history and resets the collaborative draft', () => {
@@ -348,7 +376,7 @@ test('committing pilot term revisions appends history and resets the collaborati
   assert.equal(committed.draft?.changes.length, 0)
   assert.equal(committed.revisions.length, 2)
   assert.equal(committed.revisions[1].version, 2)
-  assert.deepEqual(pilotTermsFromDraft(committed.draft, pilotTerms), nextTerms)
+  assert.deepEqual(pilotTermsFromDraft(committed.draft, pilotTerms), {...nextTerms, answers: {}})
   assert.deepEqual(
     committed.changes.map((change) => change.field),
     ['startDate', 'valueConfirmed'],

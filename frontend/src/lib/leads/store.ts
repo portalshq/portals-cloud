@@ -24,6 +24,7 @@ import type {
 } from './pilot'
 import {recommendedReviewers} from './pilot'
 import {createPilotDraft} from './pilot-collaboration'
+import {pilotDirectAnswersFrom} from './pilot-room-fields'
 import type {
   PilotCollaborativeDraft,
   PilotCommittedRevision,
@@ -232,6 +233,7 @@ type PilotRow = {
   reviewers: Reviewer[]
   version: number
   draft: PilotCollaborativeDraft | null
+  draft_ciphertext: string | null
   revisions: PilotCommittedRevision[] | null
   history: PilotHistoryEntry[]
   signing: Record<string, unknown>
@@ -242,11 +244,34 @@ type PilotRow = {
   updated_at: Date | string
 }
 
+function draftMetadata(draft: PilotCollaborativeDraft | undefined): PilotCollaborativeDraft | null {
+  if (!draft) return null
+  return {
+    baseVersion: draft.baseVersion,
+    // Full draft contents and contributor identities are encrypted separately.
+    automerge: '',
+    heads: [...draft.heads],
+    changes: [],
+    updatedAt: draft.updatedAt,
+  }
+}
+
+function draftFromRow(
+  row: Pick<PilotRow, 'draft' | 'draft_ciphertext'>,
+): PilotCollaborativeDraft | undefined {
+  if (row.draft_ciphertext) return decryptJson<PilotCollaborativeDraft>(row.draft_ciphertext)
+  // Existing rows are migrated on their next write. This avoids data loss while
+  // deploying the new encrypted column.
+  return row.draft || undefined
+}
+
 function pilotFromRow(row: PilotRow): StoredPilot {
+  const answers = decryptJson<Record<string, unknown>>(row.answers_ciphertext)
   const currentTerms: PilotMutableTerms = {
     startDate: row.resolved_start_date,
     valueConfirmed: Boolean(row.proposal?.valueModel?.confirmed),
     criteria: row.success_criteria,
+    answers: pilotDirectAnswersFrom(answers),
   }
   return {
     id: row.id,
@@ -255,7 +280,7 @@ function pilotFromRow(row: PilotRow): StoredPilot {
     initialSubmissionId: row.initial_submission_id || '',
     state: row.state,
     route: row.route,
-    answers: decryptJson<Record<string, unknown>>(row.answers_ciphertext),
+    answers,
     exceptions: row.exceptions,
     unresolved: row.unresolved,
     proposal: row.proposal,
@@ -263,7 +288,7 @@ function pilotFromRow(row: PilotRow): StoredPilot {
     securityDecisions: row.security_decisions,
     reviewers: row.reviewers,
     version: row.version,
-    draft: row.draft || createPilotDraft({
+    draft: draftFromRow(row) || createPilotDraft({
       terms: currentTerms,
       baseVersion: row.version,
     }),
@@ -319,6 +344,7 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
         startDate: null,
         valueConfirmed: false,
         criteria: input.successCriteria,
+        answers: pilotDirectAnswersFrom(input.answers),
       },
       baseVersion: 1,
     }),
@@ -332,6 +358,7 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
           startDate: null,
           valueConfirmed: false,
           criteria: input.successCriteria,
+          answers: pilotDirectAnswersFrom(input.answers),
         },
         changes: [],
       },
@@ -357,8 +384,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     `INSERT INTO lead_pilots(
       id, profile_id, initial_submission_id, state, route, answers_ciphertext,
       exceptions, unresolved, success_criteria, security_decisions, reviewers,
-      version, draft, revisions, history
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      version, draft, draft_ciphertext, revisions, history
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
     [
       pilot.id,
       pilot.profileId,
@@ -372,7 +399,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
       JSON.stringify(pilot.securityDecisions),
       JSON.stringify(pilot.reviewers),
       pilot.version,
-      JSON.stringify(pilot.draft),
+      JSON.stringify(draftMetadata(pilot.draft)),
+      encryptJson(pilot.draft),
       JSON.stringify(pilot.revisions),
       JSON.stringify(pilot.history),
     ],
@@ -444,9 +472,7 @@ export async function getPilotByPaymentSession(
   return result.rows[0] ? pilotFromRow(result.rows[0]) : null
 }
 
-export async function updatePilot(id: string, patch: PilotPatch): Promise<StoredPilot> {
-  const existing = await getPilotById(id)
-  if (!existing) throw new Error('Pilot record not found.')
+function applyPilotPatch(existing: StoredPilot, patch: PilotPatch): StoredPilot {
   const state = patch.state || existing.state
   const history = [...existing.history]
   if (patch.state || patch.historyNote) {
@@ -482,17 +508,20 @@ export async function updatePilot(id: string, patch: PilotPatch): Promise<Stored
     history,
     updatedAt: new Date().toISOString(),
   }
-  if (leadsDryRun()) {
-    memory().pilots.set(updated.id, updated)
-    return updated
-  }
-  await pool().query(
+  return updated
+}
+
+async function persistPilot(
+  database: Pick<Pool, 'query'> | Pick<PoolClient, 'query'>,
+  updated: StoredPilot,
+): Promise<void> {
+  await database.query(
     `UPDATE lead_pilots
         SET state = $2, route = $3, answers_ciphertext = $4, exceptions = $5,
             unresolved = $6, proposal = $7, success_criteria = $8,
             security_decisions = $9, reviewers = $10, version = $11,
-            draft = $12, revisions = $13, signing = $14, payment = $15,
-            kickoff = $16, resolved_start_date = $17, history = $18,
+            draft = $12, draft_ciphertext = $13, revisions = $14, signing = $15, payment = $16,
+            kickoff = $17, resolved_start_date = $18, history = $19,
             updated_at = now()
       WHERE id = $1`,
     [
@@ -507,7 +536,8 @@ export async function updatePilot(id: string, patch: PilotPatch): Promise<Stored
       JSON.stringify(updated.securityDecisions),
       JSON.stringify(updated.reviewers),
       updated.version,
-      JSON.stringify(updated.draft || null),
+      JSON.stringify(draftMetadata(updated.draft)),
+      updated.draft ? encryptJson(updated.draft) : null,
       JSON.stringify(updated.revisions),
       JSON.stringify(updated.signing),
       JSON.stringify(updated.payment),
@@ -516,7 +546,55 @@ export async function updatePilot(id: string, patch: PilotPatch): Promise<Stored
       JSON.stringify(updated.history),
     ],
   )
-  return updated
+}
+
+export type PilotMutation<T> = {
+  patch?: PilotPatch
+  result: T
+}
+
+/**
+ * Pilot room updates need a row lock because a valid Automerge merge can still
+ * be lost when two requests serialize and write the full database record.
+ */
+export async function mutatePilot<T>(
+  id: string,
+  mutator: (pilot: StoredPilot) => PilotMutation<T>,
+): Promise<{pilot: StoredPilot; result: T}> {
+  if (leadsDryRun()) {
+    const existing = memory().pilots.get(id)
+    if (!existing) throw new Error('Pilot record not found.')
+    const mutation = mutator(existing)
+    const pilot = mutation.patch ? applyPilotPatch(existing, mutation.patch) : existing
+    if (mutation.patch) memory().pilots.set(id, pilot)
+    return {pilot, result: mutation.result}
+  }
+
+  const client = await pool().connect()
+  try {
+    await client.query('BEGIN')
+    const result = await client.query<PilotRow>(
+      'SELECT * FROM lead_pilots WHERE id = $1 FOR UPDATE',
+      [id],
+    )
+    if (!result.rows[0]) throw new Error('Pilot record not found.')
+    const existing = pilotFromRow(result.rows[0])
+    const mutation = mutator(existing)
+    const pilot = mutation.patch ? applyPilotPatch(existing, mutation.patch) : existing
+    if (mutation.patch) await persistPilot(client, pilot)
+    await client.query('COMMIT')
+    return {pilot, result: mutation.result}
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+export async function updatePilot(id: string, patch: PilotPatch): Promise<StoredPilot> {
+  const {pilot} = await mutatePilot(id, () => ({patch, result: undefined}))
+  return pilot
 }
 
 export async function latestSubmissionIdForPilot(pilotId: string): Promise<string | null> {

@@ -385,7 +385,7 @@ test('non-owner pilot members can invite reviewers, but reviewer admin actions s
   assert.equal(claim.status, 403)
 })
 
-test('members can submit a shared draft while only the owner commits the revision', async (t) => {
+test('members can submit a shared draft while only the owner advances the pilot', async (t) => {
   const ownerEmail = `draft-owner-${crypto.randomUUID()}@studio.example`
   const participantEmail = `draft-participant-${crypto.randomUUID()}@studio.example`
   captureFetch(t)
@@ -422,21 +422,10 @@ test('members can submit a shared draft while only the owner commits the revisio
   }, {cookie: memberCookie})
   assert.equal(draft.status, 200)
 
-  const commitDenied = await patchPilot(teamReviewPilot.id, {
-    action: 'commit_draft',
-    baseVersion: teamReviewPilot.version,
-    criteria: teamReviewPilot.successCriteria,
-    startDate: '2026-10-01',
-    valueConfirmed: false,
+  const legacySubmit = await patchPilot(teamReviewPilot.id, {
+    action: 'submit_draft',
   }, {cookie: memberCookie})
-  assert.equal(commitDenied.status, 403)
-
-  const submitted = await patchPilot(teamReviewPilot.id, {action: 'submit_draft'}, {cookie: memberCookie})
-  assert.equal(submitted.status, 200)
-
-  const pending = await getPilotById(teamReviewPilot.id)
-  assert.equal(pending?.state, 'revision')
-  assert.equal(pending?.draft?.submittedBy, participantEmail)
+  assert.equal(legacySubmit.status, 410)
 
   const committed = await patchPilot(teamReviewPilot.id, {
     action: 'commit_draft',
@@ -444,13 +433,13 @@ test('members can submit a shared draft while only the owner commits the revisio
     criteria: teamReviewPilot.successCriteria,
     startDate: '2026-10-01',
     valueConfirmed: false,
-  }, {cookie: `portals_session=${ownerSession.sessionToken}`})
+  }, {cookie: memberCookie})
   assert.equal(committed.status, 200)
 
   const reloaded = await getPilotById(teamReviewPilot.id)
   assert.equal(reloaded?.version, teamReviewPilot.version + 1)
   assert.equal(reloaded?.resolvedStartDate, '2026-10-01')
-  assert.equal(reloaded?.revisions.at(-1)?.committedBy, ownerEmail)
+  assert.equal(reloaded?.revisions.at(-1)?.committedBy, participantEmail)
   assert.equal(reloaded?.revisions.at(-1)?.submittedBy, participantEmail)
 })
 

@@ -54,7 +54,7 @@ export default async function PilotRoomPage({
         data-webgl-easing="easeInOut"
       />
       <StaticPilotRoomBackground />
-      <section className="relative z-10 w-full max-w-5xl mx-auto px-24 py-24 md:py-40">
+      <section className="relative z-10 w-full max-w-3xl mx-auto px-24 py-24 md:py-40">
         {!pilot ? (
           <div className="max-w-[34em] mx-auto">
             <h1 className="t-h1-sans">this content could not be found.</h1>
