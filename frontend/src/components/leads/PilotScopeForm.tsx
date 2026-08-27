@@ -22,6 +22,7 @@ import {
 } from '@/lib/leads/pilot-confirmation'
 import {analyticsConsent, buildAttribution, trackEvent} from '@/lib/leads/analytics-client'
 import {newSubmissionId, publicEmailNeedsWebsite, submitLead} from '@/lib/leads/client'
+import {emailDomain, isPublicEmailDomain} from '@/lib/leads/identity'
 import {
   DISCLOSURE_VERSION,
   pilotControlledOptionLists as optionLists,
@@ -200,10 +201,59 @@ export function PilotScopeForm({
 
   function onContinue() {
     if (!stageFieldsValid(stage)) return
-    if (stage === 3 && !valuesFrom(stage).annualPriceAcknowledged) {
-      setStageError('acknowledge the proposed annual price to continue')
-      return
+    
+    // Validate email domain on stage 0 (eligibility) progression
+    if (stage === 0) {
+      const currentEmail = email || (typeof context.identity?.email === 'string' ? context.identity.email : '') || (typeof carriedAnswers.email === 'string' ? carriedAnswers.email : '') || ''
+      if (currentEmail) {
+        const domain = emailDomain(currentEmail)
+        if (isPublicEmailDomain(domain)) {
+          setStageError('a company email domain is required (personal email domains like gmail.com are not accepted)')
+          return
+        }
+      }
     }
+    
+    // Validate team member email domains on stage 1 progression
+    if (stage === 1) {
+      const stageValues = valuesFrom(stage)
+      const teamEmails = [
+        stageValues.productionOwnerEmail,
+      ].filter(Boolean)
+      
+      for (const teamEmail of teamEmails) {
+        const domain = emailDomain(String(teamEmail))
+        if (isPublicEmailDomain(domain)) {
+          setStageError('company email domains are required for team members (personal email domains like gmail.com are not accepted)')
+          return
+        }
+      }
+    }
+    
+    // Validate stakeholder email domains on stage 3 progression
+    if (stage === 3) {
+      const stageValues = valuesFrom(stage)
+      const stakeholderEmails = [
+        stageValues.economicBuyerEmail,
+        stageValues.technicalEvaluatorEmail,
+        stageValues.approverEmail,
+        stageValues.signerEmail,
+      ].filter(Boolean)
+      
+      for (const stakeholderEmail of stakeholderEmails) {
+        const domain = emailDomain(String(stakeholderEmail))
+        if (isPublicEmailDomain(domain)) {
+          setStageError('company email domains are required for stakeholders (personal email domains like gmail.com are not accepted)')
+          return
+        }
+      }
+      
+      if (!stageValues.annualPriceAcknowledged) {
+        setStageError('acknowledge the proposed annual price to continue')
+        return
+      }
+    }
+    
     goTo(stage + 1, 'forward')
   }
 
