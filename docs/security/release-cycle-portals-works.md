@@ -151,7 +151,7 @@ key; retain retired public keys for eight hours plus ten minutes.
 ## 5. Special notes A — domain migration `.sh` → `.works`
 
 - **Audience cut invalidates tokens.** The recipient-protection audience root
-  moves `portals.sh` → `portals.works`, and the issuer becomes
+  is `portals.works`, and the issuer is
   `https://auth.portals.works`. Every token issued under the old audience stops
   validating at cutover: users re-run `nap auth login`; CI exchanges a newly
   created service-account API key. No legacy token is grandfathered.

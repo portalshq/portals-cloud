@@ -79,16 +79,11 @@ was rechecked on 2026-08-14 and is `VALIDATION_TIMED_OUT`. It cannot be used
 for production. Its old CNAME validation records are obsolete; do not recreate
 or rely on them.
 
-**Updated 2026-08-19**: A replacement ACM certificate has been requested:
-- Certificate ARN: `arn:aws:acm:us-east-1:907199504810:certificate/bf777a6b-1ba8-4ad5-a4c2-2ee3e1b74554`
-- Status: `PENDING_VALIDATION` - awaiting Cloudflare DNS records
-- Required CNAME validation records:
-  - lore.portals.sh: `_77ec6ab5e2f4e374053573014072ac72.lore.portals.sh.` → `_1114f1218293031609ca4feda7797b61.jkddzztszm.acm-validations.aws.`
-  - auth.portals.sh: `_46db681e0def1029da11c21b868ad7c2.auth.portals.sh.` → `_cec46b8df78110f85cd6e15b47473c07.jkddzztszm.acm-validations.aws.`
+**Updated 2026-08-19**: A replacement ACM certificate was requested for `*.portals.works` (superseded; deleted 2026-08-21). See `2026-08-21` entry for the current `portals.works` certificate `32f56a6f`.
 
 **Updated 2026-08-20**: CNAME validation records created in Cloudflare as **DNS-only** (grey cloud) per operator confirmation. ACM still reports `PENDING_VALIDATION` as of `2026-08-20T21:53Z` — propagation/validation pending. Do not recreate records. Update `publicCertificateArn` in the target Pulumi stack only after ACM reports `ISSUED`. Then point the two hostnames at the ALB—not an ECS task or NLB—and keep Cloudflare proxying off until gRPC compatibility and TLS ownership are deliberately validated.
 
-## 2026-08-21 domain migration (portals.sh → portals.works)
+## 2026-08-21 domain migration to portals.works
 
 Public hostnames migrate to `*.portals.works`. Entries earlier in this log stay
 verbatim as the historical record of what was done on their dates; all
@@ -111,7 +106,7 @@ current/normative guidance elsewhere in the docs now uses `.works`.
   `.works` names in the `portals.works` zone, then — only after `ISSUED` — the
   ALB CNAME records for both hostnames. Both phases use DNS-only (grey cloud)
   records; no proxying in either phase.
-- Token contract cut: audience root moves `portals.sh` → `portals.works` and
+- Token contract cut: audience root is `portals.works` and
   the issuer becomes `https://auth.portals.works` with **no trailing slash**.
   Tokens issued under the old audience/issuer stop validating; users and CI
   must authenticate again after cutover.
@@ -128,7 +123,7 @@ current/normative guidance elsewhere in the docs now uses `.works`.
   refresh/staleness, rejects wildcard/lookalike recipients, and returns
   `UNIMPLEMENTED` from disabled AdminService methods including `Obliterate`.
 - The unreleased Nap worktree contains source-generated `auth login/status/logout`, standard
-  `grpcs://lore.portals.sh` routing, noninteractive repository operations,
+  `grpcs://lore.portals.works` routing, noninteractive repository operations,
   actionable authentication errors, automatic repository-token exchange, and
   stdin-only service-account API-key exchange. A second doc generation wrote
   zero files; `docs-check` currently reports the intended uncommitted generated
@@ -214,8 +209,8 @@ Until every item is evidenced, keep `publicIngressEnabled`,
 `jwksPublicationEnabled`, `jwtSigningEnabled`, `authGatewayReady`, and
 `releaseGateApproved` false; keep Lore and the legacy control plane at zero.
 
-The 2026-08-13 containment scan resolved both `lore.portals.sh` and
-`auth.portals.sh` externally and found TCP `443`, `8083`, `41337`, and `41339`
+The 2026-08-13 containment scan resolved both `lore.portals.works` and
+`auth.portals.works` externally and found TCP `443`, `8083`, `41337`, and `41339`
 closed on both names, as expected before release.
 
 **Verified Infrastructure State (2026-08-25 19:46 UTC — `v0.8.4-portals.8` `72bc91` `c60b9ca368cf…` `COMPLETED`)**:
