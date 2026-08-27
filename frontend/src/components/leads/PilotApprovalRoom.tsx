@@ -205,7 +205,7 @@ function SectionShell({
 
 function StatusPill({ children }: { children: ReactNode }) {
   return (
-    <span className="cursor-default inline-flex items-center rounded border border-white/80 bg-white/15 px-12 py-4 t-p-sm-sans">
+    <span className="cursor-default inline-flex items-center rounded border border-white/80 bg-white/10 px-12 py-4 t-p-sm-sans">
       {children}
     </span>
   )
@@ -1084,9 +1084,9 @@ export function PilotApprovalRoom({
                           }
                           setCriteria(next)
                         }}
-                        className={`min-h-40 border border-white/80 px-10 t-p-sm-sans transition-colors hover:border-white ${criterion.status === option.value
+                        className={`min-h-40 border border-white/80 px-10 t-p-sm-sans cursor-pointer transition-colors active:bg-white/20 ${criterion.status === option.value
                           ? 'bg-white/20'
-                          : ''
+                          : 'hover:bg-white/10'
                           }`}
                       >
                         {option.label}
@@ -1193,7 +1193,7 @@ export function PilotApprovalRoom({
                     </ul>
                   ) : null}
                   {reviewer.status === 'proposed' && !reviewer.email.trim() && invitationsUnlocked ? (
-                    <div className="flex flex-wrap items-center gap-8">
+                    <div className="flex items-center gap-8">
                       <RoomTextField
                         type="email"
                         placeholder="email address"
@@ -1260,7 +1260,7 @@ export function PilotApprovalRoom({
         </div>
         {invitationsUnlocked ? (
           <>
-            <div className="mt-16 flex flex-wrap gap-10">
+            <div className="mt-16 flex gap-10 justify-end">
               <button onClick={() => void onInviteAllRequired()} disabled={busy} className={accentButtonClasses}>
                 <Send aria-hidden="true" size={16} strokeWidth={1.8} />
                 Invite required reviewers
@@ -1315,7 +1315,7 @@ export function PilotApprovalRoom({
                 placeholder="e.g. please add the security addendum before I can confirm"
               />
             </label>
-            <div className="flex flex-wrap items-center gap-10">
+            <div className="flex flex-wrap items-center justify-end gap-10">
               <button onClick={() => void onReviewerDecision('confirm')} disabled={busy || hasUnsavedChanges} className={accentButtonClasses}>
                 <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
                 Confirm my review
@@ -1399,6 +1399,6 @@ export function PilotApprovalRoom({
 const primaryButtonClasses =
   'inline-flex min-h-44 items-center justify-center gap-8 rounded border border-white/80 px-18 t-p-sm-sans transition-colors duration-100 hover:border-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer'
 const accentButtonClasses =
-  'inline-flex min-h-44 items-center justify-center gap-8 rounded border border-white/80 bg-white/25 px-18 t-p-sm-sans transition-colors duration-100 hover:border-white hover:bg-white/40 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer'
+  'inline-flex min-h-44 items-center justify-center gap-8 rounded border border-white/80 bg-white/20 px-18 t-p-sm-sans transition-colors duration-100 hover:border-white hover:bg-white/40 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer'
 const plainButtonClasses =
   'inline-flex min-h-44 items-center justify-center gap-8 rounded border border-white/80 px-18 t-p-sm-sans transition-colors duration-100 hover:border-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer'
