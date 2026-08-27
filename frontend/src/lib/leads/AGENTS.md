@@ -8,6 +8,26 @@ The workflow assessment is the single prospect-facing qualification flow. It ask
 
 Keep the form value-led: describe the concrete output first—less rediscovery, fewer recreated assets, faster repeatable production, and lower cost. Questions about approval or a pilot must make clear that they do not commit the prospect to either.
 
+## System architecture
+
+The website stores every verified form submission, application user, customer account, consent record, pilot, billing record, and audit event in PostgreSQL. Apollo is a one-way sales projection: every verified lead becomes a contact; an Apollo account is created only after the application creates a real customer account for a pilot; the pilot deal then links both. Apollo is never the application system of record.
+
+```mermaid
+flowchart LR
+  Intake["Verified form / Stripe webhook"] --> DB["Application PostgreSQL\nusers, accounts, consent, pilots, billing, audit"]
+  DB --> Outbox["Durable outbox + stored Apollo IDs"]
+  Outbox --> Apollo["Contacts, accounts, lists, deal stages"]
+  Apollo --> Workflows["Sequences, tasks, workflows"]
+  Workflows --> Callback["Signed commercial event"]
+  Callback --> DB
+```
+
+- A pilot applicant receives an application user, customer account, owner membership, and pilot membership. That application customer account maps one-to-one to the Apollo account. Invited colleagues receive their own magic-link account and a scoped membership.
+- A configured `LEADS_NOTIFICATION_EMAIL` is granted staff/admin access and approver access for each pilot; it does not become the customer account owner.
+- Apollo record IDs are persisted in `crm_external_records`; retries do not depend on Apollo search or deduplication. The `crm_outbox` retries sales-stage changes with backoff.
+- Apollo workflows may enroll a contact into a sequence only when the application's marketing consent is true. Native Apollo unsubscribe prevents future enrollment; application consent remains authoritative.
+- Apollo is the place for founder-maintained sales notes and commercial deal stages. The application retains submission history, raw encrypted responses, payment, customer data, and audit history because the public API cannot create or update Apollo notes.
+
 ## Adding or changing form fields
 
 Form fields belong to one or more of these categories:
@@ -60,11 +80,17 @@ Use these evidence definitions in reports:
 
 Opens and clicks are delivery diagnostics, not evidence that the problem is urgent. Preserve exact prospect language when it changes the problem definition, consequence, or buying condition.
 
+## Lifecycle and workflows
+
+The application advances automated lifecycle values only through `Pilot Requested`. Founder-controlled Apollo values — Pilot Scoped, Paid Pilot, Annual Proposal, Customer, Nurture, and Disqualified — must not be overwritten by later form activity. Payment projects `Paid Pilot`; activated customers may project `Customer` through the durable CRM outbox.
+
 ## Reply follow-up automation
 
 The Apollo workflow for outbound replies must trigger when Contact Stage becomes `Replied`. It creates one high-priority `Review reply and respond` task due the next business day, links the contact and account, and notifies the assignee. Assign through an active-team-member round robin; discover the eligible users at runtime instead of hard-coding Andreas. If only one active Apollo user exists, the same rule naturally assigns every task to that user.
 
 The task instructions are: read the full thread, respond manually, classify whether the problem is confirmed, identify any active workflow and consequence, preserve useful verbatim language in the contact Note, and advance the native contact or deal stage only when the corresponding evidence exists. Do not create a duplicate task if an open reply-review task already exists for the contact.
+
+Use Apollo workflows for sequence enrollment, tasks, owner assignment, and outbound webhooks. Configure a workflow webhook to `POST /api/leads` as a `commercial_event` and set `x-portals-signature` to the base64url HMAC-SHA256 of the exact request body using `APOLLO_CALLBACK_SECRET`. Send an idempotency key, known work email, and structured commercial event only — no free text or payment authority.
 
 ## Reusable outbound ICP
 
@@ -89,3 +115,11 @@ Ideal contacts:
 Character-continuity accounts must additionally show recurring characters, branded characters, virtual talent, episodic work, multiple shots with the same subject, or another visible need to carry a character across tools, creators, revisions, or production cycles. Route ambiguous accounts to conversational discovery.
 
 Reserve 25% of eligible, never-contacted accounts as a stratified account-level holdout. Do not enroll, email, or approach adjacent contacts at those accounts during the experiment. Release the remaining accounts in three waves equal to 30%, 20%, and 25% of the full eligible cohort, with allocation decisions after the first and second checkpoints.
+
+## Operations and privacy
+
+`LEADS_DRY_RUN=true` is the supported local no-integration mode. It simulates submissions, accounts, pilots, and payments in memory and never contacts Apollo, Stripe, Resend, or PostgreSQL.
+
+Vercel invokes `/api/internal/leads/retry` every ten minutes. Lead and CRM outboxes are leased and retried; inspect their `last_error`, correct the configuration, and move the affected row to `retry` to replay it. Raw encrypted submissions are redacted after 30 days once the intake outbox completes. The opaque profile cookie expires after 90 days.
+
+Mixpanel starts only after analytics consent. Do not send identity, messages, application answers, or workflow descriptions to browser analytics.
