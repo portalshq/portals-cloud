@@ -25,6 +25,7 @@ export function commitPilotTermRevision(input: {
   pilot: StoredPilot
   nextTerms: PilotMutableTerms
   actor?: string
+  submittedBy?: string
   baseVersion?: number
   extraChanges?: PilotDraftChange[]
   at?: string
@@ -61,6 +62,7 @@ export function commitPilotTermRevision(input: {
             baseVersion: input.baseVersion || input.pilot.version,
             committedAt: at,
             committedBy: input.actor,
+            submittedBy: input.submittedBy,
             terms: input.nextTerms,
             changes,
           },

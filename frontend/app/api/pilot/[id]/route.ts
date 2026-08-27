@@ -42,6 +42,7 @@ import {commitPilotTermRevision, pilotMutableTermsFromState} from '@/lib/leads/p
 type PatchAction =
   | 'update'
   | 'draft'
+  | 'submit_draft'
   | 'commit_draft'
   | 'start_team_review'
   | 'invite_reviewer'
@@ -258,7 +259,12 @@ export async function GET(
   const {id} = await params
   const result = await authenticatedPilot(id, request)
   if (result instanceof NextResponse) return result
-  return NextResponse.json({ok: true, pilot: result.pilot, accessRole: result.accessRole})
+  return NextResponse.json({
+    ok: true,
+    pilot: result.pilot,
+    draftTerms: pilotTermsFromDraft(result.pilot.draft, mutableTermsFromPilot(result.pilot)),
+    accessRole: result.accessRole,
+  })
 }
 
 export async function PATCH(
@@ -346,9 +352,6 @@ export async function PATCH(
     }
 
     if (body.action === 'draft') {
-      if (accessRole !== 'owner') {
-        return NextResponse.json({ok: false, message: 'only the submitter can edit the plan'}, {status: 403})
-      }
       const currentTerms = mutableTermsFromPilot(pilot)
       const baseVersion = body.baseVersion || pilot.version
       const baseTerms = termsForRevision(pilot, baseVersion) || pilotTermsFromDraft(pilot.draft, currentTerms)
@@ -360,7 +363,46 @@ export async function PATCH(
         actor: user.email,
       })
       const updated = await updatePilot(id, {draft})
-      return NextResponse.json({ok: true, pilot: updated})
+      return NextResponse.json({
+        ok: true,
+        pilot: updated,
+        draftTerms: pilotTermsFromDraft(draft, currentTerms),
+      })
+    }
+
+    if (body.action === 'submit_draft') {
+      const currentTerms = mutableTermsFromPilot(pilot)
+      const draftTerms = pilotTermsFromDraft(pilot.draft, currentTerms)
+      const baseTerms = termsForRevision(pilot, pilot.draft?.baseVersion || pilot.version) || currentTerms
+      if (JSON.stringify(draftTerms) === JSON.stringify(baseTerms)) {
+        return NextResponse.json({ok: false, message: 'make a change before submitting a revision'}, {status: 400})
+      }
+      const stateChange = applyTransition(pilot.state, 'revise')
+      if (!stateChange.allowed) {
+        return NextResponse.json({ok: false, message: 'the pilot cannot be revised in its current state'}, {status: 400})
+      }
+      const now = new Date().toISOString()
+      const draft = pilot.draft
+        ? {...pilot.draft, submittedAt: now, submittedBy: user.email}
+        : updatePilotDraft({
+            baseTerms,
+            baseVersion: pilot.version,
+            nextTerms: draftTerms,
+            actor: user.email,
+            at: now,
+          })
+      const updated = await updatePilot(id, {
+        state: stateChange.state,
+        draft,
+        historyNote: `${user.email} submitted a revision for owner review`,
+        by: user.email,
+      })
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'change_requested',
+        eventKey: `revision-submitted:${updated.version}:${now}`,
+      })
+      return NextResponse.json({ok: true, pilot: updated, draftTerms})
     }
 
     if (body.action === 'commit_draft') {
@@ -370,7 +412,14 @@ export async function PATCH(
       const baseVersion = body.baseVersion || pilot.draft?.baseVersion || pilot.version
       const baseTerms = termsForRevision(pilot, baseVersion) || mutableTermsFromPilot(pilot)
       const currentTerms = mutableTermsFromPilot(pilot)
-      const incomingTerms = mutableTermsFromBody(pilot, body)
+      const draft = updatePilotDraft({
+        draft: pilot.draft,
+        baseTerms,
+        baseVersion,
+        nextTerms: mutableTermsFromBody(pilot, body),
+        actor: user.email,
+      })
+      const incomingTerms = pilotTermsFromDraft(draft, currentTerms)
       const resolved = resolvePilotDraftCommit({
         baseTerms,
         currentTerms,
@@ -390,6 +439,7 @@ export async function PATCH(
         pilot,
         nextTerms: resolved.terms,
         actor: user.email,
+        submittedBy: pilot.draft?.submittedBy || user.email,
         baseVersion,
       })
       const updated = await updatePilot(id, {
@@ -755,6 +805,7 @@ export async function PATCH(
     const emailVariant: Record<PatchAction, string | null> = {
       update: null,
       draft: null,
+      submit_draft: null,
       commit_draft: null,
       start_team_review: null,
       invite_reviewer: null,

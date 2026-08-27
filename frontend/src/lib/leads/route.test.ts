@@ -385,6 +385,75 @@ test('non-owner pilot members can invite reviewers, but reviewer admin actions s
   assert.equal(claim.status, 403)
 })
 
+test('members can submit a shared draft while only the owner commits the revision', async (t) => {
+  const ownerEmail = `draft-owner-${crypto.randomUUID()}@studio.example`
+  const participantEmail = `draft-participant-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+
+  const created = await post(pilotBody(ownerEmail))
+  const token = profileTokenFrom(created)
+  const {pilot} = await pilotForProfile(token)
+  assert.ok(pilot)
+  const teamReviewPilot = await updatePilot(pilot.id, {state: 'team_review'})
+
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerLink = await issueMagicLink({userId: owner.id, purpose: 'sign_in'})
+  const ownerSession = await consumeMagicLink(ownerLink)
+  assert.ok(ownerSession)
+
+  const invitedMember = await invitePilotMember({
+    pilotId: teamReviewPilot.id,
+    email: participantEmail,
+    displayName: 'Participant',
+    role: 'participant',
+  })
+  const memberLink = await issueMagicLink({userId: invitedMember.user.id, purpose: 'sign_in'})
+  const memberSession = await consumeMagicLink(memberLink)
+  assert.ok(memberSession)
+  const memberCookie = `portals_session=${memberSession.sessionToken}`
+
+  const draft = await patchPilot(teamReviewPilot.id, {
+    action: 'draft',
+    baseVersion: teamReviewPilot.version,
+    criteria: teamReviewPilot.successCriteria,
+    startDate: '2026-10-01',
+    valueConfirmed: false,
+  }, {cookie: memberCookie})
+  assert.equal(draft.status, 200)
+
+  const commitDenied = await patchPilot(teamReviewPilot.id, {
+    action: 'commit_draft',
+    baseVersion: teamReviewPilot.version,
+    criteria: teamReviewPilot.successCriteria,
+    startDate: '2026-10-01',
+    valueConfirmed: false,
+  }, {cookie: memberCookie})
+  assert.equal(commitDenied.status, 403)
+
+  const submitted = await patchPilot(teamReviewPilot.id, {action: 'submit_draft'}, {cookie: memberCookie})
+  assert.equal(submitted.status, 200)
+
+  const pending = await getPilotById(teamReviewPilot.id)
+  assert.equal(pending?.state, 'revision')
+  assert.equal(pending?.draft?.submittedBy, participantEmail)
+
+  const committed = await patchPilot(teamReviewPilot.id, {
+    action: 'commit_draft',
+    baseVersion: teamReviewPilot.version,
+    criteria: teamReviewPilot.successCriteria,
+    startDate: '2026-10-01',
+    valueConfirmed: false,
+  }, {cookie: `portals_session=${ownerSession.sessionToken}`})
+  assert.equal(committed.status, 200)
+
+  const reloaded = await getPilotById(teamReviewPilot.id)
+  assert.equal(reloaded?.version, teamReviewPilot.version + 1)
+  assert.equal(reloaded?.resolvedStartDate, '2026-10-01')
+  assert.equal(reloaded?.revisions.at(-1)?.committedBy, ownerEmail)
+  assert.equal(reloaded?.revisions.at(-1)?.submittedBy, participantEmail)
+})
+
 test('a disqualified pilot request is held for clarification', async (t) => {
   const email = `disqualified-${crypto.randomUUID()}@studio.example`
   t.mock.method(globalThis, 'fetch', async () => new Response('{}', {status: 200}))

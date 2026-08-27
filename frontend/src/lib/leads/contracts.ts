@@ -1,5 +1,5 @@
-import {z} from 'zod'
-import {productionWorkflowIds} from '@/lib/production-workflows'
+import { z } from 'zod'
+import { productionWorkflowIds } from '@/lib/production-workflows'
 
 export const DISCLOSURE_VERSION = '2026-08-01'
 export const SCORE_VERSION = '2026-08-09.v2'
@@ -268,7 +268,7 @@ export type SuccessCriterion = {
 export type SecurityDecision = {
   key: string
   label: string
-  decision: 'confirm' | 'exception' | 'accept' | 'not-applicable'
+  decision: 'confirm' | 'exception' | 'not-applicable'
   note?: string
 }
 

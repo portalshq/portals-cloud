@@ -216,6 +216,31 @@ test('collaborative draft records working changes without committing a revision'
   assert.equal(terms.startDate, '2026-09-01')
 })
 
+test('collaborative draft preserves concurrent edits to different fields', () => {
+  const base: PilotMutableTerms = {
+    startDate: null,
+    valueConfirmed: false,
+    criteria: buildSuccessCriteria(eligible),
+  }
+  const first = updatePilotDraft({
+    draft: createPilotDraft({terms: base, baseVersion: 1, actor: 'ava@studio.example'}),
+    baseTerms: base,
+    baseVersion: 1,
+    nextTerms: {...base, startDate: '2026-09-01'},
+    actor: 'ava@studio.example',
+  })
+  const second = updatePilotDraft({
+    draft: first,
+    baseTerms: base,
+    baseVersion: 1,
+    nextTerms: {...base, valueConfirmed: true},
+    actor: 'maya@studio.example',
+  })
+  const terms = pilotTermsFromDraft(second, base)
+  assert.equal(terms.startDate, '2026-09-01')
+  assert.equal(terms.valueConfirmed, true)
+})
+
 test('draft commit preserves concurrent changes to different structured fields', () => {
   const base: PilotMutableTerms = {
     startDate: null,

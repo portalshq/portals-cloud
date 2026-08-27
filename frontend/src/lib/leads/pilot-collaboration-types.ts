@@ -22,6 +22,8 @@ export type PilotCollaborativeDraft = {
   changes: PilotDraftChange[]
   updatedAt: string
   updatedBy?: string
+  submittedAt?: string
+  submittedBy?: string
 }
 
 export type PilotCommittedRevision = {
@@ -30,6 +32,7 @@ export type PilotCommittedRevision = {
   baseVersion: number
   committedAt: string
   committedBy?: string
+  submittedBy?: string
   terms: PilotMutableTerms
   changes: PilotDraftChange[]
 }

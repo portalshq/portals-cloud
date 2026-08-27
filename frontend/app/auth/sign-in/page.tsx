@@ -2,8 +2,8 @@
 
 import { CTAButton } from '@/components/CTAButton'
 import Link from 'next/link'
-import {useSearchParams} from 'next/navigation'
-import {Suspense, useState} from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useState } from 'react'
 
 function SignInPage() {
   const search = useSearchParams()
@@ -17,8 +17,8 @@ function SignInPage() {
     try {
       await fetch('/api/auth/magic-link', {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify({email, next: search.get('next') || '/account'}),
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, next: search.get('next') || '/account' }),
       })
       setSent(true)
     } finally {
@@ -49,7 +49,7 @@ function SignInPage() {
           onChange={(event) => setEmail(event.target.value)}
         />
         <CTAButton className="mt-16 px-16 py-10 text-white" disabled={busy} type="submit">
-          {busy ? 'sending…' : 'send link'}
+          {busy ? 'sending…' : 'get sign-in link'}
         </CTAButton>
         {sent ? <p className="mt-12 t-p-sm-sans">if your email is registered, check your inbox for a sign-in link.</p> : null}
         {search.get('error') ? <p className="mt-12 t-p-sm-sans">that sign-in link is invalid or has expired. request a new link.</p> : null}

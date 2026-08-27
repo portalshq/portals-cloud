@@ -1,4 +1,4 @@
-import type {PackageSpecification} from '../../types/resource'
+import type { PackageSpecification } from '../../types/resource'
 import type {
   IntegrationRow,
   PilotAnswers,
@@ -8,7 +8,7 @@ import type {
 import {
   pilotControlledOptionLists as optionLists,
 } from './contracts'
-import {packagePriceLabel, packageTermDays} from '../package-specifications'
+import { packagePriceLabel, packageTermDays } from '../package-specifications'
 
 export type PilotRoute = 'zero-call' | 'one-call' | 'disqualified'
 
@@ -63,9 +63,9 @@ export type ExceptionItem = {
 }
 
 export type ValueModel = {
-  frequency: {label: string; annualized: number}
-  hoursLoss: {label: string; low: number; high: number}
-  people: {label: string; low: number; high: number}
+  frequency: { label: string; annualized: number }
+  hoursLoss: { label: string; low: number; high: number }
+  people: { label: string; low: number; high: number }
   low: number
   high: number
   midpoint: number
@@ -227,16 +227,16 @@ export function reviewerRoleLabel(role: ReviewerRole): string {
 }
 
 const STATE_LABELS: Record<PilotState, string> = {
-  reviewing: 'Scope draft — under review',
+  reviewing: 'Scope draft - under review',
   revision: 'Revision requested',
-  team_review: 'Ready for team review',
-  exception_review: 'Qualification or exception review',
+  team_review: 'Ready for review',
+  exception_review: 'Exception review',
   scope_confirmed: 'Scope confirmed',
   ready_sign: 'Ready for signature',
-  signed: 'Signed',
+  signed: 'Signed - waiting for payment',
   paid: 'Paid',
   kickoff: 'Scheduled',
-  active: 'Active pilot',
+  active: 'Active',
   not_eligible: 'Not eligible',
 }
 
@@ -245,20 +245,20 @@ export function stateLabel(state: PilotState): string {
 }
 
 const TRANSITIONS: Record<PilotState, Partial<Record<PilotAction, PilotState>>> = {
-  reviewing: {revise: 'revision', start_team_review: 'team_review', confirm_scope: 'scope_confirmed', request_exception: 'exception_review'},
-  revision: {revise: 'reviewing', start_team_review: 'team_review', confirm_scope: 'scope_confirmed', request_exception: 'exception_review'},
-  team_review: {revise: 'revision', confirm_scope: 'scope_confirmed', request_exception: 'exception_review'},
+  reviewing: { revise: 'revision', start_team_review: 'team_review', confirm_scope: 'scope_confirmed', request_exception: 'exception_review' },
+  revision: { revise: 'reviewing', start_team_review: 'team_review', confirm_scope: 'scope_confirmed', request_exception: 'exception_review' },
+  team_review: { revise: 'revision', confirm_scope: 'scope_confirmed', request_exception: 'exception_review' },
   exception_review: {
     resolve_exceptions: 'reviewing',
     qualify: 'reviewing',
     disqualify: 'not_eligible',
     revise: 'revision',
   },
-  scope_confirmed: {finalize: 'ready_sign', request_exception: 'exception_review', revise: 'revision'},
-  ready_sign: {sign: 'signed', revise: 'revision'},
-  signed: {pay: 'paid'},
-  paid: {kickoff: 'kickoff'},
-  kickoff: {activate: 'active'},
+  scope_confirmed: { finalize: 'ready_sign', request_exception: 'exception_review', revise: 'revision' },
+  ready_sign: { sign: 'signed', revise: 'revision' },
+  signed: { pay: 'paid' },
+  paid: { kickoff: 'kickoff' },
+  kickoff: { activate: 'active' },
   active: {},
   not_eligible: {},
 }
@@ -266,9 +266,9 @@ const TRANSITIONS: Record<PilotState, Partial<Record<PilotAction, PilotState>>> 
 export function applyTransition(
   state: PilotState,
   action: PilotAction,
-): {state: PilotState; allowed: boolean} {
+): { state: PilotState; allowed: boolean } {
   const next = TRANSITIONS[state]?.[action]
-  return next ? {state: next, allowed: true} : {state, allowed: false}
+  return next ? { state: next, allowed: true } : { state, allowed: false }
 }
 
 const REGULATED = new Set(['regulated', 'personal'])
@@ -305,19 +305,19 @@ export function classifyPilot(
 
   if (noWorkflow) {
     reasons.push('No active production workflow described')
-    return {route: 'disqualified', reasons, exceptions}
+    return { route: 'disqualified', reasons, exceptions }
   }
   if (noOwner) {
     reasons.push('No production owner identified')
-    return {route: 'disqualified', reasons, exceptions}
+    return { route: 'disqualified', reasons, exceptions }
   }
   if (answers.approvalPath === 'no' || answers.approvalPath === 'not-established') {
     reasons.push('No credible $5,000 approval path')
-    return {route: 'disqualified', reasons, exceptions}
+    return { route: 'disqualified', reasons, exceptions }
   }
   if (answers.exactReproductionRequired) {
     reasons.push('Guaranteed exact reproduction is outside the standard pilot')
-    return {route: 'disqualified', reasons, exceptions}
+    return { route: 'disqualified', reasons, exceptions }
   }
 
   if (customIntegration) {
@@ -391,7 +391,7 @@ export function classifyPilot(
     })
   }
 
-  return {route: exceptions.length ? 'one-call' : 'zero-call', reasons, exceptions}
+  return { route: exceptions.length ? 'one-call' : 'zero-call', reasons, exceptions }
 }
 
 export function parseIntegrationSystems(raw: string | undefined): IntegrationRow[] {
@@ -451,54 +451,60 @@ export function buildSecurityDecisions(
     decision: SecurityDecision['decision']
     note?: string
   }> = [
-    {
-      key: 'training-data',
-      label: 'No use of your data to train foundation models',
-      decision: 'confirm',
-      note: 'Never without written permission',
-    },
-    {key: 'tenant-isolation', label: 'Logical isolation of customer environments', decision: 'confirm'},
-    {key: 'encryption-transit', label: 'Encryption in transit (TLS)', decision: 'confirm'},
-    {key: 'encryption-rest', label: 'Encryption at rest', decision: 'confirm'},
-    {key: 'export', label: 'Export your data and models on request', decision: 'confirm'},
-    {key: 'deletion', label: 'Deletion of data and models on request', decision: 'confirm'},
-    {
-      key: 'sso',
-      label: 'SSO/SAML integration',
-      decision: exceptionFor('sso') ? 'exception' : 'confirm',
-      note: exceptionFor('sso') ? 'SSO/SAML requires configuration review.' : 'Included when requested.',
-    },
-    {
-      key: 'sla',
-      label: 'Formal service-level agreement',
-      decision: exceptionFor('sla') ? 'exception' : 'not-applicable',
-      note: 'Outside the standard pilot; covered by the annual deployment.',
-    },
-    {
-      key: 'soc2',
-      label: 'SOC 2 report',
-      decision: 'accept',
-      note: 'Buyer accepts portals\u2019 standard security posture for the pilot.',
-    },
-    {
-      key: 'residency',
-      label: 'Data residency requirements',
-      decision: exceptionFor('residency') ? 'exception' : 'not-applicable',
-      note: 'Residency outside standard hosting requires review.',
-    },
-    {
-      key: 'dedicated',
-      label: 'Dedicated tenant or infrastructure',
-      decision: exceptionFor('dedicated') ? 'exception' : 'not-applicable',
-      note: 'Dedicated infrastructure is not included at the pilot price.',
-    },
-    {
-      key: 'regulated',
-      label: 'Regulated or personal data processing',
-      decision: regulated ? 'exception' : 'not-applicable',
-      note: 'Requires legal and security review before processing.',
-    },
-  ]
+      {
+        key: 'training-data',
+        label: 'No use of your data to train foundation models',
+        decision: 'confirm',
+        note: 'Never without written permission',
+      },
+      { key: 'tenant-isolation', 
+        label: 'Logical isolation of customer environments', 
+        decision: 'confirm' },
+      { key: 'encryption-transit', label: 'Encryption in transit (TLS)', decision: 'confirm' },
+      { key: 'encryption-rest', label: 'Encryption at rest', decision: 'confirm' },
+      { key: 'export', label: 'Export your data and models on request', 
+        note: 'Customer data can be exported on request', 
+        decision: 'confirm' },
+      { key: 'deletion', label: 'Deletion of data and models on request', decision: 'confirm' },
+      {
+        key: 'sso',
+        label: 'SSO/SAML integration',
+        decision: exceptionFor('sso') ? 'exception' : 'confirm',
+        note: exceptionFor('sso') ? 'Requested SSO/SAML requires exception review.' : 'SSO/SAML integration is included when requested.',
+      },
+      {
+        key: 'sla',
+        label: 'Formal service-level agreement',
+        decision: exceptionFor('sla') ? 'exception' : 'not-applicable',
+        note: exceptionFor('sla')
+          ? 'A pilot-specific SLA requires review.'
+          : 'SLA is outside the standard pilot and can be addressed for annual deployment.',
+      },
+      {
+        key: 'soc2',
+        label: 'SOC 2 report',
+        decision: 'confirm',
+        note: 'Buyer accepts portals\u2019 standard security posture for the pilot duration without a SOC 2 report.',
+      },
+      {
+        key: 'residency',
+        label: 'Data residency requirements',
+        decision: exceptionFor('residency') ? 'exception' : 'not-applicable',
+        note: 'Residency outside standard hosting requires review.',
+      },
+      {
+        key: 'dedicated',
+        label: 'Dedicated tenant or infrastructure',
+        decision: exceptionFor('dedicated') ? 'exception' : 'not-applicable',
+        note: 'Dedicated infrastructure is not included in this pilot package.',
+      },
+      // {
+      //   key: 'regulated',
+      //   label: 'Regulated or personal data processing',
+      //   decision: regulated ? 'exception' : 'not-applicable',
+      //   note: 'Requires legal and security review before processing.',
+      // },
+    ]
   return rows.map((row) => ({
     key: row.key,
     label: row.label,
@@ -559,8 +565,8 @@ export function buildValueModel(
     label: FREQUENCY_LABELS[recreationFrequency],
     annualized: FREQUENCY_ANNUALIZED[recreationFrequency],
   }
-  const hoursLoss = {label: hoursLost.replace(/-/g, ' '), low: HOURS_RANGES[hoursLost][0], high: HOURS_RANGES[hoursLost][1]}
-  const people = {label: peopleAffected.replace(/-/g, ' '), low: PEOPLE_RANGES[peopleAffected][0], high: PEOPLE_RANGES[peopleAffected][1]}
+  const hoursLoss = { label: hoursLost.replace(/-/g, ' '), low: HOURS_RANGES[hoursLost][0], high: HOURS_RANGES[hoursLost][1] }
+  const people = { label: peopleAffected.replace(/-/g, ' '), low: PEOPLE_RANGES[peopleAffected][0], high: PEOPLE_RANGES[peopleAffected][1] }
   const low = Math.round(frequency.annualized * hoursLoss.low * people.low)
   const high = Math.round(frequency.annualized * hoursLoss.high * people.high)
   return {
@@ -585,7 +591,7 @@ function annualTotalFrom(spec: PackageSpecification | undefined): number | null 
 export function buildCommercialSnapshot(
   answers: PilotAnswers,
   specs: PackageSpecification[],
-  opts: {startDate?: string; termDays?: number; currency?: string},
+  opts: { startDate?: string; termDays?: number; currency?: string },
 ): CommercialSnapshot {
   const pilotSpec = specs.find((spec) => spec.packageKind === 'paidPilot')
   const priceAmount =
@@ -615,20 +621,20 @@ export function buildCommercialSnapshot(
   const annualOption =
     annualSlug === 'studio' && !annualSpec
       ? {
-          slug: 'studio',
-          name: 'portals Studio',
-          priceLabel: '$30,000 annually',
-          annualTotal: 30000,
-          creditNote: annualCredit,
-        }
+        slug: 'studio',
+        name: 'portals Studio',
+        priceLabel: '$30,000 annually',
+        annualTotal: 30000,
+        creditNote: annualCredit,
+      }
       : annualSpec
         ? {
-            slug: annualSpec.slug,
-            name: annualSpec.name,
-            priceLabel: annualSpec.price?.displayValue || annualSpec.name,
-            annualTotal,
-            creditNote: annualCredit,
-          }
+          slug: annualSpec.slug,
+          name: annualSpec.name,
+          priceLabel: annualSpec.price?.displayValue || annualSpec.name,
+          annualTotal,
+          creditNote: annualCredit,
+        }
         : undefined
 
   return {
@@ -653,13 +659,13 @@ export function buildCommercialSnapshot(
 
 export function computeUnresolved(
   answers: PilotAnswers,
-  opts: {startDate?: string; route?: PilotRoute},
+  opts: { startDate?: string; route?: PilotRoute },
 ): UnresolvedItem[] {
   const unresolved: UnresolvedItem[] = []
   if (!opts.startDate) {
     unresolved.push({
       key: 'start-date',
-      label: 'Choose the pilot start date',
+      label: 'Select the start date',
       resolution: 'Pick a start date in the approval room.',
       href: '#scope'
     })
@@ -670,7 +676,7 @@ export function computeUnresolved(
   ) {
     unresolved.push({
       key: 'integration',
-      label: 'Choose the import or integration method',
+      label: 'Select the import or integration method',
       resolution: 'Select one of the standard integration paths.',
       href: '#scope',
     })
@@ -700,7 +706,7 @@ export function computeUnresolved(
       label: 'Add the approver\u2019s email so the plan can be shared',
       resolution: 'Share the room with the approver using the share box, or revise the plan to add their email.',
       href: '#scope',
-      })
+    })
   }
   if (!answers.annualDeploymentOption || answers.annualDeploymentOption === 'not-known') {
     unresolved.push({
@@ -753,10 +759,9 @@ export function summarizeProposal(snapshot: CommercialSnapshot | null | undefine
   }
   if (snapshot.annualOption) {
     parts.push(
-      `with the proposed annual deployment of ${snapshot.annualOption.name}${
-        snapshot.annualOption.annualTotal
-          ? ` at $${snapshot.annualOption.annualTotal.toLocaleString()} annually`
-          : ''
+      `with the proposed annual deployment of ${snapshot.annualOption.name}${snapshot.annualOption.annualTotal
+        ? ` at $${snapshot.annualOption.annualTotal.toLocaleString()} annually`
+        : ''
       }`,
     )
   }

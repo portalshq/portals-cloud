@@ -217,9 +217,30 @@ export function updatePilotDraft(input: {
     by: input.actor,
   })
   const doc = Automerge.change(existing, 'pilot draft update', (draft) => {
-    draft.terms = cloneTerms(input.nextTerms)
     draft.edits ||= {}
     for (const change of changes) {
+      if (change.field === 'startDate') {
+        draft.terms.startDate = input.nextTerms.startDate || null
+      } else if (change.field === 'valueConfirmed') {
+        draft.terms.valueConfirmed = input.nextTerms.valueConfirmed
+      } else {
+        const match = change.field.match(/^criteria\.([^.]+)\.(status|target|participant|evidence)$/)
+        if (!match) continue
+        const [, key, property] = match as [string, string, 'status' | 'target' | 'participant' | 'evidence']
+        const nextCriterion = input.nextTerms.criteria.find((criterion) => criterion.key === key)
+        const index = draft.terms.criteria.findIndex((criterion) => criterion.key === key)
+        if (index < 0) {
+          if (nextCriterion) draft.terms.criteria.push({...nextCriterion})
+          continue
+        }
+        if (nextCriterion) {
+          if (property === 'status') {
+            draft.terms.criteria[index].status = nextCriterion.status
+          } else {
+            draft.terms.criteria[index][property] = nextCriterion[property]
+          }
+        }
+      }
       draft.edits[change.field] = change
     }
   })

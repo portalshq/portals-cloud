@@ -1,9 +1,11 @@
-import type {Metadata} from 'next'
-import {cookies} from 'next/headers'
-import {redirect} from 'next/navigation'
-import {PilotApprovalRoom} from '@/components/leads/PilotApprovalRoom'
-import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
-import {getPilotById} from '@/lib/leads/store'
+import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { PilotApprovalRoom } from '@/components/leads/PilotApprovalRoom'
+import { APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole } from '@/lib/leads/application-auth'
+import { pilotTermsFromDraft } from '@/lib/leads/pilot-collaboration'
+import { pilotMutableTermsFromState } from '@/lib/leads/pilot-room-revisions'
+import { getPilotById } from '@/lib/leads/store'
 
 export const metadata: Metadata = {
   title: 'Pilot Approval Room',
@@ -29,18 +31,21 @@ export default async function PilotRoomPage({
   params,
   searchParams,
 }: {
-  params: Promise<{id: string}>
-  searchParams: Promise<{session_id?: string}>
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ session_id?: string }>
 }) {
-  const [{id}, query] = await Promise.all([params, searchParams])
+  const [{ id }, query] = await Promise.all([params, searchParams])
   const pilot = await getPilotById(id)
   const session = (await cookies()).get(APP_SESSION_COOKIE)?.value
   const user = await currentApplicationUser(session)
   if (!user) redirect(`/auth/sign-in?next=${encodeURIComponent(`/paid-pilot/room/${id}`)}`)
   const accessRole = pilot ? await pilotMembershipRole(pilot.id, user.id) : null
+  const draftTerms = pilot
+    ? pilotTermsFromDraft(pilot.draft, pilotMutableTermsFromState(pilot))
+    : undefined
 
   return (
-    <main className="relative z-(--z-main) min-h-screen overflow-hidden lowercase">
+    <main className="relative z-(--z-main) min-h-screen overflow-hidden">
       <div
         aria-hidden="true"
         className="pointer-events-none h-px w-full"
@@ -69,6 +74,7 @@ export default async function PilotRoomPage({
         ) : (
           <PilotApprovalRoom
             pilot={pilot}
+            draftTerms={draftTerms}
             accessRole={accessRole}
             userEmail={user.email}
             sessionId={query.session_id}
@@ -76,7 +82,7 @@ export default async function PilotRoomPage({
             founderAccess={
               Boolean(process.env.LEADS_NOTIFICATION_EMAIL) &&
               user.email.toLowerCase() ===
-                String(process.env.LEADS_NOTIFICATION_EMAIL).trim().toLowerCase()
+              String(process.env.LEADS_NOTIFICATION_EMAIL).trim().toLowerCase()
             }
             qualificationCalendarUrl={process.env.PILOT_CALENDAR_URL}
           />

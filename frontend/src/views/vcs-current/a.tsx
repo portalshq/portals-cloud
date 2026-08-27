@@ -7,7 +7,7 @@ import {
   packagePricingFeatures,
 } from '@/lib/package-specifications';
 import { formatNumber, scopeAPilotMailto } from '@/lib/utils';
-import type {PackageSpecification} from '@/types/resource';
+import type { PackageSpecification } from '@/types/resource';
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 
 type OverviewItem = {
@@ -611,7 +611,7 @@ function ProblemSection() {
             When a client asks for twelve more assets, does your team build from history, or start from scratch?
           </h2>
           <p className="t-p-lg-serif max-w-[38em] leading-[1.25] text-white">
-            Your creative teams generate thousands of images, videos, and iterations daily. 
+            Your creative teams generate thousands of images, videos, and iterations daily.
             When a project ships, everyone moves on, but your department pays a hidden AI production tax on each project:
           </p>
         </div>
@@ -735,7 +735,7 @@ function WorkflowSection() {
         <div className="col-span-full space-y-24 lg:col-span-9">
           <h2 className="t-d2-sans">One system behind every AI tool</h2>
           <p className="t-p-lg-serif">
-            Continue using the tools your team already depends on. 
+            Continue using the tools your team already depends on.
           </p>
         </div>
         <div className="col-span-full grid gap-y-8 lg:col-span-12 lg:col-start-13">
@@ -924,7 +924,7 @@ export function VCS({
               build from your best{' '}
               <strong className="t-d2-serif">creative work</strong>
             </h1>
-            <p className="t-h3-sans max-w-[24ch]">reduce costs, extend successful work, and scale production across teams and tools.</p>
+            <p className="t-h3-sans max-w-[24ch]">reduce production costs, organize and extend successful work, and scale projects across teams and tools.</p>
             <div className="saga-hero-assess flex flex-col gap-12 pt-12 sm:flex-row">
               <CTAButton
                 href="/workflow/assessment"
@@ -943,7 +943,7 @@ export function VCS({
               <div className="saga-hero-repository-anchor">
                 <div className="saga-hero-repository-copy t-p-sans lowercase!">
                   <p>THE REPOSITORY FOR
-                    <br/>AI{`\u2011`}NATIVE PRODUCTION</p>
+                    <br />AI{`\u2011`}NATIVE PRODUCTION</p>
                 </div>
               </div>
             </div>
