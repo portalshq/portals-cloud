@@ -20,9 +20,9 @@ import {
   readPilotConfirmation,
   writePilotConfirmation,
 } from '@/lib/leads/pilot-confirmation'
-import {analyticsConsent, buildAttribution, trackEvent} from '@/lib/leads/analytics-client'
+import {analyticsConsent, buildAttribution, retrieveFormParams, trackEvent} from '@/lib/leads/analytics-client'
 import {newSubmissionId, publicEmailNeedsWebsite, submitLead} from '@/lib/leads/client'
-import {emailDomain, isPublicEmailDomain} from '@/lib/leads/identity'
+import {emailDomain, requiresCompanyEmailDomain} from '@/lib/leads/identity'
 import {
   DISCLOSURE_VERSION,
   pilotControlledOptionLists as optionLists,
@@ -32,6 +32,14 @@ import {
   type PilotAnswers,
 } from '@/lib/leads/contracts'
 import {classifyPilot} from '@/lib/leads/pilot'
+import {
+  applyFallbackDefaults,
+  normalizeUrlParams,
+  parseUrlParams,
+  shouldHideField,
+  validateUrlParamEmail,
+  type UrlParams,
+} from '@/lib/leads/url-params'
 
 const STAGES = [
   {key: 'eligibility', label: 'eligibility'},
@@ -92,6 +100,8 @@ export function PilotScopeForm({
   const [submissionId, setSubmissionId] = useState(() =>
     newSubmissionId('pilot-request'),
   )
+  const [urlParams, setUrlParams] = useState<UrlParams>({})
+  const [showField, setShowField] = useState<Record<string, boolean>>({})
   const started = useRef(false)
   const stepNav = useRef<'forward' | 'back' | null>(null)
   const submittedByClickRef = useRef(false)
@@ -109,6 +119,35 @@ export function PilotScopeForm({
   useEffect(() => {
     if (restored.email) setEmail(restored.email)
   }, [restored.email])
+
+  // Parse URL parameters and integrate with form
+  useEffect(() => {
+    const rawUrlParams = parseUrlParams()
+    const storedParams = retrieveFormParams()
+    
+    // Merge URL params with stored params (URL params take priority)
+    const mergedParams = { ...storedParams, ...rawUrlParams }
+    const normalizedParams = normalizeUrlParams(mergedParams)
+    const paramsWithDefaults = applyFallbackDefaults(normalizedParams)
+    
+    setUrlParams(paramsWithDefaults)
+    
+    // Determine which fields to hide based on pre-filled values
+    const fieldVisibility: Record<string, boolean> = {}
+    fieldVisibility.howDidYouHearAboutPortals = !shouldHideField('howDidYouHearAboutPortals', paramsWithDefaults.how_did_you_hear)
+    fieldVisibility.whatBroughtYouHere = !shouldHideField('whatBroughtYouHere', paramsWithDefaults.what_brought_you)
+    
+    setShowField(fieldVisibility)
+    
+    // Track URL parameter usage for analytics
+    if (Object.keys(paramsWithDefaults).length > 0) {
+      void trackEvent('form_url_params_used', {
+        form_name: 'pilot_request',
+        param_count: Object.keys(paramsWithDefaults).length,
+        params: Object.keys(paramsWithDefaults),
+      })
+    }
+  }, [])
 
   useEffect(() => {
     if (pilotId) return
@@ -204,10 +243,10 @@ export function PilotScopeForm({
     
     // Validate email domain on stage 0 (eligibility) progression
     if (stage === 0) {
-      const currentEmail = email || (typeof context.identity?.email === 'string' ? context.identity.email : '') || (typeof carriedAnswers.email === 'string' ? carriedAnswers.email : '') || ''
+      const currentEmail = email || (typeof context.identity?.email === 'string' ? context.identity.email : '') || (typeof carriedAnswers.email === 'string' ? carriedAnswers.email : '') || urlParams.email || ''
       if (currentEmail) {
         const domain = emailDomain(currentEmail)
-        if (isPublicEmailDomain(domain)) {
+        if (requiresCompanyEmailDomain(domain)) {
           setStageError('a company email domain is required (personal email domains like gmail.com are not accepted)')
           return
         }
@@ -223,7 +262,7 @@ export function PilotScopeForm({
       
       for (const teamEmail of teamEmails) {
         const domain = emailDomain(String(teamEmail))
-        if (isPublicEmailDomain(domain)) {
+        if (requiresCompanyEmailDomain(domain)) {
           setStageError('company email domains are required for team members (personal email domains like gmail.com are not accepted)')
           return
         }
@@ -242,7 +281,7 @@ export function PilotScopeForm({
       
       for (const stakeholderEmail of stakeholderEmails) {
         const domain = emailDomain(String(stakeholderEmail))
-        if (isPublicEmailDomain(domain)) {
+        if (requiresCompanyEmailDomain(domain)) {
           setStageError('company email domains are required for stakeholders (personal email domains like gmail.com are not accepted)')
           return
         }
@@ -425,9 +464,19 @@ export function PilotScopeForm({
     const values = Object.fromEntries(new FormData(form).entries())
     const answers = pilotAnswersFrom(form)
 
-    const whatBroughtYouHere = (values.whatBroughtYouHere || context.answerValues?.whatBroughtYouHere) as 'workflow-problem' | 'assess-scaling' | 'evaluating-tools' | 'other' | undefined
-    const whatBroughtYouHereOther = String(values.whatBroughtYouHereOther || context.answerValues?.whatBroughtYouHereOther || '')
-    const howDidYouHearAboutPortals = (values.howDidYouHearAboutPortals || context.answerValues?.howDidYouHearAboutPortals) as 'google-search' | 'linkedin' | 'email' | 'someone-company' | 'friend-colleague' | 'article-newsletter-podcast' | 'partner-company' | 'social-media' | undefined
+    const whatBroughtYouHere = (values.whatBroughtYouHere || context.answerValues?.whatBroughtYouHere || urlParams.what_brought_you) as 'workflow-problem' | 'assess-scaling' | 'evaluating-tools' | 'other' | undefined
+    const whatBroughtYouHereOther = String(values.whatBroughtYouHereOther || context.answerValues?.whatBroughtYouHereOther || urlParams.what_brought_you_other || '')
+    const howDidYouHearAboutPortals = (values.howDidYouHearAboutPortals || context.answerValues?.howDidYouHearAboutPortals || urlParams.how_did_you_hear) as 'google-search' | 'linkedin' | 'email' | 'someone-company' | 'friend-colleague' | 'article-newsletter-podcast' | 'partner-company' | 'social-media' | undefined
+
+    // Validate email domain if provided via URL params
+    if (urlParams.email && !values.email) {
+      const emailValidation = validateUrlParamEmail(urlParams.email)
+      if (!emailValidation.valid) {
+        setStageError(emailValidation.error || 'invalid email')
+        setSubmitState({status: 'error', message: emailValidation.error || 'invalid email'})
+        return
+      }
+    }
 
     try {
       const result = await submitLead({
@@ -438,11 +487,11 @@ export function PilotScopeForm({
         pilotId: pilotId || '',
         identity: Object.fromEntries(
           Object.entries({
-            email: String(values.email || context.identity?.email || carriedAnswers.email || ''),
-            name: String(values.name || context.identity?.name || carriedAnswers.name || ''),
-            company: String(values.company || context.identity?.company || carriedAnswers.company || ''),
-            role: String(values.role || context.identity?.role || carriedAnswers.role || ''),
-            website: String(values.website || context.identity?.website || carriedAnswers.website || ''),
+            email: String(values.email || context.identity?.email || carriedAnswers.email || urlParams.email || ''),
+            name: String(values.name || context.identity?.name || carriedAnswers.name || urlParams.name || ''),
+            company: String(values.company || context.identity?.company || carriedAnswers.company || urlParams.company || ''),
+            role: String(values.role || context.identity?.role || carriedAnswers.role || urlParams.role || ''),
+            website: String(values.website || context.identity?.website || carriedAnswers.website || urlParams.website || ''),
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
@@ -652,56 +701,63 @@ export function PilotScopeForm({
             onEmailChange={(event) => setEmail(event.target.value)}
             requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
             onStarted={onStarted}
+            urlParams={urlParams}
           />
         </div>
-        <div className="sm:col-span-2">
-          <LeadField label="What brought you here?" name="whatBroughtYouHere">
-            <LeadSelectField
-              id="whatBroughtYouHere"
-              name="whatBroughtYouHere"
-              required
-              defaultValue={String(initialAnswers?.whatBroughtYouHere || '')}
-            >
-              <option value="" disabled>select one</option>
-              <option value="workflow-problem">I have a workflow problem I need to solve</option>
-              <option value="assess-scaling">I want to assess whether our current process will scale</option>
-              <option value="evaluating-tools">I'm evaluating production tools</option>
-              <option value="other">Other</option>
-            </LeadSelectField>
-          </LeadField>
-        </div>
-        {initialAnswers?.whatBroughtYouHere === 'other' ? (
+        {/* What brought you here - with URL param support and field hiding */}
+        {showField.whatBroughtYouHere ? (
+          <div className="sm:col-span-2">
+            <LeadField label="What brought you here?" name="whatBroughtYouHere">
+              <LeadSelectField
+                id="whatBroughtYouHere"
+                name="whatBroughtYouHere"
+                required
+                defaultValue={String(initialAnswers?.whatBroughtYouHere || urlParams.what_brought_you || '')}
+              >
+                <option value="" disabled>select one</option>
+                <option value="workflow-problem">I have a workflow problem I need to solve</option>
+                <option value="assess-scaling">I want to assess whether our current process will scale</option>
+                <option value="evaluating-tools">I'm evaluating production tools</option>
+                <option value="other">Other</option>
+              </LeadSelectField>
+            </LeadField>
+          </div>
+        ) : null}
+        {showField.whatBroughtYouHere && (initialAnswers?.whatBroughtYouHere === 'other' || urlParams.what_brought_you === 'other') ? (
           <div className="sm:col-span-2">
             <LeadField label="Please describe" name="whatBroughtYouHereOther">
               <LeadTextareaField
                 id="whatBroughtYouHereOther"
                 name="whatBroughtYouHereOther"
-                defaultValue={String(initialAnswers?.whatBroughtYouHereOther || '')}
+                defaultValue={String(initialAnswers?.whatBroughtYouHereOther || urlParams.what_brought_you_other || '')}
                 placeholder="Describe what brought you here"
               />
             </LeadField>
           </div>
         ) : null}
-        <div className="sm:col-span-2">
-          <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
-            <LeadSelectField
-              id="howDidYouHearAboutPortals"
-              name="howDidYouHearAboutPortals"
-              required
-              defaultValue={String(initialAnswers?.howDidYouHearAboutPortals || '')}
-            >
-              <option value="" disabled>select one</option>
-              <option value="google-search">Google / search</option>
-              <option value="linkedin">LinkedIn</option>
-              <option value="email">Email</option>
-              <option value="someone-company">Someone at my company</option>
-              <option value="friend-colleague">Friend or colleague</option>
-              <option value="article-newsletter-podcast">Article / newsletter / podcast</option>
-              <option value="partner-company">Partner / another company</option>
-              <option value="social-media">Social media</option>
-            </LeadSelectField>
-          </LeadField>
-        </div>
+        {/* How did you hear about portals - with URL param support and field hiding */}
+        {showField.howDidYouHearAboutPortals ? (
+          <div className="sm:col-span-2">
+            <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
+              <LeadSelectField
+                id="howDidYouHearAboutPortals"
+                name="howDidYouHearAboutPortals"
+                required
+                defaultValue={String(initialAnswers?.howDidYouHearAboutPortals || urlParams.how_did_you_hear || '')}
+              >
+                <option value="" disabled>select one</option>
+                <option value="google-search">Google / search</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="email">Email</option>
+                <option value="someone-company">Someone at my company</option>
+                <option value="friend-colleague">Friend or colleague</option>
+                <option value="article-newsletter-podcast">Article / newsletter / podcast</option>
+                <option value="partner-company">Partner / another company</option>
+                <option value="social-media">Social media</option>
+              </LeadSelectField>
+            </LeadField>
+          </div>
+        ) : null}
         <div className="sm:col-span-2">
           <LeadField label="which production workflow would the pilot cover? *" name="pilotWorkflow">
             <LeadTextareaField

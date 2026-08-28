@@ -49,6 +49,62 @@ All website forms collect two qualification questions:
 
 These fields are stored at the lead submission level (both in encrypted payload and in dedicated database columns) and projected to Apollo Contact custom fields for sales context.
 
+### URL parameter auto-population
+
+Lead forms support URL parameter-based field pre-population for campaign attribution and form friction reduction. The system:
+
+- Parses URL parameters on form load using `frontend/src/lib/leads/url-params.ts`
+- Normalizes enum values to lowercase (e.g., `LinkedIn` → `linkedin`)
+- Applies fallback defaults (e.g., `how_did_you_hear` defaults to `google-search` when absent)
+- Persists attribution across page navigation via localStorage (`retrieveFormParams`/`storeFormParams` in `analytics-client.ts`)
+- Hides non-critical fields when pre-filled (`howDidYouHearAboutPortals`, `whatBroughtYouHere`)
+- Never hides critical identity fields (`email`, `company`, `role`)
+- Validates email domains respecting the development personal-email exception
+- Provides a URL builder utility for marketing teams (`frontend/src/lib/leads/build-url.ts`)
+
+Supported URL parameters:
+- `how_did_you_hear`: Discovery channel (enum values: google-search, linkedin, email, someone-company, friend-colleague, article-newsletter-podcast, partner-company, social-media)
+- `what_brought_you`: Primary motivation (enum values: workflow-problem, assess-scaling, evaluating-tools, other)
+- `what_brought_you_other`: Free-text detail when "other" is selected
+- `email`: Work email (validated for format and domain)
+- `name`: Full name (title-cased)
+- `company`: Company name (lowercased for CRM consistency)
+- `role`: Role (enum values from form, lowercased)
+- `website`: Company website (https:// added if missing)
+- `interest`: Form-specific interest field (varies by form)
+- `team_type`: Team type (enum values for assessment)
+- `team_size`: Team size (enum values for assessment)
+- `tools_used`: Comma-separated tool list
+- UTM parameters: `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`
+
+URL parameter priority (highest to lowest):
+1. URL-provided values
+2. Existing profile/context values (`context.answerValues`, `context.identity`)
+3. Form draft values
+4. Fallback defaults
+
+URL formatting guidelines:
+- Use canonical lowercase enum values (e.g., `linkedin`, not `LinkedIn`)
+- Encode spaces and special characters (`The Production Company` → `The+Production+Company` or `The%20Production%20Company`)
+- Use standard UTM parameters for attribution tracking
+- The URL builder utility (`buildFormUrl`, `buildAssessmentUrl`, etc.) handles encoding automatically
+
+Example URLs:
+```
+https://portals.ai/workflow/assessment?how_did_you_hear=linkedin&what_brought_you=workflow-problem&utm_source=linkedin&utm_medium=social&utm_campaign=brand-awareness
+
+https://portals.ai/contact?interest=security-review&email=sarah@agency.com&name=Sarah+Johnson&company=Creative+Agency+X
+
+https://portals.ai/paid-pilot?team_type=agency&team_size=10-24&tools_used=Adobe+Firefly%2C+Runway%2C+Midjourney
+```
+
+Security considerations:
+- Email and company domains are validated against company-email requirements
+- Development mode allows specific personal email domains when opted in
+- URL-derived values are length-limited and validated before submission
+- Critical identity fields are never hidden from user review
+- Invalid parameters are ignored gracefully rather than breaking forms
+
 ### Apollo deal role mapping
 
 Pilot submissions map team-member fields to Apollo deal contact roles:
@@ -165,6 +221,6 @@ Reserve 25% of eligible, never-contacted accounts as a stratified account-level 
 
 `LEADS_DRY_RUN=true` is the supported local no-integration mode. It simulates submissions, accounts, pilots, and payments in memory and never contacts Apollo, Stripe, Resend, or PostgreSQL.
 
-Vercel invokes `/api/internal/leads/retry` every ten minutes. Lead and CRM outboxes are leased and retried; inspect their `last_error`, correct the configuration, and move the affected row to `retry` to replay it. Raw encrypted submissions are redacted after 30 days once the intake outbox completes. The opaque profile cookie expires after 90 days.
+Vercel invokes `/api/internal/leads/retry` daily at 00:00 UTC on the free-plan schedule. New room events also request an in-process outbox run; the daily cron remains the durable retry path. Lead and CRM outboxes are leased and retried; inspect their `last_error`, correct the configuration, and move the affected row to `retry` to replay it. Raw encrypted submissions are redacted after 30 days once the intake outbox completes. The opaque profile cookie expires after 90 days.
 
 Mixpanel starts only after analytics consent. Do not send identity, messages, application answers, or workflow descriptions to browser analytics.

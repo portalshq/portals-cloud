@@ -11,7 +11,9 @@ const ANON_KEY = 'portals_analytics_anon_id'
 const ALIAS_KEY = 'portals_analytics_alias_sent'
 const QUALIFICATION_BEHAVIOR_KEY = 'portals_qualification_behavior'
 const OS_CACHE_KEY = 'portals_analytics_os'
+const FORM_PARAMS_KEY = 'portals_form_params'
 const BEHAVIOR_TTL_MS = 90 * 24 * 60 * 60 * 1000
+const FORM_PARAMS_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 
 export type QualificationBehavior = {
   pricingOrPilotViewed: boolean
@@ -75,6 +77,8 @@ function queryAttribution(): LeadAttribution {
 export function captureFirstTouch() {
   if (typeof window === 'undefined' || window.localStorage.getItem(TOUCH_KEY)) return
   window.localStorage.setItem(TOUCH_KEY, JSON.stringify(queryAttribution()))
+  // Also capture URL parameters for form pre-fill
+  captureUrlParams()
 }
 
 export function captureQualificationBehavior(pathname: string) {
@@ -226,4 +230,87 @@ export async function trackDealRoles(
   },
 ): Promise<void> {
   await trackEvent('deal_roles_identified', properties)
+}
+
+/**
+ * Stores form parameters in localStorage for cross-page persistence
+ * Parameters expire after 30 days
+ */
+export function storeFormParams(params: Record<string, string>): void {
+  if (typeof window === 'undefined') return
+  
+  try {
+    const data = {
+      params,
+      expiresAt: Date.now() + FORM_PARAMS_TTL_MS
+    }
+    window.localStorage.setItem(FORM_PARAMS_KEY, JSON.stringify(data))
+  } catch (error) {
+    // Storage might be disabled or full; continue without storage
+    console.warn('[Form Params] Failed to store form parameters:', error)
+  }
+}
+
+/**
+ * Retrieves stored form parameters from localStorage
+ * Returns empty object if no valid stored parameters exist
+ */
+export function retrieveFormParams(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  
+  try {
+    const stored = window.localStorage.getItem(FORM_PARAMS_KEY)
+    if (!stored) return {}
+    
+    const data = JSON.parse(stored) as {params: Record<string, string>, expiresAt: number}
+    
+    // Check expiration
+    if (!data.expiresAt || data.expiresAt < Date.now()) {
+      window.localStorage.removeItem(FORM_PARAMS_KEY)
+      return {}
+    }
+    
+    return data.params
+  } catch (error) {
+    console.warn('[Form Params] Failed to retrieve form parameters:', error)
+    return {}
+  }
+}
+
+/**
+ * Clears stored form parameters from localStorage
+ */
+export function clearFormParams(): void {
+  if (typeof window === 'undefined') return
+  
+  try {
+    window.localStorage.removeItem(FORM_PARAMS_KEY)
+  } catch (error) {
+    console.warn('[Form Params] Failed to clear form parameters:', error)
+  }
+}
+
+/**
+ * Stores URL parameters when user lands on any page
+ * Called automatically to enable cross-page parameter persistence
+ */
+export function captureUrlParams(): void {
+  if (typeof window === 'undefined') return
+  
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const paramObj: Record<string, string> = {}
+    
+    // Store all URL parameters
+    for (const [key, value] of params.entries()) {
+      paramObj[key] = value
+    }
+    
+    // Only store if there are parameters
+    if (Object.keys(paramObj).length > 0) {
+      storeFormParams(paramObj)
+    }
+  } catch (error) {
+    console.warn('[Form Params] Failed to capture URL parameters:', error)
+  }
 }

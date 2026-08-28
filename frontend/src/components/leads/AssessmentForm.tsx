@@ -8,6 +8,7 @@ import {
   analyticsConsent,
   buildAttribution,
   qualificationBehavior,
+  retrieveFormParams,
   trackEvent,
 } from '@/lib/leads/analytics-client'
 import { newSubmissionId, publicEmailNeedsWebsite, submitLead } from '@/lib/leads/client'
@@ -22,6 +23,14 @@ import { ConditionalReveal } from './ConditionalReveal'
 import { ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback } from './LeadFields'
 import { useFormDraft } from './useFormDraft'
 import { usePreservedSwap } from './usePreservedSwap'
+import {
+  applyFallbackDefaults,
+  normalizeUrlParams,
+  parseUrlParams,
+  shouldHideField,
+  validateUrlParamEmail,
+  type UrlParams,
+} from '@/lib/leads/url-params'
 
 const frequencyOptions = ['never', 'quarterly', 'monthly', 'weekly', 'daily'] as const
 
@@ -108,6 +117,8 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
   const [result, setResult] = useState<LeadResponse | null>(() => restoredResult(leadContext))
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [error, setError] = useState('')
+  const [urlParams, setUrlParams] = useState<UrlParams>({})
+  const [showField, setShowField] = useState<Record<string, boolean>>({})
   const started = useRef(false)
   const { ref: swapRef, reservedHeight, reserve } = usePreservedSwap()
   const { ref: draftRef, restored, flush, clear } = useFormDraft('workflow_assessment')
@@ -117,6 +128,38 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
     if (restored.recreationFrequency) setRecreationFrequency(restored.recreationFrequency)
     if (restored.incidentType) setIncidentType(restored.incidentType)
   }, [restored.email, restored.recreationFrequency, restored.incidentType])
+
+  // Parse URL parameters and integrate with form
+  useEffect(() => {
+    const rawUrlParams = parseUrlParams()
+    const storedParams = retrieveFormParams()
+    
+    // Merge URL params with stored params (URL params take priority)
+    const mergedParams = { ...storedParams, ...rawUrlParams }
+    const normalizedParams = normalizeUrlParams(mergedParams)
+    const paramsWithDefaults = applyFallbackDefaults(normalizedParams)
+    
+    setUrlParams(paramsWithDefaults)
+    
+    // Determine which fields to hide based on pre-filled values
+    const fieldVisibility: Record<string, boolean> = {}
+    fieldVisibility.howDidYouHearAboutPortals = !shouldHideField('howDidYouHearAboutPortals', paramsWithDefaults.how_did_you_hear)
+    fieldVisibility.whatBroughtYouHere = !shouldHideField('whatBroughtYouHere', paramsWithDefaults.what_brought_you)
+    fieldVisibility.teamType = !shouldHideField('teamType', paramsWithDefaults.team_type)
+    fieldVisibility.teamSize = !shouldHideField('teamSize', paramsWithDefaults.team_size)
+    fieldVisibility.toolsUsed = !shouldHideField('toolsUsed', paramsWithDefaults.tools_used)
+    
+    setShowField(fieldVisibility)
+    
+    // Track URL parameter usage for analytics
+    if (Object.keys(paramsWithDefaults).length > 0) {
+      void trackEvent('form_url_params_used', {
+        form_name: 'workflow_assessment',
+        param_count: Object.keys(paramsWithDefaults).length,
+        params: Object.keys(paramsWithDefaults),
+      })
+    }
+  }, [])
 
   useEffect(() => {
     void trackEvent('form_opened', { form_name: 'workflow_assessment' })
@@ -160,20 +203,23 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
     }
     try {
       const behavior = qualificationBehavior()
+      
+      // Merge URL params with form values and context (priority: form > context > URL params)
       const submittedIdentity: LeadIdentity = Object.fromEntries(
         Object.entries({
-          email: String(values.email || leadContext.identity?.email || leadContext.answerValues?.email || ''),
-          name: String(values.name || leadContext.identity?.name || leadContext.answerValues?.name || ''),
-          company: String(values.company || leadContext.identity?.company || leadContext.answerValues?.company || ''),
-          role: String(values.role || leadContext.identity?.role || leadContext.answerValues?.role || ''),
-          website: String(values.website || leadContext.identity?.website || leadContext.answerValues?.website || ''),
+          email: String(values.email || leadContext.identity?.email || leadContext.answerValues?.email || urlParams.email || ''),
+          name: String(values.name || leadContext.identity?.name || leadContext.answerValues?.name || urlParams.name || ''),
+          company: String(values.company || leadContext.identity?.company || leadContext.answerValues?.company || urlParams.company || ''),
+          role: String(values.role || leadContext.identity?.role || leadContext.answerValues?.role || urlParams.role || ''),
+          website: String(values.website || leadContext.identity?.website || leadContext.answerValues?.website || urlParams.website || ''),
         }).filter(([, value]) => value),
       ) as LeadIdentity
+      
       const submittedAnswers = {
-        teamType: String(values.teamType || ''),
-        teamSize: String(values.teamSize || ''),
+        teamType: String(values.teamType || leadContext.answerValues?.teamType || urlParams.team_type || ''),
+        teamSize: String(values.teamSize || leadContext.answerValues?.teamSize || urlParams.team_size || ''),
         workflowCollaborators: String(values.workflowCollaborators || ''),
-        toolsUsed: String(values.toolsUsed || ''),
+        toolsUsed: String(values.toolsUsed || leadContext.answerValues?.toolsUsed || urlParams.tools_used || ''),
         approvedVersionMethod: String(values.approvedVersionMethod || ''),
         productionContextMethod: String(values.productionContextMethod || ''),
         recreationFrequency: String(values.recreationFrequency || ''),
@@ -196,6 +242,17 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         securityDiligence: behavior.securityDiligence,
         message: String(values.message || ''),
       }
+      
+      // Validate email domain if provided via URL params
+      if (urlParams.email && !values.email) {
+        const emailValidation = validateUrlParamEmail(urlParams.email)
+        if (!emailValidation.valid) {
+          setError(emailValidation.error || 'invalid email')
+          setStatus('error')
+          return
+        }
+      }
+      
       const response = await submitLead({
         submissionType: 'assessment',
         idempotencyKey,
@@ -213,9 +270,9 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           analytics: analyticsConsent() === 'accepted',
         },
         companyFax: String(values.companyFax || ''),
-        whatBroughtYouHere: ((values.whatBroughtYouHere || leadContext.answerValues?.whatBroughtYouHere) as 'workflow-problem' | 'assess-scaling' | 'evaluating-tools' | 'other' | undefined),
-        whatBroughtYouHereOther: String(values.whatBroughtYouHereOther || leadContext.answerValues?.whatBroughtYouHereOther || ''),
-        howDidYouHearAboutPortals: ((values.howDidYouHearAboutPortals || leadContext.answerValues?.howDidYouHearAboutPortals) as 'google-search' | 'linkedin' | 'email' | 'someone-company' | 'friend-colleague' | 'article-newsletter-podcast' | 'partner-company' | 'social-media' | undefined),
+        whatBroughtYouHere: ((values.whatBroughtYouHere || leadContext.answerValues?.whatBroughtYouHere || urlParams.what_brought_you) as 'workflow-problem' | 'assess-scaling' | 'evaluating-tools' | 'other' | undefined),
+        whatBroughtYouHereOther: String(values.whatBroughtYouHereOther || leadContext.answerValues?.whatBroughtYouHereOther || urlParams.what_brought_you_other || ''),
+        howDidYouHearAboutPortals: ((values.howDidYouHearAboutPortals || leadContext.answerValues?.howDidYouHearAboutPortals || urlParams.how_did_you_hear) as 'google-search' | 'linkedin' | 'email' | 'someone-company' | 'friend-colleague' | 'article-newsletter-podcast' | 'partner-company' | 'social-media' | undefined),
         answers: submittedAnswers,
       })
       const newKnownFields = Array.from(
@@ -392,75 +449,185 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           onEmailChange={(event) => setEmail(event.target.value)}
           requireWebsite={publicEmailNeedsWebsite(email) || Boolean(leadContext.requiresWebsite)}
           onStarted={onStarted}
+          urlParams={urlParams}
         />
-        <LeadField label="What brought you here?" name="whatBroughtYouHere">
-          <LeadSelectField
-            id="whatBroughtYouHere"
-            name="whatBroughtYouHere"
-            required
-            defaultValue={leadContext.answerValues?.whatBroughtYouHere || ''}
-          >
-            <option value="" disabled>select one</option>
-            <option value="workflow-problem">I have a workflow problem I need to solve</option>
-            <option value="assess-scaling">I want to assess whether our current process will scale</option>
-            <option value="evaluating-tools">I'm evaluating production tools</option>
-            <option value="other">Other</option>
-          </LeadSelectField>
-        </LeadField>
-        {leadContext.answerValues?.whatBroughtYouHere === 'other' ? (
+        
+        {/* What brought you here - with URL param support and field hiding */}
+        {showField.whatBroughtYouHere ? (
+          <LeadField label="What brought you here?" name="whatBroughtYouHere">
+            <LeadSelectField
+              id="whatBroughtYouHere"
+              name="whatBroughtYouHere"
+              required
+              defaultValue={leadContext.answerValues?.whatBroughtYouHere || urlParams.what_brought_you || ''}
+            >
+              <option value="" disabled>select one</option>
+              <option value="workflow-problem">I have a workflow problem I need to solve</option>
+              <option value="assess-scaling">I want to assess whether our current process will scale</option>
+              <option value="evaluating-tools">I'm evaluating production tools</option>
+              <option value="other">Other</option>
+            </LeadSelectField>
+          </LeadField>
+        ) : urlParams.what_brought_you ? (
+          <div className="space-y-8 py-12 border-b border-white/10">
+            <p className="t-p-sm-sans text-white/60">What brought you here</p>
+            <p className="t-p-sans">{urlParams.what_brought_you.replace(/-/g, ' ')}</p>
+            <button 
+              type="button" 
+              onClick={() => setShowField(prev => ({...prev, whatBroughtYouHere: true}))}
+              className="t-p-sm-sans text-white/60 underline hover:text-white"
+            >
+              Edit
+            </button>
+          </div>
+        ) : null}
+        
+        {(leadContext.answerValues?.whatBroughtYouHere === 'other' || urlParams.what_brought_you === 'other') ? (
           <LeadField label="Please describe" name="whatBroughtYouHereOther">
             <LeadTextareaField
               id="whatBroughtYouHereOther"
               name="whatBroughtYouHereOther"
-              defaultValue={leadContext.answerValues?.whatBroughtYouHereOther || ''}
+              defaultValue={leadContext.answerValues?.whatBroughtYouHereOther || urlParams.what_brought_you_other || ''}
               placeholder="Describe what brought you here"
             />
           </LeadField>
         ) : null}
-        <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
-          <LeadSelectField
-            id="howDidYouHearAboutPortals"
-            name="howDidYouHearAboutPortals"
-            required
-            defaultValue={leadContext.answerValues?.howDidYouHearAboutPortals || ''}
-          >
-            <option value="" disabled>select one</option>
-            <option value="google-search">Google / search</option>
-            <option value="linkedin">LinkedIn</option>
-            <option value="email">Email</option>
-            <option value="someone-company">Someone at my company</option>
-            <option value="friend-colleague">Friend or colleague</option>
-            <option value="article-newsletter-podcast">Article / newsletter / podcast</option>
-            <option value="partner-company">Partner / another company</option>
-            <option value="social-media">Social media</option>
-          </LeadSelectField>
-        </LeadField>
-        {!known.has('teamType') ? (
-          <AssessmentSelect
-            id="teamType"
-            name="teamType"
-            label="team type"
-            required
-            options={['agency', 'creative-studio', 'production-company', 'in-house-creative', 'brand-marketing', 'film-animation', 'game-entertainment', 'independent-creator', 'other']}
-          />
+        
+        {/* How did you hear about portals - with URL param support and field hiding */}
+        {showField.howDidYouHearAboutPortals ? (
+          <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
+            <LeadSelectField
+              id="howDidYouHearAboutPortals"
+              name="howDidYouHearAboutPortals"
+              required
+              defaultValue={leadContext.answerValues?.howDidYouHearAboutPortals || urlParams.how_did_you_hear || ''}
+            >
+              <option value="" disabled>select one</option>
+              <option value="google-search">Google / search</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="email">Email</option>
+              <option value="someone-company">Someone at my company</option>
+              <option value="friend-colleague">Friend or colleague</option>
+              <option value="article-newsletter-podcast">Article / newsletter / podcast</option>
+              <option value="partner-company">Partner / another company</option>
+              <option value="social-media">Social media</option>
+            </LeadSelectField>
+          </LeadField>
+        ) : urlParams.how_did_you_hear ? (
+          <div className="space-y-8 py-12 border-b border-white/10">
+            <p className="t-p-sm-sans text-white/60">How you heard about us</p>
+            <p className="t-p-sans">{urlParams.how_did_you_hear.replace(/-/g, ' ')}</p>
+            <button 
+              type="button" 
+              onClick={() => setShowField(prev => ({...prev, howDidYouHearAboutPortals: true}))}
+              className="t-p-sm-sans text-white/60 underline hover:text-white"
+            >
+              Edit
+            </button>
+          </div>
         ) : null}
+        
+        {/* Team type - with URL param support and field hiding */}
+        {!known.has('teamType') ? (
+          showField.teamType ? (
+            <AssessmentSelect
+              id="teamType"
+              name="teamType"
+              label="team type"
+              required
+              options={['agency', 'creative-studio', 'production-company', 'in-house-creative', 'brand-marketing', 'film-animation', 'game-entertainment', 'independent-creator', 'other']}
+              defaultValue={leadContext.answerValues?.teamType as string || urlParams.team_type}
+            />
+          ) : urlParams.team_type ? (
+            <div className="space-y-8 py-12 border-b border-white/10">
+              <p className="t-p-sm-sans text-white/60">Team type</p>
+              <p className="t-p-sans">{urlParams.team_type.replace(/-/g, ' ')}</p>
+              <button 
+                type="button" 
+                onClick={() => setShowField(prev => ({...prev, teamType: true}))}
+                className="t-p-sm-sans text-white/60 underline hover:text-white"
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <AssessmentSelect
+              id="teamType"
+              name="teamType"
+              label="team type"
+              required
+              options={['agency', 'creative-studio', 'production-company', 'in-house-creative', 'brand-marketing', 'film-animation', 'game-entertainment', 'independent-creator', 'other']}
+            />
+          )
+        ) : null}
+        
+        {/* Team size - with URL param support and field hiding */}
         {!known.has('teamSize') ? (
-          <AssessmentSelect id="teamSize" name="teamSize" label="production team size" required options={['1', '2-4', '5-9', '10-24', '25-plus']} />
+          showField.teamSize ? (
+            <AssessmentSelect 
+              id="teamSize" 
+              name="teamSize" 
+              label="production team size" 
+              required 
+              options={['1', '2-4', '5-9', '10-24', '25-plus']}
+              defaultValue={leadContext.answerValues?.teamSize as string || urlParams.team_size}
+            />
+          ) : urlParams.team_size ? (
+            <div className="space-y-8 py-12 border-b border-white/10">
+              <p className="t-p-sm-sans text-white/60">Production team size</p>
+              <p className="t-p-sans">{urlParams.team_size.replace('-', '-')}</p>
+              <button 
+                type="button" 
+                onClick={() => setShowField(prev => ({...prev, teamSize: true}))}
+                className="t-p-sm-sans text-white/60 underline hover:text-white"
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <AssessmentSelect id="teamSize" name="teamSize" label="production team size" required options={['1', '2-4', '5-9', '10-24', '25-plus']} />
+          )
         ) : null}
         {!known.has('workflowCollaborators') ? (
           <AssessmentSelect id="workflowCollaborators" name="workflowCollaborators" label="people involved in production" required options={['1', '2-4', '5-9', '10-plus']} />
         ) : null}
         {!known.has('toolsUsed') ? (
-          <LeadField label="tools used *" name="toolsUsed">
-            <LeadTextField
-              id="toolsUsed"
-              name="toolsUsed"
-              required
-              slotProps={{htmlInput: {maxLength: 500}}}
-              placeholder="e.g. Adobe Firefly, Runway, Midjourney, ChatGPT"
-              onChange={onStarted}
-            />
-          </LeadField>
+          showField.toolsUsed ? (
+            <LeadField label="tools used *" name="toolsUsed">
+              <LeadTextField
+                id="toolsUsed"
+                name="toolsUsed"
+                required
+                slotProps={{htmlInput: {maxLength: 500}}}
+                placeholder="e.g. Adobe Firefly, Runway, Midjourney, ChatGPT"
+                onChange={onStarted}
+                defaultValue={leadContext.answerValues?.toolsUsed as string || urlParams.tools_used}
+              />
+            </LeadField>
+          ) : urlParams.tools_used ? (
+            <div className="space-y-8 py-12 border-b border-white/10">
+              <p className="t-p-sm-sans text-white/60">Tools used</p>
+              <p className="t-p-sans">{urlParams.tools_used}</p>
+              <button 
+                type="button" 
+                onClick={() => setShowField(prev => ({...prev, toolsUsed: true}))}
+                className="t-p-sm-sans text-white/60 underline hover:text-white"
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <LeadField label="tools used *" name="toolsUsed">
+              <LeadTextField
+                id="toolsUsed"
+                name="toolsUsed"
+                required
+                slotProps={{htmlInput: {maxLength: 500}}}
+                placeholder="e.g. Adobe Firefly, Runway, Midjourney, ChatGPT"
+                onChange={onStarted}
+              />
+            </LeadField>
+          )
         ) : null}
         {!known.has('approvedVersionMethod') ? (
           <AssessmentSelect id="approvedVersionMethod" name="approvedVersionMethod" label="current approved version method" required options={['canonical-system', 'documented-review', 'folder-naming', 'chat-spreadsheet', 'creator-memory', 'inconsistent']} />

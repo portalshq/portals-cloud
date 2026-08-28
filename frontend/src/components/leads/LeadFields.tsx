@@ -6,6 +6,7 @@ import {LeadCheckbox, LeadSelectField, LeadTextField} from '@/components/mui/fie
 import type {KnownLeadContext} from '@/lib/leads/contracts'
 import {resetKnownProfile} from '@/lib/leads/client'
 import {ConditionalReveal} from './ConditionalReveal'
+import type {UrlParams} from '@/lib/leads/url-params'
 
 export function LeadField({
   label,
@@ -51,12 +52,14 @@ export function IdentityFields({
   onEmailChange,
   requireWebsite,
   onStarted,
+  urlParams = {},
 }: {
   context: KnownLeadContext
   email: string
   onEmailChange: (event: ChangeEvent<HTMLInputElement>) => void
   requireWebsite: boolean
   onStarted: () => void
+  urlParams?: UrlParams
 }) {
   const known = new Set(context.knownFields)
   return (
@@ -71,6 +74,7 @@ export function IdentityFields({
             required
             onChange={onStarted}
             placeholder="your name"
+            defaultValue={urlParams.name || ''}
           />
         </LeadField>
       ) : null}
@@ -100,6 +104,7 @@ export function IdentityFields({
             required
             onChange={onStarted}
             placeholder="company name"
+            defaultValue={urlParams.company || ''}
           />
         </LeadField>
       ) : null}
@@ -109,7 +114,7 @@ export function IdentityFields({
             id="role"
             name="role"
             required
-            defaultValue=""
+            defaultValue={urlParams.role || ''}
             onChange={onStarted}
           >
             <option value="" disabled>select your role</option>
@@ -134,6 +139,7 @@ export function IdentityFields({
               required={requireWebsite || context.requiresWebsite}
               onChange={onStarted}
               placeholder="company.com"
+              defaultValue={urlParams.website || ''}
             />
           </LeadField>
         </ConditionalReveal>
