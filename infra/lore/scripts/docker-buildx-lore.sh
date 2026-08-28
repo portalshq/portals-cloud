@@ -43,7 +43,9 @@ BASE_REPOSITORY="${REPOSITORY}"
 SERVER_REPOSITORY="${REPOSITORY}"
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-false}"
-TARGETARCH="${LORE_TARGETARCH:-${TARGETARCH:-arm64}}"
+# The one-host release profile uses a t3.micro (x86_64). Multi-arch builds
+# remain available, but promote the host's runnable amd64 manifest by default.
+TARGETARCH="${LORE_TARGETARCH:-${TARGETARCH:-amd64}}"
 
 # Build identifier: UTC timestamp + 32-bit urandom suffix. Honors an external
 # BUILD_ID for automation — external IDs are caller-guaranteed unique; fresh

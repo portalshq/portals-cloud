@@ -20,14 +20,15 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Builder — compile the custom loreserver binary
 # ---------------------------------------------------------------------------
-# Builder runs natively on the build machine ($BUILDPLATFORM); the arm64 ELF
-# is produced by the cross toolchain below, never by emulation.
+# Builder runs natively on the build machine ($BUILDPLATFORM). amd64 is built
+# natively and arm64 is cross-compiled, so the resulting runtime manifest can
+# serve either supported ECS host architecture without QEMU.
 FROM --platform=$BUILDPLATFORM rust:slim-trixie@sha256:3b2879047d42784ca9403ad20c51ed3df361a50f1df96f5777d39b4e33aa65cd AS builder
 
 # Prevent apt from prompting for configuration
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies + cross-compilation toolchain for aarch64
+# Install build dependencies plus the arm64 cross-compilation toolchain.
 RUN apt-get update && apt-get install -y \
     build-essential \
     protobuf-compiler \
@@ -40,7 +41,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build
 
-# Add cross-compilation target for aarch64
+# Add the non-native target used when producing arm64 from an amd64 builder.
 RUN rustup target add aarch64-unknown-linux-gnu
 
 # Copy the entire workspace including vendor (patched quinn-proto)
@@ -54,18 +55,18 @@ RUN rm -f lore-server/src/plugins/hashicorp.rs \
     && sed -i '/lore-hashicorp/d' lore-server/Cargo.toml \
     && sed -i '/pub mod hashicorp;/d; /hashicorp::register(registry);/d' lore-server/src/plugins/mod.rs
 
-# On ARM64 (Apple Silicon build machines), strip the Graviton-specific
-# target-cpu flag that breaks on non-Graviton CPUs
+# Select the appropriate compilation path. The source configuration contains
+# a Graviton-specific arm64 tuning flag, so remove it for the portable arm64
+# container build. amd64 uses Cargo's native Linux target.
 ARG TARGETPLATFORM
-# Fail fast if a non-arm64 target is ever requested: only linux/arm64 images
-# are produced today (Fargate ARM64); the cross toolchain is arm64-only.
-RUN [ "$TARGETPLATFORM" = "linux/arm64" ] || { echo "unsupported TARGETPLATFORM: $TARGETPLATFORM (only linux/arm64)" >&2; exit 1; }
-RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        sed -i '/target-cpu=neoverse-512tvb/d' .cargo/config.toml; \
-    fi
+RUN case "$TARGETPLATFORM" in \
+      linux/arm64) sed -i '/target-cpu=neoverse-512tvb/d' .cargo/config.toml ;; \
+      linux/amd64) : ;; \
+      *) echo "unsupported TARGETPLATFORM: $TARGETPLATFORM (expected linux/amd64 or linux/arm64)" >&2; exit 1 ;; \
+    esac
 
 # ---------------------------------------------------------------------------
-# Build the release binary (cross-compiled for aarch64)
+# Build the release binary for the requested runtime platform.
 # ---------------------------------------------------------------------------
 # The binary is compiled with the `release-lto` profile (fat LTO, full
 # debuginfo, no debug assertions) when available, otherwise `release`.
@@ -73,14 +74,20 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/build/target \
-    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
-    cargo build --release --target aarch64-unknown-linux-gnu --jobs 1 --bin loreserver -p lore-server \
-    && cp /build/target/aarch64-unknown-linux-gnu/release/loreserver /loreserver-bin
-
-# Strip debug symbols from the binary to reduce image size (the binary
-# was compiled with debug=2 in the release-lto profile, which is
-# unnecessary in the final image)
-RUN aarch64-linux-gnu-strip /loreserver-bin
+    case "$TARGETPLATFORM" in \
+      linux/arm64) \
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+        cargo build --release --target aarch64-unknown-linux-gnu --jobs 1 --bin loreserver -p lore-server \
+        && cp /build/target/aarch64-unknown-linux-gnu/release/loreserver /loreserver-bin \
+        && aarch64-linux-gnu-strip /loreserver-bin \
+        ;; \
+      linux/amd64) \
+        cargo build --release --jobs 1 --bin loreserver -p lore-server \
+        && cp /build/target/release/loreserver /loreserver-bin \
+        && strip /loreserver-bin \
+        ;; \
+      *) echo "unsupported TARGETPLATFORM: $TARGETPLATFORM (expected linux/amd64 or linux/arm64)" >&2; exit 1 ;; \
+    esac
 
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime base — shell-free, nonroot distroless image

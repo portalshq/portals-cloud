@@ -13,6 +13,8 @@ grep -q ': "${ECR_REGISTRY:?' "${PUBLISHER}" \
     || fail "publisher must require ECR_REGISTRY"
 grep -q 'PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"' "${PUBLISHER}" \
     || fail "publisher must default to amd64+arm64"
+grep -q 'TARGETARCH="${LORE_TARGETARCH:-${TARGETARCH:-amd64}}"' "${PUBLISHER}" \
+    || fail "t3.micro release receipt must default to linux/amd64"
 test "$(grep -c -- '--platform "linux/${arch}"' "${PUBLISHER}")" -ge 2 \
     || fail "base and server builds must each set an explicit per-arch platform"
 grep -q 'docker buildx build --platform "linux/${arch}"' "${PUBLISHER}" \
@@ -29,8 +31,12 @@ grep -q 'FROM --platform=\$BUILDPLATFORM rust:' "${ROOT}/infra/lore/Dockerfile.l
     || fail "base builder stage must run on \$BUILDPLATFORM (native, no QEMU)"
 grep -q 'FROM --platform=\$TARGETPLATFORM gcr.io/distroless' "${ROOT}/infra/lore/Dockerfile.loreserver.base" \
     || fail "base runtime stage must follow \$TARGETPLATFORM"
+grep -q 'linux/amd64)' "${ROOT}/infra/lore/Dockerfile.loreserver.base" \
+    || fail "base image must support the t3.micro linux/amd64 target"
+grep -q 'linux/arm64)' "${ROOT}/infra/lore/Dockerfile.loreserver.base" \
+    || fail "base image must retain linux/arm64 support"
 grep -q 'unsupported TARGETPLATFORM' "${ROOT}/infra/lore/Dockerfile.loreserver.base" \
-    || fail "base image must fail fast on non-arm64 targets"
+    || fail "base image must fail fast on unsupported targets"
 grep -q 'FROM --platform=\$TARGETPLATFORM \${BASE_IMAGE}' "${RUNTIME_DOCKERFILE}" \
     || fail "server runtime must select the target platform of the pinned base index"
 
