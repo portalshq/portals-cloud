@@ -1,5 +1,6 @@
 ARG NODE_BASE_IMAGE=node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
 FROM ${NODE_BASE_IMAGE} AS builder
+RUN apk upgrade --no-cache
 # Install at the common services parent. TypeScript resolves dependencies from
 # each imported source file upward, so sibling invitation/lead sources must see
 # the same node_modules tree as Backend during an isolated container build.
@@ -13,6 +14,7 @@ COPY services/lead-processing/src /app/services/lead-processing/src
 RUN ./node_modules/.bin/tsc -p backend-service/tsconfig.json
 
 FROM ${NODE_BASE_IMAGE} AS runner
+RUN apk upgrade --no-cache
 WORKDIR /app
 ENV NODE_ENV=production
 COPY services/backend-service/package.json services/backend-service/package-lock.json ./
