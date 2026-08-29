@@ -138,6 +138,75 @@
       "packagingCommit": "e2f1bed3327dba956bf2aad62794b240e75bef2a",
       "sourceTreeClean": true,
       "verifiedAt": "2026-08-25T19:32:28.095Z"
+    },
+    "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:d455448813040aa935ed38148da6bde30dc612ad83f6ced8ed42add95cd0beac": {
+      "service": "lore",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:80ec9fd1064a8b6a490b69d6229fd4911915a0c466bbf1f82700b7de42b16138",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-28T20:05:09-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.74.0",
+        "completedAt": "2026-08-29T00:07:04.553Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": true,
+      "sourceCommit": "ed901a04f154b826a59ce50f8fa33d5bf078aac1",
+      "packagingCommit": "07c1fc3c41c516e4e203d47ad20d4e0f4fe7e894",
+      "sourceTreeClean": true,
+      "verifiedAt": "2026-08-29T00:07:04.553Z"
+    },
+    "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:fa302513c205540ac8f6efb98870d8b2bc7ca49d56ff9fd2ea19ad7a1843c7da": {
+      "service": "lore",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:7851c4ab5b7fce1be0e63408e989abe7fe60eb77aa84fca162dc5b5d08c61274",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-28T20:16:59-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.74.0",
+        "completedAt": "2026-08-29T00:18:44.893Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": true,
+      "sourceCommit": "ed901a04f154b826a59ce50f8fa33d5bf078aac1",
+      "packagingCommit": "600c071a04795f440a70f4ddada5635deb7ea13e",
+      "sourceTreeClean": true,
+      "verifiedAt": "2026-08-29T00:18:44.893Z"
+    },
+    "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/auth-gateway@sha256:c8abcef29e26a95c2c63c5bbfc86b1062da111699fae832bb19affc70fdaf8ba": {
+      "service": "control-plane",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:5558f4e256a883c2d97949919f003e94878d459a6a82d653f31c23023dcd7e2e",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-29T02:05:27-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.74.0",
+        "completedAt": "2026-08-29T06:07:04.515Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": true,
+      "sourceCommit": "2b492c82e365f92d0e2e17bd3e750d2b0319b3b7",
+      "protocolCommit": "ed901a04f154b826a59ce50f8fa33d5bf078aac1",
+      "sourceTreeClean": true,
+      "verifiedAt": "2026-08-29T06:07:04.515Z"
     }
   }
 }
