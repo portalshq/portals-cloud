@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/backend-service/src/index.js",
-    "test": "npm run build && node scripts/test-health.mjs",
+    "test": "npm run build && node scripts/test-crm.mjs && node scripts/test-health.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
