@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as YAML from "yaml";
 
-export type ImageService = "lore" | "control-plane";
+export type ImageService = "lore" | "control-plane" | "backend";
 
 export interface SourcePin {
   sourceCommit: string;
@@ -44,16 +44,19 @@ export interface ReleasePins {
   loreClient: LoreClientPin;
   lore: SourcePin & { securityContract: string };
   controlPlane: SourcePin & { implementation: string; securityContract: string };
+  backend?: SourcePin & { securityContract: string };
 }
 
 export interface VersionPins {
   loreImageUri: string;
   /** The active control-plane image is the Auth Gateway image. */
   controlPlaneImageUri: string;
+  backendImageUri: string;
   release: ReleasePins;
 }
 
 interface VerificationReceipt {
+  service?: unknown;
   image?: unknown;
   platform?: unknown;
   platformDigest?: unknown;
@@ -126,9 +129,11 @@ export function assertVersionPinVerified(
   if (!fs.existsSync(file)) throw new Error(`${service} has no image-verification receipt at ${file}`);
   const document = JSON.parse(fs.readFileSync(file, "utf8"));
   let receipt: VerificationReceipt | undefined;
+  let serviceBound = false;
   if (document?.schemaVersion === 2) {
     // Digest-keyed ledger: multiple digests per service coexist.
     receipt = document?.receipts?.[image] as VerificationReceipt | undefined;
+    serviceBound = receipt?.service === service;
   } else if (document?.schemaVersion === 1 && typeof document?.images === "object") {
     console.warn(`${file} is legacy schemaVersion 1 — migrate to v2 via promote scripts`);
     receipt = document?.images?.[service] as VerificationReceipt | undefined;
@@ -136,6 +141,7 @@ export function assertVersionPinVerified(
     if (receipt && (receipt as { image?: string }).image !== undefined && (receipt as { image?: string }).image !== image) {
       receipt = undefined;
     }
+    serviceBound = receipt !== undefined;
   } else {
     throw new Error(
       `${file} must be verification-ledger schemaVersion 1 or 2; ` +
@@ -145,7 +151,7 @@ export function assertVersionPinVerified(
   const scanPassed = (scan: VerificationReceipt["ecrScan"]): boolean =>
     scan?.critical === 0 && scan?.high === 0 &&
     typeof scan?.completedAt === "string" && scan.completedAt.length > 0;
-  const valid = receipt !== undefined && receipt.platform === platform &&
+  const valid = receipt !== undefined && serviceBound && receipt.platform === platform &&
     typeof receipt.platformDigest === "string" && SHA256_PATTERN.test(receipt.platformDigest) &&
     scanPassed(receipt.ecrScan) && scanPassed(receipt.trivyScan) &&
     typeof receipt.trivyScan?.scannerVersion === "string" &&
@@ -189,6 +195,7 @@ export function assertPublicReleaseApproved(release: ReleasePins): void {
     release.loreClient.securityContract,
     release.lore.securityContract,
     release.controlPlane.securityContract,
+    ...(release.backend ? [release.backend.securityContract] : []),
   ];
   if (contracts.some(contract => contract !== release.securityContract)) {
     throw new Error("Nap, Lore client, Lore server, and control-plane security contracts do not match the release contract");
@@ -258,6 +265,7 @@ export function assertPinsHaveReceipts(pins: VersionPins): void {
   for (const [service, image] of [
     ["lore", pins.loreImageUri],
     ["control-plane", pins.controlPlaneImageUri],
+    ...(pins.backendImageUri ? [["backend", pins.backendImageUri] as const] : []),
   ] as const) {
     const receipt = document?.receipts?.[image];
     if (!receipt) {
@@ -280,6 +288,7 @@ export function readVersionPins(): VersionPins {
   const loreClient = doc?.["lore-client"];
   const lore = doc?.lore;
   const controlPlane = doc?.["control-plane"];
+  const backend = doc?.backend;
   const releaseDoc = doc?.release;
   const legacy = doc?.["legacy-control-plane"];
   if (legacy?.status !== "retired" || legacy?.image !== "") {
@@ -328,11 +337,18 @@ export function readVersionPins(): VersionPins {
       protocolCommit: stringAt(controlPlane?.protocol_commit, "control-plane.protocol_commit"),
       securityContract: stringAt(controlPlane?.security_contract, "control-plane.security_contract"),
     },
+    ...(backend ? {
+      backend: {
+        sourceCommit: stringAt(backend?.source_commit, "backend.source_commit"),
+        securityContract: stringAt(backend?.security_contract, "backend.security_contract"),
+      },
+    } : {}),
   };
 
   return {
     loreImageUri: stringAt(lore?.image, "lore.image"),
     controlPlaneImageUri: stringAt(controlPlane?.image, "control-plane.image"),
+    backendImageUri: backend ? stringAt(backend?.image, "backend.image") : "",
     release,
   };
 }

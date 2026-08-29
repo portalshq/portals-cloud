@@ -145,7 +145,8 @@ test("image promotion is scan-gated and public release also requires a signature
     "utf8",
   );
   assert.match(program, /assertVersionPinVerified\(\s*"control-plane"/);
-  assert.match(program, /assertPublicReleaseApproved\(versionPins\.release\)/);
+  assert.match(program, /assertVersionPinVerified\(\s*"backend"/);
+  assert.match(program, /publicIngressEnabled \|\| backendApiPublicEnabled[\s\S]{0,100}assertPublicReleaseApproved\(versionPins\.release\)/);
   assert.match(
     program,
     /assertNapReleaseVerified\(versionPins\.release\.napClient, versionPins\.release\.loreClient\)/,
@@ -178,6 +179,7 @@ test("image promotion is scan-gated and public release also requires a signature
   for (const script of [
     "infra/lore/scripts/docker-buildx-lore.sh",
     "control-plane/scripts/publish-auth-gateway.sh",
+    "services/backend-service/scripts/publish-image.sh",
   ]) {
     const source = fs.readFileSync(path.join(repositoryRoot, script), "utf8");
     assert.match(source, /ENVIRONMENT:-dev.*prod[\s\S]*REQUIRE_SIGNATURE.*true/);
@@ -194,6 +196,17 @@ test("EC2 host-mode architecture is explicit and publishers remain architecture-
   const backend = read("src/components/BackendService.ts");
   assert.match(backend, /networkMode:\s*"host"/);
   assert.match(backend, /requiresCompatibilities:\s*\["EC2"\]/);
+  const backendPublisher = fs.readFileSync(
+    path.join(repositoryRoot, "services/backend-service/scripts/publish-image.sh"),
+    "utf8",
+  );
+  assert.match(backendPublisher, /BACKEND_TARGETARCH:-\$\{TARGETARCH:-amd64\}/);
+  assert.match(backendPublisher, /--platform "\$\{PLATFORM\}"/);
+  const backendDockerfile = fs.readFileSync(
+    path.join(repositoryRoot, "services/backend-service/Dockerfile"),
+    "utf8",
+  );
+  assert.match(backendDockerfile, /node:20-alpine@sha256:[a-f0-9]{64}/);
   const authPublisher = fs.readFileSync(path.join(repositoryRoot, "control-plane/scripts/publish-auth-gateway.sh"), "utf8");
   assert.match(authPublisher, /AUTH_TARGETARCH:-\$\{TARGETARCH:-amd64\}/);
   assert.match(authPublisher, /AUTH_PLATFORMS:-\$\{PLATFORMS:-linux\/amd64,linux\/arm64/);

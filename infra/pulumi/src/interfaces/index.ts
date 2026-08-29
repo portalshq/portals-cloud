@@ -2,27 +2,11 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
 /**
- * Interface for EgressControls component arguments (stage-1 egress hardening)
- */
-export interface EgressControlsArgs {
-  readonly projectName: string;
-  readonly environment: string;
-  readonly region: string;
-  readonly vpcId: pulumi.Input<string>;
-  readonly vpcCidr: string;
-  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
-  readonly authHostname: string;
-  readonly albDnsName: pulumi.Input<string>;
-  readonly albZoneId: pulumi.Input<string>;
-}
-
-/**
  * Interface for PlatformNetwork component arguments
  */
 export interface PlatformNetworkArgs {
   readonly vpcCidr: string;
   readonly publicSubnetCidrs: string[];
-  readonly privateSubnetCidrs: string[];
   readonly availabilityZones: pulumi.Input<string[]>;
   readonly projectName: string;
   readonly environment: string;
@@ -33,11 +17,8 @@ export interface PlatformNetworkArgs {
  */
 export interface PlatformClusterArgs {
   readonly vpcId: pulumi.Input<string>;
-  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
-  readonly publicSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
   readonly projectName: string;
   readonly environment: string;
-  readonly serviceConnectEnabled: boolean;
 }
 
 /**
@@ -45,7 +26,7 @@ export interface PlatformClusterArgs {
  */
 export interface PlatformDataStoreArgs {
   readonly vpcId: pulumi.Input<string>;
-  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
+  readonly publicSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
   readonly projectName: string;
   readonly environment: string;
   readonly databaseInstanceClass: string;
@@ -55,7 +36,8 @@ export interface PlatformDataStoreArgs {
   readonly rotationEpoch: string;
   readonly recoveryControlsEnabled: boolean;
   readonly databaseBackupRetentionDays: number;
-  readonly controlPlaneSecurityGroupId?: pulumi.Input<string>;
+  /** The single ECS host is the only VPC principal permitted to reach RDS. */
+  readonly ecsHostSecurityGroupId: pulumi.Input<string>;
 }
 
 /**
@@ -87,19 +69,17 @@ export interface LoadBalancersArgs {
   readonly alarmsEnabled: boolean;
   readonly deletionProtectionEnabled: boolean;
   readonly alarmNotificationTopicArn?: pulumi.Input<string>;
+  /** Explicitly opens the separately reviewed HTTPS API facade for Vercel. */
+  readonly backendApiPublicEnabled: boolean;
+  readonly backendApiHostname: string;
+  /** EC2 host security group used by instance-mode target groups. */
+  readonly ecsHostSecurityGroupId: pulumi.Input<string>;
 }
 
 export interface AuthGatewayServiceArgs {
   readonly clusterArn: pulumi.Input<string>;
   readonly taskExecutionRoleArn: pulumi.Input<string>;
   readonly taskExecutionRoleName: pulumi.Input<string>;
-  readonly serviceConnectNamespaceArn: pulumi.Input<string>;
-  readonly vpcId: pulumi.Input<string>;
-  readonly vpcCidr: string;
-  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
-  readonly sharedTaskSecurityGroupId: pulumi.Input<string>;
-  readonly controlPlaneSecurityGroupId?: pulumi.Input<string>;
-  readonly albSecurityGroupId: pulumi.Input<string>;
   readonly grpcTargetGroupArn: pulumi.Input<string>;
   readonly httpTargetGroupArn: pulumi.Input<string>;
   /** Attach target groups only after the TLS edge exists. */
@@ -125,6 +105,7 @@ export interface AuthGatewayServiceArgs {
   readonly cognitoClientId: pulumi.Input<string>;
   readonly cognitoIssuer: pulumi.Input<string>;
   readonly awsRegion: string;
+  readonly capacityProviderName: pulumi.Input<string>;
 }
 
 /**
@@ -135,16 +116,11 @@ export interface LoreServiceArgs {
   readonly clusterName: pulumi.Input<string>;
   /** ARN of the cluster's ECS task execution role (Pulumi auto-suffixes IAM role names) */
   readonly taskExecutionRoleArn: pulumi.Input<string>;
-  readonly serviceConnectNamespaceArn: pulumi.Input<string>;
   readonly rebacUrl: string;
-  readonly vpcId: pulumi.Input<string>;
-  readonly vpcCidr: string;
-  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
   readonly publicIngressEnabled: boolean;
   readonly authEndpointUrl: string;
   readonly repoEndpointUrl: string;
   readonly albTargetGroupArn: pulumi.Input<string>;
-  readonly albSecurityGroupId: pulumi.Input<string>;
   readonly projectName: string;
   readonly environment: string;
   readonly desiredCount: number;
@@ -169,53 +145,62 @@ export interface LoreServiceArgs {
   readonly awsRegion: string;
   readonly jwksEndpoint: string;
   readonly jwtIssuer: string;
+  readonly capacityProviderName: pulumi.Input<string>;
 }
 
 /**
- * Interface for ControlPlaneService component arguments
+ * Interface for EC2Compute component arguments
  */
-export interface ControlPlaneServiceArgs {
-  readonly clusterArn: pulumi.Input<string>;
-  readonly clusterName: pulumi.Input<string>;
-  /** ARN of the cluster's ECS task execution role (Pulumi auto-suffixes IAM role names) */
-  readonly taskExecutionRoleArn: pulumi.Input<string>;
+export interface EC2ComputeArgs {
   readonly vpcId: pulumi.Input<string>;
   readonly vpcCidr: string;
-  readonly privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
-  /** Shared ECS task security group (attached alongside the service SG for DB access) */
-  readonly taskSecurityGroupId: pulumi.Input<string>;
+  readonly publicSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
+  readonly projectName: string;
+  readonly environment: string;
+  readonly instanceCount: number;
+  readonly instanceType: string;
+  readonly clusterName: pulumi.Input<string>;
+  readonly capacityProviderName: string;
+  readonly amiId?: string;
+  readonly amiSsmParameter?: string;
+  readonly recoveryControlsEnabled: boolean;
+  /** Human deployment identity that must not manually terminate the only host. */
+  readonly manualTerminationDenyUserName: string;
+}
+
+export interface EmailServiceArgs {
+  readonly projectName: string;
+  readonly environment: string;
+  readonly domain: string;
+}
+
+/** One low-memory ECS runtime for invitation, lead, and CRM operations. */
+export interface BackendServiceArgs {
+  readonly clusterArn: pulumi.Input<string>;
+  readonly taskExecutionRoleArn: pulumi.Input<string>;
+  readonly taskExecutionRoleName: pulumi.Input<string>;
+  readonly targetGroupArn: pulumi.Input<string>;
   readonly projectName: string;
   readonly environment: string;
   readonly desiredCount: number;
   readonly cpu: string;
   readonly memory: string;
-  readonly cpuArchitecture: "ARM64" | "X86_64";
-  readonly databaseUrl: pulumi.Output<string>;
-  /** Ed25519 signing key for data plane JWT tokens (base64-encoded) */
-  readonly ed25519SigningKey: pulumi.Input<string>;
-  /** Immutable ECR digest URI (repository@sha256:...), pinned in
-   *  infra/lore/versions.yaml. Build + push via control-plane/scripts/publish-image.sh —
-   *  Pulumi does not build images. */
-  readonly controlPlaneImageUri: string;
-  /** RUST_LOG filter (defaults to "info,lorecloud_control_plane=debug,sqlx=warn") */
-  readonly rustLog?: string;
-  /** Enable JWT authentication (defaults to "true") */
-  readonly jwtAuthEnabled?: pulumi.Input<string>;
-  /** Enable idempotency (defaults to "true") */
-  readonly idempotencyEnabled?: pulumi.Input<string>;
-  /** Enable metrics (defaults to "true") */
-  readonly metricsEnabled?: pulumi.Input<string>;
-  /** Redis URL for idempotency cache (optional, falls back to in-memory) */
-  readonly redisUrl?: pulumi.Input<string>;
-  /** Data plane token expiry seconds (defaults to "300") */
-  readonly dpTokenExpirySecs?: pulumi.Input<string>;
-  /** CORS allowed origins (defaults to the private Auth Gateway origin) */
-  readonly corsAllowedOrigins?: pulumi.Input<string>;
-  /** Provider type: "aws" or "mock" (defaults to "aws") */
-  readonly providerType?: pulumi.Input<string>;
-  /** AWS region for S3 storage */
-  readonly s3Region: string;
-  /** S3 bucket for Lore chunks (matches the bucket provisioned by PlatformStorage) */
-  readonly s3BucketName: pulumi.Input<string>;
-  readonly s3BucketArn: pulumi.Input<string>;
+  readonly imageUri: string;
+  /** Existing Neon application database URL stored in Secrets Manager. */
+  readonly leadsDatabaseUrlSecretArn: pulumi.Input<string>;
+  readonly hashKeySecretArn: pulumi.Input<string>;
+  readonly encryptionKeySecretArn: pulumi.Input<string>;
+  readonly backendTokenSecretArn: pulumi.Input<string>;
+  readonly crmApiKeySecretArn: pulumi.Input<string>;
+  readonly crmWebhookSecretArn: pulumi.Input<string>;
+  readonly crmApiUrl: string;
+  readonly cognitoUserPoolId: pulumi.Input<string>;
+  readonly cognitoUserPoolArn: pulumi.Input<string>;
+  readonly sesIdentityArn: pulumi.Input<string>;
+  readonly sesConfigurationSetName: pulumi.Input<string>;
+  readonly sesFromEmail: string;
+  readonly publicAppUrl: string;
+  readonly corsAllowedOrigins: string[];
+  readonly awsRegion: string;
+  readonly capacityProviderName: pulumi.Input<string>;
 }

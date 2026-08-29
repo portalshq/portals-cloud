@@ -17,14 +17,14 @@ EXPECTED_PACKAGING_COMMIT="${EXPECTED_PACKAGING_COMMIT:-}"
 EXPECTED_PROTOCOL_COMMIT="${EXPECTED_PROTOCOL_COMMIT:-}"
 EXPECTED_BASE_IMAGE="${EXPECTED_BASE_IMAGE:-}"
 
-[[ "${SERVICE}" =~ ^(lore|control-plane)$ ]] || { echo "unsupported service: ${SERVICE}" >&2; exit 2; }
+[[ "${SERVICE}" =~ ^(lore|control-plane|backend)$ ]] || { echo "unsupported service: ${SERVICE}" >&2; exit 2; }
 [[ "${IMAGE}" =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ ]] || { echo "image must be pinned by sha256" >&2; exit 2; }
 [[ "${PLATFORM}" =~ ^linux/(arm64|amd64)$ ]] || { echo "platform must be linux/arm64 or linux/amd64" >&2; exit 2; }
 [[ "${EXPECTED_SOURCE_COMMIT}" =~ ^[a-f0-9]{40}$ ]] || { echo "EXPECTED_SOURCE_COMMIT must be a full clean Git commit" >&2; exit 2; }
 if [[ "${SERVICE}" == "lore" ]]; then
   [[ "${EXPECTED_PACKAGING_COMMIT}" =~ ^[a-f0-9]{40}$ ]] || { echo "Lore requires EXPECTED_PACKAGING_COMMIT" >&2; exit 2; }
   [[ -z "${EXPECTED_BASE_IMAGE}" || "${EXPECTED_BASE_IMAGE}" =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ ]] || { echo "EXPECTED_BASE_IMAGE must be sha256-pinned" >&2; exit 2; }
-else
+elif [[ "${SERVICE}" == "control-plane" ]]; then
   [[ "${EXPECTED_PROTOCOL_COMMIT}" =~ ^[a-f0-9]{40}$ ]] || { echo "control-plane requires EXPECTED_PROTOCOL_COMMIT" >&2; exit 2; }
 fi
 command -v aws >/dev/null || { echo "aws CLI is required" >&2; exit 2; }
@@ -246,7 +246,7 @@ jq -e --arg revision "${EXPECTED_SOURCE_COMMIT}" '.. | strings | select(. == $re
 if [[ "${SERVICE}" == "lore" ]]; then
   jq -e --arg revision "${EXPECTED_PACKAGING_COMMIT}" '.. | strings | select(. == $revision)' \
     >/dev/null <<<"${PROVENANCE}" || { echo "provenance does not bind Lore packaging commit" >&2; exit 1; }
-else
+elif [[ "${SERVICE}" == "control-plane" ]]; then
   jq -e --arg revision "${EXPECTED_PROTOCOL_COMMIT}" '.. | strings | select(. == $revision)' \
     >/dev/null <<<"${PROVENANCE}" || { echo "provenance does not bind protocol commit" >&2; exit 1; }
 fi

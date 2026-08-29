@@ -11,6 +11,7 @@ export class ImageRepositories extends pulumi.ComponentResource {
   public readonly lore: aws.ecr.Repository;
   public readonly controlPlane: aws.ecr.Repository;
   public readonly authGateway: aws.ecr.Repository;
+  public readonly backend: aws.ecr.Repository;
 
   constructor(name: string, args: ImageRepositoriesArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:security:ImageRepositories", name, {}, opts);
@@ -50,11 +51,13 @@ export class ImageRepositories extends pulumi.ComponentResource {
     this.lore = createRepository("lore");
     this.controlPlane = createRepository("control-plane");
     this.authGateway = createRepository("auth-gateway");
+    this.backend = createRepository("backend-service");
 
     this.registerOutputs({
       loreRepositoryUrl: this.lore.repositoryUrl,
       controlPlaneRepositoryUrl: this.controlPlane.repositoryUrl,
       authGatewayRepositoryUrl: this.authGateway.repositoryUrl,
+      backendRepositoryUrl: this.backend.repositoryUrl,
     });
   }
 }

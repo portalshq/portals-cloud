@@ -8,7 +8,7 @@ import { atomicWriteJson, atomicWriteYaml, readJsonObject, readYamlDocument } fr
 const [service, image, platform, platformDigest, ecrCompletedAt, trivyVersion,
   signatureVerified = "false", sourceCommit, sourceTreeClean,
   packagingCommit = "", protocolCommit = "", baseImage = ""] = process.argv.slice(2);
-const allowedServices = new Set(["lore", "control-plane"]);
+const allowedServices = new Set(["lore", "control-plane", "backend"]);
 const digestPattern = /^sha256:[a-f0-9]{64}$/;
 const commitPattern = /^[a-f0-9]{40}$/;
 const sourcePinsValid = commitPattern.test(sourceCommit ?? "") && sourceTreeClean === "true" &&
@@ -22,7 +22,7 @@ if (!allowedServices.has(service) ||
     !ecrCompletedAt || !trivyVersion ||
     !["true", "false"].includes(signatureVerified) || !sourcePinsValid) {
   console.error(
-    "usage: record-verified-image.mjs <lore|control-plane> <image@sha256> <linux/arch> " +
+    "usage: record-verified-image.mjs <lore|control-plane|backend> <image@sha256> <linux/arch> " +
       "<platform-sha256> <ecr-completed-at> <trivy-version> <signature-verified> " +
       "<source-commit> true [packaging-commit] [protocol-commit] [lore-base-image@sha256]",
   );
@@ -36,6 +36,14 @@ const receiptsFile = path.join(repoRoot, "infra/lore/verified-images.json");
 const now = new Date().toISOString();
 
 const versions = readYamlDocument(versionsFile);
+if (service === "backend" && versions.getIn(["backend"]) === undefined) {
+  versions.setIn(["backend"], {
+    source_repository: "https://github.com/DigitalCreationsCo/portals-cloud.git",
+    source_commit: "",
+    security_contract: versions.getIn(["release", "security_contract"]),
+    image: "",
+  });
+}
 if (versions.getIn([service, "image"]) === undefined) {
   throw new Error(`cannot find ${service}.image in ${versionsFile}`);
 }
@@ -76,7 +84,8 @@ receipts.receipts[image] = {
   provenanceVerified: true,
   signatureVerified: signatureVerified === "true",
   sourceCommit,
-  ...(service === "lore" ? { packagingCommit } : { protocolCommit }),
+  ...(service === "lore" ? { packagingCommit } : {}),
+  ...(service === "control-plane" ? { protocolCommit } : {}),
   sourceTreeClean: true,
   verifiedAt: now,
 };

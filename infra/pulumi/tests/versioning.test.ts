@@ -54,6 +54,11 @@ control-plane:
   protocol_commit: ""
   security_contract: "lore-auth-v1"
   image: "registry.test/auth@${digest("c")}"
+backend:
+  source_repository: "https://github.com/DigitalCreationsCo/portals-cloud.git"
+  source_commit: "${sha("d")}"
+  security_contract: "lore-auth-v1"
+  image: "registry.test/backend@${digest("e")}"
 legacy-control-plane:
   status: "retired"
   image: ""
@@ -83,6 +88,8 @@ test("reads Lore client, Lore server, active control-plane, and Nap pins from on
     const pins = readVersionPins();
     assert.equal(pins.loreImageUri, `registry.test/lore@${digest("b")}`);
     assert.equal(pins.controlPlaneImageUri, `registry.test/auth@${digest("c")}`);
+    assert.equal(pins.backendImageUri, `registry.test/backend@${digest("e")}`);
+    assert.equal(pins.release.backend?.sourceCommit, sha("d"));
     assert.equal(pins.release.napClient.version, "0.5.8");
     assert.equal(pins.release.loreClient.version, "0.8.4");
     assert.equal(pins.release.loreClient.upstreamCommit, sha("7"));
@@ -241,6 +248,36 @@ test("contained services still require scans, but stopped services need no recei
       () => assertVersionPinVerified("control-plane", image, 1, "linux/arm64"),
       /no matching successful/,
     );
+  });
+});
+
+test("Backend public evidence is bound to its clean source commit", () => {
+  const image = `registry.test/backend@${digest("e")}`;
+  const receipt = {
+    schemaVersion: 2,
+    receipts: {
+      [image]: {
+        service: "backend",
+        platform: "linux/amd64",
+        platformDigest: digest("f"),
+        ecrScan: { critical: 0, high: 0, completedAt: "2026-08-29T00:00:00Z" },
+        trivyScan: { critical: 0, high: 0, scannerVersion: "0.73.0", completedAt: "2026-08-29T00:01:00Z" },
+        sbomVerified: true,
+        provenanceVerified: true,
+        signatureVerified: true,
+        sourceCommit: sha("d"),
+        sourceTreeClean: true,
+        verifiedAt: "2026-08-29T00:01:00Z",
+      },
+    },
+  };
+  withFiles(manifest(), receipt, () => {
+    assert.doesNotThrow(() => assertVersionPinVerified(
+      "backend", image, 1, "linux/amd64", true, { sourceCommit: sha("d") },
+    ));
+    assert.throws(() => assertVersionPinVerified(
+      "backend", image, 1, "linux/amd64", true, { sourceCommit: sha("a") },
+    ), /not bound to the clean source/);
   });
 });
 

@@ -6,6 +6,13 @@ config:
   portals-platform:loreServiceDesiredCount: "0"
   portals-platform:controlPlaneDesiredCount: "0"
   portals-platform:authGatewayDesiredCount: "1"
+  portals-platform:ecsLaunchType: EC2
+  portals-platform:memoryMonitoringEnabled: "true"
+  portals-platform:loreCpuArchitecture: X86_64
+  portals-platform:authGatewayCpuArchitecture: X86_64
+  portals-platform:backendApiPublicEnabled: "false"
+  portals-platform:backendServiceDesiredCount: "0"
+  portals-platform:emailServiceEnabled: "false"
   portals-platform:authFoundationEnabled: "true"
   portals-platform:publicIngressEnabled: "false"
   portals-platform:jwksPublicationEnabled: "false"

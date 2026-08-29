@@ -5,7 +5,7 @@ import { PlatformClusterArgs } from "../interfaces";
 /**
  * PlatformCluster Component
  *
- * Creates an ECS Fargate cluster with:
+ * Creates the shared ECS control plane for the one-host EC2 deployment.
  * - ECS Cluster
  * - CloudWatch Log Group
  * - ECS Task Execution Role (pulls images + secrets)
@@ -17,8 +17,6 @@ export class PlatformCluster extends pulumi.ComponentResource {
   public readonly logGroup: aws.cloudwatch.LogGroup;
   public readonly taskExecutionRole: aws.iam.Role;
   public readonly taskRole: aws.iam.Role;
-  public readonly taskSecurityGroup: aws.ec2.SecurityGroup;
-  public readonly serviceConnectNamespace?: aws.servicediscovery.HttpNamespace;
 
   constructor(name: string, args: PlatformClusterArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:platform:Cluster", name, {}, opts);
@@ -100,34 +98,15 @@ export class PlatformCluster extends pulumi.ComponentResource {
     }, { parent: this });
 
     // ── ECS Cluster ──────────────────────────────────────────────────────
-    this.serviceConnectNamespace = args.serviceConnectEnabled ? new aws.servicediscovery.HttpNamespace(`${resourcePrefix}-services`, {
-      name: `${resourcePrefix}-services`,
-      description: "Private ECS Service Connect discovery namespace",
-      tags: { Project: args.projectName, Environment: args.environment },
-    }, { parent: this }) : undefined;
+    // Host networking deliberately has no mesh or proxy sidecar.
     this.cluster = new aws.ecs.Cluster(`${resourcePrefix}-cluster`, {
-      serviceConnectDefaults: this.serviceConnectNamespace ? { namespace: this.serviceConnectNamespace.arn } : undefined,
+      settings: [{ name: "containerInsights", value: "enhanced" }],
       tags: {
         Name: `${resourcePrefix}-cluster`,
         Project: args.projectName,
         Environment: args.environment,
       },
     }, { parent: this });
-
-    // ── Task Security Group ──────────────────────────────────────────────
-    this.taskSecurityGroup = new aws.ec2.SecurityGroup(`${resourcePrefix}-task-sg`, {
-      vpcId: args.vpcId,
-      description: "Security group for ECS tasks",
-      tags: {
-        Name: `${resourcePrefix}-task-sg`,
-        Project: args.projectName,
-        Environment: args.environment,
-      },
-    }, { parent: this });
-
-    // No shared egress. Each service group declares the minimum protocols it
-    // needs. Secrets Manager permissions are likewise added only for specific
-    // secret ARNs by the service that consumes them.
 
     this.registerOutputs();
   }

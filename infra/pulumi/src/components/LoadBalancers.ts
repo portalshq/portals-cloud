@@ -6,7 +6,7 @@ import { LoadBalancersArgs } from "../interfaces";
  * Public edge for Lore.
  *
  * The edge is fail-closed by default.  When explicitly enabled it exposes only
- * TLS/HTTP2 on port 443 and forwards to private Lore/Auth Gateway target groups
+ * TLS/HTTP2 on port 443 and forwards to host-network Lore/Auth Gateway target groups
  * over plaintext HTTP variants inside the VPC. The retired issuer has no public
  * listener and QUIC/direct Lore ports are not provisioned. See ADR 0006 for the
  * bounded residual risk and the backend-TLS migration trigger.
@@ -17,13 +17,14 @@ export class LoadBalancers extends pulumi.ComponentResource {
   public readonly loreGrpcTargetGroup: aws.lb.TargetGroup;
   public readonly authGrpcTargetGroup: aws.lb.TargetGroup;
   public readonly authHttpTargetGroup: aws.lb.TargetGroup;
+  public readonly backendHttpTargetGroup: aws.lb.TargetGroup;
 
   constructor(name: string, args: LoadBalancersArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:platform:LoadBalancers", name, {}, opts);
 
     const resourcePrefix = `${args.projectName}-${args.environment}`;
 
-    const edgeEnabled = args.publicIngressEnabled || args.jwksPublicationEnabled;
+    const edgeEnabled = args.publicIngressEnabled || args.jwksPublicationEnabled || args.backendApiPublicEnabled;
     if (edgeEnabled && !args.certificateArn) {
       throw new pulumi.ResourceError(
         "an enabled edge requires an ACM certificate ARN; refusing to create a plaintext edge",
@@ -51,7 +52,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
         protocol: "tcp",
         securityGroupId: this.albSecurityGroup.id,
         cidrBlocks: args.allowedIngressCidrs,
-        description: "Public Lore gRPC over TLS",
+        description: "Public HTTPS facade",
       }, { parent: this });
     }
 
@@ -61,15 +62,22 @@ export class LoadBalancers extends pulumi.ComponentResource {
       toPort: 41337,
       protocol: "tcp",
       securityGroupId: this.albSecurityGroup.id,
-      cidrBlocks: [args.vpcCidr],
-      description: "ALB to Lore gRPC targets only",
+      sourceSecurityGroupId: args.ecsHostSecurityGroupId,
+      description: "ALB to the ECS host Lore gRPC port only",
     }, { parent: this });
 
     for (const port of [8084, 8085]) {
       new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-auth-${port}-egress`, {
         type: "egress", fromPort: port, toPort: port, protocol: "tcp",
-        securityGroupId: this.albSecurityGroup.id, cidrBlocks: [args.vpcCidr],
-        description: "ALB to Auth Gateway only",
+        securityGroupId: this.albSecurityGroup.id, sourceSecurityGroupId: args.ecsHostSecurityGroupId,
+        description: "ALB to the ECS host Auth Gateway only",
+      }, { parent: this });
+    }
+    for (const port of [8088]) {
+      new aws.ec2.SecurityGroupRule(`${resourcePrefix}-alb-backend-${port}-egress`, {
+        type: "egress", fromPort: port, toPort: port, protocol: "tcp",
+        securityGroupId: this.albSecurityGroup.id, sourceSecurityGroupId: args.ecsHostSecurityGroupId,
+        description: "ALB to the ECS host backend port only",
       }, { parent: this });
     }
 
@@ -91,11 +99,12 @@ export class LoadBalancers extends pulumi.ComponentResource {
     }, { parent: this });
 
     this.loreGrpcTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-lore-grpc-tg`, {
-      name: `${resourcePrefix}-lore-grpc`.substring(0, 32),
+      // Versioned names permit create-before-delete when changing target type.
+      name: `${resourcePrefix}-lore-grpc-v2`.substring(0, 32),
       port: 41337,
       protocol: "HTTP",
       protocolVersion: "GRPC",
-      targetType: "ip",
+      targetType: "instance",
       vpcId: args.vpcId,
       deregistrationDelay: 30,
       healthCheck: {
@@ -118,18 +127,25 @@ export class LoadBalancers extends pulumi.ComponentResource {
     }, { parent: this });
 
     this.authGrpcTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-auth-grpc-tg`, {
-      name: `${resourcePrefix}-auth-grpc`.substring(0, 32),
-      port: 8084, protocol: "HTTP", protocolVersion: "GRPC", targetType: "ip", vpcId: args.vpcId,
+      name: `${resourcePrefix}-auth-grpc-v2`.substring(0, 32),
+      port: 8084, protocol: "HTTP", protocolVersion: "GRPC", targetType: "instance", vpcId: args.vpcId,
       deregistrationDelay: 30,
-      healthCheck: { enabled: true, path: "/grpc.health.v1.Health/Check", protocol: "HTTP", matcher: "0", interval: 30, timeout: 5, healthyThreshold: 2, unhealthyThreshold: 2 },
+      healthCheck: { enabled: true, path: "/grpc.health.v1.Health/Check", port: "traffic-port", protocol: "HTTP", matcher: "0", interval: 30, timeout: 5, healthyThreshold: 2, unhealthyThreshold: 2 },
       tags: { Project: args.projectName, Environment: args.environment, Service: "auth-gateway" },
     }, { parent: this });
     this.authHttpTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-auth-http-tg`, {
-      name: `${resourcePrefix}-auth-http`.substring(0, 32),
-      port: 8085, protocol: "HTTP", protocolVersion: "HTTP1", targetType: "ip", vpcId: args.vpcId,
+      name: `${resourcePrefix}-auth-http-v2`.substring(0, 32),
+      port: 8085, protocol: "HTTP", protocolVersion: "HTTP1", targetType: "instance", vpcId: args.vpcId,
       deregistrationDelay: 30,
-      healthCheck: { enabled: true, path: "/healthz", protocol: "HTTP", matcher: "200", interval: 30, timeout: 5, healthyThreshold: 2, unhealthyThreshold: 2 },
+      healthCheck: { enabled: true, path: "/healthz", port: "traffic-port", protocol: "HTTP", matcher: "200", interval: 30, timeout: 5, healthyThreshold: 2, unhealthyThreshold: 2 },
       tags: { Project: args.projectName, Environment: args.environment, Service: "auth-gateway" },
+    }, { parent: this });
+    this.backendHttpTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-backend-http-tg`, {
+      name: `${resourcePrefix}-backend-v2`.substring(0, 32),
+      port: 8088, protocol: "HTTP", protocolVersion: "HTTP1", targetType: "instance", vpcId: args.vpcId,
+      deregistrationDelay: 30,
+      healthCheck: { enabled: true, path: "/health", port: "traffic-port", protocol: "HTTP", matcher: "200", interval: 30, timeout: 5, healthyThreshold: 2, unhealthyThreshold: 2 },
+      tags: { Project: args.projectName, Environment: args.environment, Service: "backend" },
     }, { parent: this });
 
     if (edgeEnabled) {
@@ -155,6 +171,25 @@ export class LoadBalancers extends pulumi.ComponentResource {
           priority: 100,
           actions: [{ type: "forward", targetGroupArn: this.loreGrpcTargetGroup.arn }],
           conditions: [{ hostHeader: { values: [args.loreHostname] } }],
+        }, { parent: this });
+      }
+
+      if (args.backendApiPublicEnabled) {
+        new aws.lb.ListenerRule(`${resourcePrefix}-backend-invitations-api-rule`, {
+          listenerArn: listener.arn, priority: 120,
+          actions: [{ type: "forward", targetGroupArn: this.backendHttpTargetGroup.arn }],
+          conditions: [
+            { hostHeader: { values: [args.backendApiHostname] } },
+            { pathPattern: { values: ["/api/invitations", "/api/invitations/*"] } },
+          ],
+        }, { parent: this });
+        new aws.lb.ListenerRule(`${resourcePrefix}-backend-lead-api-rule`, {
+          listenerArn: listener.arn, priority: 130,
+          actions: [{ type: "forward", targetGroupArn: this.backendHttpTargetGroup.arn }],
+          conditions: [
+            { hostHeader: { values: [args.backendApiHostname] } },
+            { pathPattern: { values: ["/api/leads/*", "/api/webhooks/crm"] } },
+          ],
         }, { parent: this });
       }
 
@@ -221,7 +256,12 @@ export class LoadBalancers extends pulumi.ComponentResource {
                         searchString: path,
                         textTransformations: [{ priority: 0, type: "NONE" }],
                       },
-                    })),
+                    })).concat(args.backendApiPublicEnabled ? [{
+                      byteMatchStatement: {
+                        fieldToMatch: { uriPath: {} }, positionalConstraint: "STARTS_WITH", searchString: "/api/",
+                        textTransformations: [{ priority: 0, type: "NONE" }],
+                      },
+                    }] : []),
                   },
                 },
               },
@@ -269,6 +309,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
         ["lore", this.loreGrpcTargetGroup, "Lore store-aware readiness"],
         ["auth-grpc", this.authGrpcTargetGroup, "Auth Gateway gRPC readiness"],
         ["auth-http", this.authHttpTargetGroup, "Auth Gateway HTTP readiness"],
+        ["backend", this.backendHttpTargetGroup, "Unified backend service readiness"],
       ] as const) {
         new aws.cloudwatch.MetricAlarm(`${resourcePrefix}-${service}-unhealthy-targets`, {
           comparisonOperator: "GreaterThanThreshold",

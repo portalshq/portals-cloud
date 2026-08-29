@@ -5,80 +5,21 @@ import { LoreServiceArgs } from "../interfaces";
 /**
  * LoreService Component
  *
- * Creates an ECS Fargate service for Lore VCS with:
+ * Creates the host-network ECS service for Lore VCS with:
  * - Immutable ECR image selected by repository digest
  * - ECS task definition with S3 + DynamoDB plugin configuration
  * - ECS service with ALB gRPC integration on the private h2c target port
- * - Security groups
  * - IAM task role for S3 and DynamoDB access
  */
 export class LoreService extends pulumi.ComponentResource {
   public readonly taskDefinition: aws.ecs.TaskDefinition;
   public readonly service: aws.ecs.Service;
-  public readonly securityGroup: aws.ec2.SecurityGroup;
   public readonly taskRole: aws.iam.Role;
 
   constructor(name: string, args: LoreServiceArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:platform:LoreService", name, {}, opts);
 
     const resourcePrefix = `${args.projectName}-${args.environment}`;
-
-    // ── Security Group ───────────────────────────────────────────────────
-    this.securityGroup = new aws.ec2.SecurityGroup(`${resourcePrefix}-lore-sg`, {
-      vpcId: args.vpcId,
-      description: "Security group for Lore service",
-      tags: {
-        Name: `${resourcePrefix}-lore-sg`,
-        Project: args.projectName,
-        Environment: args.environment,
-        Service: "lore",
-      },
-    }, { parent: this });
-
-    // The only network caller is the ALB.  Direct HTTP/QUIC ports are never
-    // admitted by this security group.
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-alb-ingress`, {
-      type: "ingress",
-      fromPort: 41337,
-      toPort: 41337,
-      protocol: "tcp",
-      securityGroupId: this.securityGroup.id,
-      sourceSecurityGroupId: args.albSecurityGroupId,
-    }, { parent: this });
-
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-https-egress`, {
-      type: "egress",
-      fromPort: 443,
-      toPort: 443,
-      protocol: "tcp",
-      securityGroupId: this.securityGroup.id,
-      cidrBlocks: ["0.0.0.0/0"],
-      description: "JWKS and AWS APIs over TLS",
-    }, { parent: this });
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-rebac-egress`, {
-      type: "egress", fromPort: 8087, toPort: 8087, protocol: "tcp",
-      securityGroupId: this.securityGroup.id, cidrBlocks: [args.vpcCidr],
-      description: "Private ReBAC service through ECS Service Connect",
-    }, { parent: this });
-    // Service Connect VIPs live in 100.64.0.0/10 (CGNAT) — the ReBAC check dials 100.50.45.236:8087 via the Service Connect agent.
-    // Without this, the SYN to the Service Connect VIP is dropped and RepositoryGet hangs 50 s.
-    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-rebac-vip-egress`, {
-      type: "egress", fromPort: 8087, toPort: 8087, protocol: "tcp",
-      securityGroupId: this.securityGroup.id, cidrBlocks: ["100.64.0.0/10"],
-      description: "Private ReBAC service through ECS Service Connect (VIP:8087)",
-    }, { parent: this });
-    // :80 hotfix removed 2026-08-25 — UrcAuthApi now dials https://auth.portals.works (443 via ALB) and RebacApi dials VIP:8087; no 80 egress needed.
-    for (const protocol of ["tcp", "udp"]) {
-      new aws.ec2.SecurityGroupRule(`${resourcePrefix}-lore-dns-${protocol}`, {
-        type: "egress",
-        fromPort: 53,
-        toPort: 53,
-        protocol,
-        securityGroupId: this.securityGroup.id,
-        cidrBlocks: [args.vpcCidr],
-        description: "VPC DNS resolution",
-      }, { parent: this });
-    }
 
     // ── IAM Task Role for S3 + DynamoDB access ───────────────────────────
     this.taskRole = new aws.iam.Role(`${resourcePrefix}-lore-task-role`, {
@@ -175,8 +116,8 @@ export class LoreService extends pulumi.ComponentResource {
 
     this.taskDefinition = new aws.ecs.TaskDefinition(`${resourcePrefix}-lore-task`, {
       family: `${resourcePrefix}-lore`,
-      networkMode: "awsvpc",
-      requiresCompatibilities: ["FARGATE"],
+      networkMode: "host",
+      requiresCompatibilities: ["EC2"],
       runtimePlatform: { cpuArchitecture: args.cpuArchitecture, operatingSystemFamily: "LINUX" },
       cpu: args.cpu,
       memory: args.memory,
@@ -195,9 +136,9 @@ export class LoreService extends pulumi.ComponentResource {
         memory: parseInt(args.memory),
         essential: true,
         portMappings: [
-          { containerPort: 41337, protocol: "tcp", appProtocol: "grpc" },
-          // Health/readiness is task-local; no security-group rule exposes it.
-          { containerPort: 41339, protocol: "tcp" },
+          { containerPort: 41337, hostPort: 41337, protocol: "tcp", appProtocol: "grpc" },
+          // Health/readiness is loopback-only; the host security group never opens it.
+          { containerPort: 41339, hostPort: 41339, protocol: "tcp" },
         ],
         environment: [
           { name: "LORE_ENV", value: args.environment },
@@ -209,6 +150,8 @@ export class LoreService extends pulumi.ComponentResource {
           { name: "LORE__ENVIRONMENT__ENDPOINT__AUTH_URL", value: args.authEndpointUrl },
           { name: "LORE__ENVIRONMENT__ENDPOINT__REPOSITORY_URL", value: args.repoEndpointUrl },
           { name: "LORE_REBAC_URL", value: args.rebacUrl },
+          { name: "LORE_REBAC_CONNECT_MAX_ATTEMPTS", value: "8" },
+          { name: "LORE_REBAC_HEALTH_MAX_ATTEMPTS", value: "4" },
           // Immutable store: S3 + DynamoDB (aws plugin)
           { name: "LORE__IMMUTABLE_STORE__MODE", value: "aws" },
           // Mutable store: DynamoDB (aws plugin)
@@ -254,14 +197,13 @@ export class LoreService extends pulumi.ComponentResource {
       cluster: args.clusterArn,
       taskDefinition: this.taskDefinition.arn,
       desiredCount: args.desiredCount,
-      launchType: "FARGATE",
-      enableExecuteCommand: true,
+      capacityProviderStrategies: [{
+        capacityProvider: args.capacityProviderName,
+        weight: 1,
+        base: 1,
+      }],
+      enableExecuteCommand: false,
       healthCheckGracePeriodSeconds: 60,
-      networkConfiguration: {
-        subnets: args.privateSubnetIds,
-        securityGroups: [this.securityGroup.id],
-        assignPublicIp: false,
-      },
       // Bootstrap mode deploys Lore without ALB registration: the lore gRPC
       // target group gains its listener rule only when public ingress opens.
       loadBalancers: args.publicIngressEnabled ? [
@@ -271,10 +213,7 @@ export class LoreService extends pulumi.ComponentResource {
           containerPort: 41337,
         },
       ] : [],
-      serviceConnectConfiguration: {
-        enabled: true,
-        namespace: args.serviceConnectNamespaceArn,
-      },
+      deploymentCircuitBreaker: { enable: true, rollback: true },
       tags: {
         Name: `${resourcePrefix}-lore-service`,
         Project: args.projectName,
@@ -283,6 +222,6 @@ export class LoreService extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    this.registerOutputs();
+    this.registerOutputs({ serviceName: this.service.name });
   }
 }

@@ -15,9 +15,6 @@ config:
   publicSubnetCidrs:
     description: Public subnet CIDR blocks (comma-separated)
     default: "10.0.1.0/24,10.0.2.0/24,10.0.3.0/24"
-  privateSubnetCidrs:
-    description: Private subnet CIDR blocks (comma-separated)
-    default: "10.0.10.0/24,10.0.11.0/24,10.0.12.0/24"
   databaseInstanceClass:
     description: RDS PostgreSQL instance class
     default: "db.t3.medium"
@@ -33,6 +30,48 @@ config:
   ecsFargateMemory:
     description: Fargate task memory (MB)
     default: "2048"
+  ecsLaunchType:
+    description: Fixed public-host ECS launch type. Only EC2 host networking is supported.
+    default: "EC2"
+  ec2InstanceCount:
+    description: ECS EC2 container-instance count; the free-tier mode requires exactly one.
+    default: "1"
+  ec2InstanceType:
+    description: ECS EC2 container instance type; the free-tier mode requires t3.micro.
+    default: "t3.micro"
+  ec2AmiId:
+    description: Optional pinned ECS-optimized AL2023 AMI ID. Leave empty to resolve AWS's recommended SSM parameter.
+    default: ""
+  ec2AmiSsmParameter:
+    description: Optional SSM parameter containing the approved ECS-optimized AMI ID.
+    default: ""
+  manualTerminationDenyUserName:
+    description: IAM user for the human deployer; this identity receives an explicit deny on manual termination of the tagged ECS host. The Auto Scaling service role remains unaffected.
+    default: "portals-pulumi-deployer"
+  ec2SchedulableMemoryMb:
+    description: ECS task memory budget after t3.micro host overhead; the approved profile reserves 875 MB.
+    default: "875"
+  loreEc2Cpu:
+    description: Lore CPU units when ecsLaunchType is EC2
+    default: "256"
+  loreEc2Memory:
+    description: Lore memory reservation in MB when ecsLaunchType is EC2
+    default: "256"
+  authGatewayEc2Cpu:
+    description: Auth Gateway CPU units when ecsLaunchType is EC2
+    default: "128"
+  authGatewayEc2Memory:
+    description: Auth Gateway memory reservation in MB when ecsLaunchType is EC2
+    default: "128"
+  backendEc2Cpu:
+    description: Unified BackendService CPU units when ecsLaunchType is EC2
+    default: "128"
+  backendEc2Memory:
+    description: Unified BackendService memory reservation in MB when ecsLaunchType is EC2
+    default: "128"
+  memoryMonitoringEnabled:
+    description: Create 80% ECS memory alarms and EventBridge OOM alerts; required when ecsLaunchType is EC2.
+    default: "true"
   loreServiceDesiredCount:
     description: Desired count for Lore service
     default: "0"
@@ -42,6 +81,42 @@ config:
   authGatewayDesiredCount:
     description: Desired count for the private Auth Gateway runtime
     default: "0"
+  backendServiceDesiredCount:
+    description: Desired count for the unified invitation/lead BackendService. Requires the explicitly gated backend API edge.
+    default: "0"
+  leadsDatabaseUrlSecretArn:
+    description: Existing Secrets Manager ARN containing the Neon LEADS_DATABASE_URL application database connection string.
+    default: ""
+  neonAllowlistConfirmed:
+    description: Manual release assertion that the exported ECS host Elastic IP is allowlisted in Neon before BackendService starts.
+    default: "false"
+  leadHashKeySecretArn:
+    description: Secrets Manager ARN for the HMAC key used to derive PII lookup hashes
+    default: ""
+  leadEncryptionKeySecretArn:
+    description: Secrets Manager ARN for the AES-256-GCM key used to encrypt PII at rest
+    default: ""
+  backendApiSharedSecretArn:
+    description: Secrets Manager ARN for the Vercel-to-LeadProcessing shared token
+    default: ""
+  crmApiKeySecretArn:
+    description: Secrets Manager ARN for the outbound CRM API key
+    default: ""
+  crmWebhookSecretArn:
+    description: Secrets Manager ARN for the inbound CRM webhook HMAC secret
+    default: ""
+  crmApiUrl:
+    description: HTTPS CRM API endpoint used by BackendService
+    default: ""
+  emailServiceEnabled:
+    description: Provision SES identity/configuration set for invitation delivery
+    default: "false"
+  sesDomain:
+    description: SES sender domain. Publish the exported verification token as a DNS TXT record before enabling delivery.
+    default: ""
+  sesFromEmail:
+    description: Verified SES From address for invitation email
+    default: ""
   authFoundationEnabled:
     description: Bootstrap switch for Cognito, KMS signing, and gateway secrets; requires the documented deployer permission set
     default: "false"
@@ -57,6 +132,18 @@ config:
   authHostname:
     description: Public Auth Gateway hostname on the shared HTTPS edge
     default: "auth.portals.works"
+  backendApiPublicEnabled:
+    description: Explicit release-gated switch for the Vercel-facing HTTPS backend API facade
+    default: "false"
+  backendApiHostname:
+    description: HTTPS hostname for invitation and lead-processing API routes
+    default: "api.portals.works"
+  backendCorsAllowedOrigins:
+    description: Comma-separated exact browser origins permitted by the backend API
+    default: "https://portals.works"
+  publicAppUrl:
+    description: Canonical HTTPS Vercel application origin used in invitation links
+    default: "https://portals.works"
   allowedIngressCidrs:
     description: Comma-separated CIDRs admitted to HTTPS 443
     default: "0.0.0.0/0"
@@ -95,9 +182,6 @@ config:
     default: ""
   lowCostRdsSnapshotsEnabled:
     description: Schedule one native manual RDS snapshot daily when the account limits automated PITR retention
-    default: "false"
-  egressEndpointsEnabled:
-    description: Stage-1 egress hardening; creates VPC interface endpoints and the private auth-hostname alias
     default: "false"
   alarmNotificationEndpoint:
     description: Email endpoint subscribed to the alarm SNS topic (target health, 4xx/5xx, WAF, RDS backups)

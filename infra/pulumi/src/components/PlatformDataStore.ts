@@ -32,8 +32,8 @@ export class PlatformDataStore extends pulumi.ComponentResource {
     // ── RDS: PostgreSQL single instance for Control Plane ────────────────
 
     this.subnetGroup = new aws.rds.SubnetGroup(`${resourcePrefix}-db-subnet-group`, {
-      subnetIds: args.privateSubnetIds,
-      description: "Database subnet group for RDS PostgreSQL",
+      subnetIds: args.publicSubnetIds,
+      description: "Private-only RDS endpoint in the public-host VPC subnets",
       tags: {
         Name: `${resourcePrefix}-db-subnet-group`,
         Project: args.projectName,
@@ -51,18 +51,15 @@ export class PlatformDataStore extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // Allow PostgreSQL ingress only from the specified security group
-    // (control plane or ECS task security group — passed as arg)
-    if (args.controlPlaneSecurityGroupId) {
-      new aws.ec2.SecurityGroupRule(`${resourcePrefix}-db-cp-ingress`, {
-        type: "ingress",
-        fromPort: 5432,
-        toPort: 5432,
-        protocol: "tcp",
-        securityGroupId: this.securityGroup.id,
-        sourceSecurityGroupId: args.controlPlaneSecurityGroupId,
-      }, { parent: this });
-    }
+    new aws.ec2.SecurityGroupRule(`${resourcePrefix}-db-ecs-host-ingress`, {
+      type: "ingress",
+      fromPort: 5432,
+      toPort: 5432,
+      protocol: "tcp",
+      securityGroupId: this.securityGroup.id,
+      sourceSecurityGroupId: args.ecsHostSecurityGroupId,
+      description: "Control-plane connections from the single ECS host only",
+    }, { parent: this });
 
     // Alphanumeric-only password: special characters like ":" or "#" would
     // break the postgres:// DATABASE_URL that the Control Plane parses.
@@ -97,7 +94,8 @@ export class PlatformDataStore extends pulumi.ComponentResource {
       skipFinalSnapshot: !args.recoveryControlsEnabled,
       finalSnapshotIdentifier: args.recoveryControlsEnabled ? `${resourcePrefix}-final` : undefined,
       storageEncrypted: true,
-      applyImmediately: true,
+      // DB subnet-group moves are scheduled for the RDS maintenance window.
+      applyImmediately: false,
       tags: {
         Name: `${resourcePrefix}-db`,
         Project: args.projectName,

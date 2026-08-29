@@ -7,7 +7,9 @@
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "test": "tsx --test tests/*.test.ts && ../../control-plane/scripts/test-pipeline.sh",
-    "predeploy": "npm run build",
+    "validate:ec2-capacity": "node scripts/validate-ec2-capacity.mjs",
+    "validate:public-host-runtime": "node scripts/validate-public-host-runtime.mjs",
+    "predeploy": "npm run build && npm run validate:ec2-capacity",
     "deploy": "pulumi up",
     "destroy": "pulumi destroy",
     "preview": "pulumi preview"
