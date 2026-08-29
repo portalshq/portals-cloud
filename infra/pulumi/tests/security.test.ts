@@ -161,6 +161,7 @@ test("image promotion is scan-gated and public release also requires a signature
   assert.match(publisher, /\.Results \| type == "array"/);
   assert.match(recorder, /readYamlDocument\(versionsFile\)/);
   assert.match(recorder, /readJsonObject\(receiptsFile\)/);
+  assert.match(recorder, /versions\.setIn\(\["backend", "image"\], ""\)/);
   assert.match(recorder, /atomicWriteJson\(receiptsFile, receipts\)[\s\S]*atomicWriteYaml\(versionsFile, versions\)/);
   assert.match(releaseRecorder, /readYamlDocument\(versionsFile\)/);
   assert.match(releaseRecorder, /atomicWriteJson\(receiptsFile, receipts\)[\s\S]*atomicWriteYaml\(versionsFile, versions\)/);

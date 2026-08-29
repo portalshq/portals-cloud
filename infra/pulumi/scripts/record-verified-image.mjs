@@ -37,12 +37,13 @@ const now = new Date().toISOString();
 
 const versions = readYamlDocument(versionsFile);
 if (service === "backend" && versions.getIn(["backend"]) === undefined) {
-  versions.setIn(["backend"], {
-    source_repository: "https://github.com/DigitalCreationsCo/portals-cloud.git",
-    source_commit: "",
-    security_contract: versions.getIn(["release", "security_contract"]),
-    image: "",
-  });
+  // yaml.Document#setIn stores a plain object as one scalar node; a later
+  // nested getIn cannot traverse it until serialization. Create each map path
+  // explicitly so first-time Backend promotion is validated before any write.
+  versions.setIn(["backend", "source_repository"], "https://github.com/DigitalCreationsCo/portals-cloud.git");
+  versions.setIn(["backend", "source_commit"], "");
+  versions.setIn(["backend", "security_contract"], versions.getIn(["release", "security_contract"]));
+  versions.setIn(["backend", "image"], "");
 }
 if (versions.getIn([service, "image"]) === undefined) {
   throw new Error(`cannot find ${service}.image in ${versionsFile}`);
