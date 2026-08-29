@@ -347,7 +347,16 @@ test("ALB and RDS use instance-mode host networking with private database reacha
   const edge = read("src/components/LoadBalancers.ts");
   const datastore = read("src/components/PlatformDataStore.ts");
   const compute = read("src/components/EC2Compute.ts");
+  const auth = read("src/components/AuthGatewayService.ts");
+  const lore = read("src/components/LoreService.ts");
   assert.equal((edge.match(/targetType: "instance"/g) ?? []).length, 4);
+  assert.match(edge, /lore-grpc-v2-tg/);
+  assert.match(edge, /auth-grpc-v2-tg/);
+  assert.match(edge, /auth-http-v2-tg/);
+  assert.match(auth, /auth-gateway-host-task/);
+  assert.match(auth, /auth-gateway-host-service/);
+  assert.match(lore, /lore-host-task/);
+  assert.match(lore, /lore-host-service/);
   assert.match(edge, /port: 8088[\s\S]{0,180}path: "\/health"/);
   assert.match(edge, /port: 8085[\s\S]{0,180}path: "\/healthz"/);
   assert.match(datastore, /subnetIds: args\.publicSubnetIds/);

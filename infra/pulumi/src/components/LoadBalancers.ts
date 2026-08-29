@@ -98,8 +98,9 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    this.loreGrpcTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-lore-grpc-tg`, {
-      // Versioned names permit create-before-delete when changing target type.
+    this.loreGrpcTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-lore-grpc-v2-tg`, {
+      // Both the Pulumi identity and AWS name are versioned so this instance
+      // target can coexist with the live IP target through canary validation.
       name: `${resourcePrefix}-lore-grpc-v2`.substring(0, 32),
       port: 41337,
       protocol: "HTTP",
@@ -126,14 +127,14 @@ export class LoadBalancers extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    this.authGrpcTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-auth-grpc-tg`, {
+    this.authGrpcTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-auth-grpc-v2-tg`, {
       name: `${resourcePrefix}-auth-grpc-v2`.substring(0, 32),
       port: 8084, protocol: "HTTP", protocolVersion: "GRPC", targetType: "instance", vpcId: args.vpcId,
       deregistrationDelay: 30,
       healthCheck: { enabled: true, path: "/grpc.health.v1.Health/Check", port: "traffic-port", protocol: "HTTP", matcher: "0", interval: 30, timeout: 5, healthyThreshold: 2, unhealthyThreshold: 2 },
       tags: { Project: args.projectName, Environment: args.environment, Service: "auth-gateway" },
     }, { parent: this });
-    this.authHttpTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-auth-http-tg`, {
+    this.authHttpTargetGroup = new aws.lb.TargetGroup(`${resourcePrefix}-auth-http-v2-tg`, {
       name: `${resourcePrefix}-auth-http-v2`.substring(0, 32),
       port: 8085, protocol: "HTTP", protocolVersion: "HTTP1", targetType: "instance", vpcId: args.vpcId,
       deregistrationDelay: 30,

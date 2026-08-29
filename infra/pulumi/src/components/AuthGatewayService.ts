@@ -30,7 +30,7 @@ export class AuthGatewayService extends pulumi.ComponentResource {
       })),
     }, { parent: this });
 
-    const task = new aws.ecs.TaskDefinition(`${prefix}-auth-gateway-task`, {
+    const task = new aws.ecs.TaskDefinition(`${prefix}-auth-gateway-host-task`, {
       family: `${prefix}-auth-gateway`,
       networkMode: "host",
       requiresCompatibilities: ["EC2"],
@@ -80,7 +80,7 @@ export class AuthGatewayService extends pulumi.ComponentResource {
       tags: { Project: args.projectName, Environment: args.environment, Service: "auth-gateway" },
     }, { parent: this });
 
-    this.service = new aws.ecs.Service(`${prefix}-auth-gateway-service`, {
+    this.service = new aws.ecs.Service(`${prefix}-auth-gateway-host-service`, {
       cluster: args.clusterArn,
       taskDefinition: task.arn,
       desiredCount: args.desiredCount,

@@ -114,7 +114,7 @@ export class LoreService extends pulumi.ComponentResource {
     // ── ECS Task Definition ──────────────────────────────────────────────
     const executionRoleArn = args.taskExecutionRoleArn;
 
-    this.taskDefinition = new aws.ecs.TaskDefinition(`${resourcePrefix}-lore-task`, {
+    this.taskDefinition = new aws.ecs.TaskDefinition(`${resourcePrefix}-lore-host-task`, {
       family: `${resourcePrefix}-lore`,
       networkMode: "host",
       requiresCompatibilities: ["EC2"],
@@ -193,7 +193,7 @@ export class LoreService extends pulumi.ComponentResource {
     }, { parent: this });
 
     // ── ECS Service ──────────────────────────────────────────────────────
-    this.service = new aws.ecs.Service(`${resourcePrefix}-lore-service`, {
+    this.service = new aws.ecs.Service(`${resourcePrefix}-lore-host-service`, {
       cluster: args.clusterArn,
       taskDefinition: this.taskDefinition.arn,
       desiredCount: args.desiredCount,
