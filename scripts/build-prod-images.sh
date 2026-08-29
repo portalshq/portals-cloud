@@ -3,7 +3,7 @@
 # This script sets all required environment variables and runs both build scripts
 #
 # Usage: ./build-prod-images.sh [--prod|--multiarch]
-#   --prod      : Single-arch (arm64) cross-compiled build for production (default)
+#   --prod      : Single-arch (amd64) build for the production t3.micro (default)
 #   --multiarch : Multi-arch (amd64 + arm64) build for CI/testing
 
 set -euo pipefail
@@ -45,8 +45,8 @@ ENVIRONMENT="${ENVIRONMENT:-prod}"
 REQUIRE_SIGNATURE="${REQUIRE_SIGNATURE:-true}"
 
 # Separate architecture configuration for each service
-LORE_TARGETARCH="${LORE_TARGETARCH:-arm64}"
-AUTH_TARGETARCH="${AUTH_TARGETARCH:-arm64}"
+LORE_TARGETARCH="${LORE_TARGETARCH:-amd64}"
+AUTH_TARGETARCH="${AUTH_TARGETARCH:-amd64}"
 
 # Note: BUILD_ID is generated inside individual build scripts, not here.
 # This ensures each build attempt (including retries) gets a unique identifier,

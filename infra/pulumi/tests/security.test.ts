@@ -12,7 +12,7 @@ function read(relativePath: string): string {
   return fs.readFileSync(path.join(pulumiRoot, relativePath), "utf8");
 }
 
-test("Lore client upstream pin matches the checked-out submodule commit", () => {
+test("Lore client release-source pin matches the checked-out submodule commit", () => {
   const versions = YAML.parse(
     fs.readFileSync(path.join(repositoryRoot, "infra/lore/versions.yaml"), "utf8"),
   );
@@ -21,8 +21,10 @@ test("Lore client upstream pin matches the checked-out submodule commit", () => 
     ["-C", path.join(repositoryRoot, "infra/lore/lore"), "rev-parse", "HEAD"],
     { encoding: "utf8" },
   ).trim();
-  assert.equal(versions["lore-client"].upstream_commit, submoduleCommit);
-  assert.equal(versions.lore.upstream_commit, submoduleCommit);
+  // The checked-out submodule is the source for the signed CLI release. The
+  // server source pin is intentionally advanced later, together with its
+  // newly built and verified image receipt.
+  assert.equal(versions["lore-client"].source_commit, submoduleCommit);
 });
 
 test("public topology has no NLB or direct Lore/control-plane listener", () => {
@@ -43,12 +45,12 @@ test("JWKS bootstrap is publish-before-use and cannot route token or Lore RPCs",
   assert.match(edge, /if \(args\.publicIngressEnabled\) \{[\s\S]{0,400}auth-grpc-rule/);
 });
 
-test("private Auth Gateway bootstrap does not require an ALB listener", () => {
+test("Auth Gateway bootstrap does not require an ALB listener", () => {
   const program = read("index.ts");
   const gateway = read("src/components/AuthGatewayService.ts");
   assert.match(program, /attachToAlb: publicIngressEnabled \|\| jwksPublicationEnabled/);
   assert.match(gateway, /loadBalancers: args\.attachToAlb \? \[/);
-  assert.match(gateway, /healthCheckGracePeriodSeconds: args\.attachToAlb \? 60 : undefined/);
+  assert.match(gateway, /healthCheckGracePeriodSeconds: args\.attachToAlb \? 90 : undefined/);
 });
 
 test("Cognito managed-login passkeys use the actual authentication domain as RP ID", () => {
@@ -63,11 +65,17 @@ test("the legacy control-plane token issuer cannot be deployed", () => {
   assert.match(program, /legacy control-plane token issuer is retired/);
 });
 
-test("Lore tasks are private and accept service traffic only from the ALB", () => {
+test("Lore uses static host ports and never exposes its readiness port", () => {
   const source = read("src/components/LoreService.ts");
-  assert.match(source, /assignPublicIp:\s*false/);
-  assert.match(source, /sourceSecurityGroupId:\s*args\.albSecurityGroupId/);
-  assert.doesNotMatch(source, /type:\s*["']ingress["'][\s\S]{0,300}cidrBlocks:\s*\[["']0\.0\.0\.0\/0["']\]/);
+  const network = read("src/components/PlatformNetwork.ts");
+  assert.match(source, /networkMode:\s*"host"/);
+  assert.match(source, /containerPort: 41337, hostPort: 41337/);
+  assert.match(source, /containerPort: 41339, hostPort: 41339/);
+  assert.match(source, /LORE_REBAC_URL/);
+  assert.match(source, /LORE_REBAC_CONNECT_MAX_ATTEMPTS/);
+  assert.match(source, /LORE_REBAC_HEALTH_MAX_ATTEMPTS/);
+  assert.doesNotMatch(source, /networkConfiguration|serviceConnect|awsvpc/i);
+  assert.match(network, /mapPublicIpOnLaunch:\s*false/);
 });
 
 test("load-balancer and container readiness both check Lore backing stores", () => {
@@ -78,19 +86,26 @@ test("load-balancer and container readiness both check Lore backing stores", () 
   assert.match(loadBalancer, /matcher:\s*["']0["']/);
   assert.match(loreService, /"CMD", "\/usr\/local\/bin\/loreserver", "healthcheck"/);
   const grpcServer = fs.readFileSync(path.join(repositoryRoot, "infra/lore/lore/lore-server/src/grpc/server.rs"), "utf8");
+  const loreMain = fs.readFileSync(path.join(repositoryRoot, "infra/lore/lore/lore-server/src/bin/loreserver/main.rs"), "utf8");
   assert.match(grpcServer, /is_available\(Duration::from_secs\(5\)\)/);
+  assert.match(loreMain, /LORE_REBAC_HEALTH_MAX_ATTEMPTS/);
+  assert.match(loreMain, /backoff_ms/);
 });
 
-test("Auth Gateway has scoped runtime permissions and private mutation ingress", () => {
+test("Auth Gateway retains scoped task permissions with host-only internal ports", () => {
   const source = read("src/components/AuthGatewayService.ts");
   const runtime = fs.readFileSync(
     path.join(repositoryRoot, "control-plane/auth-gateway/src/service.rs"),
     "utf8",
   );
-  assert.match(source, /assignPublicIp:\s*false/);
+  assert.match(source, /networkMode:\s*"host"/);
+  assert.match(source, /hostPort: 8084/);
+  assert.match(source, /hostPort: 8087/);
+  assert.match(source, /INTERNAL_LISTEN_ADDR", value: "127\.0\.0\.1:8086"/);
+  assert.match(source, /REBAC_LISTEN_ADDR", value: "127\.0\.0\.1:8087"/);
   assert.match(source, /kms:Sign/);
   assert.match(source, /secretsmanager:GetSecretValue/);
-  assert.match(source, /sourceSecurityGroupId:\s*args\.controlPlaneSecurityGroupId/);
+  assert.doesNotMatch(source, /networkConfiguration|serviceConnect|awsvpc/i);
   assert.doesNotMatch(source, /Action:\s*["']\*["']/);
   assert.match(runtime, /store\.is_healthy\(\)\.await/);
 });
@@ -135,8 +150,8 @@ test("image promotion is scan-gated and public release also requires a signature
     program,
     /assertNapReleaseVerified\(versionPins\.release\.napClient, versionPins\.release\.loreClient\)/,
   );
-  assert.match(program, /imagePlatform,\s*publicIngressEnabled, versionPins\.release/);
-  assert.match(versioning, /receipt\?\.image === image/);
+  assert.match(program, /loreImagePlatform,\s*publicIngressEnabled, versionPins\.release/);
+  assert.match(versioning, /document\?\.receipts\?\.\[image\]/);
   assert.match(versioning, /receipt\?\.signatureVerified !== true/);
   assert.match(publisher, /describe-image-scan-findings/);
   assert.match(publisher, /--severity CRITICAL,HIGH --exit-code 1/);
@@ -151,8 +166,8 @@ test("image promotion is scan-gated and public release also requires a signature
   assert.match(versionPinWriter, /readYamlDocument\(versionsFile\)/);
   assert.match(versionPinWriter, /atomicWriteYaml\(versionsFile, versions\)/);
   assert.match(lorePublisher, /EXPECTED_BASE_IMAGE="\$\{BASE_PIN\}"/);
-  assert.match(driftRepair, /update-version-pin\.mjs" get control-plane image/);
-  assert.match(driftRepair, /update-version-pin\.mjs" set control-plane image/);
+  assert.match(driftRepair, /UPDATE_PIN_SCRIPT" get control-plane image/);
+  assert.match(driftRepair, /UPDATE_PIN_SCRIPT" set control-plane image/);
   assert.doesNotMatch(lorePublisher, /awk -v base/);
   assert.doesNotMatch(driftRepair, /awk -v image/);
   assert.doesNotMatch(publisher, /trivy[^\n]*--ignore-unfixed/i);
@@ -170,13 +185,21 @@ test("image promotion is scan-gated and public release also requires a signature
   }
 });
 
-test("Fargate architecture is explicit and publisher target architecture is configurable", () => {
-  for (const component of ["AuthGatewayService.ts", "LoreService.ts", "ControlPlaneService.ts"]) {
+test("EC2 host-mode architecture is explicit and publishers remain architecture-aware", () => {
+  for (const component of ["AuthGatewayService.ts", "LoreService.ts"]) {
     assert.match(read(`src/components/${component}`), /runtimePlatform:\s*\{ cpuArchitecture:\s*args\.cpuArchitecture/);
+    assert.match(read(`src/components/${component}`), /networkMode:\s*"host"/);
+    assert.match(read(`src/components/${component}`), /requiresCompatibilities:\s*\["EC2"\]/);
   }
+  const backend = read("src/components/BackendService.ts");
+  assert.match(backend, /networkMode:\s*"host"/);
+  assert.match(backend, /requiresCompatibilities:\s*\["EC2"\]/);
   const authPublisher = fs.readFileSync(path.join(repositoryRoot, "control-plane/scripts/publish-auth-gateway.sh"), "utf8");
-  assert.match(authPublisher, /TARGETARCH="\$\{TARGETARCH:-arm64\}"/);
-  assert.match(authPublisher, /PLATFORMS:-linux\/\$\{TARGETARCH\}/);
+  assert.match(authPublisher, /AUTH_TARGETARCH:-\$\{TARGETARCH:-amd64\}/);
+  assert.match(authPublisher, /AUTH_PLATFORMS:-\$\{PLATFORMS:-linux\/amd64,linux\/arm64/);
+  const authDockerfile = fs.readFileSync(path.join(repositoryRoot, "docker/auth-gateway/Dockerfile"), "utf8");
+  assert.match(authDockerfile, /linux\/amd64\|linux\/arm64/);
+  assert.match(authDockerfile, /target\/release\/lore-auth-gateway/);
 });
 
 test("PostgreSQL verifies the RDS certificate chain and hostname", () => {
@@ -228,11 +251,94 @@ test("WAF common HTTP inspection does not parse binary gRPC bodies", () => {
 test("free-tier security baseline includes Access Analyzer and a recent-review gate", () => {
   const program = read("index.ts");
   const controls = read("src/components/SecurityControls.ts");
-  assert.match(program, /publicIngressEnabled && \(!authGatewayReady \|\| !securityControlsEnabled \|\| !releaseGateApproved/);
+  assert.match(program, /publicEdgeEnabled && \(!authGatewayReady \|\| !securityControlsEnabled \|\| !releaseGateApproved/);
   assert.match(program, /assertRecentSecurityReview\(securityReviewDate\)/);
   assert.match(controls, /accessanalyzer\.Analyzer/);
   assert.match(controls, /type:\s*"ACCOUNT"/);
   assert.match(controls, /if \(args\.threatDetectionEnabled\)/);
+});
+
+test("the t3.micro profile consolidates backend work and makes memory safety observable", () => {
+  const program = read("index.ts");
+  const backend = read("src/components/BackendService.ts");
+  const edge = read("src/components/LoadBalancers.ts");
+  const monitoring = read("src/components/EcsMemoryMonitoring.ts");
+  const validator = fs.readFileSync(
+    path.join(repositoryRoot, "infra/pulumi/scripts/validate-ec2-capacity.mjs"),
+    "utf8",
+  );
+  assert.match(program, /backendServiceDesiredCount/);
+  assert.match(program, /loreEc2Memory"\) \?\? "256"/);
+  assert.match(program, /authGatewayEc2Memory"\) \?\? "128"/);
+  assert.match(program, /backendEc2Memory"\) \?\? "128"/);
+  assert.match(program, /requestedMemory > 512/);
+  assert.match(program, /memoryMonitoringEnabled and alarmNotificationEndpoint/);
+  assert.match(backend, /containerPort: 8088/);
+  assert.doesNotMatch(backend, /containerPort: 8089/);
+  assert.match(edge, /backendHttpTargetGroup/);
+  assert.match(edge, /backend-invitations-api-rule[\s\S]*backendHttpTargetGroup/);
+  assert.match(edge, /backend-lead-api-rule[\s\S]*backendHttpTargetGroup/);
+  assert.match(monitoring, /metricName: "MemoryUtilization"/);
+  assert.match(monitoring, /threshold: 80/);
+  assert.match(monitoring, /OutOfMemoryError/);
+  assert.match(validator, /Lore=256, AuthGateway=128, Backend=128 MiB/);
+  assert.match(validator, /headroomMb/);
+});
+
+test("public-host network has no NAT or private task surface", () => {
+  const network = read("src/components/PlatformNetwork.ts");
+  const cluster = read("src/components/PlatformCluster.ts");
+  const program = read("index.ts");
+  assert.match(network, /new aws\.ec2\.InternetGateway/);
+  assert.match(network, /publicNetworkAcl/);
+  assert.match(network, /fromPort: 1024, toPort: 65535/);
+  assert.match(network, /fromPort: 5432, toPort: 5432/);
+  assert.doesNotMatch(network, /NatGateway|privateSubnet|nat-/i);
+  assert.doesNotMatch(cluster, /serviceConnect|ServiceConnect/i);
+  assert.match(program, /controlPlaneDesiredCount > 0/);
+  assert.match(program, /requires ecsLaunchType EC2/);
+});
+
+test("single host uses an Elastic IP lifecycle handler and preserves task IAM isolation", () => {
+  const compute = read("src/components/EC2Compute.ts");
+  const program = read("index.ts");
+  assert.match(compute, /ECS_RESERVED_MEMORY=128/);
+  assert.match(compute, /ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true/);
+  assert.match(compute, /route_localnet=1/);
+  assert.match(compute, /AssociateAddressCommand/);
+  assert.match(compute, /CompleteLifecycleActionCommand/);
+  assert.match(compute, /EC2 Instance-launch Lifecycle Action/);
+  assert.match(compute, /associatePublicIpAddress: "false"/);
+  assert.match(compute, /AmazonSSMManagedInstanceCore/);
+  assert.match(compute, /CloudWatchAgentServerPolicy/);
+  assert.match(compute, /portals-agent-verification/);
+  assert.match(compute, /DenyManualTerminationOfPortalsEcsHost/);
+  assert.doesNotMatch(compute, /disableApiTermination/);
+  assert.match(program, /ecsHostElasticIp = ec2Compute\.elasticIp\.publicIp/);
+});
+
+test("ALB and RDS use instance-mode host networking with private database reachability", () => {
+  const edge = read("src/components/LoadBalancers.ts");
+  const datastore = read("src/components/PlatformDataStore.ts");
+  const compute = read("src/components/EC2Compute.ts");
+  assert.equal((edge.match(/targetType: "instance"/g) ?? []).length, 4);
+  assert.match(edge, /port: 8088[\s\S]{0,180}path: "\/health"/);
+  assert.match(edge, /port: 8085[\s\S]{0,180}path: "\/healthz"/);
+  assert.match(datastore, /subnetIds: args\.publicSubnetIds/);
+  assert.match(datastore, /publiclyAccessible: false/);
+  assert.match(datastore, /sourceSecurityGroupId: args\.ecsHostSecurityGroupId/);
+  assert.match(compute, /ecs-host-neon-egress/);
+});
+
+test("unified backend obtains only the Neon application URL and shares one pool", () => {
+  const backend = read("src/components/BackendService.ts");
+  const invitations = fs.readFileSync(path.join(repositoryRoot, "services/invitation-service/src/db.ts"), "utf8");
+  const leads = fs.readFileSync(path.join(repositoryRoot, "services/lead-processing/src/db.ts"), "utf8");
+  assert.match(backend, /LEADS_DATABASE_URL/);
+  assert.doesNotMatch(backend, /name: "DATABASE_URL"/);
+  assert.match(invitations, /portalsUnifiedNeonPool/);
+  assert.match(leads, /portalsUnifiedNeonPool/);
+  assert.match(backend, /networkMode: "host"/);
 });
 
 test("production Lore config requires scoped auth and disables AdminService", () => {

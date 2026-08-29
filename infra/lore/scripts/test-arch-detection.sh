@@ -53,8 +53,12 @@ grep -q 'FROM --platform=\$BUILDPLATFORM rust:' "${AUTH_DOCKERFILE}" \
     || fail "auth-gateway builder stage must run on \$BUILDPLATFORM (native, no QEMU)"
 grep -q 'FROM --platform=\$TARGETPLATFORM gcr.io/distroless' "${AUTH_DOCKERFILE}" \
     || fail "auth-gateway runtime stage must follow \$TARGETPLATFORM"
+grep -q 'linux/amd64|linux/arm64)' "${AUTH_DOCKERFILE}" \
+    || fail "auth-gateway image must support both amd64 and arm64"
+grep -q 'target/release/lore-auth-gateway' "${AUTH_DOCKERFILE}" \
+    || fail "auth-gateway image must build natively for the t3.micro amd64 host"
 grep -q 'unsupported TARGETPLATFORM' "${AUTH_DOCKERFILE}" \
-    || fail "auth-gateway image must fail fast on non-arm64 targets"
+    || fail "auth-gateway image must fail fast on unsupported targets"
 
 if grep -nE 'portalshq/|latest-|nightly' \
     "${PUBLISHER}" "${BASE_DOCKERFILE}" "${RUNTIME_DOCKERFILE}"; then
