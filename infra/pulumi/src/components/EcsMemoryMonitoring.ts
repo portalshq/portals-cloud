@@ -15,7 +15,9 @@ export class EcsMemoryMonitoring extends pulumi.ComponentResource {
   constructor(name: string, args: EcsMemoryMonitoringArgs, opts?: pulumi.ComponentResourceOptions) {
     super("portals:observability:EcsMemoryMonitoring", name, {}, opts);
     const prefix = `${args.projectName}-${args.environment}`;
-    new aws.cloudwatch.MetricAlarm(`${prefix}-${name}-memory-high`, {
+    const resourceName = `${prefix}-${name}`;
+    new aws.cloudwatch.MetricAlarm(`${resourceName}-memory-high`, {
+      name: `${resourceName}-memory-high`,
       comparisonOperator: "GreaterThanThreshold",
       evaluationPeriods: 2,
       datapointsToAlarm: 2,
@@ -31,7 +33,8 @@ export class EcsMemoryMonitoring extends pulumi.ComponentResource {
       tags: { Project: args.projectName, Environment: args.environment, Purpose: "memory-capacity" },
     }, { parent: this });
 
-    const oomRule = new aws.cloudwatch.EventRule(`${prefix}-${name}-oom`, {
+    const oomRule = new aws.cloudwatch.EventRule(`${resourceName}-oom`, {
+      name: `${resourceName}-oom`,
       description: "Alert when this ECS service stops a task because of an out-of-memory condition",
       eventPattern: pulumi.all([args.serviceName]).apply(([serviceName]) => JSON.stringify({
         source: ["aws.ecs"],
@@ -43,12 +46,13 @@ export class EcsMemoryMonitoring extends pulumi.ComponentResource {
         },
       })),
     }, { parent: this });
-    new aws.cloudwatch.EventTarget(`${prefix}-${name}-oom-alert`, {
+    new aws.cloudwatch.EventTarget(`${resourceName}-oom-alert`, {
       rule: oomRule.name,
       targetId: "sns-oom-alert",
       arn: args.alarmNotificationTopicArn,
     }, { parent: this });
-    const exit137Rule = new aws.cloudwatch.EventRule(`${prefix}-${name}-exit-137`, {
+    const exit137Rule = new aws.cloudwatch.EventRule(`${resourceName}-exit-137`, {
+      name: `${resourceName}-exit-137`,
       description: "Alert when this ECS service exits a container with the common OOM exit code 137",
       eventPattern: pulumi.all([args.serviceName]).apply(([serviceName]) => JSON.stringify({
         source: ["aws.ecs"],
@@ -60,7 +64,7 @@ export class EcsMemoryMonitoring extends pulumi.ComponentResource {
         },
       })),
     }, { parent: this });
-    new aws.cloudwatch.EventTarget(`${prefix}-${name}-exit-137-alert`, {
+    new aws.cloudwatch.EventTarget(`${resourceName}-exit-137-alert`, {
       rule: exit137Rule.name,
       targetId: "sns-exit-137-alert",
       arn: args.alarmNotificationTopicArn,
@@ -78,7 +82,9 @@ export class EcsHostMemoryMonitoring extends pulumi.ComponentResource {
   }, opts?: pulumi.ComponentResourceOptions) {
     super("portals:observability:EcsHostMemoryMonitoring", name, {}, opts);
     const prefix = `${args.projectName}-${args.environment}`;
-    new aws.cloudwatch.MetricAlarm(`${prefix}-${name}-memory-high`, {
+    const resourceName = `${prefix}-${name}`;
+    new aws.cloudwatch.MetricAlarm(`${resourceName}-memory-high`, {
+      name: `${resourceName}-memory-high`,
       comparisonOperator: "GreaterThanThreshold",
       evaluationPeriods: 2,
       datapointsToAlarm: 2,

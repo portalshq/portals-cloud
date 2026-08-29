@@ -19,6 +19,23 @@ export class EC2Compute extends pulumi.ComponentResource {
       throw new pulumi.ResourceError("The public-host profile requires exactly one t3.micro ECS instance.", this);
     }
     const prefix = `${args.projectName}-${args.environment}`;
+    const autoScalingGroupName = `${prefix}-ecs-host`;
+    const lifecycleHookName = `${prefix}-eip-launch`;
+    const lifecycleFunctionName = `${prefix}-eip-lifecycle`;
+    const lifecycleEventRuleName = `${prefix}-eip-lifecycle`;
+    const memoryMonitoringNames = [
+      `${prefix}-${args.projectName}-ecs-host-memory`,
+      `${prefix}-${args.projectName}-lore-memory`,
+      `${prefix}-${args.projectName}-auth-memory`,
+      `${prefix}-${args.projectName}-backend-memory`,
+    ];
+    const memoryEventRuleArns = memoryMonitoringNames.slice(1).flatMap(resourceName => [
+      `arn:aws:events:*:*:rule/${resourceName}-oom`,
+      `arn:aws:events:*:*:rule/${resourceName}-exit-137`,
+    ]);
+    const memoryAlarmArns = memoryMonitoringNames.map(
+      resourceName => `arn:aws:cloudwatch:*:*:alarm:${resourceName}-memory-high`,
+    );
 
     this.instanceRole = new aws.iam.Role(`${prefix}-ecs-instance-role`, {
       assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({ Service: "ec2.amazonaws.com" }),
@@ -72,7 +89,7 @@ export class EC2Compute extends pulumi.ComponentResource {
               "autoscaling:DeleteLifecycleHook", "autoscaling:SetInstanceProtection",
               "autoscaling:SuspendProcesses", "autoscaling:ResumeProcesses",
             ],
-            Resource: `arn:aws:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/${prefix}-ecs-host`,
+            Resource: `arn:aws:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/${autoScalingGroupName}`,
           },
           {
             Sid: "ManageNamedHostLifecycleEvents",
@@ -83,7 +100,10 @@ export class EC2Compute extends pulumi.ComponentResource {
               "events:RemoveTargets", "events:ListTargetsByRule", "events:ListTagsForResource",
               "events:TagResource", "events:UntagResource",
             ],
-            Resource: `arn:aws:events:*:*:rule/${prefix}-*`,
+            Resource: [
+              `arn:aws:events:*:*:rule/${lifecycleEventRuleName}`,
+              ...memoryEventRuleArns,
+            ],
           },
           {
             Sid: "ManageNamedHostLifecycleFunction",
@@ -95,7 +115,7 @@ export class EC2Compute extends pulumi.ComponentResource {
               "lambda:RemovePermission", "lambda:GetPolicy", "lambda:ListVersionsByFunction",
               "lambda:ListTags", "lambda:TagResource", "lambda:UntagResource",
             ],
-            Resource: `arn:aws:lambda:*:*:function:${prefix}-*`,
+            Resource: `arn:aws:lambda:*:*:function:${lifecycleFunctionName}`,
           },
           {
             Sid: "ManageNamedHostAlarms",
@@ -105,7 +125,7 @@ export class EC2Compute extends pulumi.ComponentResource {
               "cloudwatch:DescribeAlarms", "cloudwatch:ListTagsForResource",
               "cloudwatch:TagResource", "cloudwatch:UntagResource",
             ],
-            Resource: `arn:aws:cloudwatch:*:*:alarm:${prefix}-*`,
+            Resource: memoryAlarmArns,
           },
         ],
       }),
@@ -243,8 +263,6 @@ systemctl enable --now portals-agent-verification.service
       tagSpecifications: [{ resourceType: "instance", tags: { Project: args.projectName, Environment: args.environment, Role: "ecs-host" } }],
       tags: { Project: args.projectName, Environment: args.environment },
     }, { parent: this });
-    const autoScalingGroupName = `${prefix}-ecs-host`;
-    const lifecycleHookName = `${prefix}-eip-launch`;
     const lifecycleRole = new aws.iam.Role(`${prefix}-eip-lifecycle-role`, {
       assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({ Service: "lambda.amazonaws.com" }),
       tags: { Project: args.projectName, Environment: args.environment },
@@ -261,6 +279,7 @@ systemctl enable --now portals-agent-verification.service
       }),
     }, { parent: this });
     const lifecycleFunction = new aws.lambda.Function(`${prefix}-eip-lifecycle`, {
+      name: lifecycleFunctionName,
       role: lifecycleRole.arn,
       runtime: "nodejs20.x",
       handler: "index.handler",
@@ -286,6 +305,7 @@ export const handler = async (event) => { const detail = event.detail || {};
       tags: { Project: args.projectName, Environment: args.environment, Purpose: "ecs-eip-lifecycle" },
     }, { parent: this, dependsOn: [lifecyclePolicy] });
     const lifecycleRule = new aws.cloudwatch.EventRule(`${prefix}-eip-lifecycle-rule`, {
+      name: lifecycleEventRuleName,
       eventPattern: JSON.stringify({
         source: ["aws.autoscaling"],
         "detail-type": ["EC2 Instance-launch Lifecycle Action"],
