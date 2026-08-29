@@ -331,6 +331,13 @@ test("single host uses an Elastic IP lifecycle handler and preserves task IAM is
   assert.match(compute, /CloudWatchAgentServerPolicy/);
   assert.match(compute, /ReadPinnedEcsOptimizedAmiChannel/);
   assert.match(compute, /ssm:GetParameter/);
+  assert.match(compute, /ManageNamedHostAutoScalingGroup/);
+  assert.match(compute, /ManageNamedHostLifecycleEvents/);
+  assert.match(compute, /ManageNamedHostLifecycleFunction/);
+  assert.match(compute, /ManageNamedHostAlarms/);
+  assert.match(compute, /autoScalingGroupName\/\$\{prefix\}-ecs-host/);
+  assert.match(compute, /rule\/\$\{prefix\}-\*/);
+  assert.match(compute, /function:\$\{prefix\}-\*/);
   assert.match(compute, /new aws\.iam\.UserPolicyAttachment/);
   assert.match(compute, /getParameterOutput[\s\S]{0,260}dependsOn: \[deployerHostPolicyAttachment\]/);
   assert.match(compute, /portals-agent-verification/);
