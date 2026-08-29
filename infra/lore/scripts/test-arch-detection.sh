@@ -25,6 +25,12 @@ grep -q 'BASE_PIN="${BASE_REPOSITORY}@${BASE_DIGEST}"' "${PUBLISHER}" \
     || fail "base image is not resolved to a digest"
 grep -q 'SERVER_PIN="${SERVER_REPOSITORY}@${SERVER_DIGEST}"' "${PUBLISHER}" \
     || fail "runtime image is not resolved to a digest"
+grep -q 'EXPECTED_LIBRARY_VERSION="${PACKAGE_VERSION}+${VERSION}"' "${PUBLISHER}" \
+    || fail "publisher must derive the exact embedded Lore version"
+grep -q 'docker run --rm --platform "linux/${TARGETARCH}"' "${PUBLISHER}" \
+    || fail "publisher must execute the exact target-platform runtime digest"
+grep -q 'Server version: ${EXPECTED_LIBRARY_VERSION}' "${PUBLISHER}" \
+    || fail "publisher must reject a binary with incorrect embedded version metadata"
 grep -q '^ARG BASE_IMAGE$' "${RUNTIME_DOCKERFILE}" \
     || fail "runtime Dockerfile does not accept a pinned base image"
 grep -q '^FROM --platform=\$TARGETPLATFORM \${BASE_IMAGE}$' "${RUNTIME_DOCKERFILE}" \

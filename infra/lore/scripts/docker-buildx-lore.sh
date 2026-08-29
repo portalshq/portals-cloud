@@ -170,6 +170,25 @@ fi
 SERVER_DIGEST="$(resolve_digest "${SERVER_REPOSITORY}:${SERVER_TAG}")"
 SERVER_PIN="${SERVER_REPOSITORY}@${SERVER_DIGEST}"
 
+# Verify the executable inside the exact deployable digest, not merely the
+# Docker build arguments. Invalid local configuration makes the server exit
+# immediately after printing its embedded library version, without opening a
+# listener or contacting a backing service.
+PACKAGE_VERSION="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' "${SOURCE_ROOT}/Cargo.toml" | head -n 1)"
+if [[ -z "${PACKAGE_VERSION}" ]]; then
+  echo "ERROR: unable to read the Lore workspace package version." >&2
+  exit 2
+fi
+EXPECTED_LIBRARY_VERSION="${PACKAGE_VERSION}+${VERSION}"
+VERSION_OUTPUT="$(docker run --rm --platform "linux/${TARGETARCH}" \
+  -e LORE__SERVER=invalid "${SERVER_PIN}" 2>&1 || true)"
+if ! grep -Fq -- "Server version: ${EXPECTED_LIBRARY_VERSION}" <<< "${VERSION_OUTPUT}"; then
+  echo "ERROR: Lore image does not report expected embedded version ${EXPECTED_LIBRARY_VERSION}." >&2
+  printf '%s\n' "${VERSION_OUTPUT}" >&2
+  exit 2
+fi
+printf 'Verified embedded Lore version: %s\n' "${EXPECTED_LIBRARY_VERSION}"
+
 if [[ "${REQUIRE_SIGNATURE}" == "true" ]]; then
   command -v cosign >/dev/null || { echo "cosign is required when REQUIRE_SIGNATURE=true" >&2; exit 2; }
   : "${COSIGN_KEY:?Set COSIGN_KEY to the dedicated artifact-signing KMS URI or key reference}"
