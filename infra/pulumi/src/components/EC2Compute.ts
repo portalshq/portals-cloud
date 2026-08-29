@@ -32,23 +32,31 @@ export class EC2Compute extends pulumi.ComponentResource {
     // This policy is intentionally attached to the human deployment identity,
     // not the instance role or an EC2 API termination-protection flag. The ASG
     // service role therefore remains able to replace an unhealthy host.
-    new aws.iam.UserPolicy(`${prefix}-deny-manual-ecs-host-termination`, {
+    const deployerHostPolicy = new aws.iam.UserPolicy(`${prefix}-deny-manual-ecs-host-termination`, {
       user: args.manualTerminationDenyUserName,
       policy: JSON.stringify({
         Version: "2012-10-17",
-        Statement: [{
-          Sid: "DenyManualTerminationOfPortalsEcsHost",
-          Effect: "Deny",
-          Action: "ec2:TerminateInstances",
-          Resource: "*",
-          Condition: {
-            StringEquals: {
-              "ec2:ResourceTag/Project": args.projectName,
-              "ec2:ResourceTag/Environment": args.environment,
-              "ec2:ResourceTag/Role": "ecs-host",
+        Statement: [
+          {
+            Sid: "ReadPinnedEcsOptimizedAmiChannel",
+            Effect: "Allow",
+            Action: "ssm:GetParameter",
+            Resource: "arn:aws:ssm:*::parameter/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id",
+          },
+          {
+            Sid: "DenyManualTerminationOfPortalsEcsHost",
+            Effect: "Deny",
+            Action: "ec2:TerminateInstances",
+            Resource: "*",
+            Condition: {
+              StringEquals: {
+                "ec2:ResourceTag/Project": args.projectName,
+                "ec2:ResourceTag/Environment": args.environment,
+                "ec2:ResourceTag/Role": "ecs-host",
+              },
             },
           },
-        }],
+        ],
       }),
     }, { parent: this });
     const instanceProfile = new aws.iam.InstanceProfile(`${prefix}-ecs-instance-profile`, {
@@ -89,7 +97,7 @@ export class EC2Compute extends pulumi.ComponentResource {
       ? pulumi.output(args.amiId)
       : aws.ssm.getParameterOutput({
           name: args.amiSsmParameter ?? "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id",
-        }).apply(parameter => parameter.value);
+        }, { dependsOn: [deployerHostPolicy] }).apply(parameter => parameter.value);
     const userDataScript = `#!/bin/bash
 set -euo pipefail
 cat >/etc/ecs/ecs.config <<'EOF'
