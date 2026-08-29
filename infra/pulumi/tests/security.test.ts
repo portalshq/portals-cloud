@@ -317,6 +317,9 @@ test("single host uses an Elastic IP lifecycle handler and preserves task IAM is
   const compute = read("src/components/EC2Compute.ts");
   const program = read("index.ts");
   assert.match(compute, /ECS_RESERVED_MEMORY=128/);
+  assert.match(compute, /pulumi\.output\(args\.clusterName\)\.apply\(clusterName => Buffer\.from/);
+  assert.match(compute, /ECS_CLUSTER=\$\{clusterName\}/);
+  assert.match(compute, /userData,\s*\n/);
   assert.match(compute, /ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true/);
   assert.match(compute, /route_localnet=1/);
   assert.match(compute, /AssociateAddressCommand/);

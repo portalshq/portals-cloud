@@ -103,10 +103,10 @@ export class EC2Compute extends pulumi.ComponentResource {
       : aws.ssm.getParameterOutput({
           name: args.amiSsmParameter ?? "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id",
         }, { dependsOn: [deployerHostPolicyAttachment] }).apply(parameter => parameter.value);
-    const userDataScript = `#!/bin/bash
+    const userData = pulumi.output(args.clusterName).apply(clusterName => Buffer.from(`#!/bin/bash
 set -euo pipefail
 cat >/etc/ecs/ecs.config <<'EOF'
-ECS_CLUSTER=${args.clusterName}
+ECS_CLUSTER=${clusterName}
 ECS_ENABLE_AWSLOGS_EXECUTIONROLE_OVERRIDE=true
 ECS_ENABLE_CONTAINER_METADATA=true
 ECS_RESERVED_MEMORY=128
@@ -177,13 +177,13 @@ ExecStart=/usr/bin/systemctl is-active --quiet amazon-ssm-agent
 WantedBy=multi-user.target
 EOF
 systemctl enable --now portals-agent-verification.service
-`;
+`, "utf8").toString("base64"));
     const launchTemplate = new aws.ec2.LaunchTemplate(`${prefix}-ecs-host-template`, {
       imageId: ecsOptimizedAmi,
       instanceType: args.instanceType,
       iamInstanceProfile: { arn: instanceProfile.arn },
       networkInterfaces: [{ deviceIndex: 0, associatePublicIpAddress: "false", securityGroups: [this.instanceSecurityGroup.id] }],
-      userData: Buffer.from(userDataScript, "utf8").toString("base64"),
+      userData,
       metadataOptions: { httpTokens: "required", httpEndpoint: "enabled" },
       blockDeviceMappings: [{
         deviceName: "/dev/xvda",
