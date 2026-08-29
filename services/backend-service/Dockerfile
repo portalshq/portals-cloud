@@ -18,7 +18,10 @@ RUN apk upgrade --no-cache
 WORKDIR /app
 ENV NODE_ENV=production
 COPY services/backend-service/package.json services/backend-service/package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev \
+  && npm cache clean --force \
+  && rm -rf /root/.npm /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 COPY --from=builder /app/services/backend-service/dist ./dist
 COPY services/invitation-service/templates ./templates
 EXPOSE 8088
