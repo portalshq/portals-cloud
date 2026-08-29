@@ -32,8 +32,8 @@ export class EC2Compute extends pulumi.ComponentResource {
     // This policy is intentionally attached to the human deployment identity,
     // not the instance role or an EC2 API termination-protection flag. The ASG
     // service role therefore remains able to replace an unhealthy host.
-    const deployerHostPolicy = new aws.iam.UserPolicy(`${prefix}-deny-manual-ecs-host-termination`, {
-      user: args.manualTerminationDenyUserName,
+    const deployerHostPolicy = new aws.iam.Policy(`${prefix}-ecs-host-deployer-guard`, {
+      description: "Read the official ECS AMI channel and deny manual termination of the managed ECS host",
       policy: JSON.stringify({
         Version: "2012-10-17",
         Statement: [
@@ -58,6 +58,11 @@ export class EC2Compute extends pulumi.ComponentResource {
           },
         ],
       }),
+      tags: { Project: args.projectName, Environment: args.environment, Service: "ecs-host" },
+    }, { parent: this });
+    const deployerHostPolicyAttachment = new aws.iam.UserPolicyAttachment(`${prefix}-ecs-host-deployer-guard`, {
+      user: args.manualTerminationDenyUserName,
+      policyArn: deployerHostPolicy.arn,
     }, { parent: this });
     const instanceProfile = new aws.iam.InstanceProfile(`${prefix}-ecs-instance-profile`, {
       role: this.instanceRole.name,
@@ -97,7 +102,7 @@ export class EC2Compute extends pulumi.ComponentResource {
       ? pulumi.output(args.amiId)
       : aws.ssm.getParameterOutput({
           name: args.amiSsmParameter ?? "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id",
-        }, { dependsOn: [deployerHostPolicy] }).apply(parameter => parameter.value);
+        }, { dependsOn: [deployerHostPolicyAttachment] }).apply(parameter => parameter.value);
     const userDataScript = `#!/bin/bash
 set -euo pipefail
 cat >/etc/ecs/ecs.config <<'EOF'
