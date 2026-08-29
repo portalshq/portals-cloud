@@ -152,7 +152,7 @@ export async function acceptInvitation(token: string): Promise<ReturnType<typeof
     } else {
       await client.query(
         `INSERT INTO pilot_memberships(pilot_id, user_id, role) VALUES ($1,$2,$3)
-         ON CONFLICT(pilot_id, user_id) DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
+         ON CONFLICT(pilot_id, user_id, role) DO UPDATE SET revoked_at = NULL`,
         [invitation.pilot_id, userId, invitation.role],
       )
     }
