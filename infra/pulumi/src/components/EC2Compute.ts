@@ -120,7 +120,7 @@ RemainAfterExit=yes
 [Install]
 WantedBy=ecs.service
 EOF
-systemctl enable portals-ecs-host-iam.service
+systemctl enable --now portals-ecs-host-iam.service
 
 cat >/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
 {"metrics":{"namespace":"Portals/ECSHost","append_dimensions":{"AutoScalingGroupName":"\${aws:AutoScalingGroupName}"},"metrics_collected":{"mem":{"measurement":["mem_used_percent","mem_available"],"metrics_collection_interval":60},"disk":{"measurement":["used_percent"],"metrics_collection_interval":60,"resources":["/"]}}}}
@@ -150,7 +150,7 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl enable portals-cloudwatch-agent.service
+systemctl enable --now portals-cloudwatch-agent.service
 cat >/etc/systemd/system/portals-agent-verification.service <<'EOF'
 [Unit]
 Description=Verify the ECS-optimized AMI agents are installed and active
@@ -163,7 +163,7 @@ ExecStart=/usr/bin/systemctl is-active --quiet amazon-ssm-agent
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl enable portals-agent-verification.service
+systemctl enable --now portals-agent-verification.service
 `;
     const launchTemplate = new aws.ec2.LaunchTemplate(`${prefix}-ecs-host-template`, {
       imageId: ecsOptimizedAmi,
@@ -179,8 +179,68 @@ systemctl enable portals-agent-verification.service
       tagSpecifications: [{ resourceType: "instance", tags: { Project: args.projectName, Environment: args.environment, Role: "ecs-host" } }],
       tags: { Project: args.projectName, Environment: args.environment },
     }, { parent: this });
+    const autoScalingGroupName = `${prefix}-ecs-host`;
     const lifecycleHookName = `${prefix}-eip-launch`;
+    const lifecycleRole = new aws.iam.Role(`${prefix}-eip-lifecycle-role`, {
+      assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({ Service: "lambda.amazonaws.com" }),
+      tags: { Project: args.projectName, Environment: args.environment },
+    }, { parent: this });
+    const lifecyclePolicy = new aws.iam.RolePolicy(`${prefix}-eip-lifecycle-policy`, {
+      role: lifecycleRole.id,
+      policy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          { Effect: "Allow", Action: ["ec2:AssociateAddress", "ec2:DescribeAddresses"], Resource: "*" },
+          { Effect: "Allow", Action: "autoscaling:CompleteLifecycleAction", Resource: "*" },
+          { Effect: "Allow", Action: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], Resource: "*" },
+        ],
+      }),
+    }, { parent: this });
+    const lifecycleFunction = new aws.lambda.Function(`${prefix}-eip-lifecycle`, {
+      role: lifecycleRole.arn,
+      runtime: "nodejs20.x",
+      handler: "index.handler",
+      timeout: 60,
+      environment: { variables: { ASG_NAME: autoScalingGroupName, ALLOCATION_ID: this.elasticIp.id, LIFECYCLE_HOOK_NAME: lifecycleHookName } },
+      code: new pulumi.asset.AssetArchive({
+        "index.mjs": new pulumi.asset.StringAsset(`import { EC2Client, AssociateAddressCommand, DescribeAddressesCommand } from "@aws-sdk/client-ec2";
+import { AutoScalingClient, CompleteLifecycleActionCommand } from "@aws-sdk/client-auto-scaling";
+const ec2 = new EC2Client({}); const autoscaling = new AutoScalingClient({});
+export const handler = async (event) => { const detail = event.detail || {};
+  if (detail.AutoScalingGroupName !== process.env.ASG_NAME || !detail.EC2InstanceId || !detail.LifecycleActionToken) throw new Error("Unexpected lifecycle event");
+  const addresses = await ec2.send(new DescribeAddressesCommand({ AllocationIds: [process.env.ALLOCATION_ID] }));
+  if (addresses.Addresses?.length !== 1 || addresses.Addresses[0].AllocationId !== process.env.ALLOCATION_ID) throw new Error("Expected Elastic IP allocation is unavailable");
+  try {
+    await ec2.send(new AssociateAddressCommand({ AllocationId: process.env.ALLOCATION_ID, InstanceId: detail.EC2InstanceId, AllowReassociation: true }));
+    await autoscaling.send(new CompleteLifecycleActionCommand({ AutoScalingGroupName: detail.AutoScalingGroupName, LifecycleHookName: process.env.LIFECYCLE_HOOK_NAME, LifecycleActionToken: detail.LifecycleActionToken, LifecycleActionResult: "CONTINUE" }));
+  } catch (error) {
+    await autoscaling.send(new CompleteLifecycleActionCommand({ AutoScalingGroupName: detail.AutoScalingGroupName, LifecycleHookName: process.env.LIFECYCLE_HOOK_NAME, LifecycleActionToken: detail.LifecycleActionToken, LifecycleActionResult: "ABANDON" }));
+    throw error;
+  }
+};`),
+      }),
+      tags: { Project: args.projectName, Environment: args.environment, Purpose: "ecs-eip-lifecycle" },
+    }, { parent: this, dependsOn: [lifecyclePolicy] });
+    const lifecycleRule = new aws.cloudwatch.EventRule(`${prefix}-eip-lifecycle-rule`, {
+      eventPattern: JSON.stringify({
+        source: ["aws.autoscaling"],
+        "detail-type": ["EC2 Instance-launch Lifecycle Action"],
+        detail: { AutoScalingGroupName: [autoScalingGroupName], LifecycleTransition: ["autoscaling:EC2_INSTANCE_LAUNCHING"] },
+      }),
+    }, { parent: this });
+    const lifecycleTarget = new aws.cloudwatch.EventTarget(`${prefix}-eip-lifecycle-target`, {
+      rule: lifecycleRule.name,
+      arn: lifecycleFunction.arn,
+    }, { parent: this });
+    const lifecyclePermission = new aws.lambda.Permission(`${prefix}-eip-lifecycle-eventbridge`, {
+      action: "lambda:InvokeFunction",
+      function: lifecycleFunction.name,
+      principal: "events.amazonaws.com",
+      sourceArn: lifecycleRule.arn,
+    }, { parent: this });
+
     this.autoScalingGroup = new aws.autoscaling.Group(`${prefix}-ecs-host-asg`, {
+      name: autoScalingGroupName,
       minSize: 1,
       maxSize: 1,
       desiredCapacity: 1,
@@ -201,58 +261,7 @@ systemctl enable portals-agent-verification.service
         { key: "Environment", value: args.environment, propagateAtLaunch: true },
         { key: "AmazonECSManaged", value: "true", propagateAtLaunch: true },
       ],
-    }, { parent: this, protect: args.recoveryControlsEnabled });
-
-    const lifecycleRole = new aws.iam.Role(`${prefix}-eip-lifecycle-role`, {
-      assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({ Service: "lambda.amazonaws.com" }),
-      tags: { Project: args.projectName, Environment: args.environment },
-    }, { parent: this });
-    new aws.iam.RolePolicy(`${prefix}-eip-lifecycle-policy`, {
-      role: lifecycleRole.id,
-      policy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [
-          { Effect: "Allow", Action: ["ec2:AssociateAddress", "ec2:DescribeAddresses"], Resource: "*" },
-          { Effect: "Allow", Action: "autoscaling:CompleteLifecycleAction", Resource: "*" },
-          { Effect: "Allow", Action: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], Resource: "*" },
-        ],
-      }),
-    }, { parent: this });
-    const lifecycleFunction = new aws.lambda.Function(`${prefix}-eip-lifecycle`, {
-      role: lifecycleRole.arn,
-      runtime: "nodejs20.x",
-      handler: "index.handler",
-      timeout: 60,
-      environment: { variables: { ASG_NAME: this.autoScalingGroup.name, ALLOCATION_ID: this.elasticIp.id, LIFECYCLE_HOOK_NAME: lifecycleHookName } },
-      code: new pulumi.asset.AssetArchive({
-        "index.mjs": new pulumi.asset.StringAsset(`import { EC2Client, AssociateAddressCommand } from "@aws-sdk/client-ec2";
-import { AutoScalingClient, CompleteLifecycleActionCommand } from "@aws-sdk/client-auto-scaling";
-const ec2 = new EC2Client({}); const autoscaling = new AutoScalingClient({});
-export const handler = async (event) => { const detail = event.detail || {};
-  if (detail.AutoScalingGroupName !== process.env.ASG_NAME || !detail.EC2InstanceId || !detail.LifecycleActionToken) throw new Error("Unexpected lifecycle event");
-  await ec2.send(new AssociateAddressCommand({ AllocationId: process.env.ALLOCATION_ID, InstanceId: detail.EC2InstanceId, AllowReassociation: true }));
-  await autoscaling.send(new CompleteLifecycleActionCommand({ AutoScalingGroupName: detail.AutoScalingGroupName, LifecycleHookName: process.env.LIFECYCLE_HOOK_NAME, LifecycleActionToken: detail.LifecycleActionToken, LifecycleActionResult: "CONTINUE" }));
-};`),
-      }),
-      tags: { Project: args.projectName, Environment: args.environment, Purpose: "ecs-eip-lifecycle" },
-    }, { parent: this });
-    const lifecycleRule = new aws.cloudwatch.EventRule(`${prefix}-eip-lifecycle-rule`, {
-      eventPattern: pulumi.all([this.autoScalingGroup.name]).apply(([asgName]) => JSON.stringify({
-        source: ["aws.autoscaling"],
-        "detail-type": ["EC2 Instance-launch Lifecycle Action"],
-        detail: { AutoScalingGroupName: [asgName], LifecycleTransition: ["autoscaling:EC2_INSTANCE_LAUNCHING"] },
-      })),
-    }, { parent: this });
-    new aws.cloudwatch.EventTarget(`${prefix}-eip-lifecycle-target`, {
-      rule: lifecycleRule.name,
-      arn: lifecycleFunction.arn,
-    }, { parent: this });
-    new aws.lambda.Permission(`${prefix}-eip-lifecycle-eventbridge`, {
-      action: "lambda:InvokeFunction",
-      function: lifecycleFunction.name,
-      principal: "events.amazonaws.com",
-      sourceArn: lifecycleRule.arn,
-    }, { parent: this });
+    }, { parent: this, protect: args.recoveryControlsEnabled, dependsOn: [lifecycleTarget, lifecyclePermission] });
 
     this.capacityProvider = new aws.ecs.CapacityProvider(`${prefix}-ec2-capacity`, {
       name: args.capacityProviderName,

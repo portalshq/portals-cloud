@@ -319,12 +319,21 @@ test("single host uses an Elastic IP lifecycle handler and preserves task IAM is
   assert.match(compute, /ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true/);
   assert.match(compute, /route_localnet=1/);
   assert.match(compute, /AssociateAddressCommand/);
+  assert.match(compute, /DescribeAddressesCommand/);
   assert.match(compute, /CompleteLifecycleActionCommand/);
   assert.match(compute, /EC2 Instance-launch Lifecycle Action/);
   assert.match(compute, /associatePublicIpAddress: "false"/);
   assert.match(compute, /AmazonSSMManagedInstanceCore/);
   assert.match(compute, /CloudWatchAgentServerPolicy/);
   assert.match(compute, /portals-agent-verification/);
+  assert.match(compute, /enable --now portals-ecs-host-iam\.service/);
+  assert.match(compute, /enable --now portals-cloudwatch-agent\.service/);
+  assert.match(compute, /enable --now portals-agent-verification\.service/);
+  assert.match(compute, /dependsOn: \[lifecycleTarget, lifecyclePermission\]/);
+  assert.ok(
+    compute.indexOf("new aws.cloudwatch.EventTarget") < compute.indexOf("new aws.autoscaling.Group"),
+    "the EventBridge target must exist before the ASG can emit its first launch lifecycle action",
+  );
   assert.match(compute, /DenyManualTerminationOfPortalsEcsHost/);
   assert.doesNotMatch(compute, /disableApiTermination/);
   assert.match(program, /ecsHostElasticIp = ec2Compute\.elasticIp\.publicIp/);
