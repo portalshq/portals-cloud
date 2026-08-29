@@ -15,6 +15,8 @@ grep -q 'PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"' "${PUBLISHER}" \
     || fail "publisher must default to amd64+arm64"
 grep -q 'TARGETARCH="${LORE_TARGETARCH:-${TARGETARCH:-amd64}}"' "${PUBLISHER}" \
     || fail "t3.micro release receipt must default to linux/amd64"
+test "$(grep -c -- '--build-arg "LORE_BUILD_VERSION_NAME=${VERSION}"' "${PUBLISHER}")" -eq 2 \
+    || fail "every Lore base build path must pass the immutable release tag"
 test "$(grep -c -- '--platform "linux/${arch}"' "${PUBLISHER}")" -ge 2 \
     || fail "base and server builds must each set an explicit per-arch platform"
 grep -q 'docker buildx build --platform "linux/${arch}"' "${PUBLISHER}" \
@@ -37,6 +39,12 @@ grep -q 'linux/arm64)' "${ROOT}/infra/lore/Dockerfile.loreserver.base" \
     || fail "base image must retain linux/arm64 support"
 grep -q 'unsupported TARGETPLATFORM' "${ROOT}/infra/lore/Dockerfile.loreserver.base" \
     || fail "base image must fail fast on unsupported targets"
+grep -q '^ARG LORE_BUILD_VERSION_NAME$' "${BASE_DOCKERFILE}" \
+    || fail "base image must accept the immutable Lore release tag"
+grep -q 'test -n "\$LORE_BUILD_VERSION_NAME"' "${BASE_DOCKERFILE}" \
+    || fail "base image must reject an empty Lore release tag"
+grep -q 'export LORE_BUILD_VERSION_NAME' "${BASE_DOCKERFILE}" \
+    || fail "cargo builds must receive the Lore release tag"
 grep -q 'FROM --platform=\$TARGETPLATFORM \${BASE_IMAGE}' "${RUNTIME_DOCKERFILE}" \
     || fail "server runtime must select the target platform of the pinned base index"
 

@@ -59,11 +59,14 @@ RUN rm -f lore-server/src/plugins/hashicorp.rs \
 # a Graviton-specific arm64 tuning flag, so remove it for the portable arm64
 # container build. amd64 uses Cargo's native Linux target.
 ARG TARGETPLATFORM
+ARG LORE_BUILD_VERSION_NAME
 RUN case "$TARGETPLATFORM" in \
       linux/arm64) sed -i '/target-cpu=neoverse-512tvb/d' .cargo/config.toml ;; \
       linux/amd64) : ;; \
       *) echo "unsupported TARGETPLATFORM: $TARGETPLATFORM (expected linux/amd64 or linux/arm64)" >&2; exit 1 ;; \
-    esac
+    esac \
+    && test -n "$LORE_BUILD_VERSION_NAME" \
+    || { echo "LORE_BUILD_VERSION_NAME must contain the immutable Lore release tag" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
 # Build the release binary for the requested runtime platform.
@@ -74,6 +77,8 @@ RUN case "$TARGETPLATFORM" in \
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/build/target \
+    export LORE_BUILD_VERSION_NAME \
+    && \
     case "$TARGETPLATFORM" in \
       linux/arm64) \
         CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \

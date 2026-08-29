@@ -97,6 +97,7 @@ for arch in "${ARCHS[@]}"; do
   ARCH_TAG="${BASE_TAG}-${arch}"
   if [[ "${BUILD_STRATEGY}" == "multiarch" ]]; then
     docker buildx build --platform "linux/${arch}" \
+      --build-arg "LORE_BUILD_VERSION_NAME=${VERSION}" \
       -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver.base" \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
@@ -107,6 +108,7 @@ for arch in "${ARCHS[@]}"; do
     # Single-arch: cross-compile natively (builder runs $BUILDPLATFORM; the
     # flag stamps the manifest and selects the runtime stage's target arch)
     docker buildx build --platform "linux/${arch}" \
+      --build-arg "LORE_BUILD_VERSION_NAME=${VERSION}" \
       -f "${REPO_ROOT}/infra/lore/Dockerfile.loreserver.base" \
       --label "org.opencontainers.image.revision=${SOURCE_COMMIT}" \
       --label "io.portals.packaging-revision=${PACKAGING_COMMIT}" \
