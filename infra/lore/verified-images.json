@@ -207,6 +207,28 @@
       "protocolCommit": "ed901a04f154b826a59ce50f8fa33d5bf078aac1",
       "sourceTreeClean": true,
       "verifiedAt": "2026-08-29T06:07:04.515Z"
+    },
+    "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/backend-service@sha256:6e442c019c5fb09ee7091cdec43c59e22d3d1528c9659b33e05a4309508edbf6": {
+      "service": "backend",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:920f5ce35aae997b0207beef0b8ca5376eb96a3ca959a8e6364c2e6047bbaeca",
+      "ecrScan": {
+        "critical": 0,
+        "high": 0,
+        "completedAt": "2026-08-29T16:26:27-04:00"
+      },
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.74.0",
+        "completedAt": "2026-08-29T20:30:13.375Z"
+      },
+      "sbomVerified": true,
+      "provenanceVerified": true,
+      "signatureVerified": true,
+      "sourceCommit": "8a8d19355175d7037b29e23ccd29ead56b7608a4",
+      "sourceTreeClean": true,
+      "verifiedAt": "2026-08-29T20:30:13.375Z"
     }
   }
 }

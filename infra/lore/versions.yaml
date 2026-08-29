@@ -68,3 +68,8 @@ control-plane:
 legacy-control-plane:
   status: "retired"
   image: ""
+backend:
+  source_repository: https://github.com/DigitalCreationsCo/portals-cloud.git
+  source_commit: 8a8d19355175d7037b29e23ccd29ead56b7608a4
+  security_contract: lore-auth-v1
+  image: 907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/backend-service@sha256:6e442c019c5fb09ee7091cdec43c59e22d3d1528c9659b33e05a4309508edbf6
