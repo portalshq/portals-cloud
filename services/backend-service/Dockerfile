@@ -1,13 +1,16 @@
 ARG NODE_BASE_IMAGE=node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
 FROM ${NODE_BASE_IMAGE} AS builder
-WORKDIR /app/services/backend-service
+# Install at the common services parent. TypeScript resolves dependencies from
+# each imported source file upward, so sibling invitation/lead sources must see
+# the same node_modules tree as Backend during an isolated container build.
+WORKDIR /app/services
 COPY services/backend-service/package.json services/backend-service/package-lock.json ./
 RUN npm ci
-COPY services/backend-service/tsconfig.json ./
-COPY services/backend-service/src ./src
+COPY services/backend-service/tsconfig.json ./backend-service/tsconfig.json
+COPY services/backend-service/src ./backend-service/src
 COPY services/invitation-service/src /app/services/invitation-service/src
 COPY services/lead-processing/src /app/services/lead-processing/src
-RUN npm run build
+RUN ./node_modules/.bin/tsc -p backend-service/tsconfig.json
 
 FROM ${NODE_BASE_IMAGE} AS runner
 WORKDIR /app
