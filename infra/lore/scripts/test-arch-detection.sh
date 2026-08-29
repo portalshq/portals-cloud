@@ -57,6 +57,8 @@ grep -q 'linux/amd64|linux/arm64)' "${AUTH_DOCKERFILE}" \
     || fail "auth-gateway image must support both amd64 and arm64"
 grep -q 'target/release/lore-auth-gateway' "${AUTH_DOCKERFILE}" \
     || fail "auth-gateway image must build natively for the t3.micro amd64 host"
+grep -q 'if \[ "\$TARGETPLATFORM" = "linux/arm64" \]' "${AUTH_DOCKERFILE}" \
+    || fail "auth-gateway must install the arm64 cross toolchain only for arm64 builds"
 grep -q 'unsupported TARGETPLATFORM' "${AUTH_DOCKERFILE}" \
     || fail "auth-gateway image must fail fast on unsupported targets"
 

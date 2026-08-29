@@ -9,11 +9,15 @@ RUN case "$TARGETPLATFORM" in \
       linux/amd64|linux/arm64) : ;; \
       *) echo "unsupported TARGETPLATFORM: $TARGETPLATFORM (expected linux/amd64 or linux/arm64)" >&2; exit 1 ;; \
     esac
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config libssl-dev protobuf-compiler \
-    gcc-aarch64-linux-gnu libc6-dev-arm64-cross binutils-aarch64-linux-gnu \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        pkg-config libssl-dev protobuf-compiler \
+    && if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+         apt-get install -y --no-install-recommends \
+           gcc-aarch64-linux-gnu libc6-dev-arm64-cross binutils-aarch64-linux-gnu \
+         && rustup target add aarch64-unknown-linux-gnu; \
+       fi \
     && rm -rf /var/lib/apt/lists/*
-RUN rustup target add aarch64-unknown-linux-gnu
 WORKDIR /app
 COPY control-plane/ /app/control-plane/
 COPY infra/lore/lore/lore-proto/proto/auth_api.proto /app/infra/lore/lore/lore-proto/proto/auth_api.proto
