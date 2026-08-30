@@ -37,6 +37,49 @@ export interface WatchJobOptions {
   onUpdate?: (job: QueueBroadcastJob) => void | Promise<void>;
 }
 
+export interface GenerationContext {
+  /** Base64 encoded last frame from previous generation for visual continuity */
+  previousFrame?: string;
+  /** History of prompts used in previous generations */
+  previousPrompts: string[];
+  /** Chat messages available for context (if chat integration enabled) */
+  chatMessages?: ChatMessage[];
+  /** Generation parameters for the current request */
+  generationParams: Record<string, unknown>;
+}
+
+export interface GeneratedFrames {
+  /** Base64 encoded video frames */
+  frames: string[];
+  /** Optional audio data in PCM format */
+  audio?: ArrayBuffer;
+  /** Duration of the generated content in seconds */
+  duration: number;
+}
+
+export interface ChatMessage {
+  messageId: string;
+  sessionId: string;
+  authorId: string;
+  authorDisplayName?: string;
+  text: string;
+  sentAt: string;
+  provenance: {
+    kind: "portals" | "external";
+    provider?: string;
+    providerMessageId?: string;
+  };
+}
+
+/**
+ * Callback interface for real-time video generation.
+ * The consuming application provides the AI implementation while queue-broadcast
+ * handles streaming infrastructure, frame buffering, and RTMP output.
+ */
+export interface GenerationCallback {
+  (context: GenerationContext): Promise<GeneratedFrames>;
+}
+
 /** Error returned by the queue control plane, including its HTTP status. */
 export class QueueBroadcastError extends Error {
   constructor(

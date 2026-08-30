@@ -19,7 +19,8 @@
     "generate:check": "npm run generate && npm run typecheck"
   },
   "dependencies": {
-    "@portalshq/capability-video-delivery": "*"
+    "@portalshq/capability-video-delivery": "*",
+    "@portalshq/capability-realtime-fanout": "*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
