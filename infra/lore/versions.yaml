@@ -14,14 +14,14 @@ release:
 # deliberately does not satisfy the production contract. A new release addressing
 # lore-auth-v1 is needed.
 nap-client:
-  version: "0.5.21"
+  version: "0.6.0"
   source_repository: "https://github.com/portalshq/narrativeengine.git"
-  source_commit: "9b714310bfe96c820b7589a780d5f27790083496"
-  release_tag: "v0.5.21"
+  source_commit: "e18bc1ad944b98531fc0301ab8dbbb0890494795"
+  release_tag: "v0.6.0"
   security_contract: "lore-auth-v1"
-  artifact_manifest_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.5.21/SHA256SUMS"
-  artifact_manifest_sha256: "sha256:ce08c338d61460a69557f2767f2ac089565b43b1f84e65988410370592cddffe"
-  signature_bundle_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.5.21/SHA256SUMS.sigstore.json"
+  artifact_manifest_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.6.0/SHA256SUMS"
+  artifact_manifest_sha256: "sha256:632a5c68036d7bc1b1cea74a2cd16b1742c853ca44029c76d59fb97431103b6f"
+  signature_bundle_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.6.0/SHA256SUMS.sigstore.json"
   # Nap must install this exact top-level Lore client release. Its artifacts
   # and source provenance are recorded once under lore-client below.
   lore_client_version: "0.8.4-portals.9"
