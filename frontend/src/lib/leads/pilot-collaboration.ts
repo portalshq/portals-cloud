@@ -47,7 +47,6 @@ function actorId(actor?: string): string | undefined {
 function cloneTerms(terms: PilotMutableTerms): PilotMutableTerms {
   return {
     startDate: terms.startDate || null,
-    valueConfirmed: Boolean(terms.valueConfirmed),
     criteria: terms.criteria.map((criterion) => ({...criterion})),
     answers: {...terms.answers},
   }
@@ -93,7 +92,6 @@ function fieldKind(_field: string): 'structured' | 'text' {
 
 function getField(terms: PilotMutableTerms, field: string): unknown {
   if (field === 'startDate') return terms.startDate || null
-  if (field === 'valueConfirmed') return terms.valueConfirmed
   const answerMatch = field.match(/^answers\.([A-Za-z0-9_]+)$/)
   if (answerMatch) return terms.answers?.[answerMatch[1] as keyof typeof terms.answers] || ''
   const removalMatch = field.match(/^criteria\.([^.]+)\.__removed$/)
@@ -108,10 +106,6 @@ function setField(terms: PilotMutableTerms, field: string, value: unknown): Pilo
   const next = cloneTerms(terms)
   if (field === 'startDate') {
     next.startDate = value ? String(value) : null
-    return next
-  }
-  if (field === 'valueConfirmed') {
-    next.valueConfirmed = Boolean(value)
     return next
   }
   const answerMatch = field.match(/^answers\.([A-Za-z0-9_]+)$/)
@@ -154,7 +148,6 @@ export function changedPilotFields(
     })
   }
   push('startDate', 'Pilot start date', next.startDate || null)
-  push('valueConfirmed', 'Auditable value estimate', next.valueConfirmed)
   for (const field of PILOT_DIRECT_ANSWER_FIELDS) push(`answers.${field}`, PILOT_DIRECT_ANSWER_LABELS[field], next.answers?.[field] || '')
   const keys = new Set([
     ...base.criteria.map((criterion) => criterion.key),
@@ -253,8 +246,6 @@ export function updatePilotDraft(input: {
     for (const change of changes) {
       if (change.field === 'startDate') {
         draft.terms.startDate = input.nextTerms.startDate || null
-      } else if (change.field === 'valueConfirmed') {
-        draft.terms.valueConfirmed = input.nextTerms.valueConfirmed
       } else if (change.field.startsWith('answers.')) {
         const field = change.field.slice('answers.'.length) as keyof typeof draft.terms.answers
         draft.terms.answers ||= {}

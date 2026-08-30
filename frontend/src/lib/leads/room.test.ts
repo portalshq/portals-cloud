@@ -200,7 +200,6 @@ test('reviewer decisions persist status and change requests', async () => {
 test('collaborative draft records working changes without committing a revision', () => {
   const base: PilotMutableTerms = {
     startDate: null,
-    valueConfirmed: false,
     criteria: buildSuccessCriteria(eligible),
   }
   const draft = createPilotDraft({terms: base, baseVersion: 1, actor: 'ava@studio.example'})
@@ -220,7 +219,6 @@ test('collaborative draft records working changes without committing a revision'
 test('collaborative draft preserves concurrent edits to different fields', () => {
   const base: PilotMutableTerms = {
     startDate: null,
-    valueConfirmed: false,
     criteria: buildSuccessCriteria(eligible),
   }
   const first = updatePilotDraft({
@@ -234,18 +232,22 @@ test('collaborative draft preserves concurrent edits to different fields', () =>
     draft: first,
     baseTerms: base,
     baseVersion: 1,
-    nextTerms: {...base, valueConfirmed: true},
+    nextTerms: {
+      ...base,
+      criteria: base.criteria.map((criterion, index) =>
+        index === 0 ? {...criterion, target: 'retrieve approved assets'} : criterion,
+      ),
+    },
     actor: 'maya@studio.example',
   })
   const terms = pilotTermsFromDraft(second, base)
   assert.equal(terms.startDate, '2026-09-01')
-  assert.equal(terms.valueConfirmed, true)
+  assert.equal(terms.criteria[0].target, 'retrieve approved assets')
 })
 
 test('a removed criterion can be restored into the shared draft', () => {
   const base: PilotMutableTerms = {
     startDate: null,
-    valueConfirmed: false,
     criteria: buildSuccessCriteria(eligible),
   }
   const withoutFirst = {...base, criteria: base.criteria.slice(1)}
@@ -274,11 +276,15 @@ test('a removed criterion can be restored into the shared draft', () => {
 test('draft commit preserves concurrent changes to different structured fields', () => {
   const base: PilotMutableTerms = {
     startDate: null,
-    valueConfirmed: false,
     criteria: buildSuccessCriteria(eligible),
   }
   const current = {...base, startDate: '2026-09-01'}
-  const incoming = {...base, valueConfirmed: true}
+  const incoming = {
+    ...base,
+    criteria: base.criteria.map((criterion, index) =>
+      index === 0 ? {...criterion, target: 'retrieve approved assets'} : criterion,
+    ),
+  }
   const resolved = resolvePilotDraftCommit({
     baseTerms: base,
     currentTerms: current,
@@ -286,13 +292,12 @@ test('draft commit preserves concurrent changes to different structured fields',
   })
   assert.equal(resolved.conflicts.length, 0)
   assert.equal(resolved.terms.startDate, '2026-09-01')
-  assert.equal(resolved.terms.valueConfirmed, true)
+  assert.equal(resolved.terms.criteria[0].target, 'retrieve approved assets')
 })
 
 test('draft commit detects concurrent changes to the same structured field', () => {
   const base: PilotMutableTerms = {
     startDate: null,
-    valueConfirmed: false,
     criteria: buildSuccessCriteria(eligible),
   }
   const resolved = resolvePilotDraftCommit({
@@ -309,7 +314,6 @@ test('draft commit asks for resolution when concurrent scalar text changes colli
   const key = criteria[0].key
   const base: PilotMutableTerms = {
     startDate: null,
-    valueConfirmed: false,
     criteria,
   }
   const current: PilotMutableTerms = {
@@ -332,7 +336,6 @@ test('draft commit asks for resolution when concurrent scalar text changes colli
 test('committing pilot term revisions appends history and resets the collaborative draft', () => {
   const pilotTerms = {
     startDate: null,
-    valueConfirmed: false,
     criteria: buildSuccessCriteria(eligible),
   }
   const pilot = {
@@ -360,7 +363,6 @@ test('committing pilot term revisions appends history and resets the collaborati
   const nextTerms: PilotMutableTerms = {
     ...pilotTerms,
     startDate: '2026-09-01',
-    valueConfirmed: true,
   }
 
   const committed = commitPilotTermRevision({
@@ -379,7 +381,7 @@ test('committing pilot term revisions appends history and resets the collaborati
   assert.deepEqual(pilotTermsFromDraft(committed.draft, pilotTerms), {...nextTerms, answers: {}})
   assert.deepEqual(
     committed.changes.map((change) => change.field),
-    ['startDate', 'valueConfirmed'],
+    ['startDate'],
   )
 })
 
@@ -504,6 +506,25 @@ test('pilot-room stage notifications route owner and Portals only once per recip
       `${pilot.id}:pilot_email:reviewer_invited:ops@portals.test:event:reviewer-stage-one`,
     ],
   )
+})
+
+test('exception review requests notify the customer and Portals with their respective email copy', async () => {
+  const pilot = await createEligiblePilot()
+
+  await notifyPilotRoomEvent({
+    pilot,
+    event: 'exception_review_requested',
+    eventKey: 'exception-review-one',
+  })
+
+  const queued = (await takeDueOutbox())
+    .filter((row) => row.action_key.startsWith(`${pilot.id}:`))
+    .map((row) => row.action_key)
+    .sort()
+  assert.deepEqual(queued, [
+    `${pilot.id}:pilot_email:exception:ava@studio.example:event:exception-review-one`,
+    `${pilot.id}:pilot_email:portals_review_requested:ops@portals.test:event:exception-review-one`,
+  ])
 })
 
 test('pilot room field changes map full-form revisions to notification sections', async () => {

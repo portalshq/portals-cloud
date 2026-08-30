@@ -60,7 +60,7 @@ pulumi preview --diff
 
 Review the preview before `pulumi up`. It must create only new production
 resources and must not modify or destroy the contained `dev` stack. This is a
-material AWS provisioning step (RDS, networking, ALB, and NAT can incur cost),
+material AWS provisioning step (RDS, networking, ALB, Elastic IP, and logs can incur cost),
 so choose the production database and network capacity deliberately instead of
 copying development defaults blindly. The first apply creates no public
 listener because `publicIngressEnabled=false`.
@@ -330,6 +330,12 @@ In the **production** Pulumi stack only:
 pulumi config set loreServiceDesiredCount 1
 pulumi config set controlPlaneDesiredCount 0
 pulumi config set authGatewayDesiredCount 1
+pulumi config set backendServiceDesiredCount 1
+pulumi config set ecsLaunchType EC2
+pulumi config set ec2InstanceCount 1
+pulumi config set ec2InstanceType t3.micro
+pulumi config set memoryMonitoringEnabled true
+pulumi config set neonAllowlistConfirmed true
 pulumi config set loreJwksEndpoint https://auth.portals.works/.well-known/jwks.json
 pulumi config set loreJwtIssuer https://auth.portals.works
 pulumi config set jwtSigningEnabled true
@@ -346,7 +352,7 @@ against this value; configuring `https://auth.portals.works/` (trailing slash)
 mismatches every issued token and Lore fails closed.
 
 Review the preview. It must create or enable only the public TLS `443` edge and
-must not add an NLB, public IP, `8083`, `41337`, or `41339` listener. Apply only
+must not add an NLB, automatic public IP, `8083`, `41337`, or `41339` listener. Apply only
 after that review, then immediately rerun the Nap workflow and external-surface
 test. If any test fails, set `publicIngressEnabled=false` and scale Lore to zero
 before investigating.

@@ -12,7 +12,11 @@ import {
 import {hashValue, verifySignature} from '@/lib/leads/crypto'
 import {APP_SESSION_COOKIE, currentApplicationUser, ensurePilotCustomerAccount, pilotMembershipRole} from '@/lib/leads/application-auth'
 import {leadDownloadUrl} from '@/lib/leads/downloads'
-import {normalizeEmail, validateIdentityForCapture} from '@/lib/leads/identity'
+import {
+  normalizeEmail,
+  validateIdentityForCapture,
+  validatePilotRoleEmailDomains,
+} from '@/lib/leads/identity'
 import {extractClientIp, sanitizeIp} from '@/lib/leads/ip-utils'
 import {
   applyTransition,
@@ -23,6 +27,7 @@ import {
   computeUnresolved,
 } from '@/lib/leads/pilot'
 import {processLeadOutbox} from '@/lib/leads/processor'
+import {enqueueExceptionReviewTask} from '@/lib/leads/crm-events'
 import {
   changedPilotRoomFields,
   notifyPilotRoomEvent,
@@ -351,16 +356,18 @@ async function syncPilotRecord(
       historyNote: 'revision submitted',
     })
     if (committed.version > pilot.version) {
-      const stale = updated.reviewers.filter(
-        (reviewer) =>
-          reviewer.status !== 'revoked' &&
-          reviewer.status !== 'proposed' &&
-          reviewer.versionSeen < committed.version &&
-          reviewer.email,
-      )
-      for (const reviewer of stale) {
+      const staleEmails = new Set(updated.reviewers
+        .filter(
+          (reviewer) =>
+            reviewer.status !== 'revoked' &&
+            reviewer.status !== 'proposed' &&
+            reviewer.versionSeen < committed.version &&
+            reviewer.email,
+        )
+        .map((reviewer) => reviewer.email.trim().toLowerCase()))
+      for (const email of staleEmails) {
         try {
-          await enqueuePilotEmail(updated.id, 'revised_ready', reviewer.email)
+          await enqueuePilotEmail(updated.id, 'revised_ready', email, `revision:${updated.version}`)
         } catch (cause) {
           console.error('revised_ready email failed', cause)
         }
@@ -376,6 +383,15 @@ async function syncPilotRecord(
       await enqueuePilotEmail(updated.id, 'revised')
     } catch (cause) {
       console.error('revised email failed', cause)
+    }
+    if (assessmentOverride) {
+      const eventKey = `exception-review:${updated.id}:${updated.updatedAt}`
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'exception_review_requested',
+        eventKey,
+      })
+      await enqueueExceptionReviewTask(updated.id, eventKey)
     }
     return {
       ...response,
@@ -415,6 +431,15 @@ async function syncPilotRecord(
     await enqueuePilotEmail(pilot.id, 'reviewing')
   } catch (cause) {
     console.error('pilot email failed', cause)
+  }
+  if (assessmentOverride) {
+    const eventKey = `exception-review:${pilot.id}:${pilot.updatedAt}`
+    await notifyPilotRoomEvent({
+      pilot,
+      event: 'exception_review_requested',
+      eventKey,
+    })
+    await enqueueExceptionReviewTask(pilot.id, eventKey)
   }
   return {
     ...response,
@@ -561,6 +586,12 @@ async function handleLeadRequest(
       {ok: false, error: 'please complete every required pilot field'},
       {status: 400},
     )
+  }
+  if (finalLeadRequest.submissionType === 'pilot_request') {
+    const roleEmailError = validatePilotRoleEmailDomains(finalLeadRequest.answers)
+    if (roleEmailError) {
+      return NextResponse.json({ok: false, error: roleEmailError}, {status: 400})
+    }
   }
   const scoreable = ['assessment', 'commercial_readiness', 'workflow_review', 'pilot_request'].includes(
     finalLeadRequest.submissionType,

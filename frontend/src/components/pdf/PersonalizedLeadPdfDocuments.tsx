@@ -1295,7 +1295,6 @@ export function PilotPlanPdfDocument({
                 </Text>
                 <Text style={styles.muted}>
                   {pilot.proposal.valueModel.frequency.label} · {pilot.proposal.valueModel.hoursLoss.label} lost · {pilot.proposal.valueModel.people.label} affected
-                  {pilot.proposal.valueModel.confirmed ? ' · estimate confirmed by the customer' : ''}
                 </Text>
                 <Text style={styles.body}>this estimate is based on self-reported ranges and is not a guaranteed savings claim or ROI forecast.</Text>
               </View>

@@ -45,7 +45,7 @@ export default async function PilotRoomPage({
     : undefined
 
   return (
-    <main className="relative z-(--z-main) min-h-screen overflow-hidden">
+    <main className="relative z-(--z-main) min-h-screen">
       <div
         aria-hidden="true"
         className="pointer-events-none h-px w-full"

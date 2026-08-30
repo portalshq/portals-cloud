@@ -16,6 +16,7 @@ issues log below is append-only._
 
 | Workstream | State |
 |---|---|
+| Public-host migration | **CODE COMPLETE — NOT DEPLOYED** 2026-08-27. Target is one public-subnet ECS EC2 host with host-mode static ports, lifecycle-managed EIP, Neon application URL, CloudWatch memory telemetry, and no NAT/Service Connect. Do not treat this row as a production cutover; execute the dedicated migration gates below before changing live resources. |
 | ACM `.works` certificate | **ISSUED** 2026-08-22T14:52Z (`32f56a6f…`, NotAfter 2027-03-07); both validation domains SUCCESS |
 | Service DNS | `lore`/`auth.portals.works` → prod ALB, DNS-only, live; `auth-gateway-rebac` Service Connect `VIP:8087` verified (UrcAuthApi via `https://auth.portals.works:443` → `:8084`, RebacApi via `http://auth-gateway-rebac:8087` → `127.255.0.1:8087`) |
 | Source migration | Complete in all three repos (gateway audience const, lore `0.8.4-portals.8` `47333fc` incl. `fix(rebac):8087` `3694edb` + `fix(auth):https` `f4ebbe5`, Nap `0.5.15` `676fa44`); `cargo check -p lore-server` green, compile+tests green |
@@ -27,6 +28,36 @@ issues log below is append-only._
 | Builds | Lore `v0.8.4-portals.8` (`47333fc`) **RELEASED** + image `72bc9186` promoted & deployed (`lore:8`, `c60b9ca368cf…` `HEALTHY`, `RUST_LOG=debug`); Nap `v0.5.15` released + promoted |
 | Next gates | Full E2E matrix **passed** (`create 0.8 s` `01a03a7…`, `clone 1.06 s` `43 B` file, `push 0.77 s` `e881f13…`), `verify-external-surface.sh` `443 open / 8083,41337,41339 closed` → §12 sign-off |
 | Blocker | **None** — `RepositoryGet` now `https://auth.portals.works:443` (`UrcAuthApi` → `:8084` via ALB) + `VIP:8087` (`RebacApi` via Service Connect) verified `<1 s`; SG tightened |
+
+### 0.1 Public-host migration gates — not yet executed
+
+The historical rows above describe the current live stack. The following
+replacement is deliberately separate and remains blocked until every item has
+evidence:
+
+1. Build/promote a new Lore image from the committed ReBAC retry/readiness
+   source; do not hand-edit the release BOM or receipts.
+2. Preview and create the EIP, launch lifecycle hook/Lambda, public host,
+   CloudWatch agent/alarm path, instance target groups, and host-mode canary
+   services while the existing topology remains intact.
+3. Add the exported EIP to Neon, confirm the SNS subscription, then prove
+   Auth (JWKS, gRPC, HTTP, RDS, loopback ReBAC), Lore, and Backend (Neon
+   read/write plus invitation migration) before listener cutover.
+4. Snapshot RDS, move only its subnet group in a maintenance window, wait for
+   pending modifications to clear, verify host-to-RDS TLS and external denial,
+   and retain old subnets for rollback.
+5. Switch healthy versioned instance target groups, drain old tasks, then
+   remove Service Connect/EgressControls. Delete NAT, routes, and private
+   subnets only after the final preview and external-surface test pass.
+6. Record a nonproduction host-replacement drill, RDS restore drill, and Neon
+   restore/branch drill. Missing Neon recovery evidence blocks the cutover.
+
+Run `npm run validate:ec2-capacity prod` before preview. After the canary is
+healthy, run `npm run validate:public-host-runtime prod` from a trusted
+operator machine with AWS CLI access. The latter validates the EIP/ASG binding,
+ECS usable memory, host-originated verified Neon TLS path, instance targets,
+confirmed SNS delivery, and direct non-443 port denial without printing the
+database URL.
 
 ## 1. Normal release cycle overview
 
@@ -98,7 +129,7 @@ Do not start a phase until its dependency's verification has passed.
 | 5b | Promote server images ×2 | Release engineer | `infra/pulumi/scripts/verify-and-promote-image.sh` for `lore`, then for `auth-gateway` (service, digest, platform, expected source/protocol/packaging commits) | 3–8 m each | Phases 4a–4b | `verified-images.json` receipts bound to exact index + platform digests |
 | 5c | Promote Nap release | Release engineer | `infra/pulumi/scripts/verify-and-promote-nap-release.sh vX.Y.Z` (Nap CI pipeline itself runs 15–30 m before this) | 15–30 m total | Phase 5a (Nap dependency must match promoted lore client) | Sigstore bundles + all checksums verified; `versions.yaml` `nap-client` entry + `verified-releases.json` receipt written |
 | 6 | Commit release BOM | Release engineer | `git add infra/lore/versions.yaml infra/lore/verified-images.json infra/lore/verified-releases.json && git commit` | minutes | Phases 5a–5c | diff contains only script-written pins/releases; committed with release source |
-| 7 | Pulumi config/up (contained deploy) | Platform operator | `cd infra/pulumi`; set desired counts and switches (below); `pulumi preview --diff`; `pulumi up` | 5–15 m | Phase 6 | preview creates/enables nothing public; private tasks healthy; no `dev` stack destruction |
+| 7 | Pulumi config/up (contained deploy) | Platform operator | `cd infra/pulumi`; set desired counts and switches (below); `pulumi preview --diff`; `pulumi up` | 5–15 m | Phase 6 | preview creates/enables nothing public; host-mode canaries healthy; no `dev` stack destruction |
 | 8 | JWKS bootstrap | Platform operator | see JWKS bootstrap ordering below | 15–45 m incl. applies | Phase 7 | live JWKS at `https://auth.portals.works/.well-known/jwks.json` contains expected `kid`; private Lore fetched that `kid` |
 | 9 | Release gates set | Reviewer + platform operator | `pulumi config set authGatewayReady true`; `pulumi config set securityReviewDate YYYY-MM-DD` (≤90 d old); `pulumi config set releaseGateApproved true`; confirm `release.status: approved` in BOM | review-dependent | Phase 8 + E2E matrix passed + §8 checklist | every assertion evidenced in the change record; date backed by a real review |
 | 10 | Final preview review checkpoint | Human approver (cannot be automated) | read `pulumi preview --diff` end-to-end | 10–20 m | Phase 9 | preview touches only the public TLS `443` edge; no NLB, public IP, or new listeners |

@@ -1,4 +1,4 @@
-import {advanceApolloPilotDeal} from './crm'
+import {advanceApolloPilotDeal, createApolloExceptionReviewTask} from './crm'
 import {leadPool, leadsDryRun} from './store'
 
 type CrmEventRow = {
@@ -23,6 +23,15 @@ export async function enqueueCrmEvent(input: {
      ON CONFLICT(event_key) DO NOTHING`,
     [input.sourceType, input.sourceId, input.eventType, input.eventKey, JSON.stringify(input.payload || {})],
   )
+}
+
+export async function enqueueExceptionReviewTask(pilotId: string, eventKey: string): Promise<void> {
+  await enqueueCrmEvent({
+    sourceType: 'pilot',
+    sourceId: pilotId,
+    eventType: 'exception_review_requested',
+    eventKey: `${eventKey}:apollo-exception-review-task`,
+  })
 }
 
 async function takeDueCrmEvents(limit: number): Promise<CrmEventRow[]> {
@@ -59,6 +68,7 @@ export async function processCrmOutbox(limit = 20): Promise<void> {
       if (row.source_type !== 'pilot') throw new Error(`Unsupported CRM source: ${row.source_type}`)
       if (row.event_type === 'pilot_paid') await advanceApolloPilotDeal(row.source_id, 'Paid Pilot')
       else if (row.event_type === 'customer_active') await advanceApolloPilotDeal(row.source_id, 'Customer')
+      else if (row.event_type === 'exception_review_requested') await createApolloExceptionReviewTask(row.source_id)
       else throw new Error(`Unsupported CRM event: ${row.event_type}`)
       await leadPool().query(
         `UPDATE crm_outbox SET status = 'complete', completed_at = now(), updated_at = now() WHERE id = $1`,

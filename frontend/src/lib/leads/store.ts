@@ -107,6 +107,12 @@ type MemoryOutboxRow = OutboxRow & {
   due_at: number
 }
 
+type MemoryEmailDelivery = {
+  status: 'sending' | 'sent'
+  claimToken?: string
+  claimExpiresAt?: number
+}
+
 const globalForLeads = globalThis as typeof globalThis & {
   portalsLeadPool?: Pool
   portalsLeadMemory?: {
@@ -116,6 +122,7 @@ const globalForLeads = globalThis as typeof globalThis & {
     pilots: Map<string, StoredPilot>
     submissionPilots: Map<string, string>
     outbox: Map<string, MemoryOutboxRow>
+    emailDeduplication: Map<string, MemoryEmailDelivery>
   }
 }
 
@@ -153,6 +160,7 @@ function memory() {
     pilots: new Map(),
     submissionPilots: new Map(),
     outbox: new Map(),
+    emailDeduplication: new Map(),
   }
   return globalForLeads.portalsLeadMemory
 }
@@ -269,7 +277,6 @@ function pilotFromRow(row: PilotRow): StoredPilot {
   const answers = decryptJson<Record<string, unknown>>(row.answers_ciphertext)
   const currentTerms: PilotMutableTerms = {
     startDate: row.resolved_start_date,
-    valueConfirmed: Boolean(row.proposal?.valueModel?.confirmed),
     criteria: row.success_criteria,
     answers: pilotDirectAnswersFrom(answers),
   }
@@ -342,7 +349,6 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     draft: createPilotDraft({
       terms: {
         startDate: null,
-        valueConfirmed: false,
         criteria: input.successCriteria,
         answers: pilotDirectAnswersFrom(input.answers),
       },
@@ -356,7 +362,6 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
         committedAt: now,
         terms: {
           startDate: null,
-          valueConfirmed: false,
           criteria: input.successCriteria,
           answers: pilotDirectAnswersFrom(input.answers),
         },
@@ -639,6 +644,121 @@ export async function enqueuePilotEmail(
     `INSERT INTO lead_outbox(submission_id, action_type, action_key)
      VALUES ($1,'pilot_email',$2) ON CONFLICT(action_key) DO NOTHING`,
     [submissionId, actionKey],
+  )
+}
+
+function pilotEmailDeduplicationKey(
+  pilotId: string,
+  recipientKey: string,
+  eventType: string,
+  eventKey: string,
+) {
+  return `${pilotId}:${recipientKey}:${eventType}:${eventKey}`
+}
+
+/**
+ * Atomically reserves delivery for an email event. A reservation expires so a
+ * crashed worker cannot suppress a durable outbox retry forever.
+ */
+export async function claimPilotEmailDeduplication(input: {
+  pilotId: string
+  recipientKey: string
+  eventType: string
+  eventKey: string
+}): Promise<string | null> {
+  const key = pilotEmailDeduplicationKey(
+    input.pilotId,
+    input.recipientKey,
+    input.eventType,
+    input.eventKey,
+  )
+  const claimToken = randomUUID()
+  if (leadsDryRun()) {
+    const existing = memory().emailDeduplication.get(key)
+    if (
+      existing?.status === 'sent' ||
+      (existing?.status === 'sending' && (existing.claimExpiresAt || 0) > Date.now())
+    ) {
+      return null
+    }
+    memory().emailDeduplication.set(key, {
+      status: 'sending',
+      claimToken,
+      claimExpiresAt: Date.now() + 5 * 60_000,
+    })
+    return claimToken
+  }
+  const result = await pool().query<{claim_token: string}>(
+    `INSERT INTO email_deduplication(
+       pilot_id, recipient_key, event_type, event_key, delivery_status, claim_token, claim_expires_at
+     ) VALUES ($1,$2,$3,$4,'sending',$5,now() + interval '5 minutes')
+     ON CONFLICT(pilot_id, recipient_key, event_type, event_key) DO UPDATE
+       SET delivery_status = 'sending',
+           claim_token = EXCLUDED.claim_token,
+           claim_expires_at = EXCLUDED.claim_expires_at
+       WHERE email_deduplication.delivery_status = 'sending'
+         AND email_deduplication.claim_expires_at <= now()
+     RETURNING claim_token`,
+    [input.pilotId, input.recipientKey, input.eventType, input.eventKey, claimToken],
+  )
+  return result.rows[0]?.claim_token || null
+}
+
+/** Completes the claim after the provider acknowledges delivery. */
+export async function completePilotEmailDeduplication(input: {
+  pilotId: string
+  recipientKey: string
+  eventType: string
+  eventKey: string
+  claimToken: string
+}): Promise<void> {
+  const key = pilotEmailDeduplicationKey(
+    input.pilotId,
+    input.recipientKey,
+    input.eventType,
+    input.eventKey,
+  )
+  if (leadsDryRun()) {
+    const existing = memory().emailDeduplication.get(key)
+    if (existing?.claimToken === input.claimToken) {
+      memory().emailDeduplication.set(key, {status: 'sent'})
+    }
+    return
+  }
+  await pool().query(
+    `UPDATE email_deduplication
+        SET delivery_status = 'sent', claim_token = NULL, claim_expires_at = NULL, sent_at = now()
+      WHERE pilot_id = $1 AND recipient_key = $2 AND event_type = $3 AND event_key = $4
+        AND delivery_status = 'sending' AND claim_token = $5`,
+    [input.pilotId, input.recipientKey, input.eventType, input.eventKey, input.claimToken],
+  )
+}
+
+/** Releases an unsuccessful claim so the outbox can retry the event. */
+export async function releasePilotEmailDeduplication(input: {
+  pilotId: string
+  recipientKey: string
+  eventType: string
+  eventKey: string
+  claimToken: string
+}): Promise<void> {
+  const key = pilotEmailDeduplicationKey(
+    input.pilotId,
+    input.recipientKey,
+    input.eventType,
+    input.eventKey,
+  )
+  if (leadsDryRun()) {
+    if (memory().emailDeduplication.get(key)?.claimToken === input.claimToken) {
+      memory().emailDeduplication.delete(key)
+    }
+    return
+  }
+  await pool().query(
+    `DELETE FROM email_deduplication
+      WHERE pilot_id = $1 AND recipient_key = $2 AND event_type = $3 AND event_key = $4
+        AND delivery_status = 'sending' AND claim_token = $5`,
+    [input.pilotId, input.recipientKey, input.eventType, input.eventKey, input.claimToken],
   )
 }
 

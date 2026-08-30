@@ -52,7 +52,6 @@ export function pilotDirectAnswersFrom(
 
 export type PilotRoomComparableTerms = {
   startDate: string | null
-  valueConfirmed: boolean
   criteria: SuccessCriterion[]
   answers: PilotDirectAnswers
 }
@@ -67,7 +66,6 @@ export function changedPilotTermPaths(
 ): string[] {
   const paths: string[] = []
   if ((base.startDate || null) !== (next.startDate || null)) paths.push('startDate')
-  if (Boolean(base.valueConfirmed) !== Boolean(next.valueConfirmed)) paths.push('valueConfirmed')
 
   for (const field of PILOT_DIRECT_ANSWER_FIELDS) {
     if ((base.answers?.[field] || '') !== (next.answers?.[field] || '')) {

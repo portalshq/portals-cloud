@@ -10,6 +10,13 @@ const MAGIC_LINK_MAX_AGE_SECONDS = 60 * 15
 export type ApplicationRole = 'owner' | 'admin' | 'member'
 export type PilotMemberRole = 'owner' | 'participant' | 'approver' | 'signer'
 
+const PILOT_MEMBER_ROLE_PRIVILEGE: Record<PilotMemberRole, number> = {
+  owner: 4,
+  signer: 3,
+  approver: 2,
+  participant: 1,
+}
+
 export type ApplicationUser = {
   id: string
   profileId?: string
@@ -67,8 +74,28 @@ function memberKey(customerAccountId: string, userId: string) {
   return `${customerAccountId}:${userId}`
 }
 
-function pilotMemberKey(pilotId: string, userId: string) {
-  return `${pilotId}:${userId}`
+function pilotMemberKey(pilotId: string, userId: string, role: PilotMemberRole) {
+  return `${pilotId}:${userId}:${role}`
+}
+
+function addMemoryPilotMembership(pilotId: string, userId: string, role: PilotMemberRole) {
+  memoryStore().pilotMemberships.set(pilotMemberKey(pilotId, userId, role), role)
+}
+
+function pilotMembershipFromMemoryKey(key: string): {pilotId: string; userId: string; role: PilotMemberRole} | null {
+  const [pilotId, userId, role] = key.split(':')
+  if (!pilotId || !userId || !role || !Object.hasOwn(PILOT_MEMBER_ROLE_PRIVILEGE, role)) return null
+  return {pilotId, userId, role: role as PilotMemberRole}
+}
+
+export function highestPilotMembershipRole(roles: Iterable<PilotMemberRole>): PilotMemberRole | null {
+  let highest: PilotMemberRole | null = null
+  for (const role of roles) {
+    if (!highest || PILOT_MEMBER_ROLE_PRIVILEGE[role] > PILOT_MEMBER_ROLE_PRIVILEGE[highest]) {
+      highest = role
+    }
+  }
+  return highest
 }
 
 function userFromRow(row: UserRow): ApplicationUser {
@@ -185,10 +212,10 @@ export async function ensurePilotCustomerAccount(input: {
       || {id: randomUUID(), name: accountName, domain}
     stored.customers.set(customer.id, customer)
     stored.memberships.set(memberKey(customer.id, user.id), 'owner')
-    stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), 'owner')
+    addMemoryPilotMembership(input.pilotId, user.id, 'owner')
     if (founder) {
       stored.memberships.set(memberKey(customer.id, founder.id), 'admin')
-      stored.pilotMemberships.set(pilotMemberKey(input.pilotId, founder.id), 'approver')
+      addMemoryPilotMembership(input.pilotId, founder.id, 'approver')
     }
     return {user, customer}
   }
@@ -236,8 +263,8 @@ export async function ensurePilotCustomerAccount(input: {
     await client.query(
       `INSERT INTO pilot_memberships(pilot_id, user_id, role)
        VALUES ($1,$2,'owner')
-       ON CONFLICT(pilot_id, user_id)
-       DO UPDATE SET role = 'owner', revoked_at = NULL`,
+       ON CONFLICT(pilot_id, user_id, role)
+       DO UPDATE SET revoked_at = NULL`,
       [input.pilotId, user.id],
     )
     if (founder) {
@@ -249,8 +276,8 @@ export async function ensurePilotCustomerAccount(input: {
       )
       await client.query(
         `INSERT INTO pilot_memberships(pilot_id, user_id, role)
-         VALUES ($1,$2,'approver') ON CONFLICT(pilot_id, user_id)
-         DO UPDATE SET role = 'approver', revoked_at = NULL`,
+         VALUES ($1,$2,'approver') ON CONFLICT(pilot_id, user_id, role)
+         DO UPDATE SET revoked_at = NULL`,
         [input.pilotId, founder.id],
       )
     }
@@ -457,22 +484,46 @@ export async function currentApplicationUser(sessionToken?: string): Promise<App
   return result.rows[0] ? getApplicationUserById(result.rows[0].user_id) : null
 }
 
-export async function pilotMembershipRole(pilotId: string, userId: string): Promise<PilotMemberRole | null> {
-  if (leadsDryRun()) return memoryStore().pilotMemberships.get(pilotMemberKey(pilotId, userId)) || null
+export async function pilotMembershipRoles(pilotId: string, userId: string): Promise<PilotMemberRole[]> {
+  if (leadsDryRun()) {
+    return [...memoryStore().pilotMemberships.entries()]
+      .map(([key, role]) => ({key: pilotMembershipFromMemoryKey(key), role}))
+      .filter((entry): entry is {key: {pilotId: string; userId: string; role: PilotMemberRole}; role: PilotMemberRole} =>
+        Boolean(entry.key && entry.key.pilotId === pilotId && entry.key.userId === userId),
+      )
+      .map((entry) => entry.role)
+  }
   const result = await leadPool().query<{role: PilotMemberRole}>(
     `SELECT role FROM pilot_memberships
       WHERE pilot_id = $1 AND user_id = $2 AND revoked_at IS NULL`,
     [pilotId, userId],
   )
-  return result.rows[0]?.role || null
+  return result.rows.map((row) => row.role)
+}
+
+/** Resolves the most privileged active role for callers that need one display/access role. */
+export async function pilotMembershipRole(pilotId: string, userId: string): Promise<PilotMemberRole | null> {
+  return highestPilotMembershipRole(await pilotMembershipRoles(pilotId, userId))
+}
+
+export async function hasPilotMembershipRole(
+  pilotId: string,
+  userId: string,
+  allowed: readonly PilotMemberRole[],
+): Promise<boolean> {
+  const roles = await pilotMembershipRoles(pilotId, userId)
+  return roles.some((role) => allowed.includes(role))
 }
 
 export async function activePilotMemberEmails(pilotId: string): Promise<string[]> {
   if (leadsDryRun()) {
-    const prefix = `${pilotId}:`
-    return [...memoryStore().pilotMemberships.keys()]
-      .filter((key) => key.startsWith(prefix))
-      .map((key) => key.slice(prefix.length))
+    const userIds = new Set(
+      [...memoryStore().pilotMemberships.keys()]
+        .map(pilotMembershipFromMemoryKey)
+        .filter((entry): entry is {pilotId: string; userId: string; role: PilotMemberRole} => entry?.pilotId === pilotId)
+        .map((entry) => entry.userId),
+    )
+    return [...userIds]
       .map((userId) => memoryStore().users.get(userId))
       .filter((user): user is ApplicationUser => Boolean(user && user.status === 'active'))
       .map((user) => user.email)
@@ -483,7 +534,8 @@ export async function activePilotMemberEmails(pilotId: string): Promise<string[]
        JOIN application_users users ON users.id = membership.user_id
       WHERE membership.pilot_id = $1
         AND membership.revoked_at IS NULL
-        AND users.status = 'active'`,
+        AND users.status = 'active'
+      GROUP BY users.id, users.identity_ciphertext`,
     [pilotId],
   )
   return result.rows
@@ -502,7 +554,7 @@ export async function invitePilotMember(input: {
     const customer = [...memoryStore().customers.values()][0]
     if (!customer) throw new Error('Pilot customer account is missing.')
     memoryStore().memberships.set(memberKey(customer.id, user.id), 'member')
-    memoryStore().pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), input.role)
+    addMemoryPilotMembership(input.pilotId, user.id, input.role)
     return {user, customerAccountId: customer.id}
   }
   const client = await leadPool().connect()
@@ -522,8 +574,8 @@ export async function invitePilotMember(input: {
     )
     await client.query(
       `INSERT INTO pilot_memberships(pilot_id, user_id, role)
-       VALUES ($1,$2,$3) ON CONFLICT(pilot_id, user_id)
-       DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
+       VALUES ($1,$2,$3) ON CONFLICT(pilot_id, user_id, role)
+       DO UPDATE SET revoked_at = NULL`,
       [input.pilotId, user.id, input.role],
     )
     await client.query(
@@ -541,6 +593,26 @@ export async function invitePilotMember(input: {
   }
 }
 
+/** Revokes one pilot-specific access role without changing the user's customer-account membership. */
+export async function revokePilotMember(input: {
+  pilotId: string
+  email: string
+  role: PilotMemberRole
+}): Promise<void> {
+  const user = await getApplicationUserByEmail(input.email)
+  if (!user) return
+  if (leadsDryRun()) {
+    memoryStore().pilotMemberships.delete(pilotMemberKey(input.pilotId, user.id, input.role))
+    return
+  }
+  await leadPool().query(
+    `UPDATE pilot_memberships
+        SET revoked_at = now()
+      WHERE pilot_id = $1 AND user_id = $2 AND role = $3 AND revoked_at IS NULL`,
+    [input.pilotId, user.id, input.role],
+  )
+}
+
 export async function ensurePilotRecipientAccess(input: {
   pilotId: string
   email: string
@@ -555,9 +627,14 @@ export async function ensurePilotRecipientAccess(input: {
   if (leadsDryRun()) {
     const customer = [...memoryStore().customers.values()][0]
     if (customer && input.customerRole) {
-      memoryStore().memberships.set(memberKey(customer.id, user.id), input.customerRole)
+      const key = memberKey(customer.id, user.id)
+      const currentRole = memoryStore().memberships.get(key)
+      memoryStore().memberships.set(
+        key,
+        currentRole === 'owner' || currentRole === 'admin' ? currentRole : input.customerRole,
+      )
     }
-    memoryStore().pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), input.pilotRole)
+    addMemoryPilotMembership(input.pilotId, user.id, input.pilotRole)
     return {user, customerAccountId: customer?.id}
   }
   const client = await leadPool().connect()
@@ -572,14 +649,19 @@ export async function ensurePilotRecipientAccess(input: {
       await client.query(
         `INSERT INTO customer_memberships(customer_account_id, user_id, role)
          VALUES ($1,$2,$3) ON CONFLICT(customer_account_id, user_id)
-         DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
+         DO UPDATE SET
+           role = CASE
+             WHEN customer_memberships.role IN ('owner', 'admin') THEN customer_memberships.role
+             ELSE EXCLUDED.role
+           END,
+           revoked_at = NULL`,
         [customerAccountId, user.id, input.customerRole],
       )
     }
     await client.query(
       `INSERT INTO pilot_memberships(pilot_id, user_id, role)
-       VALUES ($1,$2,$3) ON CONFLICT(pilot_id, user_id)
-       DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
+       VALUES ($1,$2,$3) ON CONFLICT(pilot_id, user_id, role)
+       DO UPDATE SET revoked_at = NULL`,
       [input.pilotId, user.id, input.pilotRole],
     )
     await client.query('COMMIT')

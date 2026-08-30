@@ -112,7 +112,27 @@ test('an explicit recipient on the queued action wins over the submission identi
 
   assert.equal(calls.length, 1)
   assert.equal(calls[0].to, 'reviewer@studio.example')
-  assert.equal(calls[0].key, `${pilot.id}-status-revised_ready-reviewer@studio.example`)
+  assert.equal(calls[0].key, `${pilot.id}-status-revised_ready-reviewer@studio.example-default`)
+})
+
+test('separate pilot revisions each deliver a stale-review notification', async (t) => {
+  const {pilot} = await createPilot(`revision-events-${crypto.randomUUID()}@studio.example`)
+  const calls = resendStub(t)
+
+  await enqueuePilotEmail(pilot.id, 'revised_ready', 'reviewer@studio.example', 'revision:2')
+  await enqueuePilotEmail(pilot.id, 'revised_ready', 'reviewer@studio.example', 'revision:3')
+  await processLeadOutbox(20)
+
+  assert.deepEqual(
+    calls
+      .filter((call) => call.to === 'reviewer@studio.example')
+      .map((call) => call.key)
+      .sort(),
+    [
+      `${pilot.id}-status-revised_ready-reviewer@studio.example-default-revision:2`,
+      `${pilot.id}-status-revised_ready-reviewer@studio.example-default-revision:3`,
+    ],
+  )
 })
 
 test('a failing pilot email backs off, retries, and dead-letters after six attempts', async (t) => {

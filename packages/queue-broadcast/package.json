@@ -1,0 +1,28 @@
+{
+  "name": "@portalshq/capability-queue-broadcast",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud"
+  },
+  "description": "Server-only client for isolated Queue Broadcast Server instances.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "prebuild": "npm run build --workspace @portalshq/capability-video-delivery",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "generate": "../../lib/api-spec/node_modules/.bin/orval --config ./orval.config.cjs",
+    "generate:check": "npm run generate && npm run typecheck"
+  },
+  "dependencies": {
+    "@portalshq/capability-video-delivery": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0"
+  }
+}
