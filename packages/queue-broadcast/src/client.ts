@@ -1,4 +1,5 @@
 import type { HlsPlaybackSession } from "@portalshq/capability-video-delivery";
+import type { ChatMessage } from "@portalshq/capability-realtime-fanout";
 
 import type {
   HealthResponse,
@@ -37,6 +38,16 @@ export interface WatchJobOptions {
   onUpdate?: (job: QueueBroadcastJob) => void | Promise<void>;
 }
 
+/** Text rendered by the streamer's FFmpeg `drawtext` filter. */
+export interface TextOverlayConfig {
+  text: string;
+  position?: "top" | "center" | "bottom";
+  fontSize?: number;
+  fontColor?: string;
+  /** Optional absolute path for deployments that do not have a default font. */
+  fontFile?: string;
+}
+
 export interface GenerationContext {
   /** Base64 encoded last frame from previous generation for visual continuity */
   previousFrame?: string;
@@ -44,6 +55,8 @@ export interface GenerationContext {
   previousPrompts: string[];
   /** Chat messages available for context (if chat integration enabled) */
   chatMessages?: ChatMessage[];
+  /** Optional text overlay to render in the RTMP stream. */
+  textOverlay?: TextOverlayConfig;
   /** Generation parameters for the current request */
   generationParams: Record<string, unknown>;
 }
@@ -53,22 +66,10 @@ export interface GeneratedFrames {
   frames: string[];
   /** Optional audio data in PCM format */
   audio?: ArrayBuffer;
+  /** Duration of the attached audio, used to time a text overlay. */
+  audioDurationSeconds?: number;
   /** Duration of the generated content in seconds */
   duration: number;
-}
-
-export interface ChatMessage {
-  messageId: string;
-  sessionId: string;
-  authorId: string;
-  authorDisplayName?: string;
-  text: string;
-  sentAt: string;
-  provenance: {
-    kind: "portals" | "external";
-    provider?: string;
-    providerMessageId?: string;
-  };
 }
 
 /**

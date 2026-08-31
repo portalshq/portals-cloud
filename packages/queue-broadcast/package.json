@@ -9,21 +9,26 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "prebuild": "npm run build --workspace @portalshq/capability-video-delivery",
+    "prebuild": "npm run build --workspace @portalshq/capability-video-delivery && npm run build --workspace @portalshq/capability-realtime-fanout",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test test/*.test.mjs",
+    "test": "npm run build && vitest run",
+    "test:coverage": "npm run build && vitest run --coverage",
     "generate": "../../lib/api-spec/node_modules/.bin/orval --config ./orval.config.cjs",
     "generate:check": "npm run generate && npm run typecheck"
   },
   "dependencies": {
-    "@portalshq/capability-video-delivery": "*",
-    "@portalshq/capability-realtime-fanout": "*"
+    "@portalshq/capability-realtime-fanout": "*",
+    "@portalshq/capability-video-delivery": "*"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^3.2.7",
     "typescript": "^5.5.0",
-    "@types/node": "^20.0.0"
+    "vitest": "^3.2.7"
   }
 }

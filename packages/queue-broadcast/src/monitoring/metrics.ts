@@ -23,6 +23,7 @@ export interface MetricSnapshot {
 export class MetricsRegistry {
   private collectors: Map<string, MetricsCollector> = new Map();
   private history: MetricSnapshot[] = [];
+  private latestMetrics: Record<string, MetricSnapshot> | null = null;
   private maxHistorySize: number;
 
   constructor(maxHistorySize: number = 300) {
@@ -89,6 +90,7 @@ export class MetricsRegistry {
       this.history.shift();
     }
 
+    this.latestMetrics = metrics;
     return metrics;
   }
 
@@ -99,7 +101,7 @@ export class MetricsRegistry {
     if (this.history.length === 0) {
       return null;
     }
-    return this.collectMetrics();
+    return this.latestMetrics;
   }
 
   /**
@@ -126,6 +128,7 @@ export class MetricsRegistry {
       }
     }
     this.history = [];
+    this.latestMetrics = null;
   }
 
   /**

@@ -6,6 +6,16 @@ game show, an audience-directed film's voting beat, and a social-remix
 channel's comment thread are all just different topics on the same bus,
 not three different real-time systems.
 
+`InMemoryFanoutBus` is the default implementation. It is process-local and
+intentionally has no Redis, NATS, or other broker dependency; messages are not
+shared between instances and are lost on restart. It is therefore appropriate
+for local development and single-instance deployments only.
+
+`ChatProviderRegistry` owns provider connect/disconnect lifecycle and forwards
+each normalized provider message to `chat:<sessionId>`. Applications can use
+`InMemoryChatProvider` locally, while Twitch, YouTube, and other connectors
+remain application-owned implementations of `ChatProvider`.
+
 ## External stream chat ingress
 
 `ExternalChatIngress` is the provider-neutral boundary for normalized chat

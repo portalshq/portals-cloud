@@ -1,25 +1,86 @@
-/**
- * The single real-time primitive chat, polls, and lobby controls are all
- * built on. Per the platform economics review: audience-member marginal
- * cost is dominated by fan-out volume, so this stays one mechanism instead
- * of three separately-scaled services.
- *
- * Backed by NATS JetStream in the reference deployment (see
- * infra/k8s/base/nats-jetstream.yaml) — chosen because it's lightweight,
- * self-hostable on Linode/LKE with no managed-service tax, and fits a
- * cloud-agnostic target better than AWS SNS/SQS would.
- */
+export type FanoutHandler = (message: unknown) => void | Promise<void>;
+
 export interface FanoutBus {
   publish(topic: string, message: unknown): Promise<void>;
-  subscribe(topic: string, handler: (message: unknown) => void): Promise<() => void>;
+  subscribe(topic: string, handler: FanoutHandler): Promise<() => void>;
 }
 
-export class NatsFanoutBus implements FanoutBus {
-  // TODO: wire to NATS JetStream client
+export interface InMemoryFanoutBusOptions {
+  /** Retain this many messages per topic for local diagnostics. Defaults to none. */
+  historySize?: number;
+  /** Receives subscriber exceptions without preventing other subscribers from receiving a message. */
+  onSubscriberError?: (error: unknown, topic: string) => void;
+}
+
+/**
+ * A process-local pub/sub bus for development and single-instance deployments.
+ * It deliberately provides no durability or cross-process delivery.
+ */
+export class InMemoryFanoutBus implements FanoutBus {
+  private readonly subscribers = new Map<string, Set<FanoutHandler>>();
+  private readonly history = new Map<string, unknown[]>();
+  private readonly historySize: number;
+  private readonly onSubscriberError?: (error: unknown, topic: string) => void;
+
+  constructor(options: InMemoryFanoutBusOptions = {}) {
+    this.historySize = options.historySize ?? 0;
+    if (!Number.isInteger(this.historySize) || this.historySize < 0) {
+      throw new TypeError("historySize must be a non-negative integer");
+    }
+    this.onSubscriberError = options.onSubscriberError;
+  }
+
   async publish(topic: string, message: unknown): Promise<void> {
-    throw new Error("NatsFanoutBus.publish: not yet wired to NATS");
+    assertTopic(topic);
+    this.remember(topic, message);
+    const handlers = [...(this.subscribers.get(topic) ?? [])];
+    for (const handler of handlers) {
+      try {
+        await handler(message);
+      } catch (error) {
+        this.onSubscriberError?.(error, topic);
+      }
+    }
   }
-  async subscribe(topic: string, handler: (message: unknown) => void): Promise<() => void> {
-    throw new Error("NatsFanoutBus.subscribe: not yet wired to NATS");
+
+  async subscribe(topic: string, handler: FanoutHandler): Promise<() => void> {
+    assertTopic(topic);
+    if (typeof handler !== "function") throw new TypeError("handler must be a function");
+
+    const handlers = this.subscribers.get(topic) ?? new Set<FanoutHandler>();
+    handlers.add(handler);
+    this.subscribers.set(topic, handlers);
+    let subscribed = true;
+    return () => {
+      if (!subscribed) return;
+      subscribed = false;
+      handlers.delete(handler);
+      if (handlers.size === 0) this.subscribers.delete(topic);
+    };
   }
+
+  getSubscriberCount(topic?: string): number {
+    if (topic) {
+      assertTopic(topic);
+      return this.subscribers.get(topic)?.size ?? 0;
+    }
+    return [...this.subscribers.values()].reduce((count, handlers) => count + handlers.size, 0);
+  }
+
+  getHistory(topic: string): readonly unknown[] {
+    assertTopic(topic);
+    return [...(this.history.get(topic) ?? [])];
+  }
+
+  private remember(topic: string, message: unknown): void {
+    if (this.historySize === 0) return;
+    const history = this.history.get(topic) ?? [];
+    history.push(message);
+    if (history.length > this.historySize) history.shift();
+    this.history.set(topic, history);
+  }
+}
+
+function assertTopic(topic: string): void {
+  if (!topic.trim()) throw new TypeError("topic is required");
 }

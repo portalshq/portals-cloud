@@ -4,49 +4,37 @@
  */
 
 export interface FrameBufferOptions {
-  maxsize?: number;
-  targetFps?: number;
+  maxSize?: number;
 }
 
-export class FrameBuffer {
-  private queue: ArrayBuffer[];
-  private maxSize: number;
-  private targetFps: number;
-  private framesDropped: number;
-  private framesAddedTotal: number;
+/** A bounded FIFO that retains the newest frames when a producer gets ahead. */
+export class FrameBuffer<T> {
+  private readonly queue: T[] = [];
+  private readonly maxSize: number;
+  private framesDropped = 0;
+  private framesAddedTotal = 0;
 
   constructor(options: FrameBufferOptions = {}) {
-    this.maxSize = options.maxsize ?? 1000; // ~9 seconds at 16fps
-    this.targetFps = options.targetFps ?? 24;
-    this.queue = [];
-    this.framesDropped = 0;
-    this.framesAddedTotal = 0;
-  }
-
-  /**
-   * Add a frame to the buffer. Drops oldest frame if buffer is full.
-   */
-  addFrame(frame: ArrayBuffer): boolean {
-    try {
-      this.queue.push(frame);
-      this.framesAddedTotal++;
-      return true;
-    } catch {
-      // Buffer full - drop oldest frame
-      if (this.queue.length > 0) {
-        this.queue.shift();
-        this.framesDropped++;
-      }
-      this.queue.push(frame);
-      this.framesAddedTotal++;
-      return false;
+    this.maxSize = options.maxSize ?? 1_000;
+    if (!Number.isInteger(this.maxSize) || this.maxSize < 1) {
+      throw new TypeError("maxSize must be a positive integer");
     }
   }
 
-  /**
-   * Add multiple frames efficiently
-   */
-  addFrameBatch(frames: ArrayBuffer[]): number {
+  /** Adds a frame and returns false when the oldest queued frame was dropped. */
+  addFrame(frame: T): boolean {
+    const droppedFrame = this.queue.length === this.maxSize;
+    if (droppedFrame) {
+      this.queue.shift();
+      this.framesDropped++;
+    }
+
+    this.queue.push(frame);
+    this.framesAddedTotal++;
+    return !droppedFrame;
+  }
+
+  addFrameBatch(frames: readonly T[]): number {
     let processedCount = 0;
     for (const frame of frames) {
       this.addFrame(frame);
@@ -55,26 +43,16 @@ export class FrameBuffer {
     return processedCount;
   }
 
-  /**
-   * Get the next frame for streaming
-   */
-  getNextFrame(): ArrayBuffer | null {
-    if (this.queue.length === 0) {
-      return null;
-    }
-    return this.queue.shift() || null;
+  getNextFrame(): T | null {
+    return this.queue.shift() ?? null;
   }
 
-  /**
-   * Get current buffer status
-   */
   getStatus() {
     return {
       queueSize: this.queue.length,
       maxSize: this.maxSize,
       framesDropped: this.framesDropped,
       framesAddedTotal: this.framesAddedTotal,
-      targetFps: this.targetFps,
       utilization: this.queue.length / this.maxSize,
     };
   }
@@ -83,9 +61,7 @@ export class FrameBuffer {
    * Clear the buffer
    */
   clear(): void {
-    this.queue = [];
-    this.framesDropped = 0;
-    this.framesAddedTotal = 0;
+    this.queue.length = 0;
   }
 
   /**

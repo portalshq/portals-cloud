@@ -63,3 +63,19 @@ npm run generate -w @portalshq/capability-queue-broadcast
 Commit generated changes with the matching Streamer OpenAPI artifact. The
 hand-written `QueueBroadcastClient` owns authentication, error mapping,
 endpoint validation, and polling semantics.
+
+## RTMP frame delivery
+
+`RTMPStreamer` accepts Base64-encoded JPEG frames (a `data:image/jpeg;base64,`
+prefix is also accepted) and pipes decoded JPEGs to FFmpeg. Set `ffmpegPath`
+when the executable is not available as `ffmpeg` on `PATH`. The streamer owns
+one RTMP destination, bounded buffering, process shutdown, and health status;
+the consuming application owns generation and starts a separate instance for
+each destination.
+
+`GenerationContext.textOverlay` configures FFmpeg's `drawtext` filter. Pass the
+same configuration to `RTMPStreamer` and set `audioDurationSeconds` from the
+generated audio: the overlay is visible for the audio duration plus 1.5 seconds
+at both the head and tail. With no audio it remains visible for five seconds.
+The deployment FFmpeg build must include the `drawtext` filter (libfreetype);
+set `fontFile` when it has no usable default font.

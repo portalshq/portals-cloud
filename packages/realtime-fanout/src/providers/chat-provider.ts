@@ -3,19 +3,7 @@
  * Supports multiple chat providers (Twitch, YouTube, etc.) with a unified interface.
  */
 
-export interface ChatMessage {
-  messageId: string;
-  sessionId: string;
-  authorId: string;
-  authorDisplayName?: string;
-  text: string;
-  sentAt: string;
-  provenance: {
-    kind: "portals" | "external";
-    provider?: string;
-    providerMessageId?: string;
-  };
-}
+import type { ChatMessage } from "../chat.js";
 
 export interface ChatProvider {
   /** Provider name (e.g., 'twitch', 'youtube', 'portals') */

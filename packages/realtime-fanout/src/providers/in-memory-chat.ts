@@ -3,7 +3,8 @@
  * Simulates chat functionality without external dependencies.
  */
 
-import { BaseChatProvider, ChatMessage, ChatProviderOptions } from "./chat-provider.js";
+import { BaseChatProvider, ChatProviderOptions } from "./chat-provider.js";
+import type { ChatMessage } from "../chat.js";
 
 export interface InMemoryChatOptions extends ChatProviderOptions {
   /** Simulated message delay in ms */
