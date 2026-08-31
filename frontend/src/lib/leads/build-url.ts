@@ -81,7 +81,7 @@ function validateBuildParams(params: BuildUrlParams): { valid: boolean; errors: 
   const result = buildUrlParamSchema.safeParse(params)
   
   if (!result.success) {
-    const errors = result.error?.errors?.map(err => 
+    const errors = result.error.issues.map(err =>
       `${err.path.join('.')}: ${err.message}`
     ) || ['Validation failed']
     return { valid: false, errors }

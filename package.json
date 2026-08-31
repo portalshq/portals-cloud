@@ -16,7 +16,7 @@
     "test": "turbo run test",
     "prepare": "test -d .git && husky || echo 'Skipping Husky (Not a local Git repo)'",
     "local-version-script": "npx changeset version",
-    "local-publish-script": "turbo build && npm publish --workspaces --if-needed --provenance"
+    "local-publish-script": "turbo run publish"
   },
   "devDependencies": {
     "husky": "^9.1.7",

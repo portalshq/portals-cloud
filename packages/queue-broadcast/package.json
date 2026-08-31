@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/portalshq/portals-cloud"
+    "url": "git+https://github.com/portalshq/portals-cloud.git"
   },
   "description": "Server-only client for isolated Queue Broadcast Server instances.",
   "type": "module",
@@ -13,17 +13,17 @@
     "dist"
   ],
   "scripts": {
-    "prebuild": "npm run build --workspace @portalshq/capability-video-delivery && npm run build --workspace @portalshq/capability-realtime-fanout",
-    "build": "tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "publish": "node ../../scripts/publish-workspace.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && vitest run",
-    "test:coverage": "npm run build && vitest run --coverage",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "generate": "../../lib/api-spec/node_modules/.bin/orval --config ./orval.config.cjs",
     "generate:check": "npm run generate && npm run typecheck"
   },
   "dependencies": {
-    "@portalshq/capability-realtime-fanout": "*",
-    "@portalshq/capability-video-delivery": "*"
+    "@portalshq/capability-realtime-fanout": "^0.1.2",
+    "@portalshq/capability-video-delivery": "^0.1.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
