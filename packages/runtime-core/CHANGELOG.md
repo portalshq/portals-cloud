@@ -1,5 +1,11 @@
 # @portalshq/runtime-core
 
+## 0.0.6
+
+### Patch Changes
+
+- Republish the committed runtime-core capability release.
+
 ## 0.0.5
 
 ### Patch Changes

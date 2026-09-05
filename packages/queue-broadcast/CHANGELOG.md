@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- Republish the committed queue-broadcast capability release.
+
 ## 0.1.5
 
 - Depend on the matching published realtime-fanout and video-delivery releases.
