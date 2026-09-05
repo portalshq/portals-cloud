@@ -68,6 +68,13 @@ keys, and retire the user before the identity revision is complete.
 | Neon PostgreSQL | TLS public endpoint; EIP allowlisted | Backend task | Application system of record |
 | RDS PostgreSQL/S3/DynamoDB | VPC/private AWS endpoint | Scoped roles/host SG | Auth/control metadata and Lore stores |
 
+### Presigned representation URLs
+
+Production presign is WIP. Before enabling it, supply a dedicated server-only
+HMAC key, expose the scoped HTTP routes through HTTPS, and prevent signed query
+tokens from reaching logs. Nap already derives the Cloud HTTP origin; clients
+must never receive the signing key.
+
 ## Architecture and the meaning of a network hop
 
 A **hop** is one leg of a request between two components. A Nap operation does

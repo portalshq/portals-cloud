@@ -28,6 +28,7 @@ issues log below is append-only._
 | Builds | Lore `v0.8.4-portals.8` (`47333fc`) **RELEASED** + image `72bc9186` promoted & deployed (`lore:8`, `c60b9ca368cf…` `HEALTHY`, `RUST_LOG=debug`); Nap `v0.5.15` released + promoted |
 | Next gates | Full E2E matrix **passed** (`create 0.8 s` `01a03a7…`, `clone 1.06 s` `43 B` file, `push 0.77 s` `e881f13…`), `verify-external-surface.sh` `443 open / 8083,41337,41339 closed` → §12 sign-off |
 | Blocker | **None** — `RepositoryGet` now `https://auth.portals.works:443` (`UrcAuthApi` → `:8084` via ALB) + `VIP:8087` (`RebacApi` via Service Connect) verified `<1 s`; SG tightened |
+| Presigned representation URLs | **WIP — NOT EXPOSED.** Lore HTTP `41339` remains host-local and is used for readiness only. No production HMAC key, HTTP/1 target group, ECS/SG registration, or public presign/redeem listener rules exist. Enable only as a separate reviewed and tested release gate. |
 
 ### 0.1 Public-host migration gates — not yet executed
 

@@ -23,7 +23,12 @@ if (!/\bE404\b|404 Not Found/.test(lookupError)) {
 }
 
 console.log(`${packageSpec} is unpublished; publishing.`);
-const publish = run(["publish", "--access", "public"]);
+// `npm publish` normally invokes this package's lifecycle `publish` script.
+// This helper *is* that script, so suppress lifecycle scripts to prevent a
+// recursive publish attempt that can burn a version without a retrievable tarball.
+const publishArgs = ["publish", "--access", "public", "--ignore-scripts"];
+if (process.env.npm_config_otp) publishArgs.push("--otp", process.env.npm_config_otp);
+const publish = run(publishArgs);
 if (publish.status !== 0) process.exit(publish.status ?? 1);
 
 function run(args, { captureOutput = false } = {}) {

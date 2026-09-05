@@ -69,9 +69,12 @@ export interface RealtimeEngineOptions {
 
 export class RealtimeEngine {
   private viewers = new Map<string, Set<string>>();
-  private timers = new Map<string, ReturnType<typeof setInterval>>();
+  private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private recheckTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private recheckRequiresViewer = new Map<string, boolean>();
   private activating = new Set<string>();
+  private activationEpoch = new Map<string, number>();
+  private deactivating = new Map<string, Promise<void>>();
   private readonly tickIntervalMs: number;
   private readonly logger: Pick<Console, "error" | "warn">;
 
@@ -82,6 +85,8 @@ export class RealtimeEngine {
 
   /** Call when a viewer (WS connection) subscribes to a channel. */
   async addViewer(channelId: string, connectionId: string): Promise<void> {
+    assertIdentifier("channelId", channelId);
+    assertIdentifier("connectionId", connectionId);
     let set = this.viewers.get(channelId);
     if (!set) {
       set = new Set();
@@ -89,11 +94,13 @@ export class RealtimeEngine {
     }
     set.add(connectionId);
 
-    // Already ticking, or already in the middle of an activation check
-    // triggered by a different viewer arriving in the same instant.
-    if (this.timers.has(channelId) || this.activating.has(channelId)) return;
+    if (
+      this.timers.has(channelId)
+      || this.recheckTimers.has(channelId)
+      || this.activating.has(channelId)
+    ) return;
 
-    await this.activateChannel(channelId);
+    await this.activateChannel(channelId, true);
   }
 
   /** Call when a viewer (WS connection) disconnects / unsubscribes. */
@@ -105,18 +112,23 @@ export class RealtimeEngine {
 
     this.viewers.delete(channelId);
 
-    // Deliberately NOT stopping an in-progress session's timer here.
-    // See module doc: once live, a session runs on schedule regardless
-    // of viewer presence. But if we were only *waiting* for a future
-    // scheduled start (a pending recheck, no timer yet), there's no
-    // reason to keep that pending wake-up alive for an empty room.
-    if (!this.timers.has(channelId)) {
+    if (!this.timers.has(channelId) && this.recheckRequiresViewer.get(channelId)) {
       const pending = this.recheckTimers.get(channelId);
-      if (pending) {
-        clearTimeout(pending);
-        this.recheckTimers.delete(channelId);
-      }
+      if (pending) clearTimeout(pending);
+      this.recheckTimers.delete(channelId);
+      this.recheckRequiresViewer.delete(channelId);
     }
+  }
+
+  /** Activate a channel without requiring a connected viewer. */
+  async ensureActive(channelId: string): Promise<void> {
+    assertIdentifier("channelId", channelId);
+    if (
+      this.timers.has(channelId)
+      || this.recheckTimers.has(channelId)
+      || this.activating.has(channelId)
+    ) return;
+    await this.activateChannel(channelId, false);
   }
 
   viewerCount(channelId: string): number {
@@ -132,23 +144,63 @@ export class RealtimeEngine {
     return [...this.timers.keys()];
   }
 
-  /** For graceful shutdown / tests. */
-  stopAll(): void {
-    for (const timer of this.timers.values()) clearInterval(timer);
-    for (const timer of this.recheckTimers.values()) clearTimeout(timer);
-    this.timers.clear();
-    this.recheckTimers.clear();
+  /** Stop one channel and wait for its deactivation callback. */
+  async stop(channelId: string): Promise<void> {
+    assertIdentifier("channelId", channelId);
+    this.activationEpoch.set(channelId, (this.activationEpoch.get(channelId) ?? 0) + 1);
+
+    const timer = this.timers.get(channelId);
+    if (timer) clearTimeout(timer);
+    this.timers.delete(channelId);
+
+    const recheck = this.recheckTimers.get(channelId);
+    if (recheck) clearTimeout(recheck);
+    this.recheckTimers.delete(channelId);
+    this.recheckRequiresViewer.delete(channelId);
+
+    const existing = this.deactivating.get(channelId);
+    if (existing) return existing;
+    if (!timer && !recheck) return;
+
+    const deactivation = Promise.resolve(this.opts.onDeactivate?.(channelId))
+      .catch((err) => {
+        this.logger.error(`[realtime-engine] onDeactivate failed for ${channelId}`, err);
+      })
+      .finally(() => {
+        this.deactivating.delete(channelId);
+      });
+    this.deactivating.set(channelId, deactivation);
+    return deactivation;
   }
 
-  private async activateChannel(channelId: string): Promise<void> {
+  /** Backward-compatible fire-and-forget shutdown. */
+  stopAll(): void {
+    for (const channelId of this.activeChannelIds()) void this.stop(channelId);
+  }
+
+  /** Stop every channel and await all deactivation callbacks. */
+  async shutdown(): Promise<void> {
+    await Promise.all([...this.activeChannelIds()].map((channelId) => this.stop(channelId)));
+    await Promise.all(this.deactivating.values());
+  }
+
+  private activeChannelIds(): Set<string> {
+    return new Set([
+      ...this.timers.keys(),
+      ...this.recheckTimers.keys(),
+      ...this.activating,
+    ]);
+  }
+
+  private async activateChannel(channelId: string, requireViewer: boolean): Promise<void> {
+    if (this.activating.has(channelId) || this.timers.has(channelId)) return;
+    const epoch = this.activationEpoch.get(channelId) ?? 0;
     this.activating.add(channelId);
     try {
       const result = await this.opts.onActivate(channelId);
 
-      // A viewer may have disconnected while the (async) check was in
-      // flight. If the channel is now empty, don't bother starting a
-      // timer or scheduling a recheck for an empty room.
-      if (this.viewerCount(channelId) === 0) return;
+      if ((this.activationEpoch.get(channelId) ?? 0) !== epoch) return;
+      if (requireViewer && this.viewerCount(channelId) === 0) return;
 
       if (result === true) {
         this.startTimer(channelId);
@@ -156,10 +208,8 @@ export class RealtimeEngine {
       }
 
       if (result && typeof result === "object") {
-        this.scheduleRecheck(channelId, result.scheduleRecheckAt);
+        this.scheduleRecheck(channelId, result.scheduleRecheckAt, requireViewer);
       }
-      // result === false: nothing scheduled at all; stay dormant. The
-      // next new viewer connecting later will trigger another check.
     } catch (err) {
       this.logger.error(`[realtime-engine] onActivate failed for ${channelId}`, err);
     } finally {
@@ -167,43 +217,45 @@ export class RealtimeEngine {
     }
   }
 
-  private scheduleRecheck(channelId: string, at: number): void {
+  private scheduleRecheck(channelId: string, at: number, requireViewer: boolean): void {
     const existing = this.recheckTimers.get(channelId);
     if (existing) clearTimeout(existing);
 
     const delay = Math.max(0, at - Date.now());
     const timer = setTimeout(() => {
       this.recheckTimers.delete(channelId);
-      if (this.viewerCount(channelId) > 0 && !this.timers.has(channelId)) {
-        void this.activateChannel(channelId);
+      this.recheckRequiresViewer.delete(channelId);
+      if ((!requireViewer || this.viewerCount(channelId) > 0) && !this.timers.has(channelId)) {
+        void this.activateChannel(channelId, requireViewer);
       }
     }, delay);
     this.recheckTimers.set(channelId, timer);
+    this.recheckRequiresViewer.set(channelId, requireViewer);
   }
 
   private startTimer(channelId: string): void {
     if (this.timers.has(channelId)) return;
-    const timer = setInterval(() => {
-      this.opts
-        .onTick(channelId)
-        .then((result) => {
-          if (!result.continue) this.stopChannel(channelId);
-        })
-        .catch((err) => {
-          this.logger.error(`[realtime-engine] tick failed for ${channelId}`, err);
-        });
+    this.scheduleTick(channelId);
+  }
+
+  private scheduleTick(channelId: string): void {
+    const timer = setTimeout(async () => {
+      if (this.timers.get(channelId) !== timer) return;
+      try {
+        const result = await this.opts.onTick(channelId);
+        if (!result.continue) {
+          await this.stop(channelId);
+          return;
+        }
+      } catch (err) {
+        this.logger.error(`[realtime-engine] tick failed for ${channelId}`, err);
+      }
+      if (this.timers.get(channelId) === timer) this.scheduleTick(channelId);
     }, this.tickIntervalMs);
     this.timers.set(channelId, timer);
   }
+}
 
-  private stopChannel(channelId: string): void {
-    const timer = this.timers.get(channelId);
-    if (timer) {
-      clearInterval(timer);
-      this.timers.delete(channelId);
-    }
-    this.opts.onDeactivate?.(channelId).catch((err) => {
-      this.logger.error(`[realtime-engine] onDeactivate failed for ${channelId}`, err);
-    });
-  }
+function assertIdentifier(name: string, value: string): void {
+  if (!value.trim()) throw new TypeError(`${name} is required`);
 }

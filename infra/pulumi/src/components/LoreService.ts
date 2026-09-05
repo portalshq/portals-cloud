@@ -112,6 +112,7 @@ export class LoreService extends pulumi.ComponentResource {
     }, { parent: this });
 
     // ── ECS Task Definition ──────────────────────────────────────────────
+    // TODO(PORTALS-CLOUD-PRESIGN): Production is WIP; inject a dedicated server-only HMAC key.
     const executionRoleArn = args.taskExecutionRoleArn;
 
     this.taskDefinition = new aws.ecs.TaskDefinition(`${resourcePrefix}-lore-host-task`, {

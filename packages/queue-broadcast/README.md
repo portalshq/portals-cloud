@@ -18,13 +18,23 @@ const broadcast = new QueueBroadcastClient({
   token: process.env.STREAMER_API_TOKEN!,   // backend secret only
 });
 
-const job = await broadcast.enqueueUrl({
-  mediaType: "video",
-  url: finishedVideoUrl,
-  idempotencyKey: generationRunId,
+const slotKey = `${generationRunId}:turn:1`;
+const image = await broadcast.stageUpload({
+  mediaType: "image",
+  asset: { data: finishedImageBlob, filename: "scene.jpg", sha256: imageSha256 },
+  imageDuration: 18,
+  idempotencyKey: `${slotKey}:image`,
+  slotKey,
 });
+await broadcast.stageUpload({
+  mediaType: "audio",
+  asset: { data: finishedAudioBlob, filename: "narration.wav", sha256: audioSha256 },
+  idempotencyKey: `${slotKey}:audio`,
+  slotKey,
+});
+await broadcast.releaseSlot(slotKey);
 
-for await (const update of broadcast.watchJob(job.id)) {
+for await (const update of broadcast.watchJob(image.id)) {
   if (update.status === "failed") throw new Error(update.error ?? "queue job failed");
 }
 
@@ -32,19 +42,59 @@ for await (const update of broadcast.watchJob(job.id)) {
 const playback = await broadcast.getPlayback();
 ```
 
-`enqueueUrl` accepts completed `video`, `image`, or `audio` URLs. Image duration
-is optional and only valid for images. The server stores an idempotency key and
-request fingerprint, so repeating an identical request returns the original job;
-reusing a key for different media returns a typed `QueueBroadcastError` with
-status `409`.
+`enqueueUpload` is the preferred distributed ingestion path. A trusted backend
+sends each completed `image`, `audio`, or `video` asset over authenticated
+multipart HTTP to its separately running Queue Broadcast Server. The server
+owns the bytes after receipt, checks the supplied SHA-256, and plays eligible
+items in FIFO order. Standalone audio is valid for capability consumers; an
+application may choose to discard it by policy.
+
+For a multi-asset generation turn or scheduled pre-roll, call `stageUpload` for
+each successful asset with the same `slotKey`, then call `releaseSlot(slotKey)`.
+Release is idempotent and atomically makes all staged items FIFO-eligible, so a
+partially generated turn cannot air early. Adjacent image/audio items can then
+be composited by the Streamer; image-only and video items play independently.
+The `QueueUploadAsset` SHA-256 field lets the server verify bytes without an
+extra producer-side copy. Identical idempotency retries return the original job
+receipt; conflicting reuse maps to `QueueBroadcastError` status `409`.
+
+`enqueuePairUpload` and `stagePair` remain supported for legacy producers, but
+new applications should use individual uploads and slots.
+
+`enqueueUrl` remains for backwards-compatible server-to-server URL ingestion.
+It is not the recommended path for applications that already have the finished
+media bytes.
+
+## Availability preflight
+
+Run this immediately before costly generation, archive recovery, or a direct
+upload. `health` confirms that the Streamer's media service is ready;
+`getPlayback` is authenticated and therefore also detects a bad control URL or
+queue bearer token. Both accept an `AbortSignal`, so an operator stop or process
+shutdown can cancel a pending availability check promptly.
+
+```ts
+const controller = new AbortController();
+const health = await broadcast.health({ signal: controller.signal });
+if (!health.ok) throw new Error("Streamer media service is unavailable");
+
+const playback = await broadcast.getPlayback({ signal: controller.signal });
+// Generate or upload only after both probes have succeeded.
+```
+
+Do not treat a queue-capacity response from a later upload as a preflight
+failure: it means the service is reachable but has applied normal backpressure.
 
 ## `massively-social-ebook` example
 
-Its generation worker should own a per-channel `STREAMER_ENDPOINT` and secret.
-After generating a chapter asset, it calls `enqueueUrl` with the generation run
-ID as the idempotency key. The chapter page obtains `getPlayback()` from its
-backend and gives the resulting HLS manifest to its existing HLS-capable player.
-The page never calls queue endpoints or receives the bearer token.
+Its generation worker owns a per-channel `STREAMER_ENDPOINT` and secret. It
+generates image and narration independently in memory, computes SHA-256,
+archives canonical media independently, then stages the successful image and
+optional narration under one slot before releasing it. If narration fails, it
+releases the image alone; if the image fails, it discards lone narration. The chapter page obtains
+`getPlayback()` from its backend and gives the resulting HLS manifest to its
+existing HLS-capable player. The page never calls queue endpoints or receives
+the bearer token.
 
 For chat from another broadcast platform, pass normalized provider events to
 `ExternalChatIngress` in `@portalshq/capability-realtime-fanout` with the same

@@ -34,6 +34,20 @@ describe("InMemoryFanoutBus", () => {
     await expect(bus.publish("", {})).rejects.toThrow("topic");
     await expect(bus.subscribe(" ", () => {})).rejects.toThrow("topic");
   });
+
+  it("does not make fast subscribers wait for a slow subscriber", async () => {
+    const bus = new InMemoryFanoutBus();
+    let releaseSlow!: () => void;
+    const slow = new Promise<void>((resolve) => { releaseSlow = resolve; });
+    const received = vi.fn();
+    await bus.subscribe("chat:one", () => slow);
+    await bus.subscribe("chat:one", received);
+
+    const publishing = bus.publish("chat:one", { text: "hello" });
+    await vi.waitFor(() => expect(received).toHaveBeenCalledOnce());
+    releaseSlow();
+    await publishing;
+  });
 });
 
 describe("ChatProviderRegistry", () => {
@@ -47,7 +61,10 @@ describe("ChatProviderRegistry", () => {
 
     await registry.register(provider, "local-session-a");
     await provider.sendMessage("hello");
-    await vi.waitFor(() => expect(received).toHaveLength(1));
+    await vi.waitFor(() => {
+      expect(received).toHaveLength(1);
+      expect(metrics.getSnapshot().messagesReceived).toBe(1);
+    });
 
     expect(registry.getHealth()).toEqual([{
       providerId: "local-session-a", providerName: "in-memory", isConnected: true,

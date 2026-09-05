@@ -354,6 +354,56 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           </h2>
           <p className="max-w-[38em] t-p-sans">{result.message}</p>
         </div>
+        <div className="max-w-[720px] space-y-16">
+          {/* {result.nextAction === 'pilot_scope' && (
+              <p className="t-p-sans">
+                Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
+              </p>
+          )} */}
+          <div className="flex items-center gap-16">
+            {result.downloadUrl ? (
+              <CTAButton appearance="plain" className="hover:underline" href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
+                <ArrowDownToLine aria-hidden="true" size={18} />
+                Download my evaluation
+              </CTAButton>
+            ) : null}
+            {result.nextAction === 'pilot_scope' ? (
+                <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
+                  Build my custom pilot plan
+                  <ArrowRight aria-hidden="true" size={18} />
+                </CTAButton>
+            ) : (
+              <>
+                <CTAButton
+                  href={`/workflow/ai-production-workflow-risks#${workflow}`}
+                  analyticsLabel="Explore the Relevant Workflow"
+                  analyticsUseCase={workflow}
+                  onClick={() => void trackEvent('education_use_case_clicked', { workflow })}
+                >
+                  Explore use cases
+                  <ArrowRight aria-hidden="true" size={18} />
+                </CTAButton>
+                <div className="border-l border-white/50 pl-20">
+                  <p className="t-p-lg-serif">
+                    Think your workflow could benefit from production memory? You’re invited to build a customized pilot plan for your workflow.
+                  </p>
+                  {/* <p className="mt-8 t-p-sans">
+                    Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
+                  </p> */}
+                  <CTAButton
+                    href="/paid-pilot?from=assessment-override#scope"
+                    analyticsLabel="Build a Customized Pilot Plan"
+                    onClick={() => void trackEvent('assessment_override_started', { workflow })}
+                    className="mt-14"
+                  >
+                    Build a custom pilot plan
+                    <ArrowRight aria-hidden="true" size={18} />
+                  </CTAButton>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
         {typeof result.workflowRiskScore === 'number' ? (
           <div className="space-y-20">
             <p className="t-p-lg-serif text-white">
@@ -371,56 +421,6 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         {result.missingFields?.length ? <p className="max-w-[680px] t-p-sans">
           Still needed: {result.missingFields.map((field) => field.replaceAll(/([A-Z])/g, ' $1').toLowerCase()).join(', ')}.
         </p> : null}
-        <div className="max-w-[720px] space-y-16">
-          {result.nextAction === 'pilot_scope' && (
-              <p className="t-p-sans">
-                Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
-              </p>
-          )}
-          <div className="flex items-center gap-16">
-            {result.nextAction === 'pilot_scope' ? (
-                <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
-                  Build my customized pilot plan
-                  <ArrowRight aria-hidden="true" size={18} />
-                </CTAButton>
-            ) : (
-              <div>
-                <CTAButton
-                  href={`/workflow/ai-production-workflow-risks#${workflow}`}
-                  analyticsLabel="Explore the Relevant Workflow"
-                  analyticsUseCase={workflow}
-                  onClick={() => void trackEvent('education_use_case_clicked', { workflow })}
-                >
-                  explore the relevant production use case
-                  <ArrowRight aria-hidden="true" size={18} />
-                </CTAButton>
-                <div className="border-l border-white/50 pl-20">
-                  <p className="t-p-lg-serif">
-                    Think your workflow could benefit from a production repository and memory system? You’re invited to build a free customized pilot plan.
-                  </p>
-                  {/* <p className="mt-8 t-p-sans">
-                    Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
-                  </p> */}
-                  <CTAButton
-                    href="/paid-pilot?from=assessment-override#scope"
-                    analyticsLabel="Build a Customized Pilot Plan"
-                    onClick={() => void trackEvent('assessment_override_started', { workflow })}
-                    className="mt-14"
-                  >
-                    Build a customized pilot plan
-                    <ArrowRight aria-hidden="true" size={18} />
-                  </CTAButton>
-                </div>
-              </div>
-            )}
-            {result.downloadUrl ? (
-              <CTAButton href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
-                <ArrowDownToLine aria-hidden="true" size={18} />
-                Download my evaluation
-              </CTAButton>
-            ) : null}
-          </div>
-        </div>
       </div>
     )
   }

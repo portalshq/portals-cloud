@@ -1,8 +1,28 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { Chat, ExternalChatIngress } from "../src/index.js";
 
 describe("ExternalChatIngress", () => {
+  it("can normalize without publishing so callers may persist first", () => {
+    const publish = vi.fn();
+    const ingress = new ExternalChatIngress(new Chat({
+      publish,
+      async subscribe() { return () => {}; },
+    }));
+
+    const message = ingress.normalize({
+      streamEndpoint: "https://stream.example/live",
+      provider: "twitch",
+      providerMessageId: "msg-1",
+      authorId: "user-1",
+      authorDisplayName: "Viewer",
+      text: "hello",
+      sentAt: "2026-08-31T12:00:00.000Z",
+    });
+
+    expect(message.messageId).toBe("external:twitch:msg-1");
+    expect(publish).not.toHaveBeenCalled();
+  });
   it("uses a stable provider id, namespaced author, and endpoint topic", async () => {
     const published: unknown[] = [];
     const bus = {

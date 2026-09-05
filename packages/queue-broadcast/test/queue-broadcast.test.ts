@@ -16,8 +16,23 @@ import {
 } from "../src/index.js";
 
 const queuedJob = {
-  id: "job-1", prompt: "", media_type: "video", duration: null,
+  id: "job-1", prompt: "", media_type: "video", duration: null, pair_id: null,
   source_url: "https://assets.example/video.mp4", status: "queued", error: null, created_at: 1, updated_at: 1,
+};
+
+const queuedPair = {
+  pair_id: "pair-1",
+  image: { ...queuedJob, id: "image-1", media_type: "image", duration: 5, source_url: null, pair_id: "pair-1", status: "staged" },
+  audio: { ...queuedJob, id: "audio-1", media_type: "audio", source_url: null, pair_id: "pair-1", status: "staged" },
+};
+
+const stagedSlot = {
+  slot_key: "channel:main:turn:1",
+  released: false,
+  jobs: [
+    { ...queuedJob, id: "image-1", media_type: "image", duration: 5, slot_key: "channel:main:turn:1", status: "staged" },
+    { ...queuedJob, id: "audio-1", media_type: "audio", slot_key: "channel:main:turn:1", status: "staged" },
+  ],
 };
 
 function jsonResponse(value: unknown, status = 200): Response {
@@ -66,7 +81,133 @@ describe("QueueBroadcastClient", () => {
         : jsonResponse({ hls: "https://cdn.example/live/index.m3u8", destination_count: 0, format: {} })),
     });
     await expect(client.getJob("missing")).rejects.toMatchObject({ name: "QueueBroadcastError", status: 404 } satisfies Partial<QueueBroadcastError>);
-    await expect(client.getPlayback()).resolves.toEqual({ sessionId: "https://stream.example/control", playbackManifestUrl: "https://cdn.example/live/index.m3u8" });
+    await expect(client.getPlayback({
+      captionTracks: [{ id: "en", label: "English", language: "en", src: "https://captions.example/live-en.vtt" }],
+    })).resolves.toEqual({
+      sessionId: "https://stream.example/control",
+      playbackManifestUrl: "https://cdn.example/live/index.m3u8",
+      captionTracks: [{ id: "en", label: "English", language: "en", src: "https://captions.example/live-en.vtt", kind: "captions" }],
+    });
+  });
+
+  it("passes cancellation through health and playback probes", async () => {
+    const requestFetch = vi.fn().mockImplementation(async (url: string) => url.endsWith("/health")
+      ? jsonResponse({ ok: true })
+      : jsonResponse({ hls: "https://cdn.example/live/index.m3u8", destination_count: 0, format: {} }));
+    const client = new QueueBroadcastClient({ endpoint: "https://stream.example", token: "server-secret", fetch: requestFetch });
+    const controller = new AbortController();
+
+    await expect(client.health({ signal: controller.signal })).resolves.toEqual({ ok: true });
+    await expect(client.getPlayback({ signal: controller.signal })).resolves.toMatchObject({
+      playbackManifestUrl: "https://cdn.example/live/index.m3u8",
+    });
+    expect(requestFetch.mock.calls).toHaveLength(2);
+    expect(requestFetch.mock.calls[0][1].signal).toBe(controller.signal);
+    expect(requestFetch.mock.calls[1][1].signal).toBe(controller.signal);
+  });
+
+  it("directly uploads an atomic pair as authenticated multipart data and releases a staged pair", async () => {
+    const uploadFetch = vi.fn().mockResolvedValueOnce(jsonResponse(queuedPair));
+    const requestFetch = vi.fn().mockResolvedValueOnce(jsonResponse({
+        ...queuedPair,
+        image: { ...queuedPair.image, status: "queued" },
+        audio: { ...queuedPair.audio, status: "queued" },
+      }));
+    const client = new QueueBroadcastClient({
+      endpoint: "https://stream.example",
+      token: "server-secret",
+      fetch: requestFetch,
+      uploadFetch,
+    });
+    const digest = "a".repeat(64);
+    await expect(client.stagePair({
+      image: { data: new Blob(["image"], { type: "image/jpeg" }), filename: "scene.jpg", sha256: digest },
+      audio: { data: new Blob(["audio"], { type: "audio/wav" }), filename: "narration.wav", sha256: digest },
+      imageDuration: 5,
+      idempotencyKey: "channel:one:block:1:segment:0",
+    })).resolves.toMatchObject({ pair_id: "pair-1", image: { status: "staged" } });
+
+    const [uploadUrl, uploadInit] = uploadFetch.mock.calls[0] as [string, RequestInit];
+    expect(uploadUrl).toBe("https://stream.example/v1/queue/pairs/upload");
+    expect(new Headers(uploadInit.headers).get("authorization")).toBe("Bearer server-secret");
+    expect(new Headers(uploadInit.headers).get("idempotency-key")).toBe("channel:one:block:1:segment:0");
+    expect(new Headers(uploadInit.headers).get("content-type")).toBeNull();
+    const form = uploadInit.body as FormData;
+    expect(form.get("staged")).toBe("true");
+    expect(form.get("image_duration")).toBe("5");
+    expect(form.get("image_sha256")).toBe(digest);
+
+    await expect(client.releasePair("pair-1")).resolves.toMatchObject({ image: { status: "queued" } });
+    expect(requestFetch.mock.calls[0][0]).toBe("https://stream.example/v1/queue/pairs/pair-1/release");
+  });
+
+  it("uploads independent staged items with checksums and atomically releases their slot", async () => {
+    const uploadFetch = vi.fn().mockResolvedValue(jsonResponse(stagedSlot.jobs[0]));
+    const requestFetch = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(stagedSlot))
+      .mockResolvedValueOnce(jsonResponse({ ...stagedSlot, released: true, jobs: stagedSlot.jobs.map((job) => ({ ...job, status: "queued" })) }));
+    const client = new QueueBroadcastClient({
+      endpoint: "https://stream.example",
+      token: "server-secret",
+      fetch: requestFetch,
+      uploadFetch,
+    });
+    const digest = "a".repeat(64);
+    await expect(client.stageUpload({
+      mediaType: "image",
+      asset: { data: new Blob(["image"], { type: "image/jpeg" }), filename: "scene.jpg", sha256: digest },
+      imageDuration: 5,
+      idempotencyKey: "channel:main:turn:1:image",
+      slotKey: "channel:main:turn:1",
+    })).resolves.toMatchObject({ id: "image-1", status: "staged" });
+
+    const [uploadUrl, uploadInit] = uploadFetch.mock.calls[0] as [string, RequestInit];
+    expect(uploadUrl).toBe("https://stream.example/v1/queue/upload");
+    expect(new Headers(uploadInit.headers).get("authorization")).toBe("Bearer server-secret");
+    expect(new Headers(uploadInit.headers).get("idempotency-key")).toBe("channel:main:turn:1:image");
+    const form = uploadInit.body as FormData;
+    expect(form.get("media_type")).toBe("image");
+    expect(form.get("duration")).toBe("5");
+    expect(form.get("sha256")).toBe(digest);
+    expect(form.get("staged")).toBe("true");
+    expect(form.get("slot_key")).toBe("channel:main:turn:1");
+
+    await expect(client.getSlot("channel:main:turn:1")).resolves.toMatchObject({ released: false });
+    await expect(client.releaseSlot("channel:main:turn:1")).resolves.toMatchObject({
+      released: true,
+      jobs: expect.arrayContaining([expect.objectContaining({ status: "queued" })]),
+    });
+    expect(requestFetch.mock.calls[0][0]).toBe("https://stream.example/v1/queue/slots/channel%3Amain%3Aturn%3A1");
+    expect(requestFetch.mock.calls[1][0]).toBe("https://stream.example/v1/queue/slots/channel%3Amain%3Aturn%3A1/release");
+  });
+
+  it("accepts standalone audio while rejecting malformed slot requests before upload", async () => {
+    const uploadFetch = vi.fn().mockResolvedValue(jsonResponse({ ...queuedJob, media_type: "audio" }));
+    const client = new QueueBroadcastClient({ endpoint: "https://stream.example", token: "server-secret", uploadFetch });
+    await expect(client.enqueueUpload({
+      mediaType: "audio",
+      asset: { data: new Blob(["audio"]), filename: "voice.wav", sha256: "a".repeat(64) },
+      idempotencyKey: "audio:1",
+    })).resolves.toMatchObject({ media_type: "audio" });
+    await expect(client.enqueueUpload({
+      mediaType: "audio",
+      asset: { data: new Blob(["audio"]), filename: "voice.wav", sha256: "a".repeat(64) },
+      idempotencyKey: "audio:2",
+      slotKey: "turn:1",
+    })).rejects.toThrow("slotKey is only valid");
+    expect(uploadFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects malformed direct-upload assets before sending a request", async () => {
+    const requestFetch = vi.fn();
+    const client = new QueueBroadcastClient({ endpoint: "https://stream.example", token: "server-secret", fetch: requestFetch });
+    await expect(client.enqueuePairUpload({
+      image: { data: new Blob(["image"]), filename: "image.jpg", sha256: "bad" },
+      audio: { data: new Blob(["audio"]), filename: "audio.wav", sha256: "a".repeat(64) },
+      imageDuration: 5,
+      idempotencyKey: "pair",
+    })).rejects.toThrow("sha256");
+    expect(requestFetch).not.toHaveBeenCalled();
   });
 });
 

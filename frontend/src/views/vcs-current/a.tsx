@@ -804,7 +804,7 @@ function PricingSection({
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] lg:mx-auto rounded">
           {pilotTier ? [pilotTier].map((tier) => (
-            <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
+            <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border bg-white/20">
               <h3 className="t-h3-sans">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-d2-sans">{tier.price}</span>
@@ -813,14 +813,14 @@ function PricingSection({
               <p className="t-p-sans">{tier.subtitle}</p>
               <ul className="my-24 flex flex-1 flex-col gap-y-8">
                 {tier.features.map((feature) => (
-                  <li key={feature} className="flex gap-x-8 t-p-sans text-white">
-                    <span className="text-white">+</span>
+                  <li key={feature} className="flex gap-x-8 t-p-sans">
+                    <span>+</span>
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
               <CTAButton href={pricingTierHref(tier)}>{tier.cta}</CTAButton>
-              {tier.micro && <p className="mt-24 t-p-sans text-white">{tier.micro}</p>}
+              {tier.micro && <p className="mt-24 t-p-sans">{tier.micro}</p>}
             </article>
           )) : null}
         </div>

@@ -17,6 +17,30 @@ export interface BodyUploadQueueItem {
   duration?: number | null;
   file: Blob;
   media_type?: BodyUploadQueueItemMediaType;
+  sha256?: string | null;
+  slot_key?: string | null;
+  staged?: boolean;
+}
+
+export interface BodyUploadQueuePair {
+  audio: Blob;
+  /**
+     * @minLength 64
+     * @maxLength 64
+     */
+  audio_sha256: string;
+  image: Blob;
+  /**
+     * @minimum 1
+     * @maximum 30
+     */
+  image_duration: number;
+  /**
+     * @minLength 64
+     * @maxLength 64
+     */
+  image_sha256: string;
+  staged?: boolean;
 }
 
 export interface ErrorResponse {
@@ -68,6 +92,7 @@ export type JobResponseStatus = typeof JobResponseStatus[keyof typeof JobRespons
 
 export const JobResponseStatus = {
   ingesting: 'ingesting',
+  staged: 'staged',
   queued: 'queued',
   generating: 'generating',
   ready: 'ready',
@@ -82,7 +107,9 @@ export interface JobResponse {
   error: string | null;
   id: string;
   media_type: JobResponseMediaType;
+  pair_id: string | null;
   prompt: string;
+  slot_key: string | null;
   source_url: string | null;
   status: JobResponseStatus;
   updated_at: number;
@@ -110,6 +137,18 @@ export interface QueueItemJson {
   media_type?: QueueItemJsonMediaType;
   prompt?: string | null;
   url?: string | null;
+}
+
+export interface QueuePairResponse {
+  audio: JobResponse;
+  image: JobResponse;
+  pair_id: string;
+}
+
+export interface QueueSlotResponse {
+  jobs: JobResponse[];
+  released: boolean;
+  slot_key: string;
 }
 
 export interface StreamFormatResponse {
@@ -368,6 +407,340 @@ export const enqueueQueueItem = async (queueItemJson: QueueItemJson, options?: R
 
 
 
+export type uploadQueuePairResponse200 = {
+  data: QueuePairResponse
+  status: 200
+}
+
+export type uploadQueuePairResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type uploadQueuePairResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type uploadQueuePairResponse413 = {
+  data: ErrorResponse
+  status: 413
+}
+
+export type uploadQueuePairResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type uploadQueuePairResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type uploadQueuePairResponseSuccess = (uploadQueuePairResponse200) & {
+  headers: Headers;
+};
+export type uploadQueuePairResponseError = (uploadQueuePairResponse401 | uploadQueuePairResponse409 | uploadQueuePairResponse413 | uploadQueuePairResponse422 | uploadQueuePairResponse429) & {
+  headers: Headers;
+};
+
+export type uploadQueuePairResponse = (uploadQueuePairResponseSuccess | uploadQueuePairResponseError)
+
+export const getUploadQueuePairUrl = () => {
+
+
+
+
+  return `/v1/queue/pairs/upload`
+}
+
+/**
+ * Atomically receive finished image and audio bytes from a remote producer.
+ *
+ * The two jobs stay `ingesting` until both files are checksum-verified and
+ * committed. `staged=true` persists the pair without making it eligible for
+ * playout; the authenticated release endpoint activates it later.
+ * @summary Queue Pair Upload
+ */
+export const uploadQueuePair = async (bodyUploadQueuePair: BodyUploadQueuePair, options?: RequestInit): Promise<uploadQueuePairResponse> => {
+    const formData = new FormData();
+formData.append(`audio`, bodyUploadQueuePair.audio);
+formData.append(`audio_sha256`, bodyUploadQueuePair.audio_sha256);
+formData.append(`image`, bodyUploadQueuePair.image);
+formData.append(`image_duration`, bodyUploadQueuePair.image_duration.toString())
+formData.append(`image_sha256`, bodyUploadQueuePair.image_sha256);
+if(bodyUploadQueuePair.staged !== undefined) {
+ formData.append(`staged`, bodyUploadQueuePair.staged.toString())
+ }
+
+  const res = await fetch(getUploadQueuePairUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: uploadQueuePairResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as uploadQueuePairResponse
+}
+
+
+
+export type getQueuePairResponse200 = {
+  data: QueuePairResponse
+  status: 200
+}
+
+export type getQueuePairResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getQueuePairResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getQueuePairResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getQueuePairResponseSuccess = (getQueuePairResponse200) & {
+  headers: Headers;
+};
+export type getQueuePairResponseError = (getQueuePairResponse401 | getQueuePairResponse404 | getQueuePairResponse422) & {
+  headers: Headers;
+};
+
+export type getQueuePairResponse = (getQueuePairResponseSuccess | getQueuePairResponseError)
+
+export const getGetQueuePairUrl = (pairId: string,) => {
+
+
+
+
+  return `/v1/queue/pairs/${pairId}`
+}
+
+/**
+ * @summary Queue Pair Status
+ */
+export const getQueuePair = async (pairId: string, options?: RequestInit): Promise<getQueuePairResponse> => {
+
+  const res = await fetch(getGetQueuePairUrl(pairId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getQueuePairResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getQueuePairResponse
+}
+
+
+
+export type releaseQueuePairResponse200 = {
+  data: QueuePairResponse
+  status: 200
+}
+
+export type releaseQueuePairResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type releaseQueuePairResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type releaseQueuePairResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type releaseQueuePairResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type releaseQueuePairResponseSuccess = (releaseQueuePairResponse200) & {
+  headers: Headers;
+};
+export type releaseQueuePairResponseError = (releaseQueuePairResponse401 | releaseQueuePairResponse404 | releaseQueuePairResponse409 | releaseQueuePairResponse422) & {
+  headers: Headers;
+};
+
+export type releaseQueuePairResponse = (releaseQueuePairResponseSuccess | releaseQueuePairResponseError)
+
+export const getReleaseQueuePairUrl = (pairId: string,) => {
+
+
+
+
+  return `/v1/queue/pairs/${pairId}/release`
+}
+
+/**
+ * @summary Release Queue Pair
+ */
+export const releaseQueuePair = async (pairId: string, options?: RequestInit): Promise<releaseQueuePairResponse> => {
+
+  const res = await fetch(getReleaseQueuePairUrl(pairId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: releaseQueuePairResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as releaseQueuePairResponse
+}
+
+
+
+export type getQueueSlotResponse200 = {
+  data: QueueSlotResponse
+  status: 200
+}
+
+export type getQueueSlotResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getQueueSlotResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getQueueSlotResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getQueueSlotResponseSuccess = (getQueueSlotResponse200) & {
+  headers: Headers;
+};
+export type getQueueSlotResponseError = (getQueueSlotResponse401 | getQueueSlotResponse404 | getQueueSlotResponse422) & {
+  headers: Headers;
+};
+
+export type getQueueSlotResponse = (getQueueSlotResponseSuccess | getQueueSlotResponseError)
+
+export const getGetQueueSlotUrl = (slotKey: string,) => {
+
+
+
+
+  return `/v1/queue/slots/${slotKey}`
+}
+
+/**
+ * @summary Queue Slot Status
+ */
+export const getQueueSlot = async (slotKey: string, options?: RequestInit): Promise<getQueueSlotResponse> => {
+
+  const res = await fetch(getGetQueueSlotUrl(slotKey),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getQueueSlotResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getQueueSlotResponse
+}
+
+
+
+export type releaseQueueSlotResponse200 = {
+  data: QueueSlotResponse
+  status: 200
+}
+
+export type releaseQueueSlotResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type releaseQueueSlotResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type releaseQueueSlotResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type releaseQueueSlotResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type releaseQueueSlotResponseSuccess = (releaseQueueSlotResponse200) & {
+  headers: Headers;
+};
+export type releaseQueueSlotResponseError = (releaseQueueSlotResponse401 | releaseQueueSlotResponse404 | releaseQueueSlotResponse409 | releaseQueueSlotResponse422) & {
+  headers: Headers;
+};
+
+export type releaseQueueSlotResponse = (releaseQueueSlotResponseSuccess | releaseQueueSlotResponseError)
+
+export const getReleaseQueueSlotUrl = (slotKey: string,) => {
+
+
+
+
+  return `/v1/queue/slots/${slotKey}/release`
+}
+
+/**
+ * @summary Release Queue Slot
+ */
+export const releaseQueueSlot = async (slotKey: string, options?: RequestInit): Promise<releaseQueueSlotResponse> => {
+
+  const res = await fetch(getReleaseQueueSlotUrl(slotKey),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: releaseQueueSlotResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as releaseQueueSlotResponse
+}
+
+
+
 export type uploadQueueItemResponse200 = {
   data: JobResponse
   status: 200
@@ -421,6 +794,15 @@ if(bodyUploadQueueItem.duration !== undefined && bodyUploadQueueItem.duration !=
 formData.append(`file`, bodyUploadQueueItem.file);
 if(bodyUploadQueueItem.media_type !== undefined) {
  formData.append(`media_type`, bodyUploadQueueItem.media_type);
+ }
+if(bodyUploadQueueItem.sha256 !== undefined && bodyUploadQueueItem.sha256 !== null) {
+ formData.append(`sha256`, bodyUploadQueueItem.sha256);
+ }
+if(bodyUploadQueueItem.slot_key !== undefined && bodyUploadQueueItem.slot_key !== null) {
+ formData.append(`slot_key`, bodyUploadQueueItem.slot_key);
+ }
+if(bodyUploadQueueItem.staged !== undefined) {
+ formData.append(`staged`, bodyUploadQueueItem.staged.toString())
  }
 
   const res = await fetch(getUploadQueueItemUrl(),

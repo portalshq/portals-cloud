@@ -28,7 +28,8 @@ export function normalizeExternalStreamEndpoint(endpoint: string): string {
 export class ExternalChatIngress {
   constructor(private readonly chat: Chat) {}
 
-  async ingest(event: ExternalChatEvent): Promise<ChatMessage> {
+  /** Normalize without publishing so applications can persist before fan-out. */
+  normalize(event: ExternalChatEvent): ChatMessage {
     const provider = event.provider.trim();
     const providerMessageId = event.providerMessageId.trim();
     const authorId = event.authorId.trim();
@@ -48,6 +49,11 @@ export class ExternalChatIngress {
       sentAt: sentAt.toISOString(),
       provenance: { kind: "external", provider, providerMessageId },
     };
+    return message;
+  }
+
+  async ingest(event: ExternalChatEvent): Promise<ChatMessage> {
+    const message = this.normalize(event);
     await this.chat.send(message);
     return message;
   }

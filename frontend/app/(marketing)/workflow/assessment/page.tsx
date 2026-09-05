@@ -139,9 +139,9 @@ export default async function WorkflowAssessmentPage() {
         </div>
       </header>
 
-      <div className="relative z-10">
+      <div className="relative z-10 xl:max-w-[75%] mx-auto">
         <section className="relative flex min-h-screen items-start overflow-hidden">
-          <div className="ui-grid relative z-10 w-full gap-y-fluid-[30,52] py-fluid-[76,106] pt-[max(var(--spacing-Header-h),24svh)] text-white">
+          <div className="ui-grid relative z-10 w-full gap-y-fluid-[30,52] py-fluid-[76,106] md:pt-[max(var(--spacing-Header-h),24svh)] text-white">
             <div className="col-span-full lg:col-span-14">
               <h1 className="mt-20 max-w-[10em] t-d2-sans">
                 Save your creative team the hidden costs of AI production
@@ -158,7 +158,7 @@ export default async function WorkflowAssessmentPage() {
             </div>
             <nav
               aria-label="assessment sections"
-              className="col-span-full lg:col-span-6 lg:col-start-19 lg:self-end"
+              className="col-span-full lg:col-span-6 lg:col-start-19 lg:self-center"
             >
               <ol className="mt-18 space-y-12 border-t border-white/20 pt-16">
                 {pageLinks.map((link, index) => (
@@ -179,9 +179,11 @@ export default async function WorkflowAssessmentPage() {
 
         <section className="relative">
           <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-            <blockquote className="col-span-full mb-20 lg:col-span-18 lg:col-start-4 px-18">
+            <blockquote className="col-span-full mb-20">
               <p className="mb-12 t-p-sans text-white">
-                <a className="underline underline-offset-4" href="https://openai.com/business/plugins/creative-production/" target="_blank" rel="noreferrer">OpenAI describes creative production</a> that adapts top-performing assets across channels while maintaining consistency. <a className="underline underline-offset-4" href="https://business.adobe.com/products/firefly-business/firefly-creative-production/production-workflows.html" target="_blank" rel="noreferrer">Adobe describes enterprise production workflows</a> for approved-asset variants, localization, and reduced rework. Its <a className="underline underline-offset-4" href="https://business.adobe.com/au/blog/ipg-healths-studio-rx-supercharges-campaign-production-adobe-firefly-custom-ai-models" target="_blank" rel="noreferrer">IPG Health Studio Rx example</a> shows high-volume character variation with brand consistency.
+                <a className="underline underline-offset-4" href="https://openai.com/business/plugins/creative-production/" target="_blank" rel="noreferrer">OpenAI describes creative production</a> that adapts top-performing assets across channels while maintaining consistency. 
+                <br/>
+                <a className="underline underline-offset-4" href="https://business.adobe.com/products/firefly-business/firefly-creative-production/production-workflows.html" target="_blank" rel="noreferrer">Adobe describes enterprise production workflows</a> for approved-asset variants, localization, and reduced rework. Its <a className="underline underline-offset-4" href="https://business.adobe.com/au/blog/ipg-healths-studio-rx-supercharges-campaign-production-adobe-firefly-custom-ai-models" target="_blank" rel="noreferrer">IPG Health Studio Rx example</a> shows high-volume character variation with brand consistency.
               </p>
             </blockquote>
             <div className="col-span-full lg:col-span-9">
@@ -260,7 +262,7 @@ export default async function WorkflowAssessmentPage() {
             <div className="col-span-full lg:col-span-3">
               <NumberLabel index={3} />
             </div>
-            <div className="col-span-full lg:col-span-13 lg:col-start-8">
+            <div className="col-span-full lg:col-span-13 lg:col-start-9">
               <h2 className="max-w-[10em] t-d2-sans">
                 make your production workflow cost-effective
               </h2>

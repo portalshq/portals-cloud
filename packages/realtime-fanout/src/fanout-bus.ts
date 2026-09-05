@@ -34,12 +34,11 @@ export class InMemoryFanoutBus implements FanoutBus {
     assertTopic(topic);
     this.remember(topic, message);
     const handlers = [...(this.subscribers.get(topic) ?? [])];
-    for (const handler of handlers) {
-      try {
-        await handler(message);
-      } catch (error) {
-        this.onSubscriberError?.(error, topic);
-      }
+    const results = await Promise.allSettled(
+      handlers.map((handler) => Promise.resolve().then(() => handler(message))),
+    );
+    for (const result of results) {
+      if (result.status === "rejected") this.onSubscriberError?.(result.reason, topic);
     }
   }
 

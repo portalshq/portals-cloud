@@ -11,6 +11,44 @@ application player. Queue Broadcast returns this descriptor after its trusted
 backend has talked to the queue control plane; the player receives only the
 public/unlisted manifest URL.
 
+## Sidecar captions
+
+Captions are a `video-delivery` feature: it validates supplied WebVTT URLs or
+timed cues, returns them with the playback descriptor, and mounts native HTML
+`<track>` elements in the viewer. They are never pixels burned into the stream.
+For supplied cues, the package creates and later revokes a browser-local WebVTT
+source. A cross-origin caption host must permit the player origin with the
+appropriate CORS headers.
+
+```ts
+const playback = await client.getPlayback({
+  captionTracks: [{
+    id: "en",
+    label: "English",
+    language: "en",
+    cues: [
+      { startTimeSeconds: 0, endTimeSeconds: 2.5, text: "Welcome." },
+    ],
+    default: true,
+  }],
+});
+```
+
+```ts
+import { mountPlaybackCaptions } from "@portalshq/capability-video-delivery/browser";
+
+const video = document.querySelector("video")!;
+video.src = playback.playbackManifestUrl;
+const mountedCaptions = mountPlaybackCaptions(video, playback);
+
+// Remove these package-managed tracks when this playback session is replaced.
+mountedCaptions.remove();
+```
+
+Use `src` instead of `cues` when the consuming app already hosts a `.vtt` file.
+`createWebVtt(cues)` is also available when it needs VTT content for a custom
+storage flow.
+
 ## Scheduled and dual-format programming
 
 Create separate delivery objects for independent stream windows. For example,
