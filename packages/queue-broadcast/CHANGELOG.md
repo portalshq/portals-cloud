@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.7
+
+### Patch Changes
+
+- aff6c1d: Standardize public npm publishing and repository metadata for releases through
+  GitHub Actions trusted publishing. Remove recursive publish lifecycle hooks.
+- Updated dependencies [aff6c1d]
+  - @portalshq/capability-realtime-fanout@0.1.6
+  - @portalshq/capability-video-delivery@0.1.6
+
 ## 0.1.6
 
 - Republish the committed queue-broadcast capability release.

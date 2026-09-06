@@ -1,5 +1,15 @@
 # @portalshq/capability-narrative-engine-adapter
 
+## 0.1.2
+
+### Patch Changes
+
+- aff6c1d: Standardize public npm publishing and repository metadata for releases through
+  GitHub Actions trusted publishing. Remove recursive publish lifecycle hooks.
+- Updated dependencies [aff6c1d]
+  - @portalshq/contracts@0.0.4
+  - @portalshq/resolver@0.0.4
+
 ## 0.1.1
 
 ### Patch Changes
