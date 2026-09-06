@@ -53,5 +53,9 @@ jobs:
           title: 'chore: release packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Changesets creates its release commit in this step. Do not run the
+          # local developer hook, which generates frontend PDFs from private
+          # Sanity configuration unrelated to npm package releases.
+          HUSKY: "0"
           # npm exchanges the GitHub OIDC identity for a short-lived publishing
           # credential. Deliberately do not configure NODE_AUTH_TOKEN / NPM_TOKEN.
