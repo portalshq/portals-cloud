@@ -4,18 +4,25 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   release:
     name: Track, Version, and Publish
+    if: github.repository == 'portalshq/portals-cloud' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     permissions:
       contents: write       # Required to create Release PRs and Git tags
       pull-requests: write  # Required to open/update the Release PR
-      id-token: write       # Required if using npm Trusted Publishing
+      id-token: write       # npm Trusted Publishing
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -23,29 +30,28 @@ jobs:
           fetch-depth: 0    # Changesets needs full git history to track changes
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          # npm trusted publishing requires Node >= 22.14 and npm >= 11.5.1.
+          # The hosted Node 24 runtime supplies a compatible npm CLI.
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Use npm with trusted publishing support
+        run: npm install --global npm@11
 
       - name: Install Dependencies
         run: npm ci
-
-      - name: Lint All Packages
-        run: npx turbo lint
-
-      - name: Build All Packages
-        run: npx turbo build
-
-      - name: Test All Packages
-        run: npx turbo test
 
       # The Changesets Action automates the PR creation, tagging, and execution
       - name: Run Changeset Engine
         id: changesets
         uses: changesets/action@v1
         with:
-          version: npm run local-version-script   # Script defined in package.json below
-          publish: npm run local-publish-script   # Script defined in package.json below
+          version: npm run release:version
+          publish: npm run release
+          title: 'chore: release packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # npm exchanges the GitHub OIDC identity for a short-lived publishing
+          # credential. Deliberately do not configure NODE_AUTH_TOKEN / NPM_TOKEN.

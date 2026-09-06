@@ -1,9 +1,10 @@
 {
   "name": "@portalshq/runtime-core",
-  "version": "0.0.3",
+  "version": "0.0.6",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/portalshq/portals-cloud"
+    "url": "git+https://github.com/portalshq/portals-cloud.git",
+    "directory": "packages/runtime-core"
   },
   "description": "Session orchestration (control plane) + real-time fan-out gateway (data plane). Now instrumented with billing metering hooks.",
   "type": "module",
@@ -14,11 +15,17 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {},
   "devDependencies": {
     "typescript": "^5.5.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "vitest": "^3.2.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

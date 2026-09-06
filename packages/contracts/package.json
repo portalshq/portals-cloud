@@ -3,7 +3,8 @@
   "version": "0.0.3",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/portalshq/portals-cloud"
+    "url": "git+https://github.com/portalshq/portals-cloud.git",
+    "directory": "packages/contracts"
   },
   "description": "Capability contract types and channel manifest schema. The single source of truth every other package validates against.",
   "type": "module",
@@ -22,5 +23,9 @@
   "devDependencies": {
     "typescript": "^5.5.0",
     "@types/node": "^20.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
