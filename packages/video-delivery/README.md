@@ -49,6 +49,29 @@ Use `src` instead of `cues` when the consuming app already hosts a `.vtt` file.
 `createWebVtt(cues)` is also available when it needs VTT content for a custom
 storage flow.
 
+## Realtime live captions
+
+For a live HLS timeline, use `createLiveCaptionController` rather than a fixed
+VTT cue list. It creates a native browser text track, forces it visible, and
+timestamps each supplied event at the player's current media time.
+
+```ts
+import { createLiveCaptionController } from "@portalshq/capability-video-delivery/browser";
+
+const captions = createLiveCaptionController(video, {
+  id: "en-live",
+  label: "English",
+  language: "en",
+});
+
+captionEvents.subscribe(({ text, durationSeconds }) => {
+  captions.publish({ text, durationSeconds });
+});
+
+// Call when replacing the player/session.
+captions.dispose();
+```
+
 ## Scheduled and dual-format programming
 
 Create separate delivery objects for independent stream windows. For example,
