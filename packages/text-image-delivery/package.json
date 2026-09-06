@@ -1,12 +1,12 @@
 {
   "name": "@portalshq/capability-text-image-delivery",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/portalshq/portals-cloud.git",
     "directory": "packages/text-image-delivery"
   },
-  "description": "Chapter/text/image delivery \u2014 the 25thChapter content model, generalized into a capability any channel can use.",
+  "description": "Chapter/text/image delivery — the 25thChapter content model, generalized into a capability any channel can use.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

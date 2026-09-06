@@ -1,6 +1,6 @@
 {
   "name": "@portalshq/capability-video-delivery",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/portalshq/portals-cloud.git",
@@ -30,7 +30,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@portalshq/contracts": "^0.0.3"
+    "@portalshq/contracts": "^0.0.4"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
