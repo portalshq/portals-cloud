@@ -6,7 +6,7 @@
     "url": "git+https://github.com/portalshq/portals-cloud.git",
     "directory": "packages/stubs/identity"
   },
-  "description": "Federated audience identity, persistent across every channel — current and future, platform-provided and developer-created.",
+  "description": "Federated audience identity, persistent across every channel \u2014 current and future, platform-provided and developer-created.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
