@@ -1,0 +1,32 @@
+{
+  "name": "@portalshq/capability-narrative-engine-adapter",
+  "version": "0.1.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud.git",
+    "directory": "packages/narrative-engine-adapter"
+  },
+  "description": "Adapter over the existing Narrative Engine v0 (alpha), currently embedded in studio-app and 25thChapter. Same non-rebuild approach as @portalshq/resolver.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@portalshq/contracts": "*",
+    "@portalshq/resolver": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

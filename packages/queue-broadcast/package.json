@@ -1,0 +1,38 @@
+{
+  "name": "@portalshq/capability-queue-broadcast",
+  "version": "0.1.6",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud.git",
+    "directory": "packages/queue-broadcast"
+  },
+  "description": "Server-only client for isolated Queue Broadcast Server instances.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "generate": "../../lib/api-spec/node_modules/.bin/orval --config ./orval.config.cjs",
+    "generate:check": "npm run generate && npm run typecheck"
+  },
+  "dependencies": {
+    "@portalshq/capability-realtime-fanout": "^0.1.4",
+    "@portalshq/capability-video-delivery": "^0.1.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^3.2.7",
+    "typescript": "^5.5.0",
+    "vitest": "^3.2.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

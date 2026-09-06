@@ -1,0 +1,35 @@
+{
+  "name": "@portalshq/capability-realtime-fanout",
+  "version": "0.1.5",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud.git",
+    "directory": "packages/realtime-fanout"
+  },
+  "description": "Chat, polls, and lobby controls as ONE pub/sub fan-out primitive, not three bespoke services. Used by every channel type that needs audience interaction.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@portalshq/contracts": "^0.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^3.2.7",
+    "typescript": "^5.5.0",
+    "vitest": "^3.2.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
