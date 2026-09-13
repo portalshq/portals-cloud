@@ -2,7 +2,7 @@ import type {LeadSubmissionType} from './contracts'
 import {DEFAULT_GITHUB_PDF_BASE_URL} from '@/lib/resource-pdf'
 
 const files: Partial<Record<LeadSubmissionType, string>> = {
-  guide_download: 'production-memory-field-guide.pdf',
+  guide_download: 'production-memory-brief.pdf',
   security_download: 'portals-security-architecture-brief.pdf',
   pilot_brief_download: 'portals-paid-production-pilot-brief.pdf',
 }

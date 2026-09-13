@@ -15,7 +15,6 @@ const nextConfig: NextConfig = {
       {source: '/assessment', destination: '/workflow/assessment', permanent: true},
       {source: '/assessment/opengraph-image', destination: '/workflow/assessment/opengraph-image', permanent: true},
       {source: '/ai-production-workflow-risks', destination: '/workflow/ai-production-workflow-risks', permanent: true},
-      {source: '/use-cases', destination: '/workflow/ai-production-workflow-risks', permanent: true},
     ]
   },
   env: {

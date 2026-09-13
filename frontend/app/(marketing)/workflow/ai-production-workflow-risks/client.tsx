@@ -87,7 +87,7 @@ function ResourceHero({
           </p>
           <div className="flex flex-col sm:flex-row mx-auto gap-16 items-center justify-center">
             <CTAButton href="#download">
-              {'Download the production memory guide'}
+              {'Download the Production Memory Brief'}
             </CTAButton>
           </div>
         </div>
@@ -216,7 +216,7 @@ function WhatsInside({
           })}
           </div>
           <div className="flex justify-center">
-            <CTAButton href="#download">Download the guide</CTAButton>
+            <CTAButton href="#download">Download the Production Memory Brief</CTAButton>
           </div>
         </div>
       </div>
@@ -232,7 +232,7 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
           <ResourceLeadForm
             context={context}
             submissionType="guide_download"
-            title="Download the production memory guide"
+            title="Download the Production Memory Brief"
             description="Learn how to diagnose and address the production risks behind ai-native creative work."
             interestLabel="which workflow risk is most relevant?"
             options={[
@@ -244,7 +244,7 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
               {value: 'campaign-variant-control', label: 'variant families become hard to control'},
               {value: 'not-sure', label: 'not sure yet'},
             ]}
-            downloadLabel="Download the guide"
+            downloadLabel="Download the Production Memory Brief"
             sourcePage="/workflow/ai-production-workflow-risks"
           />
         </div>

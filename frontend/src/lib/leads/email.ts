@@ -484,7 +484,7 @@ async function confirmationCopy(
   const downloadUrl = leadDownloadUrl(submissionType)
   if (downloadUrl) {
     const labels = {
-      guide_download: 'Production Memory Field Guide',
+      guide_download: 'Production Memory Brief',
       security_download: 'portals Security and Architecture Brief',
       pilot_brief_download: 'portals Paid Production Pilot Brief',
     } as const

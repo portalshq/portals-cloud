@@ -39,7 +39,7 @@ export const faqs: FaqItem[] = [
     categories: ['assessment'],
   },
   {
-    question: 'Who is the production memory guide for?',
+    question: 'Who is the Production Memory Brief for?',
     answer:
       'It is for creative organizations producing high volumes of AI-assisted work across multiple people, tools, clients, projects, or production cycles.',
     categories: ['general'],
