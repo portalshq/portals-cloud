@@ -3,7 +3,8 @@ import {sendApplicationAccessEmail} from '@/lib/leads/account-email'
 import {getApplicationUserByEmail} from '@/lib/leads/application-auth'
 import {hashValue} from '@/lib/leads/crypto'
 import {normalizeEmail} from '@/lib/leads/identity'
-import {consumeRateLimit} from '@/lib/leads/store'
+import {consumeRateLimit, getPilotById} from '@/lib/leads/store'
+import {extractLegacyPilotId, pilotRoomPath} from '@/lib/leads/account-paths'
 
 export const runtime = 'nodejs'
 
@@ -21,7 +22,19 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!allowed) return NextResponse.json({ok: true})
   const user = await getApplicationUserByEmail(normalizedEmail)
   if (user?.status === 'active') {
-    const next = body.next && body.next.startsWith('/') ? body.next : '/account'
+    let next = body.next && body.next.startsWith('/') ? body.next : '/account'
+    const legacyPilotId = extractLegacyPilotId(next)
+    if (legacyPilotId) {
+      try {
+        const pilot = await getPilotById(legacyPilotId)
+        if (pilot?.customerAccountId) {
+          const legacyUrl = new URL(next, 'https://example.com')
+          next = pilotRoomPath(pilot.customerAccountId, pilot.id) + legacyUrl.search
+        } else if (pilot) {
+          next = '/account'
+        }
+      } catch {}
+    }
     await sendApplicationAccessEmail({
       user,
       idempotencyKey: `application-sign-in:${user.id}:${Math.floor(Date.now() / 60_000)}`,

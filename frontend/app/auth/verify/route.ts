@@ -4,6 +4,8 @@ import {
   APP_SESSION_MAX_AGE_SECONDS,
   consumeMagicLink,
 } from '@/lib/leads/application-auth'
+import {extractLegacyPilotId, pilotRoomPath} from '@/lib/leads/account-paths'
+import {getPilotById} from '@/lib/leads/store'
 
 export const runtime = 'nodejs'
 
@@ -21,9 +23,20 @@ export async function GET(request: Request): Promise<NextResponse> {
       new URL(`/auth/recover?token=${encodeURIComponent(token)}`, url),
     )
   }
-  const response = NextResponse.redirect(
-    new URL(safeNext(url.searchParams.get('next') || result.nextPath || null), url),
-  )
+  let next = safeNext(url.searchParams.get('next') || result.nextPath || null)
+  const legacyPilotId = extractLegacyPilotId(next)
+  if (legacyPilotId) {
+    try {
+      const pilot = await getPilotById(legacyPilotId)
+      if (pilot?.customerAccountId) {
+        const legacyUrl = new URL(next, 'https://example.com')
+        next = pilotRoomPath(pilot.customerAccountId, pilot.id) + legacyUrl.search
+      } else if (pilot) {
+        next = '/account'
+      }
+    } catch {}
+  }
+  const response = NextResponse.redirect(new URL(next, url))
   response.cookies.set(APP_SESSION_COOKIE, result.sessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

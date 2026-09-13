@@ -21,9 +21,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       const pilot = await getPilotById(legacyPilotId)
       if (pilot?.customerAccountId) {
         const legacyUrl = new URL(nextPath, 'https://example.com')
-        const sessionId = legacyUrl.searchParams.get('session_id')
-        nextPath = pilotRoomPath(pilot.customerAccountId, pilot.id)
-        if (sessionId) nextPath += `?session_id=${encodeURIComponent(sessionId)}`
+        const search = legacyUrl.search
+        nextPath = pilotRoomPath(pilot.customerAccountId, pilot.id) + search
       } else if (pilot) {
         nextPath = '/account'
       }

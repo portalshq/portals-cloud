@@ -87,7 +87,7 @@ export async function POST(
             },
           },
         ],
-        success_url: `${roomUrl}&session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${roomUrl}?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: roomUrl,
       },
       {idempotencyKey: `pilot-checkout-${id}-${pilot.signing?.signedAt || 'unsigned'}`},
