@@ -807,7 +807,7 @@ function PricingSection({
             <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
               <h3 className="t-h3-sans">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
-                <span className="t-d2-sans">{tier.price}</span>
+                <span className="t-h3-sans">{tier.price}</span>
                 <span className="t-m2 !lowercase">{tier.period}</span>
               </div>
               <p className="t-p-sans">{tier.subtitle}</p>
@@ -830,7 +830,7 @@ function PricingSection({
             <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
               <h3 className="t-h3-sans">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
-                <span className="t-d2-sans">{tier.price}</span>
+                <span className="t-h3-sans">{tier.price}</span>
                 <span className="t-m2 !lowercase">{tier.period}</span>
               </div>
               <p className="t-p-sans">{tier.subtitle}</p>

@@ -4,7 +4,7 @@ import {
   APP_SESSION_COOKIE,
   currentApplicationUser,
 } from '@/lib/leads/application-auth'
-import {pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
+import {legacyPilotPath, pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
 import {getPilotById} from '@/lib/leads/store'
 
 export const dynamic = 'force-dynamic'
@@ -12,11 +12,19 @@ export const runtime = 'nodejs'
 
 export default async function LegacyPilotRevisePage({
   params,
+  searchParams,
 }: {
   params: Promise<{id: string}>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const {id} = await params
-  const legacyNext = `/paid-pilot/room/${encodeURIComponent(id)}/revise`
+  const [{id}, query] = await Promise.all([params, searchParams])
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(query)) {
+    if (Array.isArray(value)) value.forEach((item) => search.append(key, item))
+    else if (value !== undefined) search.set(key, value)
+  }
+  const queryString = search.toString()
+  const legacyNext = legacyPilotPath(id, true, queryString ? `?${queryString}` : '')
   const user = await currentApplicationUser(
     (await cookies()).get(APP_SESSION_COOKIE)?.value,
   )
@@ -24,5 +32,5 @@ export default async function LegacyPilotRevisePage({
   const pilot = await getPilotById(id)
   if (!pilot) notFound()
   const destination = pilotRoomPathForPilotOrFallback(pilot)
-  redirect(destination)
+  redirect(queryString ? `${destination}?${queryString}` : destination)
 }

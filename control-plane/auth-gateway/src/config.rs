@@ -13,6 +13,13 @@ pub struct GatewayConfig {
     pub cognito_client_id: String,
     pub cognito_issuer: String,
     pub cognito_redirect_uri: String,
+    /// Optional generic OIDC provider. When `OIDC_ISSUER` is set, the gateway
+    /// uses OIDC discovery against that issuer instead of Cognito-specific
+    /// endpoints. This enables Keycloak, ZITADEL, Ory, etc. with the same
+    /// PKCE + refresh rotation semantics for local/dev parity.
+    pub oidc_issuer: Option<String>,
+    pub oidc_client_id: Option<String>,
+    pub oidc_domain: Option<String>,
     pub jwt_issuer: String,
     pub jwt_kms_key_id: String,
     pub jwt_local_private_key_path: Option<String>,
@@ -38,6 +45,15 @@ impl GatewayConfig {
             cognito_client_id: required("COGNITO_CLIENT_ID")?,
             cognito_issuer: required("COGNITO_ISSUER")?,
             cognito_redirect_uri: required("COGNITO_REDIRECT_URI")?,
+            oidc_issuer: env::var("OIDC_ISSUER")
+                .ok()
+                .filter(|v| !v.trim().is_empty()),
+            oidc_client_id: env::var("OIDC_CLIENT_ID")
+                .ok()
+                .filter(|v| !v.trim().is_empty()),
+            oidc_domain: env::var("OIDC_DOMAIN")
+                .ok()
+                .filter(|v| !v.trim().is_empty()),
             jwt_issuer: required("JWT_ISSUER")?,
             jwt_kms_key_id: value("JWT_KMS_KEY_ID", ""),
             jwt_local_private_key_path: env::var("JWT_LOCAL_PRIVATE_KEY_PATH")
@@ -61,6 +77,26 @@ impl GatewayConfig {
         };
         config.validate()?;
         Ok(config)
+    }
+
+    /// Returns true when a generic OIDC issuer is configured for local/dev.
+    pub fn uses_oidc(&self) -> bool {
+        self.oidc_issuer.is_some()
+    }
+
+    /// Effective issuer for the OIDC/OAuth flow (OIDC overrides Cognito when set).
+    pub fn effective_issuer(&self) -> &str {
+        self.oidc_issuer.as_deref().unwrap_or(&self.cognito_issuer)
+    }
+
+    pub fn effective_client_id(&self) -> &str {
+        self.oidc_client_id
+            .as_deref()
+            .unwrap_or(&self.cognito_client_id)
+    }
+
+    pub fn effective_domain(&self) -> &str {
+        self.oidc_domain.as_deref().unwrap_or(&self.cognito_domain)
     }
 
     fn validate(&self) -> anyhow::Result<()> {
@@ -114,6 +150,12 @@ impl GatewayConfig {
             self.internal_admin_token.len() >= 32,
             "INTERNAL_ADMIN_TOKEN must contain at least 32 bytes"
         );
+        if let Some(issuer) = &self.oidc_issuer {
+            ensure!(issuer.starts_with("https://"), "OIDC_ISSUER must use HTTPS");
+        }
+        if let Some(domain) = &self.oidc_domain {
+            ensure!(domain.starts_with("https://"), "OIDC_DOMAIN must use HTTPS");
+        }
         Ok(())
     }
 }

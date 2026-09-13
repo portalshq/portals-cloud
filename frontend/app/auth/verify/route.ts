@@ -4,14 +4,10 @@ import {
   APP_SESSION_MAX_AGE_SECONDS,
   consumeMagicLink,
 } from '@/lib/leads/application-auth'
-import {extractLegacyPilotId, pilotRoomPath} from '@/lib/leads/account-paths'
+import {extractLegacyPilotId, pilotRoomPath, safeInternalPath} from '@/lib/leads/account-paths'
 import {getPilotById} from '@/lib/leads/store'
 
 export const runtime = 'nodejs'
-
-function safeNext(value: string | null): string {
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/account'
-}
 
 export async function GET(request: Request): Promise<NextResponse> {
   const url = new URL(request.url)
@@ -23,7 +19,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       new URL(`/auth/recover?token=${encodeURIComponent(token)}`, url),
     )
   }
-  let next = safeNext(url.searchParams.get('next') || result.nextPath || null)
+  let next = safeInternalPath(url.searchParams.get('next') || result.nextPath)
   const legacyPilotId = extractLegacyPilotId(next)
   if (legacyPilotId) {
     try {

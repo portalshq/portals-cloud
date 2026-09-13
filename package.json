@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Capability-first infrastructure platform for composable entertainment channels. ",
   "workspaces": [
+    "channels",
     "frontend",
     "packages/*",
     "packages/stubs/*",

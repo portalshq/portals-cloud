@@ -30,7 +30,10 @@ struct CognitoClaims {
     name: String,
     #[serde(rename = "cognito:username", default)]
     cognito_username: String,
+    #[serde(default)]
+    preferred_username: String,
     nonce: String,
+    #[serde(default)]
     token_use: String,
 }
 
@@ -48,6 +51,14 @@ struct CognitoJwk {
     kty: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct OidcDiscovery {
+    issuer: String,
+    authorization_endpoint: String,
+    token_endpoint: String,
+    jwks_uri: String,
+}
+
 impl CognitoOauth {
     pub fn new(config: GatewayConfig, store: SecurityStore) -> Self {
         Self {
@@ -57,12 +68,49 @@ impl CognitoOauth {
         }
     }
 
+    async fn discovery(&self) -> anyhow::Result<Option<OidcDiscovery>> {
+        let Some(issuer) = self.config.oidc_issuer.as_deref() else {
+            return Ok(None);
+        };
+        let url = format!(
+            "{}/.well-known/openid-configuration",
+            issuer.trim_end_matches('/')
+        );
+        let discovery = self
+            .client
+            .get(&url)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<OidcDiscovery>()
+            .await?;
+        // Enforce exact issuer match — prevents issuer confusion attacks.
+        anyhow::ensure!(
+            discovery.issuer.trim_end_matches('/') == issuer.trim_end_matches('/'),
+            "OIDC discovery issuer mismatch"
+        );
+        Ok(Some(discovery))
+    }
+
     pub async fn start(&self, client_state: Uuid) -> anyhow::Result<(AuthSession, String)> {
         let mut verifier_bytes = [0_u8; 32];
         OsRng.fill_bytes(&mut verifier_bytes);
         let verifier = URL_SAFE_NO_PAD.encode(verifier_bytes);
         let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
         let session = self.store.start_session(client_state, verifier).await?;
+        // OIDC discovery path (Keycloak, ZITADEL, etc.) when OIDC_ISSUER is set.
+        if let Some(discovery) = self.discovery().await? {
+            let login_url = format!(
+                "{}?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&state={}&nonce={}&code_challenge={}&code_challenge_method=S256",
+                discovery.authorization_endpoint,
+                urlencoding::encode(self.config.effective_client_id()),
+                urlencoding::encode(&self.config.cognito_redirect_uri),
+                session.oauth_state,
+                session.oidc_nonce,
+                urlencoding::encode(&challenge),
+            );
+            return Ok((session, login_url));
+        }
         let login_url = format!(
             "{}/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&state={}&nonce={}&code_challenge={}&code_challenge_method=S256",
             self.config.cognito_domain.trim_end_matches('/'),
@@ -77,19 +125,25 @@ impl CognitoOauth {
 
     pub async fn complete(&self, oauth_state: Uuid, code: &str) -> anyhow::Result<()> {
         let session = self.store.session_for_callback(oauth_state).await?;
-        let response = self
-            .client
-            .post(format!(
+        // Choose token endpoint via discovery when OIDC is configured.
+        let token_endpoint = if let Some(discovery) = self.discovery().await? {
+            discovery.token_endpoint
+        } else {
+            format!(
                 "{}/oauth2/token",
                 self.config.cognito_domain.trim_end_matches('/')
-            ))
+            )
+        };
+        let response = self
+            .client
+            .post(token_endpoint)
             .header(
                 reqwest::header::CONTENT_TYPE,
                 "application/x-www-form-urlencoded",
             )
             .form(&[
                 ("grant_type", "authorization_code"),
-                ("client_id", self.config.cognito_client_id.as_str()),
+                ("client_id", self.config.effective_client_id()),
                 ("code", code),
                 ("redirect_uri", self.config.cognito_redirect_uri.as_str()),
                 ("code_verifier", session.pkce_verifier.as_str()),
@@ -104,16 +158,23 @@ impl CognitoOauth {
             claims.nonce == session.oidc_nonce.to_string(),
             "OIDC nonce mismatch"
         );
-        anyhow::ensure!(claims.token_use == "id", "Cognito token_use is not id");
-        let username = if claims.email.is_empty() {
-            &claims.cognito_username
+        // Cognito includes token_use=id; generic OIDC providers omit it.
+        if !claims.token_use.is_empty() {
+            anyhow::ensure!(claims.token_use == "id", "OIDC token_use is not id");
+        }
+        let username = if !claims.email.is_empty() {
+            claims.email.as_str()
+        } else if !claims.cognito_username.is_empty() {
+            claims.cognito_username.as_str()
+        } else if !claims.preferred_username.is_empty() {
+            claims.preferred_username.as_str()
         } else {
-            &claims.email
+            &claims.sub
         };
-        let name = if claims.name.is_empty() {
-            username
+        let name = if !claims.name.is_empty() {
+            claims.name.as_str()
         } else {
-            &claims.name
+            username
         };
         self.store
             .complete_session(oauth_state, &claims.sub, name, username)
@@ -124,17 +185,23 @@ impl CognitoOauth {
         let header = decode_header(token)?;
         anyhow::ensure!(
             header.alg == Algorithm::RS256,
-            "Cognito ID token must use RS256"
+            "OIDC ID token must use RS256"
         );
         let kid = header
             .kid
-            .ok_or_else(|| anyhow::anyhow!("Cognito ID token has no kid"))?;
-        let jwks = self
-            .client
-            .get(format!(
+            .ok_or_else(|| anyhow::anyhow!("OIDC ID token has no kid"))?;
+        // Fetch JWKS: discovery's jwks_uri for OIDC, otherwise Cognito issuer.
+        let jwks_uri = if let Some(discovery) = self.discovery().await? {
+            discovery.jwks_uri
+        } else {
+            format!(
                 "{}/.well-known/jwks.json",
                 self.config.cognito_issuer.trim_end_matches('/')
-            ))
+            )
+        };
+        let jwks = self
+            .client
+            .get(jwks_uri)
             .send()
             .await?
             .error_for_status()?
@@ -144,15 +211,17 @@ impl CognitoOauth {
             .keys
             .into_iter()
             .find(|key| key.kid == kid)
-            .ok_or_else(|| anyhow::anyhow!("Cognito ID token kid is unknown"))?;
+            .ok_or_else(|| anyhow::anyhow!("OIDC ID token kid is unknown"))?;
         anyhow::ensure!(
             jwk.alg == "RS256" && jwk.kty == "RSA",
-            "Cognito JWK algorithm or type is invalid"
+            "OIDC JWK algorithm or type is invalid"
         );
         let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)?;
         let mut validation = Validation::new(Algorithm::RS256);
-        validation.set_issuer(&[self.config.cognito_issuer.as_str()]);
-        validation.set_audience(&[self.config.cognito_client_id.as_str()]);
+        let issuer = self.config.effective_issuer();
+        let client_id = self.config.effective_client_id();
+        validation.set_issuer(&[issuer]);
+        validation.set_audience(&[client_id]);
         validation.validate_exp = true;
         Ok(decode::<CognitoClaims>(token, &key, &validation)?.claims)
     }

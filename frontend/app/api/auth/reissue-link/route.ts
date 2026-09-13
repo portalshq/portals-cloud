@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server'
 import {sendApplicationAccessEmail} from '@/lib/leads/account-email'
 import {inspectMagicLink} from '@/lib/leads/application-auth'
-import {extractLegacyPilotId, pilotRoomPath} from '@/lib/leads/account-paths'
+import {extractLegacyPilotId, pilotRoomPath, safeInternalPath} from '@/lib/leads/account-paths'
 import {getPilotById} from '@/lib/leads/store'
 
 export const runtime = 'nodejs'
@@ -14,7 +14,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!link) {
     return NextResponse.redirect(new URL('/auth/recover', url))
   }
-  let nextPath = link.nextPath || '/account'
+  let nextPath = safeInternalPath(link.nextPath)
   const legacyPilotId = extractLegacyPilotId(nextPath)
   if (legacyPilotId) {
     try {

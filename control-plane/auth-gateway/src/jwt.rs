@@ -303,7 +303,9 @@ impl KmsJwtSigner {
         let claims = decode::<Claims>(token, decoding_key, &validation)?.claims;
         anyhow::ensure!(claims.env == self.environment, "JWT environment mismatch");
         anyhow::ensure!(
-            JWT_AUDIENCES.iter().all(|mandatory| claims.aud.iter().any(|a| a == *mandatory)),
+            JWT_AUDIENCES
+                .iter()
+                .all(|mandatory| claims.aud.iter().any(|a| a == *mandatory)),
             "mandatory JWT audience missing"
         );
         Ok(claims)

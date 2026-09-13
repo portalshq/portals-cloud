@@ -82,8 +82,8 @@ export function ChannelsExperience({ initialSlug }: { initialSlug?: string }) {
     return matchesFilter && haystack.includes(query.toLowerCase())
   }), [filter, query])
 
-  const openChannel = (channel: Channel) => { setSelected(channel); setEntered(false); setSaved(false); setShared(false); window.history.pushState({}, '', `/channels/${channel.slug}`) }
-  const closeChannel = () => { setSelected(null); window.history.pushState({}, '', '/channels') }
+  const openChannel = (channel: Channel) => { setSelected(channel); setEntered(false); setSaved(false); setShared(false); window.history.pushState({}, '', `/${channel.slug}`) }
+  const closeChannel = () => { setSelected(null); window.history.pushState({}, '', '/') }
 
   if (selected) {
     return <main className={styles.shell}>
@@ -119,7 +119,7 @@ export function ChannelsExperience({ initialSlug }: { initialSlug?: string }) {
 
   return <main className={styles.shell}>
     <header className={styles.header}>
-      <a className={styles.wordmark} href="/channels">portals<span>/</span>channels</a>
+        <a className={styles.wordmark} href="/">portals<span>/</span>channels</a>
       <nav><button className={styles.navActive}>browse</button><span>for creators</span><span>about</span></nav>
       <button className={styles.profile}><span>VC</span><ChevronRight size={14} /></button>
     </header>

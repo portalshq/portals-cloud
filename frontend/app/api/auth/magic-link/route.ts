@@ -4,7 +4,7 @@ import {getApplicationUserByEmail} from '@/lib/leads/application-auth'
 import {hashValue} from '@/lib/leads/crypto'
 import {normalizeEmail} from '@/lib/leads/identity'
 import {consumeRateLimit, getPilotById} from '@/lib/leads/store'
-import {extractLegacyPilotId, pilotRoomPath} from '@/lib/leads/account-paths'
+import {extractLegacyPilotId, pilotRoomPath, safeInternalPath} from '@/lib/leads/account-paths'
 
 export const runtime = 'nodejs'
 
@@ -22,7 +22,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!allowed) return NextResponse.json({ok: true})
   const user = await getApplicationUserByEmail(normalizedEmail)
   if (user?.status === 'active') {
-    let next = body.next && body.next.startsWith('/') ? body.next : '/account'
+    let next = safeInternalPath(body.next)
     const legacyPilotId = extractLegacyPilotId(next)
     if (legacyPilotId) {
       try {
