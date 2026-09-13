@@ -2,7 +2,7 @@ import {NextResponse} from 'next/server'
 import {cookies} from 'next/headers'
 import type Stripe from 'stripe'
 import {createStripePlatformBilling} from '@portalshq/billing'
-import {pilotRoomPathForPilot} from '@/lib/leads/account-paths'
+import {pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
 import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
 import {applyTransition} from '@/lib/leads/pilot'
 import {siteUrl} from '@/lib/leads/email'
@@ -37,7 +37,7 @@ export async function POST(
     )
   }
 
-  const roomUrl = `${siteUrl()}${pilotRoomPathForPilot(pilot)}`
+  const roomUrl = `${siteUrl()}${pilotRoomPathForPilotOrFallback(pilot)}`
   const secretKey = process.env.STRIPE_SECRET_KEY
 
   if (leadsDryRun() || !secretKey) {

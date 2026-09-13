@@ -10,7 +10,30 @@ export function pilotRoomPathForPilot(pilot: {
   id: string
   customerAccountId?: string
 }): string {
-  return pilot.customerAccountId
-    ? pilotRoomPath(pilot.customerAccountId, pilot.id)
-    : '/account'
+  if (!pilot.customerAccountId) throw new Error('Pilot is missing customerAccountId')
+  return pilotRoomPath(pilot.customerAccountId, pilot.id)
+}
+
+export function pilotRoomPathForPilotOrFallback(
+  pilot: {id: string; customerAccountId?: string},
+  fallback = '/account',
+): string {
+  return pilot.customerAccountId ? pilotRoomPath(pilot.customerAccountId, pilot.id) : fallback
+}
+
+const LEGACY_PILOT_RE = /^\/paid-pilot\/room\/([^/]+)(?:\/revise)?\/?$/
+
+export function extractLegacyPilotId(nextPath: string): string | null {
+  try {
+    const url = new URL(nextPath, 'https://example.com')
+    const match = url.pathname.match(LEGACY_PILOT_RE)
+    return match ? decodeURIComponent(match[1]) : null
+  } catch {
+    const match = nextPath.match(LEGACY_PILOT_RE)
+    return match ? decodeURIComponent(match[1]) : null
+  }
+}
+
+export function isLegacyPilotPath(nextPath: string): boolean {
+  return extractLegacyPilotId(nextPath) !== null
 }

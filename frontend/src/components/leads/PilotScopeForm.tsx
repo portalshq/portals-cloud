@@ -495,7 +495,7 @@ export function PilotScopeForm({
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
-          sourcePage: isRevision ? `/paid-pilot/room/${pilotId}/revise` : '/paid-pilot',
+          sourcePage: isRevision ? '/account' : '/paid-pilot',
           ctaLabel: isRevision ? 'Submit Revision' : 'Build my pilot plan',
           intent: isRevision
             ? 'pilot_revision'

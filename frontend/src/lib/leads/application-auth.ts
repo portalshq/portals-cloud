@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto'
 import {decryptJson, encryptJson, hashValue, randomToken} from './crypto'
 import {normalizeEmail} from './identity'
-import {getPilotById, leadPool, leadsDryRun, type StoredProfile} from './store'
+import {getPilotById, leadPool, leadsDryRun, setPilotCustomerAccountId, type StoredProfile} from './store'
 
 export const APP_SESSION_COOKIE = 'portals_session'
 export const APP_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 14
@@ -238,6 +238,7 @@ export async function ensurePilotCustomerAccount(input: {
       stored.memberships.set(memberKey(customer.id, founder.id), 'admin')
       stored.pilotMemberships.set(pilotMemberKey(input.pilotId, founder.id), 'approver')
     }
+    await setPilotCustomerAccountId(input.pilotId, customer.id)
     return {user, customer}
   }
 
@@ -492,14 +493,20 @@ export async function currentApplicationUser(sessionToken?: string): Promise<App
   const tokenHash = hashValue(sessionToken)
   if (leadsDryRun()) {
     const session = memoryStore().sessions.get(tokenHash)
-    return session && session.expiresAt > Date.now()
-      ? getApplicationUserById(session.userId)
-      : null
+    if (!session || session.expiresAt <= Date.now()) return null
+    const user = await getApplicationUserById(session.userId)
+    return user?.status === 'active' ? user : null
   }
   const result = await leadPool().query<{user_id: string}>(
-    `UPDATE application_sessions SET last_seen_at = now()
-      WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > now()
-      RETURNING user_id`,
+    `UPDATE application_sessions sessions
+        SET last_seen_at = now()
+       FROM application_users users
+      WHERE sessions.token_hash = $1
+        AND sessions.revoked_at IS NULL
+        AND sessions.expires_at > now()
+        AND users.id = sessions.user_id
+        AND users.status = 'active'
+      RETURNING sessions.user_id`,
     [tokenHash],
   )
   return result.rows[0] ? getApplicationUserById(result.rows[0].user_id) : null

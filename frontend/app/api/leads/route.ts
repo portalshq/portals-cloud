@@ -45,7 +45,6 @@ import {
   PROFILE_COOKIE,
   PROFILE_MAX_AGE_SECONDS,
   updatePilot,
-  setPilotCustomerAccountId,
 } from '@/lib/leads/store'
 import {
   calculateQualification,
@@ -409,7 +408,6 @@ async function syncPilotRecord(
     profile: await getProfileById(profileId),
     companyName: leadRequest.identity?.company,
   })
-  await setPilotCustomerAccountId(pilot.id, account.customer.id)
   const updatedPilot = await updatePilot(pilot.id, {
     proposal: buildCommercialSnapshot(answers, [], {}),
   })

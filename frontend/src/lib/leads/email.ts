@@ -1,5 +1,5 @@
 import {leadDownloadUrl} from './downloads'
-import {pilotRoomPathForPilot} from './account-paths'
+import {pilotRoomPathForPilot, pilotRoomPathForPilotOrFallback} from './account-paths'
 import {reviewerTokenRole, stateLabel, summarizeProposal} from './pilot'
 import type {StoredPilot, StoredSubmission} from './store'
 import {getPilotBySubmissionId, getPilotById} from './store'
@@ -104,7 +104,7 @@ async function pilotDocuments(
   packetUrl: string
   securityUrl: string
 }> {
-  const roomPath = pilotRoomPathForPilot(pilot)
+  const roomPath = pilotRoomPathForPilotOrFallback(pilot)
   const recipient = String(submitterEmailOverride || pilot.answers.email || '').trim()
   const access = recipient ? recipientRole(pilot, recipient) : null
   let roomUrl = `${siteUrl()}/auth/sign-in?next=${encodeURIComponent(roomPath)}`
@@ -587,7 +587,7 @@ export async function sendFounderNotification(
   )
   const founderPilotLink = pilot
     ? `${siteUrl()}/auth/sign-in?next=${encodeURIComponent(
-        pilotRoomPathForPilot(pilot),
+        pilotRoomPathForPilotOrFallback(pilot),
       )}`
     : null
   await sendEmail({

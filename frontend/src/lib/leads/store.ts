@@ -445,6 +445,42 @@ export async function getPilotsForCustomerAccount(
   return result.rows.map(pilotFromRow)
 }
 
+export type PilotNavigationItem = {
+  id: string
+  createdAt: string
+  label: string
+}
+
+function pilotNavigationLabel(createdAt: string, pilotId: string): string {
+  const date = new Date(createdAt)
+  const formatted = date.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
+  // Include short id suffix to keep multiple pilots distinct even if created same day
+  return `Pilot room • ${formatted} • ${pilotId.slice(0, 4)}`
+}
+
+export async function getPilotNavigationForCustomerAccount(
+  customerAccountId: string,
+): Promise<PilotNavigationItem[]> {
+  if (leadsDryRun()) {
+    return [...memory().pilots.values()]
+      .filter((pilot) => pilot.customerAccountId === customerAccountId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((pilot) => ({
+        id: pilot.id,
+        createdAt: pilot.createdAt,
+        label: pilotNavigationLabel(pilot.createdAt, pilot.id),
+      }))
+  }
+  const result = await pool().query<{id: string; created_at: Date | string}>(
+    `SELECT id, created_at FROM lead_pilots WHERE customer_account_id = $1 ORDER BY created_at DESC`,
+    [customerAccountId],
+  )
+  return result.rows.map((row) => {
+    const createdAt = new Date(row.created_at).toISOString()
+    return {id: row.id, createdAt, label: pilotNavigationLabel(createdAt, row.id)}
+  })
+}
+
 /** Keeps the in-memory preview model aligned with the account created for a new pilot. */
 export async function setPilotCustomerAccountId(
   pilotId: string,
