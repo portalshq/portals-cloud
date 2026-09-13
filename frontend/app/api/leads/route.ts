@@ -23,6 +23,7 @@ import {
   computeUnresolved,
 } from '@/lib/leads/pilot'
 import {processLeadOutbox} from '@/lib/leads/processor'
+import {pilotRoomPath, pilotRoomPathForPilot} from '@/lib/leads/account-paths'
 import {
   changedPilotRoomFields,
   notifyPilotRoomEvent,
@@ -44,6 +45,7 @@ import {
   PROFILE_COOKIE,
   PROFILE_MAX_AGE_SECONDS,
   updatePilot,
+  setPilotCustomerAccountId,
 } from '@/lib/leads/store'
 import {
   calculateQualification,
@@ -380,7 +382,7 @@ async function syncPilotRecord(
     return {
       ...response,
       nextAction: 'pilot_room',
-      pilotUrl: `/paid-pilot/room/${updated.id}`,
+      pilotUrl: pilotRoomPathForPilot(updated),
       pilotState: updated.state,
       pilotRoute: updated.route,
       message: 'Your revised pilot plan is back under review in your approval room.',
@@ -402,12 +404,13 @@ async function syncPilotRecord(
     successCriteria,
     securityDecisions,
   })
-  await ensurePilotCustomerAccount({
+  const account = await ensurePilotCustomerAccount({
     pilotId: pilot.id,
     profile: await getProfileById(profileId),
     companyName: leadRequest.identity?.company,
   })
-  await updatePilot(pilot.id, {
+  await setPilotCustomerAccountId(pilot.id, account.customer.id)
+  const updatedPilot = await updatePilot(pilot.id, {
     proposal: buildCommercialSnapshot(answers, [], {}),
   })
   await attachSubmissionToPilot(submissionId, pilot.id)
@@ -419,9 +422,9 @@ async function syncPilotRecord(
   return {
     ...response,
     nextAction: 'pilot_room',
-    pilotUrl: `/paid-pilot/room/${pilot.id}`,
-    pilotState: pilot.state,
-    pilotRoute: pilot.route,
+    pilotUrl: pilotRoomPath(account.customer.id, updatedPilot.id),
+    pilotState: updatedPilot.state,
+    pilotRoute: updatedPilot.route,
     message:
       assessmentOverride
         ? 'Your free customized pilot plan is ready in the approval room. A qualification call is required before the pilot can proceed.'

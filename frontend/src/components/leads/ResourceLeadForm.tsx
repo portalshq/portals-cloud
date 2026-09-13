@@ -398,8 +398,6 @@ export function ResourceLeadForm({
               </LeadSelectField>
             </LeadField>
           )}
-            </LeadSelectField>
-          </LeadField>
           <ConsentFields onStarted={onStarted} showMarketing={!context.known} />
         </>
       )}

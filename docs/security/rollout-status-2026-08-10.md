@@ -122,13 +122,13 @@ current/normative guidance elsewhere in the docs now uses `.works`.
   RS256, a known `kid`, expiration and one repository scope. It bounds JWKS
   refresh/staleness, rejects wildcard/lookalike recipients, and returns
   `UNIMPLEMENTED` from disabled AdminService methods including `Obliterate`.
-- The unreleased Nap worktree contains source-generated `auth login/status/logout`, standard
+- The unreleased Px worktree contains source-generated `auth login/status/logout`, standard
   `grpcs://lore.portals.works` routing, noninteractive repository operations,
   actionable authentication errors, automatic repository-token exchange, and
   stdin-only service-account API-key exchange. A second doc generation wrote
   zero files; `docs-check` currently reports the intended uncommitted generated
   diff and will pass on a clean checkout after source and generated files are
-  committed together. Released Nap `v0.5.8` predates this security contract and
+  committed together. Released Px `v0.5.8` predates this security contract and
   is therefore recorded as `legacy` in `versions.yaml`; it cannot approve a
   public deployment.
 - **Updated 2026-08-21**: Production images promoted into versions.yaml:
@@ -136,7 +136,7 @@ current/normative guidance elsewhere in the docs now uses `.works`.
 - Auth Gateway: `portals-prod/auth-gateway@sha256:1f23c9a95b1661d5bcf73b067cec0e0fc6df8258dc04b2a55ca6ace97804b9a1`
 - Source commits recorded: Lore `1c0de969560779d55966152715a909eea45241e8`, packaging `92244a3b6148bd64b82a79003724003e4ce2a6b1`, control-plane `4885f927645dffbd813a1f04b86d0c8fb6ea0cbf`, protocol `1c0de969560779d55966152715a909eea45241e8`
 
-**Updated 2026-08-21**: Nap promotion blocked - v0.5.8 lacks Sigstore bundles. New release with lore-auth-v1 support needed from external repo `https://github.com/portalshq/narrativeengine.git`.
+**Updated 2026-08-21**: Px promotion blocked - v0.5.8 lacks Sigstore bundles. New release with lore-auth-v1 support needed from external repo `https://github.com/portalshq/narrativeengine.git`.
 - Pulumi TypeScript builds. All 25 Pulumi/policy tests and the publisher
   pipeline pass. `npm audit --omit=dev` reports zero vulnerabilities. Auth
   Gateway unit tests pass (7 pass, 1 real-PostgreSQL test ignored in that local
@@ -176,7 +176,7 @@ current/normative guidance elsewhere in the docs now uses `.works`.
 - [x] Artifact-signing key `alias/portals-artifact-signing` created (2026-08-19) — verified 2026-08-20 sign/verify (cosign `awskms:///` + `AWS_REGION=us-east-1`)
 - [x] Production ECR repositories created (2026-08-19) — `scanOnPush` + `IMMUTABLE` verified 2026-08-20
 - [x] IAM Access Analyzer verified - existing analyzer `portals-dev-external-access` is active
-- [x] Nap release available (2026-08-20) — new release addresses `lore-auth-v1`; pending promotion into `versions.yaml` via `verify-and-promote-*` (external repo `https://github.com/portalshq/narrativeengine.git`)
+- [x] Px release available (2026-08-20) — new release addresses `lore-auth-v1`; pending promotion into `versions.yaml` via `verify-and-promote-*` (external repo `https://github.com/portalshq/narrativeengine.git`)
 
 **Original Blockers**:
 1. [x] Commit the Lore security changes, control-plane/Auth Gateway changes, and
@@ -193,7 +193,7 @@ current/normative guidance elsewhere in the docs now uses `.works`.
    signing is enabled, without opening Lore, callback, or Auth Gateway gRPC
    routes. Then publish and verify the live JWKS, deploy Lore privately, and
    confirm all store-aware health gates.
-5. [x] New Nap release available (2026-08-20) — promote its signed checksums and the exact secured `portalshq/lore` client pin into `versions.yaml` (workflow now refuses without them), then run authenticated staging E2E: login, create, clone, commit, push, pull, sync, publish, lock acquire/release, logout/expiry denial, and CI API-key exchange (must exercise real S3/Dynamo and lock service).
+5. [x] New Px release available (2026-08-20) — promote its signed checksums and the exact secured `portalshq/lore` client pin into `versions.yaml` (workflow now refuses without them), then run authenticated staging E2E: login, create, clone, commit, push, pull, sync, publish, lock acquire/release, logout/expiry denial, and CI API-key exchange (must exercise real S3/Dynamo and lock service).
 6. Upgrade RDS retention to 35 days, run and record an isolated restore
    rehearsal, wire alarm notifications/on-call contacts, migrate deployment
    from the long-lived IAM user to short-lived SSO/OIDC, and rotate that legacy
@@ -216,7 +216,7 @@ closed on both names, as expected before release.
 **Verified Infrastructure State (2026-08-25 19:46 UTC — `v0.8.4-portals.8` `72bc91` `c60b9ca368cf…` `COMPLETED`)**:
 - Pulumi stacks: `dev` (119 resources) + `prod` **deployed** (155 resources, VPC `vpc-087e23a245117cfd5` `10.1.0.0/16`, `lore:8` `HEALTHY`, Auth Gateway `HEALTHY`, ALB `portals-prod-alb-fe7ca3e-289037285.us-east-1.elb.amazonaws.com` with `publicIngressEnabled=true` `lore.portals.works:443`/`auth.portals.works:443`, `loreServiceDesiredCount=1`, `authGatewayDesiredCount=1`). Since 2026-08-20 23:30Z: `aws:region=us-east-1`, `PATH` for `pulumi-language-nodejs`, `LoadBalancers.ts` explicit `name` (≤28 chars), `SecurityControls` reuse Analyzer, `PlatformCluster` skip duplicate role, ECR import, correct CIDRs, `db.t4g.micro/20GB/15.18`, `LoreService.ts` SG `8087→VIP+ VPC` + `443→0.0.0.0/0` (hotfix `80→0.0.0.0/0` **removed 2026-08-25**), `fix(rebac):8087` `3694edb` + `fix(auth):https` `f4ebbe5` (UrcAuthApi `https://auth.portals.works:443` → `:8084` via ALB, RebacApi `http://auth-gateway-rebac:8087` → `127.255.0.1:8087` via Service Connect), `$BUILDPLATFORM`/`$TARGETPLATFORM` single-arch fix, credential hardening, `RUST_LOG=debug` one cycle. `prod` `pulumi up` steady state.
 - ACM certificate `32f56a6f-6348-4573-8df1-c930b5acedb6` is `ISSUED` 2026-08-22T14:52Z `NotAfter 2027-03-07` (`lore`/`auth.portals.works` → ALB `DNS-only` `SUCCESS`); prior `bf777a6b…` superseded/`cdef7138…` timed out deleted by operator 2026-08-21.
-- Production ECR repositories `portals-prod/lore` + `portals-prod/auth-gateway` exist with `IMMUTABLE` + `scanOnPush` (also `portals-prod/control-plane` legacy); `versions.yaml` `lore 0.8.4-portals.8` `47333fc` `lore@sha256:72bc91` + `auth-gateway 5d8e87ce` `Verified OK` (cosign+Trivy 0 high, SBOM/provenance decode, `verified-images.json` receipt bound, `verified-releases.json` `nap 0.5.15`).
+- Production ECR repositories `portals-prod/lore` + `portals-prod/auth-gateway` exist with `IMMUTABLE` + `scanOnPush` (also `portals-prod/control-plane` legacy); `versions.yaml` `lore 0.8.4-portals.8` `47333fc` `lore@sha256:72bc91` + `auth-gateway 5d8e87ce` `Verified OK` (cosign+Trivy 0 high, SBOM/provenance decode, `verified-images.json` receipt bound, `verified-releases.json` `px 0.5.15`).
 - Artifact-signing key `alias/portals-artifact-signing` (`65aee9ea…`, RSA_2048) — `cosign sign/verify` `awskms:///alias/portals-artifact-signing` + `AWS_REGION=us-east-1` verified; `lore 72bc91` and `auth-gateway 5d8e87` signatures verified.
 - IAM Access Analyzer `portals-dev-external-access` is ACTIVE (ACCOUNT); quota 1 reused for `prod`.
 - Auth Gateway `portals-prod` `HEALTHY` (1 task `90b8e577…` `5d8e87ce`); Lore `portals-prod` `HEALTHY` (1 task `c60b9ca368cf…` `72bc91` `RUST_LOG=debug`); E2E 2026-08-25: `create 0.8s` `01a03a7…`, `clone 1.06s`, `stage+commit+push 0.77s` `e881f13…` `43 B` file, `verify-external-surface.sh` `443 open` `8083,41337,41339 closed`.

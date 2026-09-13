@@ -112,7 +112,7 @@ signature/SBOM verification of the exact promoted manifest digest.
 `infra/lore/versions.yaml` is the sole release bill of materials. It has four
 active release entries: the independently signed Lore client, the Lore server
 image, the control plane implemented by the Auth Gateway image, and the signed
-Nap binary release that references the exact Lore client version. The legacy
+Px binary release that references the exact Lore client version. The legacy
 issuer is an explicit retired entry with an empty image. Pulumi does not accept a config
 override for the Lore image, so `pulumi up` cannot silently deploy a different
 artifact than the reviewed manifest.
@@ -122,12 +122,12 @@ commit labels, and require those values in provenance before changing a pin.
 Promote the signed Lore CLI first with
 `scripts/verify-and-promote-lore-client-release.sh`; it records the fork source
 commit and release artifacts while deliberately leaving the Epic upstream pin
-and Lore submodule gitlink unchanged. `verify-and-promote-nap-release.sh` then
-verifies GitHub-OIDC Sigstore bundles, every Nap artifact checksum, and requires
-Nap's Lore dependency to match that independent top-level entry before changing
-the Nap entry and its matching `verified-releases.json` receipt. Public
+and Lore submodule gitlink unchanged. `verify-and-promote-px-release.sh` then
+verifies GitHub-OIDC Sigstore bundles, every Px artifact checksum, and requires
+Px's Lore dependency to match that independent top-level entry before changing
+the Px entry and its matching `verified-releases.json` receipt. Public
 ingress additionally requires `release.status: approved` and one matching
-security contract across Nap, Lore, and the control plane.
+security contract across Px, Lore, and the control plane.
 
 `lore-client.source_commit` is not synchronized from a dirty or checked-out
 submodule. After the patch is committed, tagged, and released from
@@ -192,7 +192,7 @@ release assertions and enable ingress in one reviewed preview.
 ECS and ALB target health invoke Lore's store-aware endpoint. Release also
 requires a real authenticated
 fragment write/read, branch-pointer update, and LockService acquire/release
-against S3/DynamoDB plus the complete Nap workflow.
+against S3/DynamoDB plus the complete Px workflow.
 
 ## Rollback
 
@@ -214,17 +214,17 @@ The `scripts/` directory contains utilities for secure release verification and 
 ### record-lore-client-release.mjs
 Records a verified Lore client release to `infra/lore/versions.yaml`. This script is called by `verify-and-promote-lore-client-release.sh` after successful verification. It updates the Lore client version, source commit, installer SHA256, artifact manifest URLs, and signature bundle information in the versions file.
 
-### record-nap-release.mjs
-Records a verified Nap release to `infra/lore/versions.yaml` and creates a verification receipt in `infra/lore/verified-releases.json`. This script is called by `verify-and-promote-nap-release.sh` after successful verification. It validates that the Nap release's Lore dependency matches the independently promoted Lore client entry before updating the Nap version and creating a cryptographic receipt of the verification.
+### record-px-release.mjs
+Records a verified Px release to `infra/lore/versions.yaml` and creates a verification receipt in `infra/lore/verified-releases.json`. This script is called by `verify-and-promote-px-release.sh` after successful verification. It validates that the Px release's Lore dependency matches the independently promoted Lore client entry before updating the Px version and creating a cryptographic receipt of the verification.
 
 ### verify-and-promote-image.sh
 Verifies a Docker image for production deployment by checking ECR scan results, running Trivy vulnerability scanning, validating SBOM/provenance attestations, and optionally verifying cosign signatures. After all checks pass, it calls `record-verified-image.mjs` to atomically update the image pin in `infra/lore/versions.yaml` with the verified digest. Requires service name, image digest, platform, and expected source/protocol/packaging commits.
 
 ### verify-and-promote-lore-client-release.sh
-Downloads a Lore client release from GitHub, verifies its GitHub-OIDC Sigstore signature bundles, validates all artifact checksums against SHA256SUMS, and promotes the verified release to `infra/lore/versions.yaml`. This script operates independently of Nap and does not modify the Lore submodule gitlink or release status. Requires a Lore release tag (e.g., `v0.8.4-portals.5`).
+Downloads a Lore client release from GitHub, verifies its GitHub-OIDC Sigstore signature bundles, validates all artifact checksums against SHA256SUMS, and promotes the verified release to `infra/lore/versions.yaml`. This script operates independently of Px and does not modify the Lore submodule gitlink or release status. Requires a Lore release tag (e.g., `v0.8.4-portals.5`).
 
-### verify-and-promote-nap-release.sh
-Downloads a Nap release from GitHub, verifies its GitHub-OIDC Sigstore signature bundles for both SHA256SUMS and release-metadata.json, validates all artifact checksums, and cross-checks that Nap's Lore dependency matches the independently promoted Lore client release. After successful verification, it updates the Nap entry in `infra/lore/versions.yaml` and creates a verification receipt. Requires a Nap release tag (e.g., `v0.5.10`).
+### verify-and-promote-px-release.sh
+Downloads a Px release from GitHub, verifies its GitHub-OIDC Sigstore signature bundles for both SHA256SUMS and release-metadata.json, validates all artifact checksums, and cross-checks that Px's Lore dependency matches the independently promoted Lore client release. After successful verification, it updates the Px entry in `infra/lore/versions.yaml` and creates a verification receipt. Requires a Px release tag (e.g., `v0.5.10`).
 
 ### scan-repository-secrets.sh
 Scans the repository for accidentally committed secrets and credentials. It checks for AWS access keys (patterns like `AKIA[0-9A-Z]{16}`), private keys (RSA/EC/OPENSSH), and obsolete deployment TLS keys. This script should be run in CI/CD pipelines to prevent secrets from being committed to the repository.

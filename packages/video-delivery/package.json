@@ -1,6 +1,6 @@
 {
   "name": "@portalshq/capability-video-delivery",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/portalshq/portals-cloud.git",
@@ -18,6 +18,10 @@
     "./browser": {
       "types": "./dist/browser.d.ts",
       "default": "./dist/browser.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
     }
   },
   "files": [
@@ -31,6 +35,15 @@
   },
   "dependencies": {
     "@portalshq/contracts": "^0.0.4"
+  },
+  "peerDependencies": {
+    "hls.js": ">=1.5.0",
+    "react": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "hls.js": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

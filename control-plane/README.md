@@ -62,7 +62,7 @@ control-plane/
 │   ├── world/                   # Phase 3: World state management
 │   ├── session/                 # Phase 3: Session lifecycle
 │   ├── capability-deployment/   # Phase 3: Capability deployment
-│   ├── resolver/                # Phase 3: NAP address resolution
+│   ├── resolver/                # Phase 3: PX address resolution
 │   ├── audience-session/        # Phase 3: Audience session binding
 │   └── runtime-scheduling/      # Phase 3: Compute scheduling
 ├── events/                       # Event bus implementation
@@ -111,7 +111,7 @@ Controllers are organized into phases based on startup dependencies:
 - **World**: Manages world state store provisioning and schema migration
 - **Session**: Manages session lifecycle (scheduling, start, drain, terminate)
 - **CapabilityDeployment**: Manages capability runtime artifact deployment
-- **NAPResolver**: Manages NAP address → resource binding
+- **PXResolver**: Manages PX address → resource binding
 - **AudienceSession**: Manages per-session audience context and identity binding
 - **RuntimeScheduling**: Manages compute allocation for active sessions
 

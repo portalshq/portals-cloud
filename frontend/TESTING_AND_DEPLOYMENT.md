@@ -2,7 +2,7 @@
 
 This file covers the paid-pilot approval room, magic-link application accounts, the Stripe Checkout payment path, and the configuration needed to test and deploy them. The general intake stack (database, Apollo, Resend, Mixpanel, outbox) is documented in `LEAD_OPERATIONS.md`.
 
-The pilot flow is: pilot form → `/paid-pilot/room/[id]` approval room → confirm scope → finalize → sign → Stripe Checkout → webhook marks `paid` → kickoff → activate. The one-call route requires a pilot terms review (`exception_review` → `resolve_exceptions`) before `finalize` is allowed.
+The pilot flow is: pilot form → `/account/[accountIdSlug]/pilot-room/[id]` approval room → confirm scope → finalize → sign → Stripe Checkout → webhook marks `paid` → kickoff → activate. The one-call route requires a pilot terms review (`exception_review` → `resolve_exceptions`) before `finalize` is allowed.
 
 ## Environment variables
 

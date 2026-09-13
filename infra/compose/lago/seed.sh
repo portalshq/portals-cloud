@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lago bootstrap — creates billing plans defined in @nap/billing-engine/src/plans.ts
+# Lago bootstrap — creates billing plans defined in @px/billing-engine/src/plans.ts
 # via the Lago REST API. Runs once after Lago starts up.
 # Idempotent: Lago returns 422 on duplicate codes, which we treat as success.
 
@@ -41,10 +41,10 @@ create_plan() {
 wait_for_lago
 
 # Developer Base Plan — hybrid usage + subscription
-create_plan "nap-developer-base" '{
+create_plan "px-developer-base" '{
   "plan": {
     "name": "Portals Developer Base",
-    "code": "nap-developer-base",
+    "code": "px-developer-base",
     "interval": "monthly",
     "amount_cents": 0,
     "amount_currency": "USD",
@@ -81,10 +81,10 @@ create_plan "nap-developer-base" '{
 }'
 
 # Live Event Add-on
-create_plan "nap-live-event" '{
+create_plan "px-live-event" '{
   "plan": {
     "name": "Portals Live Event",
-    "code": "nap-live-event",
+    "code": "px-live-event",
     "interval": "monthly",
     "amount_cents": 0,
     "amount_currency": "USD",
@@ -100,10 +100,10 @@ create_plan "nap-live-event" '{
 }'
 
 # Enterprise Plan
-create_plan "nap-enterprise" '{
+create_plan "px-enterprise" '{
   "plan": {
     "name": "Portals Enterprise",
-    "code": "nap-enterprise",
+    "code": "px-enterprise",
     "interval": "monthly",
     "amount_cents": 500000,
     "amount_currency": "USD",

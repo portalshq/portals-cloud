@@ -23,6 +23,7 @@ import {
 } from '@/lib/leads/pilot'
 import {APP_SESSION_COOKIE, currentApplicationUser, invitePilotMember, pilotMembershipRole} from '@/lib/leads/application-auth'
 import {sendApplicationAccessEmail} from '@/lib/leads/account-email'
+import {pilotRoomPathForPilot} from '@/lib/leads/account-paths'
 import {
   getPilotById,
   enqueuePilotEmail,
@@ -556,7 +557,7 @@ export async function PATCH(
         customerAccountId: invited.customerAccountId,
         role: 'member',
         idempotencyKey: `pilot-member-invite:${pilot.id}:${invited.user.id}:${share.role}`,
-        nextPath: `/paid-pilot/room/${pilot.id}`,
+        nextPath: pilotRoomPathForPilot(pilot),
       })
       let updated = pilot
       if (share.role === 'approver') {
@@ -832,7 +833,7 @@ export async function PATCH(
         customerAccountId: invited.customerAccountId,
         role: 'member',
         idempotencyKey: `pilot-reviewer-invite:${pilot.id}:${invited.user.id}:${invite.role}:${inviteEventKey}`,
-        nextPath: `/paid-pilot/room/${pilot.id}`,
+        nextPath: pilotRoomPathForPilot(pilot),
       })
       await notifyPilotRoomEvent({
         pilot: updated,

@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: capability-registry
-          image: REPLACE_ME/nap-registry:latest
+          image: REPLACE_ME/px-registry:latest
           ports:
             - containerPort: 8081
           resources:

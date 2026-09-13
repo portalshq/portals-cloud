@@ -28,3 +28,9 @@ ID, source author ID/display name, text, and original timestamp.
 It intentionally does not implement OAuth, webhooks, provider connections,
 persistence, or outbound relays. Those integrations normalize their events
 before invoking this package.
+
+`FanoutHub` handles WebSocket-like delivery for application gateways. It keeps
+reliable messages ordered per connection, coalesces replaceable snapshots by
+topic, routes direct replies through the same queue, bounds reliable backlog,
+and disconnects only the slow or failed client. Authentication and mapping an
+authenticated connection to topics remain application responsibilities.

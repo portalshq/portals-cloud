@@ -369,7 +369,7 @@ When a site uses a **shared HTML shell function** (common in Express/Node SSR se
 
 **Content/Blog Sites:** Outdated content not refreshed, keyword cannibalization, no topical clustering, poor internal linking
 
-**Local Business:** Inconsistent NAP, missing local schema, no Google Business Profile optimization
+**Local Business:** Inconsistent PX, missing local schema, no Google Business Profile optimization
 
 ## Output Format
 

@@ -1,6 +1,11 @@
 import {cookies} from 'next/headers'
 import {redirect} from 'next/navigation'
-import {APP_SESSION_COOKIE, currentApplicationUser} from '@/lib/leads/application-auth'
+import {
+  APP_SESSION_COOKIE,
+  currentApplicationUser,
+  getCustomerAccountsForUser,
+} from '@/lib/leads/application-auth'
+import {accountPath} from '@/lib/leads/account-paths'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +13,8 @@ export default async function AccountPage() {
   const session = (await cookies()).get(APP_SESSION_COOKIE)?.value
   const user = await currentApplicationUser(session)
   if (!user) redirect('/auth/sign-in?next=/account')
+  const account = (await getCustomerAccountsForUser(user.id))[0]
+  if (account) redirect(accountPath(account.id))
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-24 py-40">

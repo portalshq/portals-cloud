@@ -10,7 +10,7 @@
 - Merged realtime-engine → runtime-core
 - Merged state-cache → runtime-core
 - Moved instant-redirect → capabilities/redirect
-- Updated all @nap/* references to @portalshq/*
+- Updated all @px/* references to @portalshq/*
 - Added VISION.md and tsconfig.base.json
 
 **⏳ PENDING: Phase 1 (Contract Merge - Week 2)**
@@ -33,7 +33,7 @@ The `contracts` package now exports **two different** `CapabilityContext` interf
     sessionId: string;
     channelId: string;
     worldId: string;
-    resolve: (napAddress: string) => Promise<unknown>;
+    resolve: (pxAddress: string) => Promise<unknown>;
   }
   ```
 
@@ -79,7 +79,7 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
        worldId?: string;
        tenant: TenantContext;
        config: TConfig;
-       resolve?: (napAddress: string) => Promise<unknown>;
+       resolve?: (pxAddress: string) => Promise<unknown>;
      }
      ```
 
@@ -177,10 +177,10 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
    - `Capability` - represents a capability with config
    - `World` - persistent state container
    - `Narrative` - branching story structure
-   - `NAPAddress` - universal resolution
+   - `PXAddress` - universal resolution
 
 3. **Build synthesis framework**
-   - `nap.synth(channel, target)` - generates infra code
+   - `px.synth(channel, target)` - generates infra code
    - Target interface: `{ target: 'aws' | 'local' }`
 
 4. **Build @portalshq/cdk-target**
@@ -209,16 +209,16 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
 
 ## Phase 4: Agentic Workflow (Week 7)
 
-**Goal**: Enhance nap CLI for agent-friendly development.
+**Goal**: Enhance px CLI for agent-friendly development.
 
 ### Steps
 
-1. **Enhance nap CLI**
-   - `nap init` - scaffold with constructs template
-   - `nap synth` - generate infra code (CDK or Docker Compose)
-   - `nap deploy` - deploy to dev or prod
-   - `nap status` - session info, viewer count, costs
-   - `nap validate` - validate manifest against contracts
+1. **Enhance px CLI**
+   - `px init` - scaffold with constructs template
+   - `px synth` - generate infra code (CDK or Docker Compose)
+   - `px deploy` - deploy to dev or prod
+   - `px status` - session info, viewer count, costs
+   - `px validate` - validate manifest against contracts
 
 2. **Write agent prompt templates**
    - Template for Claude/Codex to generate construct code
@@ -265,10 +265,10 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
 
 5. **Narrative engine adapter** (Week 10)
    - Extract from studio-app
-   - Integrate with NAP resolver
+   - Integrate with PX resolver
    - Branching narrative support
 
-6. **NAP resolver** (Week 10-11)
+6. **PX resolver** (Week 10-11)
    - Extract from studio-app
    - Universal address resolution
    - World/narrative/asset lookup

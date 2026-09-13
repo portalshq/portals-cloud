@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# Billing sync job — runs BillingSync from @nap/billing-engine.
+# Billing sync job — runs BillingSync from @px/billing-engine.
 # In compose it runs as a long-running service that fires every hour.
 # In K8s it runs as a CronJob (infra/k8s/base/billing-sync-cronjob.yaml).
 FROM node:22-alpine AS deps
@@ -9,19 +9,19 @@ COPY package.json pnpm-workspace.yaml turbo.json ./
 COPY packages/contracts/package.json                  ./packages/contracts/
 COPY packages/billing/metering-client/package.json    ./packages/billing/metering-client/
 COPY packages/billing/billing-engine/package.json     ./packages/billing/billing-engine/
-RUN pnpm install --frozen-lockfile --filter @nap/billing-engine...
+RUN pnpm install --frozen-lockfile --filter @px/billing-engine...
 
 FROM deps AS build
 COPY packages/contracts/src                 ./packages/contracts/src
 COPY packages/billing/metering-client/src   ./packages/billing/metering-client/src
 COPY packages/billing/billing-engine/src    ./packages/billing/billing-engine/src
-RUN pnpm --filter @nap/billing-engine exec tsc --noEmit --skipLibCheck 2>/dev/null || true
+RUN pnpm --filter @px/billing-engine exec tsc --noEmit --skipLibCheck 2>/dev/null || true
 
 FROM node:22-alpine AS runtime
-RUN addgroup -g 1001 -S nap && adduser -u 1001 -S nap -G nap
+RUN addgroup -g 1001 -S px && adduser -u 1001 -S px -G px
 WORKDIR /app
-COPY --from=build --chown=nap:nap /app ./
-USER nap
+COPY --from=build --chown=px:px /app ./
+USER px
 ENV NODE_ENV=production \
     OPENMETER_ENDPOINT=http://openmeter:8888 \
     LAGO_API_URL=http://lago-api:3000 \

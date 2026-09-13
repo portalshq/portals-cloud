@@ -290,7 +290,7 @@ Use AI integrations to generate smarter, personalized content rather than relyin
 - **Destination research** — Use an AI model to research destinations based on the user's preferences (travel style, group composition, interests) and generate tailored restaurant, activity, and accommodation suggestions.
 - **Seasonality awareness** — Factor in the time of year when recommending activities. Suggest outdoor markets and harvest festivals in fall, ski resorts in winter, beaches and hiking in summer, cherry blossoms in spring. Flag activities that may be closed or less enjoyable in the chosen season.
 
-- **Personalization** — Adjust recommendations based on group composition. A trip with babies should emphasize stroller-friendly paths, early dinner reservations, and nap-friendly schedules. A trip with adventurous adults should prioritize hikes, wine tours, and late-night dining.
+- **Personalization** — Adjust recommendations based on group composition. A trip with babies should emphasize stroller-friendly paths, early dinner reservations, and px-friendly schedules. A trip with adventurous adults should prioritize hikes, wine tours, and late-night dining.
 - **Local events** — Research festivals, concerts, exhibitions, and seasonal markets happening during the travel dates and suggest them as bonus activities.
 
 ### Real-Time Data Integration

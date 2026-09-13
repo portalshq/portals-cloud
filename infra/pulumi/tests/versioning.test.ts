@@ -6,7 +6,7 @@ import * as path from "node:path";
 import {
   assertPinsHaveReceipts,
   assertPublicReleaseApproved,
-  assertNapReleaseVerified,
+  assertPxReleaseVerified,
   assertVersionPinVerified,
   readVersionPins,
   type ReleasePins,
@@ -21,7 +21,7 @@ release:
   version: "0.2.0"
   status: "contained"
   security_contract: "lore-auth-v1"
-nap-client:
+px-client:
   version: "0.5.8"
   source_repository: "https://github.com/portalshq/narrativeengine.git"
   source_commit: "${sha("a")}"
@@ -83,14 +83,14 @@ function withFiles(versions: string, receipt: unknown | undefined, fn: () => voi
   }
 }
 
-test("reads Lore client, Lore server, active control-plane, and Nap pins from one manifest", () => {
+test("reads Lore client, Lore server, active control-plane, and Px pins from one manifest", () => {
   withFiles(manifest(), undefined, () => {
     const pins = readVersionPins();
     assert.equal(pins.loreImageUri, `registry.test/lore@${digest("b")}`);
     assert.equal(pins.controlPlaneImageUri, `registry.test/auth@${digest("c")}`);
     assert.equal(pins.backendImageUri, `registry.test/backend@${digest("e")}`);
     assert.equal(pins.release.backend?.sourceCommit, sha("d"));
-    assert.equal(pins.release.napClient.version, "0.5.8");
+    assert.equal(pins.release.pxClient.version, "0.5.8");
     assert.equal(pins.release.loreClient.version, "0.8.4");
     assert.equal(pins.release.loreClient.upstreamCommit, sha("7"));
     assert.equal(pins.release.controlPlane.implementation, "auth-gateway");
@@ -112,7 +112,7 @@ function approvedRelease(): ReleasePins {
     version: "0.2.0",
     status: "approved",
     securityContract: "lore-auth-v1",
-    napClient: {
+    pxClient: {
       version: "0.5.9",
       sourceRepository: "https://github.com/portalshq/narrativeengine.git",
       sourceCommit: sha("a"),
@@ -156,29 +156,29 @@ test("public release requires approved, compatible, signed client metadata", () 
   assert.throws(
     () => assertPublicReleaseApproved({
       ...release,
-      napClient: { ...release.napClient, securityContract: "legacy" },
+      pxClient: { ...release.pxClient, securityContract: "legacy" },
     }),
     /contracts do not match/,
   );
 });
 
-test("Nap release receipt must match both Nap and Lore cryptographic evidence", () => {
-  const nap = approvedRelease().napClient;
+test("Px release receipt must match both Px and Lore cryptographic evidence", () => {
+  const px = approvedRelease().pxClient;
   const loreClient = approvedRelease().loreClient;
   const receipt = {
     schemaVersion: 1,
     releases: {
-      "nap-client": {
-        version: nap.version,
-        sourceCommit: nap.sourceCommit,
-        releaseTag: nap.releaseTag,
-        securityContract: nap.securityContract,
-        artifactManifestSha256: nap.artifactManifestSha256,
+      "px-client": {
+        version: px.version,
+        sourceCommit: px.sourceCommit,
+        releaseTag: px.releaseTag,
+        securityContract: px.securityContract,
+        artifactManifestSha256: px.artifactManifestSha256,
         loreClientVersion: loreClient.version,
         loreClientSourceCommit: loreClient.sourceCommit,
         loreClientArtifactManifestSha256: loreClient.artifactManifestSha256,
-        napSignatureVerified: true,
-        napChecksumsVerified: true,
+        pxSignatureVerified: true,
+        pxChecksumsVerified: true,
         loreSignatureVerified: true,
         verifiedAt: "2026-08-13T00:00:00Z",
       },
@@ -192,13 +192,13 @@ test("Nap release receipt must match both Nap and Lore cryptographic evidence", 
   const previous = process.cwd();
   process.chdir(tmp);
   try {
-    assert.doesNotThrow(() => assertNapReleaseVerified(nap, loreClient));
+    assert.doesNotThrow(() => assertPxReleaseVerified(px, loreClient));
     assert.throws(
-      () => assertNapReleaseVerified({ ...nap, sourceCommit: sha("f") }, loreClient),
+      () => assertPxReleaseVerified({ ...px, sourceCommit: sha("f") }, loreClient),
       /no matching cryptographic verification receipt/,
     );
     assert.throws(
-      () => assertNapReleaseVerified(nap, { ...loreClient, sourceCommit: sha("f") }),
+      () => assertPxReleaseVerified(px, { ...loreClient, sourceCommit: sha("f") }),
       /no matching cryptographic verification receipt/,
     );
   } finally {

@@ -22,7 +22,7 @@ export interface NarrativeBranch {
 }
 
 export interface NarrativeState {
-  narrativeRef: string;       // NAP address
+  narrativeRef: string;       // PX address
   currentNodeId: string;
   availableBranches: NarrativeBranch[];
 }

@@ -6,3 +6,9 @@ deployments — see `docs/architecture-decision-records/0001-*.md`. Don't
 merge them back into one service even though it'd be less code right now;
 the whole reason for the split is independent failure isolation and
 independent scaling at audience-scale traffic.
+
+`RealtimeEngine` supplies each application tick with a `TickContext` from a
+per-activation `TimeCounter`: a monotonic sequence, elapsed and delta time,
+wall-clock observation, and deadline countdown snapshots. Applications keep
+their session rules and deadlines; runtime-core owns timer lifecycle,
+reactivation reset, clock injection, and cancellation.

@@ -1,4 +1,4 @@
-//! NAP resolver controller — manages NAP address → resource binding and resolver record lifecycle.
+//! PX resolver controller — manages PX address → resource binding and resolver record lifecycle.
 //!
 //! Phase 3 controller (Horizon B): Entertainment Platform.
 
@@ -16,9 +16,9 @@ use reconciler::{
     Resource, ResourceId, ResourceKind,
 };
 
-/// NAP resolver error types.
+/// PX resolver error types.
 #[derive(Debug, Error)]
-pub enum NAPResolverError {
+pub enum PXResolverError {
     #[error("resolver record not found: {0}")]
     NotFound(String),
     #[error("persistence error: {0}")]
@@ -27,21 +27,21 @@ pub enum NAPResolverError {
     InvalidSpec(String),
 }
 
-/// NAP resolver specification.
+/// PX resolver specification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NAPResolverSpec {
-    pub nap_address: String,
+pub struct PXResolverSpec {
+    pub px_address: String,
     pub resource_id: ResourceId,
     pub resource_kind: ResourceKind,
 }
 
-/// NAP resolver resource.
+/// PX resolver resource.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NAPResolverResource {
+pub struct PXResolverResource {
     pub id: ResourceId,
     pub version: u64,
-    pub spec: NAPResolverSpec,
-    pub phase: NAPResolverPhase,
+    pub spec: PXResolverSpec,
+    pub phase: PXResolverPhase,
     pub finalizers: Vec<String>,
     pub deletion_requested: bool,
     pub owner_refs: Vec<OwnerReference>,
@@ -49,7 +49,7 @@ pub struct NAPResolverResource {
     pub updated_at: DateTime<Utc>,
 }
 
-impl Resource for NAPResolverResource {
+impl Resource for PXResolverResource {
     fn id(&self) -> &ResourceId {
         &self.id
     }
@@ -71,31 +71,31 @@ impl Resource for NAPResolverResource {
     }
 }
 
-/// NAP resolver phase.
+/// PX resolver phase.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum NAPResolverPhase {
+pub enum PXResolverPhase {
     Pending,
     Bound,
     Failed,
 }
 
-/// NAP resolver controller.
-pub struct NAPResolverController {
+/// PX resolver controller.
+pub struct PXResolverController {
     store: Arc<dyn StateStore>,
     event_bus: Arc<dyn EventBus>,
 }
 
-impl NAPResolverController {
+impl PXResolverController {
     pub fn new(store: Arc<dyn StateStore>, event_bus: Arc<dyn EventBus>) -> Self {
         Self { store, event_bus }
     }
 }
 
 #[async_trait]
-impl Controller for NAPResolverController {
-    type Resource = NAPResolverResource;
-    type Error = NAPResolverError;
+impl Controller for PXResolverController {
+    type Resource = PXResolverResource;
+    type Error = PXResolverError;
 
     async fn reconcile(
         &self,
@@ -105,13 +105,13 @@ impl Controller for NAPResolverController {
         tracing::info!(
             resource_id = %resource.id.as_str(),
             phase = ?resource.phase,
-            "reconciling NAP resolver"
+            "reconciling PX resolver"
         );
 
         match resource.phase {
-            NAPResolverPhase::Pending => self.reconcile_pending(resource).await,
-            NAPResolverPhase::Bound => Ok(ReconcileResult::Ok),
-            NAPResolverPhase::Failed => Ok(ReconcileResult::Ok),
+            PXResolverPhase::Pending => self.reconcile_pending(resource).await,
+            PXResolverPhase::Bound => Ok(ReconcileResult::Ok),
+            PXResolverPhase::Failed => Ok(ReconcileResult::Ok),
         }
     }
 
@@ -122,13 +122,13 @@ impl Controller for NAPResolverController {
         _ctx: ReconcileContext,
     ) -> ErrorPolicy {
         match error {
-            NAPResolverError::Persistence(_) => ErrorPolicy::Backoff {
+            PXResolverError::Persistence(_) => ErrorPolicy::Backoff {
                 initial: Duration::from_secs(1),
                 multiplier: 1.5,
                 max: Duration::from_secs(60),
                 jitter: 0.1,
             },
-            NAPResolverError::InvalidSpec(_) => ErrorPolicy::Discard,
+            PXResolverError::InvalidSpec(_) => ErrorPolicy::Discard,
             _ => ErrorPolicy::Backoff {
                 initial: Duration::from_secs(5),
                 multiplier: 2.0,
@@ -151,13 +151,13 @@ impl Controller for NAPResolverController {
     }
 }
 
-impl NAPResolverController {
+impl PXResolverController {
     async fn reconcile_pending(
         &self,
-        resource: Arc<NAPResolverResource>,
-    ) -> Result<ReconcileResult, NAPResolverError> {
-        // Bind NAP address to resource
-        self.transition_phase(resource, NAPResolverPhase::Bound)
+        resource: Arc<PXResolverResource>,
+    ) -> Result<ReconcileResult, PXResolverError> {
+        // Bind PX address to resource
+        self.transition_phase(resource, PXResolverPhase::Bound)
             .await?;
 
         Ok(ReconcileResult::Ok)
@@ -165,9 +165,9 @@ impl NAPResolverController {
 
     async fn transition_phase(
         &self,
-        _resource: Arc<NAPResolverResource>,
-        _new_phase: NAPResolverPhase,
-    ) -> Result<(), NAPResolverError> {
+        _resource: Arc<PXResolverResource>,
+        _new_phase: PXResolverPhase,
+    ) -> Result<(), PXResolverError> {
         Ok(())
     }
 }

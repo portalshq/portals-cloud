@@ -1,7 +1,7 @@
 # Portals Cloud / Lore threat model
 
 Last reviewed: 2026-08-11. Scope: the AWS Lore data plane, Auth Gateway,
-retired legacy control plane, Nap client, identity/signing path, and
+retired legacy control plane, Px client, identity/signing path, and
 S3/DynamoDB/RDS stores.
 
 ## Assets
@@ -30,7 +30,7 @@ S3/DynamoDB/RDS stores.
 4. Gateway to KMS, its private ReBAC/API-key services, and token issuance. The
    legacy control plane is absent from production.
 5. ECS task roles to S3, DynamoDB, RDS, Secrets Manager, and KMS.
-6. Nap OS process to OS keyring and optional isolated-development token file.
+6. Px OS process to OS keyring and optional isolated-development token file.
 7. Build system to ECR digest, SBOM, signature, and deployment promotion.
 
 ## Primary abuse paths and controls

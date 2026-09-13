@@ -11,7 +11,7 @@ export interface Chapter {
   order: number;
   title: string;
   text: string;
-  imageRefs: string[]; // NAP addresses or object-storage refs
+  imageRefs: string[]; // PX addresses or object-storage refs
 }
 
 export class ChapterFeed {

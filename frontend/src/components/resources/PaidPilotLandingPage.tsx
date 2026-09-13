@@ -132,7 +132,7 @@ function Hero({ document }: { document: ResourceDocument }) {
     >
       <Header />
       <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[96,126] text-white">
-        <div className="col-span-full lg:col-span-14">
+        <div className="col-span-full lg:col-span-11">
           <h1 className="t-d2-sans max-w-[11em]">
             {landing.headline || document.title}
           </h1>
@@ -147,7 +147,7 @@ function Hero({ document }: { document: ResourceDocument }) {
           </div>
         </div>
 
-        <dl className="col-span-full grid grid-cols-2 gap-x-20 gap-y-28 lg:col-span-11 lg:col-start-15">
+        <dl className="col-span-full grid grid-cols-2 gap-x-12 gap-y-28 lg:col-start-15">
           {metrics.map(([value, label]) => (
             <div key={label}>
               <dd className="t-h1-sans text-white whitespace-nowrap">{value}</dd>
@@ -453,7 +453,7 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:mx-auto max-w-[50ch] lg:max-w-[70ch] 2xl:max-w-[100ch]">
           <h2 className="mt-20 max-w-[11em] t-d2-sans">
-            deploy, extend under defined terms, or stop.
+            deploy under defined terms.
           </h2>
           <p className="mt-28 t-p-lg-serif text-white">{review.summary}</p>
           <div className="mt-28 flex flex-col gap-18 ">
@@ -462,7 +462,7 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
             <p className="t-p-sans text-white/80">
-              Not ready to scope? <br/><a className="underline underline-offset-4" href="/workflow/assessment">Assess your creative production workflow first.</a>
+              Not ready to streamline your production workflow? <br/><a className="underline underline-offset-4" href="/workflow/assessment">Assess your creative production workflow first.</a>
             </p>
           </div>
         </div>

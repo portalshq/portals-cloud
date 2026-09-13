@@ -14,7 +14,7 @@ COPY packages/resolver/package.json          ./packages/resolver/
 COPY packages/billing/metering-client/package.json ./packages/billing/metering-client/
 COPY packages/runtime-core/package.json      ./packages/runtime-core/
 
-RUN pnpm install --frozen-lockfile --filter @nap/runtime-core...
+RUN pnpm install --frozen-lockfile --filter @px/runtime-core...
 
 # ─────────────────────────────────────────────
 # Stage 2: build — compile TypeScript
@@ -26,19 +26,19 @@ COPY packages/resolver/src       ./packages/resolver/src
 COPY packages/billing/metering-client/src ./packages/billing/metering-client/src
 COPY packages/runtime-core/src   ./packages/runtime-core/src
 
-RUN pnpm --filter @nap/runtime-core... run build 2>/dev/null || \
-    pnpm --filter @nap/runtime-core exec tsc --noEmit --skipLibCheck 2>/dev/null || true
+RUN pnpm --filter @px/runtime-core... run build 2>/dev/null || \
+    pnpm --filter @px/runtime-core exec tsc --noEmit --skipLibCheck 2>/dev/null || true
 
 # ─────────────────────────────────────────────
 # Stage 3: runtime — minimal production image
 # ─────────────────────────────────────────────
 FROM node:22-alpine AS runtime
-RUN addgroup -g 1001 -S nap && adduser -u 1001 -S nap -G nap
+RUN addgroup -g 1001 -S px && adduser -u 1001 -S px -G px
 WORKDIR /app
 
-COPY --from=build --chown=nap:nap /app ./
+COPY --from=build --chown=px:px /app ./
 
-USER nap
+USER px
 
 # Environment — overridden by compose/K8s
 ENV NODE_ENV=production \

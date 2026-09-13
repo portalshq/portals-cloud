@@ -1,4 +1,5 @@
 import {trackSubmissionEvents} from './analytics-server'
+import {pilotRoomPathForPilot} from './account-paths'
 import {sendApplicationAccessEmail} from './account-email'
 import {getApplicationUserByEmail} from './application-auth'
 import {syncSubmissionToApollo} from './crm'
@@ -33,7 +34,7 @@ export async function processLeadOutbox(limit = 20): Promise<void> {
         await sendApplicationAccessEmail({
           user,
           idempotencyKey: `pilot-account-access:${pilot?.id || row.submission_id}:${user.id}`,
-          nextPath: pilot ? `/paid-pilot/room/${pilot.id}` : '/account',
+          nextPath: pilot ? pilotRoomPathForPilot(pilot) : '/account',
         })
       } else if (row.action_type === 'confirmation_email') {
         await sendLeadConfirmation(submission)

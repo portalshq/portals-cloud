@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto'
 import {decryptJson, encryptJson, hashValue, randomToken} from './crypto'
 import {normalizeEmail} from './identity'
-import {leadPool, leadsDryRun, type StoredProfile} from './store'
+import {getPilotById, leadPool, leadsDryRun, type StoredProfile} from './store'
 
 export const APP_SESSION_COOKIE = 'portals_session'
 export const APP_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 14
@@ -105,6 +105,54 @@ export async function getApplicationUserByEmail(email: string): Promise<Applicat
     [emailHash],
   )
   return result.rows[0] ? userFromRow(result.rows[0]) : null
+}
+
+export async function getCustomerAccountForUser(
+  customerAccountId: string,
+  userId: string,
+): Promise<CustomerAccount | null> {
+  if (leadsDryRun()) {
+    const stored = memoryStore()
+    return stored.memberships.has(memberKey(customerAccountId, userId))
+      ? stored.customers.get(customerAccountId) || null
+      : null
+  }
+  const result = await leadPool().query<CustomerAccount>(
+    `SELECT customer.id, customer.name, customer.domain,
+            customer.stripe_customer_id AS "stripeCustomerId"
+       FROM customer_accounts customer
+       JOIN customer_memberships membership
+         ON membership.customer_account_id = customer.id
+      WHERE customer.id = $1
+        AND membership.user_id = $2
+        AND membership.revoked_at IS NULL`,
+    [customerAccountId, userId],
+  )
+  return result.rows[0] || null
+}
+
+export async function getCustomerAccountsForUser(userId: string): Promise<CustomerAccount[]> {
+  if (leadsDryRun()) {
+    const stored = memoryStore()
+    const accountIds = [...stored.memberships.keys()]
+      .filter((key) => key.endsWith(`:${userId}`))
+      .map((key) => key.slice(0, key.length - userId.length - 1))
+    return [...new Set(accountIds)]
+      .map((accountId) => stored.customers.get(accountId))
+      .filter((account): account is CustomerAccount => Boolean(account))
+  }
+  const result = await leadPool().query<CustomerAccount>(
+    `SELECT customer.id, customer.name, customer.domain,
+            customer.stripe_customer_id AS "stripeCustomerId"
+       FROM customer_accounts customer
+       JOIN customer_memberships membership
+         ON membership.customer_account_id = customer.id
+      WHERE membership.user_id = $1
+        AND membership.revoked_at IS NULL
+      ORDER BY membership.created_at ASC`,
+    [userId],
+  )
+  return result.rows
 }
 
 export async function ensureApplicationUser(input: {
@@ -499,10 +547,14 @@ export async function invitePilotMember(input: {
 }): Promise<{user: ApplicationUser; customerAccountId: string}> {
   const user = await ensureApplicationUser({email: input.email, displayName: input.displayName})
   if (leadsDryRun()) {
-    const customer = [...memoryStore().customers.values()][0]
+    const stored = memoryStore()
+    const pilot = await getPilotById(input.pilotId)
+    const customer = pilot?.customerAccountId
+      ? stored.customers.get(pilot.customerAccountId)
+      : [...stored.customers.values()][0]
     if (!customer) throw new Error('Pilot customer account is missing.')
-    memoryStore().memberships.set(memberKey(customer.id, user.id), 'member')
-    memoryStore().pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), input.role)
+    stored.memberships.set(memberKey(customer.id, user.id), 'member')
+    stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), input.role)
     return {user, customerAccountId: customer.id}
   }
   const client = await leadPool().connect()
@@ -553,11 +605,15 @@ export async function ensurePilotRecipientAccess(input: {
     displayName: input.displayName,
   })
   if (leadsDryRun()) {
-    const customer = [...memoryStore().customers.values()][0]
+    const stored = memoryStore()
+    const pilot = await getPilotById(input.pilotId)
+    const customer = pilot?.customerAccountId
+      ? stored.customers.get(pilot.customerAccountId)
+      : [...stored.customers.values()][0]
     if (customer && input.customerRole) {
-      memoryStore().memberships.set(memberKey(customer.id, user.id), input.customerRole)
+      stored.memberships.set(memberKey(customer.id, user.id), input.customerRole)
     }
-    memoryStore().pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), input.pilotRole)
+    stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), input.pilotRole)
     return {user, customerAccountId: customer?.id}
   }
   const client = await leadPool().connect()

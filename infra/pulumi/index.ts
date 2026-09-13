@@ -16,7 +16,7 @@ import { EmailService } from "./src/components/EmailService";
 import { BackendService } from "./src/components/BackendService";
 import { EcsHostMemoryMonitoring, EcsMemoryMonitoring } from "./src/components/EcsMemoryMonitoring";
 import {
-  assertNapReleaseVerified,
+  assertPxReleaseVerified,
   assertPublicReleaseApproved,
   assertVersionPinVerified,
   readVersionPins,
@@ -208,7 +208,7 @@ assertVersionPinVerified(
 );
 if (publicIngressEnabled || backendApiPublicEnabled) {
   assertPublicReleaseApproved(versionPins.release);
-  assertNapReleaseVerified(versionPins.release.napClient, versionPins.release.loreClient);
+  assertPxReleaseVerified(versionPins.release.pxClient, versionPins.release.loreClient);
 }
 if (authGatewayDesiredCount > 0 && !authDomainPrefix) {
   throw new Error("authDomainPrefix is required before the Auth Gateway can run");

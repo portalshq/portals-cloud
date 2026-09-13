@@ -1,6 +1,8 @@
 import {NextResponse} from 'next/server'
 import {cookies} from 'next/headers'
-import Stripe from 'stripe'
+import type Stripe from 'stripe'
+import {createStripePlatformBilling} from '@portalshq/billing'
+import {pilotRoomPathForPilot} from '@/lib/leads/account-paths'
 import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
 import {applyTransition} from '@/lib/leads/pilot'
 import {siteUrl} from '@/lib/leads/email'
@@ -35,7 +37,7 @@ export async function POST(
     )
   }
 
-  const roomUrl = `${siteUrl()}/paid-pilot/room/${id}`
+  const roomUrl = `${siteUrl()}${pilotRoomPathForPilot(pilot)}`
   const secretKey = process.env.STRIPE_SECRET_KEY
 
   if (leadsDryRun() || !secretKey) {
@@ -57,14 +59,14 @@ export async function POST(
     return NextResponse.json({ok: true, url: null, pilot: updated})
   }
 
-  const stripe = new Stripe(secretKey)
+  const billing = createStripePlatformBilling(secretKey)
   // Production pilot uses a custom price_data approach, not a pre-configured product
   const amount = pilot.proposal?.priceAmount || Number(process.env.PILOT_PRICE_AMOUNT) || 5000
   const currency = pilot.proposal?.currency || 'USD'
 
   let session: Stripe.Checkout.Session
   try {
-    session = await stripe.checkout.sessions.create(
+    session = await billing.createCheckoutSession(
       {
         mode: 'payment',
         client_reference_id: id,

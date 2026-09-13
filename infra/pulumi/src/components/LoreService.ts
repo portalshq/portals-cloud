@@ -145,7 +145,7 @@ export class LoreService extends pulumi.ComponentResource {
           { name: "LORE_SECURITY_MODE", value: "strict" },
           { name: "LORE__SERVER__AUTH__JWK__ENDPOINT", value: args.jwksEndpoint },
           { name: "LORE__SERVER__AUTH__JWT_ISSUER", value: args.jwtIssuer },
-          // Advertised to clients via the environment endpoint so `nap auth
+          // Advertised to clients via the environment endpoint so `px auth
           // login` can discover the auth provider and repo URLs.
           { name: "LORE__ENVIRONMENT__ENDPOINT__AUTH_URL", value: args.authEndpointUrl },
           { name: "LORE__ENVIRONMENT__ENDPOINT__REPOSITORY_URL", value: args.repoEndpointUrl },

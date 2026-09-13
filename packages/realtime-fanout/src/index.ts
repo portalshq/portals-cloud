@@ -1,4 +1,5 @@
 export * from "./fanout-bus.js";
+export * from "./fanout-hub.js";
 export * from "./chat.js";
 export * from "./external-chat.js";
 export * from "./polls.js";

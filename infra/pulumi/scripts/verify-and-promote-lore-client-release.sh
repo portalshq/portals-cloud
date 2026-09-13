@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Verify the signed portalshq/lore CLI release and record it independently of
-# Nap. This script never changes the Lore submodule gitlink or release.status.
+# Px. This script never changes the Lore submodule gitlink or release.status.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

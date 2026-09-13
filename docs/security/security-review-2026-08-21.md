@@ -91,15 +91,15 @@ This security review covers the Lore production deployment readiness as of 2026-
 - **Required**: Certificate must show `ISSUED` before public ingress
 - **Action**: Monitor ACM status, create ALB DNS records after issuance
 
-#### 2. Nap Release ❌
+#### 2. Px Release ❌
 - **Status**: v0.5.8 lacks Sigstore bundles, cannot be promoted
-- **Required**: New Nap release with lore-auth-v1 support from external repo
+- **Required**: New Px release with lore-auth-v1 support from external repo
 - **Action**: External repository work required
 
 #### 3. Authenticated E2E Tests ❌
 - **Status**: Not yet run
 - **Required**: Login, repo operations, locks, API keys, AdminService validation
-- **Action**: Run after Nap release promoted and certificate issued
+- **Action**: Run after Px release promoted and certificate issued
 
 #### 4. Identity Migration ❌
 - **Status**: Using temporary IAM user `portals-pulumi-deployer`
@@ -120,7 +120,7 @@ This security review covers the Lore production deployment readiness as of 2026-
 
 #### High Priority
 - **ACM certificate expiration risk**: Certificate has timed out once; new certificate must be validated promptly
-- **Nap Sigstore requirement**: Current release cannot be promoted; blocks E2E testing
+- **Px Sigstore requirement**: Current release cannot be promoted; blocks E2E testing
 
 #### Medium Priority
 - **Identity migration**: Long-lived IAM user should be replaced with short-lived sessions
@@ -134,9 +134,9 @@ This security review covers the Lore production deployment readiness as of 2026-
 
 ### Immediate (Before Public Ingress)
 1. **Monitor ACM certificate** until `ISSUED` status
-2. **Coordinate Nap release** with external repository maintainers
+2. **Coordinate Px release** with external repository maintainers
 3. **Create ALB DNS records** after certificate issuance
-4. **Run authenticated E2E tests** with new Nap release
+4. **Run authenticated E2E tests** with new Px release
 
 ### Short-term (Within 30 Days)
 1. **Implement identity migration** to short-lived roles

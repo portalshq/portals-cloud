@@ -1,4 +1,4 @@
-# K8s CronJob that runs BillingSync from @nap/billing-engine.
+# K8s CronJob that runs BillingSync from @px/billing-engine.
 # Pulls OpenMeter aggregates per tenant and reports to Lago hourly.
 # Hourly is fine — Lago's billing cycle is monthly; sub-hourly granularity
 # on usage reporting buys nothing except more API calls.
@@ -16,7 +16,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: billing-sync
-              image: REPLACE_ME/nap-billing-sync:latest
+              image: REPLACE_ME/px-billing-sync:latest
               env:
                 - name: OPENMETER_ENDPOINT
                   value: "http://openmeter.portals-platform.svc.cluster.local:8888"

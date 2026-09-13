@@ -31,6 +31,8 @@
  * so it stays reusable across any "channel" product, not just one app.
  */
 
+import { TimeCounter, type TickContext, type TimeCounterClock } from "./time-counter.js";
+
 export type ActivationResult = boolean | { scheduleRecheckAt: number };
 
 export interface TickResult {
@@ -55,7 +57,7 @@ export interface RealtimeEngineOptions {
    * Only do heavier work (content generation, DB writes) when an actual
    * phase transition is due.
    */
-  onTick: (channelId: string) => Promise<TickResult>;
+  onTick: (channelId: string, context: TickContext) => Promise<TickResult>;
 
   /** Called when a channel's session ends and its timer stops. */
   onDeactivate?: (channelId: string) => Promise<void>;
@@ -65,6 +67,8 @@ export interface RealtimeEngineOptions {
 
   /** Injected for testability; defaults to console. */
   logger?: Pick<Console, "error" | "warn">;
+  /** Wall and monotonic clock injection for deterministic tests. */
+  clock?: TimeCounterClock;
 }
 
 export class RealtimeEngine {
@@ -75,6 +79,7 @@ export class RealtimeEngine {
   private activating = new Set<string>();
   private activationEpoch = new Map<string, number>();
   private deactivating = new Map<string, Promise<void>>();
+  private counters = new Map<string, TimeCounter>();
   private readonly tickIntervalMs: number;
   private readonly logger: Pick<Console, "error" | "warn">;
 
@@ -157,6 +162,7 @@ export class RealtimeEngine {
     if (recheck) clearTimeout(recheck);
     this.recheckTimers.delete(channelId);
     this.recheckRequiresViewer.delete(channelId);
+    this.counters.delete(channelId);
 
     const existing = this.deactivating.get(channelId);
     if (existing) return existing;
@@ -221,7 +227,7 @@ export class RealtimeEngine {
     const existing = this.recheckTimers.get(channelId);
     if (existing) clearTimeout(existing);
 
-    const delay = Math.max(0, at - Date.now());
+    const delay = Math.max(0, at - (this.opts.clock?.now() ?? Date.now()));
     const timer = setTimeout(() => {
       this.recheckTimers.delete(channelId);
       this.recheckRequiresViewer.delete(channelId);
@@ -235,6 +241,10 @@ export class RealtimeEngine {
 
   private startTimer(channelId: string): void {
     if (this.timers.has(channelId)) return;
+    this.counters.set(channelId, new TimeCounter({
+      intervalMs: this.tickIntervalMs,
+      ...(this.opts.clock ? { clock: this.opts.clock } : {}),
+    }));
     this.scheduleTick(channelId);
   }
 
@@ -242,7 +252,9 @@ export class RealtimeEngine {
     const timer = setTimeout(async () => {
       if (this.timers.get(channelId) !== timer) return;
       try {
-        const result = await this.opts.onTick(channelId);
+        const counter = this.counters.get(channelId);
+        if (!counter) return;
+        const result = await this.opts.onTick(channelId, counter.next());
         if (!result.continue) {
           await this.stop(channelId);
           return;

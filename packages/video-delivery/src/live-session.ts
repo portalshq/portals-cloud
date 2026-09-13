@@ -1,4 +1,5 @@
 import { normalizeCaptionTracks, type CaptionTrack } from "./captions.js";
+import { LiveProgrammingScheduler, type LiveProgrammingOptions } from "./live-programming.js";
 
 /** A token-free HLS source that an application can hand to its player. */
 export interface HlsPlaybackSession {
@@ -19,6 +20,8 @@ export interface LiveDeliveryOptions extends HlsPlaybackSession {
   requestTimeoutMs?: number;
   /** Injectable for non-browser server runtimes and tests. */
   fetch?: typeof fetch;
+  /** Optional package-owned live release scheduling using an application policy. */
+  programming?: LiveProgrammingOptions;
 }
 
 export interface LiveDeliveryStatus extends HlsPlaybackSession {
@@ -29,8 +32,9 @@ export interface LiveDeliveryStatus extends HlsPlaybackSession {
 }
 
 /**
- * Connects one configured HLS playback stream. It never provisions an origin,
- * schedules programming, or distinguishes live from on-demand business flows.
+ * Connects one configured HLS playback stream and optionally runs release
+ * scheduling from an injected application policy. It never provisions an
+ * origin or decides live-versus-on-demand business rules.
  */
 export class LiveDelivery {
   private readonly session: HlsPlaybackSession;
@@ -47,6 +51,7 @@ export class LiveDelivery {
   private isHealthy = false;
   private lastCheckedAt: string | undefined;
   private lastError: string | undefined;
+  private readonly programming: LiveProgrammingScheduler | undefined;
 
   constructor(options: LiveDeliveryOptions) {
     this.session = {
@@ -61,6 +66,9 @@ export class LiveDelivery {
     this.healthCheckIntervalMs = options.healthCheckIntervalMs ?? 30_000;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
     this.requestFetch = options.fetch ?? fetch;
+    this.programming = options.programming
+      ? new LiveProgrammingScheduler(this.session.sessionId, options.programming, () => this.isHealthy)
+      : undefined;
     assertPositiveInteger("retryAttempts", this.retryAttempts);
     assertNonNegativeInteger("retryDelayMs", this.retryDelayMs);
     assertPositiveInteger("healthCheckIntervalMs", this.healthCheckIntervalMs);
@@ -90,6 +98,7 @@ export class LiveDelivery {
     this.startPromise = null;
     if (this.healthCheckTimer) clearTimeout(this.healthCheckTimer);
     this.healthCheckTimer = null;
+    await this.programming?.stop();
   }
 
   getStatus(): LiveDeliveryStatus {
@@ -106,6 +115,7 @@ export class LiveDelivery {
     await this.checkHealthWithRetry(generation);
     this.assertCurrent(generation);
     this.isRunning = true;
+    this.programming?.start();
     this.scheduleHealthCheck(generation);
     return this.session;
   }

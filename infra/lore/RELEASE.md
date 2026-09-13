@@ -224,11 +224,11 @@ infra/pulumi/scripts/verify-and-promote-lore-client-release.sh v0.8.4-portals.2
 | Commit the gitlink | Update the `infra/lore` submodule pointer in the parent repo | The parent repo must reference the exact approved Lore commit | A submodule pointer is the parent's "this is the Lore we use" record |
 
 Then the `versions.yaml` update and the submodule update are committed
-together. Finally, **Nap** (the product that embeds Lore) is updated to pin
-this exact Lore version and its checksum, and a new Nap release is made.
+together. Finally, **Px** (the product that embeds Lore) is updated to pin
+this exact Lore version and its checksum, and a new Px release is made.
 
 **Why does the installer matter?** The installer receives the pinned
-`SHA256SUMS` digest from Nap. It must refuse to run if the manifest is
+`SHA256SUMS` digest from Px. It must refuse to run if the manifest is
 missing or mismatched, and must verify every downloaded archive before
 extracting. The signed manifest is therefore a *runtime* trust anchor, not
 just paperwork.
@@ -264,6 +264,6 @@ system — its output is never published anywhere.
 | **`SHA256SUMS`** | A text file listing each file's SHA-256 hash — the checksum manifest. |
 | **Sigstore / OIDC signing** | Signing with GitHub's own identity, so no private key has to be stored anywhere. The signature proves "GitHub's workflow produced this". |
 | **Smoke tests** | Integration tests that run the real CLI against a real server and exercise actual workflows. |
-| **Bill of materials (`versions.yaml`)** | The approved list: which Lore CLI, server image, and Nap binary are allowed together. |
+| **Bill of materials (`versions.yaml`)** | The approved list: which Lore CLI, server image, and Px binary are allowed together. |
 | **Gitlink / submodule pointer** | The parent repository's record of which exact commit of the Lore submodule it uses. |
 | **`portals.N` suffix** | The Portals-specific release counter. `portals.1`, `portals.2`, ... each tag is a fresh, permanent release. |

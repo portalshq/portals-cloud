@@ -19,6 +19,7 @@ import type {
   QualificationOutcome,
 } from '@/lib/leads/contracts'
 import { pilotControlledOptionLists } from '@/lib/leads/contracts'
+import { pilotRoomPathForPilot } from '@/lib/leads/account-paths'
 import { stateLabel } from '@/lib/leads/pilot'
 import type { StoredPilot } from '@/lib/leads/store'
 import type { ResourceDocument } from '@/types/resource'
@@ -1335,7 +1336,7 @@ export function PilotPlanPdfDocument({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>decision path</Text>
           <Text>deploy portals, extend the pilot under a defined scope, or conclude that portals is not the right fit at this time. the final decision date is {pilot.proposal?.decisionDate || 'stated in the room'}.</Text>
-          <Text style={styles.muted}>signature and payment are completed in the pilot approval room: portals.works/paid-pilot/room/{pilot.id}</Text>
+          <Text style={styles.muted}>signature and payment are completed in the pilot approval room: portals.works{pilotRoomPathForPilot(pilot)}</Text>
         </View>
 
         <View style={styles.section}>

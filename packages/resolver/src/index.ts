@@ -1,1 +1,1 @@
-export * from "./nap-resolver-adapter.js";
+export * from "./px-resolver-adapter.js";
