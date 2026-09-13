@@ -18,7 +18,7 @@ infrastructure.
 
 ## What's new here vs. what already exists
 
-- **NAP protocol (v0)** and the **Narrative Engine (v0, alpha)** already exist and are
+- **PX protocol (v0)** and the **Narrative Engine (v0, alpha)** already exist and are
   live in `studio-app` and `25thChapter`. This repo does **not** rebuild them. It wraps
   them in capability-contract adapters (`packages/resolver`,
   `packages/capabilities/narrative-engine-adapter`) so they become consumable by *any*
@@ -36,7 +36,7 @@ packages/
   contracts/                    # Capability contract types + channel manifest schema (zod)
   runtime-core/                 # Control plane: session orchestrator, data-plane gateway
   registry/                     # Capability registry (register/resolve/version)
-  resolver/                     # NAP address resolver — adapter over existing NAP v0
+  resolver/                     # PX address resolver — adapter over existing PX v0
   capabilities/
     realtime-fanout/            # Chat + polls + lobby control — one pub/sub primitive
     video-delivery/             # Live + VOD session abstraction

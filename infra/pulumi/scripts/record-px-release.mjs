@@ -9,7 +9,7 @@ const [metadataFile, releaseBaseUrl, verifiedLoreSourceCommit] = process.argv.sl
 if (!metadataFile || !/^https:\/\//.test(releaseBaseUrl ?? "") ||
     !/^[a-f0-9]{40}$/.test(verifiedLoreSourceCommit ?? "")) {
   console.error(
-    "usage: record-nap-release.mjs <verified-release-metadata.json> " +
+    "usage: record-px-release.mjs <verified-release-metadata.json> " +
       "<https-release-base-url> <verified-lore-source-commit>",
   );
   process.exit(2);
@@ -30,7 +30,7 @@ if (metadata.schema_version !== 1 || !semverPattern.test(metadata.version ?? "")
     !/^https:\/\//.test(metadata.lore_client_artifact_manifest_url ?? "") ||
     !digestPattern.test(metadata.lore_client_artifact_manifest_sha256 ?? "") ||
     !/^https:\/\//.test(metadata.lore_client_signature_bundle_url ?? "")) {
-  throw new Error("verified Nap metadata is incomplete or incompatible");
+  throw new Error("verified Px metadata is incomplete or incompatible");
 }
 
 const scriptDir = path.dirname(new URL(import.meta.url).pathname);
@@ -51,17 +51,17 @@ if (!loreClient ||
     loreClient.get("artifact_manifest_sha256") !== metadata.lore_client_artifact_manifest_sha256 ||
     loreClient.get("signature_bundle_url") !== metadata.lore_client_signature_bundle_url) {
   throw new Error(
-    "Nap metadata does not match the independently promoted top-level lore-client release",
+    "Px metadata does not match the independently promoted top-level lore-client release",
   );
 }
-versions.setIn(["nap-client", "version"], metadata.version);
-versions.setIn(["nap-client", "source_commit"], metadata.source_commit);
-versions.setIn(["nap-client", "release_tag"], metadata.release_tag);
-versions.setIn(["nap-client", "security_contract"], metadata.security_contract);
-versions.setIn(["nap-client", "artifact_manifest_url"], `${releaseBaseUrl}/SHA256SUMS`);
-versions.setIn(["nap-client", "artifact_manifest_sha256"], metadata.artifact_manifest_sha256);
-versions.setIn(["nap-client", "signature_bundle_url"], `${releaseBaseUrl}/SHA256SUMS.sigstore.json`);
-versions.setIn(["nap-client", "lore_client_version"], metadata.lore_client_version);
+versions.setIn(["px-client", "version"], metadata.version);
+versions.setIn(["px-client", "source_commit"], metadata.source_commit);
+versions.setIn(["px-client", "release_tag"], metadata.release_tag);
+versions.setIn(["px-client", "security_contract"], metadata.security_contract);
+versions.setIn(["px-client", "artifact_manifest_url"], `${releaseBaseUrl}/SHA256SUMS`);
+versions.setIn(["px-client", "artifact_manifest_sha256"], metadata.artifact_manifest_sha256);
+versions.setIn(["px-client", "signature_bundle_url"], `${releaseBaseUrl}/SHA256SUMS.sigstore.json`);
+versions.setIn(["px-client", "lore_client_version"], metadata.lore_client_version);
 const receipts = fs.existsSync(receiptsFile)
   ? readJsonObject(receiptsFile)
   : { schemaVersion: 1, releases: {} };
@@ -69,7 +69,7 @@ if (receipts.schemaVersion !== 1 || receipts.releases === null ||
     Array.isArray(receipts.releases) || typeof receipts.releases !== "object") {
   throw new Error(`unsupported release receipt schema in ${receiptsFile}`);
 }
-receipts.releases["nap-client"] = {
+receipts.releases["px-client"] = {
   version: metadata.version,
   sourceCommit: metadata.source_commit,
   releaseTag: metadata.release_tag,
@@ -78,12 +78,12 @@ receipts.releases["nap-client"] = {
   loreClientVersion: metadata.lore_client_version,
   loreClientSourceCommit: verifiedLoreSourceCommit,
   loreClientArtifactManifestSha256: metadata.lore_client_artifact_manifest_sha256,
-  napSignatureVerified: true,
-  napChecksumsVerified: true,
+  pxSignatureVerified: true,
+  pxChecksumsVerified: true,
   loreSignatureVerified: true,
   verifiedAt: new Date().toISOString(),
 };
 // Keep the BOM from ever pointing at a release whose receipt was not written.
 atomicWriteJson(receiptsFile, receipts);
 atomicWriteYaml(versionsFile, versions);
-console.log(`Nap ${metadata.version} promoted from ${metadata.source_commit}`);
+console.log(`Px ${metadata.version} promoted from ${metadata.source_commit}`);

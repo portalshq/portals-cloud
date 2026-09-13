@@ -5,18 +5,18 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml turbo.json ./
 COPY packages/contracts/package.json  ./packages/contracts/
 COPY packages/registry/package.json   ./packages/registry/
-RUN pnpm install --frozen-lockfile --filter @nap/registry...
+RUN pnpm install --frozen-lockfile --filter @px/registry...
 
 FROM deps AS build
 COPY packages/contracts/src  ./packages/contracts/src
 COPY packages/registry/src   ./packages/registry/src
-RUN pnpm --filter @nap/registry exec tsc --noEmit --skipLibCheck 2>/dev/null || true
+RUN pnpm --filter @px/registry exec tsc --noEmit --skipLibCheck 2>/dev/null || true
 
 FROM node:22-alpine AS runtime
-RUN addgroup -g 1001 -S nap && adduser -u 1001 -S nap -G nap
+RUN addgroup -g 1001 -S px && adduser -u 1001 -S px -G px
 WORKDIR /app
-COPY --from=build --chown=nap:nap /app ./
-USER nap
+COPY --from=build --chown=px:px /app ./
+USER px
 ENV NODE_ENV=production PORT=8081
 EXPOSE 8081
 CMD ["node", "-e", "require('http').createServer((req,res)=>{ \

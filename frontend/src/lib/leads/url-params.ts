@@ -187,7 +187,7 @@ export function parseUrlParams(): UrlParams {
     if (!validated.success) {
       // Log validation errors in development only
       if (process.env.NODE_ENV === 'development') {
-        console.warn('[URL Params] Validation errors:', validated.error.errors)
+        console.warn('[URL Params] Validation errors:', validated.error.issues)
       }
       
       // Return partial valid params
@@ -199,7 +199,7 @@ export function parseUrlParams(): UrlParams {
           if (fieldSchema) {
             const result = fieldSchema.safeParse(value)
             if (result.success) {
-              partialParams[key as keyof UrlParams] = result.data
+              ;(partialParams as Record<string, unknown>)[key] = result.data
             }
           }
         } catch {

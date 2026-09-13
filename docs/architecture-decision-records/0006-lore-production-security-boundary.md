@@ -59,7 +59,7 @@ release requirements.
 `infra/lore/versions.yaml` is the release bill of materials. It separately
 binds the Lore client to the `portalshq/lore` fork commit and pinned Epic
 upstream commit, binds the Lore server and active Auth Gateway/control-plane
-images to verified clean source commits, and binds Nap to the exact signed Lore
+images to verified clean source commits, and binds Px to the exact signed Lore
 client release it installs. All four declare the same security contract. The
 retired legacy issuer is a distinct empty entry so it cannot be confused with
 the active control plane.

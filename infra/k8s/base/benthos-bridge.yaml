@@ -1,7 +1,7 @@
 # Redpanda Connect (Benthos) bridge: NATS JetStream → OpenMeter
 # For high-throughput metering paths (viewer.joined / viewer.left events
 # from the realtime-fanout capability at scale).
-# Low-volume control-plane events use @nap/billing-metering's HTTP client
+# Low-volume control-plane events use @px/billing-metering's HTTP client
 # directly and don't need this bridge.
 #
 # The @openmeterio/benthos-openmeter plugin adds an openmeter output

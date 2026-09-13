@@ -18,13 +18,13 @@ issues log below is append-only._
 |---|---|
 | ACM `.works` certificate | **ISSUED** 2026-08-22T14:52Z (`32f56a6f…`, NotAfter 2027-03-07); both validation domains SUCCESS |
 | Service DNS | `lore`/`auth.portals.works` → prod ALB, DNS-only, live; `auth-gateway-rebac` Service Connect `VIP:8087` verified (UrcAuthApi via `https://auth.portals.works:443` → `:8084`, RebacApi via `http://auth-gateway-rebac:8087` → `127.255.0.1:8087`) |
-| Source migration | Complete in all three repos (gateway audience const, lore `0.8.4-portals.8` `47333fc` incl. `fix(rebac):8087` `3694edb` + `fix(auth):https` `f4ebbe5`, Nap `0.5.15` `676fa44`); `cargo check -p lore-server` green, compile+tests green |
-| Receipt ledger | **v2 shipped**; Nap `v0.5.15` (`676fa44`) and Lore `v0.8.4-portals.8` (`47333fc`/`f4ebbe5`) promoted — `infra/lore/versions.yaml` `lore@sha256:72bc9186…` `Verified OK` (cosign+Trivy 0 high), `verified-images.json` receipt bound |
+| Source migration | Complete in all three repos (gateway audience const, lore `0.8.4-portals.8` `47333fc` incl. `fix(rebac):8087` `3694edb` + `fix(auth):https` `f4ebbe5`, Px `0.5.15` `676fa44`); `cargo check -p lore-server` green, compile+tests green |
+| Receipt ledger | **v2 shipped**; Px `v0.5.15` (`676fa44`) and Lore `v0.8.4-portals.8` (`47333fc`/`f4ebbe5`) promoted — `infra/lore/versions.yaml` `lore@sha256:72bc9186…` `Verified OK` (cosign+Trivy 0 high), `verified-images.json` receipt bound |
 | OIDC | Provider + `portals-github-release` role live; `image-release.yml` wired; Lore `release.yml` `v0.8.4-portals.8` **completed success** (6/6 jobs) |
 | Egress hardening (#7) | `EgressControls` live; Lore SG `8087→100.64.0.0/10` (VIP) + `8087→VPC` + `443→0.0.0.0/0` (JWKS/ALB) + `53→VPC`; temporary `80→0.0.0.0/0` **removed 2026-08-25** |
 | Alarm contacts | SNS topic + `eng@portals.works` sub **CONFIRMED** 2026-08-23 |
 | Pulumi config | Both stacks: cert ARN, `.works` hostnames, JWKS `https://auth.portals.works/.well-known/jwks.json`, issuer `https://auth.portals.works`; `authDomainPrefix` `portals-prod-auth-907199504810`, `egressEndpointsEnabled=true`, `publicIngressEnabled=true`, `lore:8` `72bc9186` `HEALTHY` `c60b9ca368cf…` |
-| Builds | Lore `v0.8.4-portals.8` (`47333fc`) **RELEASED** + image `72bc9186` promoted & deployed (`lore:8`, `c60b9ca368cf…` `HEALTHY`, `RUST_LOG=debug`); Nap `v0.5.15` released + promoted |
+| Builds | Lore `v0.8.4-portals.8` (`47333fc`) **RELEASED** + image `72bc9186` promoted & deployed (`lore:8`, `c60b9ca368cf…` `HEALTHY`, `RUST_LOG=debug`); Px `v0.5.15` released + promoted |
 | Next gates | Full E2E matrix **passed** (`create 0.8 s` `01a03a7…`, `clone 1.06 s` `43 B` file, `push 0.77 s` `e881f13…`), `verify-external-surface.sh` `443 open / 8083,41337,41339 closed` → §12 sign-off |
 | Blocker | **None** — `RepositoryGet` now `https://auth.portals.works:443` (`UrcAuthApi` → `:8084` via ALB) + `VIP:8087` (`RebacApi` via Service Connect) verified `<1 s`; SG tightened |
 
@@ -35,7 +35,7 @@ Every release follows the same loop:
 1. **Commit** — source changes land as clean, reviewed commits. Production
    publishers refuse dirty source trees.
 2. **Build** — images are built once from those commits (Lore server, Auth
-   Gateway), or signed binary releases are cut (Lore CLI tag, Nap pipeline).
+   Gateway), or signed binary releases are cut (Lore CLI tag, Px pipeline).
 3. **Scan & sign** — ECR/Trivy scans, SBOM/provenance attestations, and cosign
    signatures over the resolved immutable digest
    (`REQUIRE_SIGNATURE=true`, `COSIGN_KEY=awskms:///alias/portals-artifact-signing`).
@@ -96,7 +96,7 @@ Do not start a phase until its dependency's verification has passed.
 | 4b | Auth Gateway image build + publish | Release engineer | same env exports; `control-plane/scripts/publish-auth-gateway.sh` | 5–15 m | Phases 1–2; artifact-signing key exists | same as 4a; release version auto-extracted from `versions.yaml`; unique build tag generated |
 | 5a | Promote Lore CLI release | Release engineer | `infra/pulumi/scripts/verify-and-promote-lore-client-release.sh vX.Y.Z` | 3–8 m | Phase 3 | `versions.yaml` `lore-client` entry updated by script; checksums verified; submodule gitlink untouched |
 | 5b | Promote server images ×2 | Release engineer | `infra/pulumi/scripts/verify-and-promote-image.sh` for `lore`, then for `auth-gateway` (service, digest, platform, expected source/protocol/packaging commits) | 3–8 m each | Phases 4a–4b | `verified-images.json` receipts bound to exact index + platform digests |
-| 5c | Promote Nap release | Release engineer | `infra/pulumi/scripts/verify-and-promote-nap-release.sh vX.Y.Z` (Nap CI pipeline itself runs 15–30 m before this) | 15–30 m total | Phase 5a (Nap dependency must match promoted lore client) | Sigstore bundles + all checksums verified; `versions.yaml` `nap-client` entry + `verified-releases.json` receipt written |
+| 5c | Promote Px release | Release engineer | `infra/pulumi/scripts/verify-and-promote-px-release.sh vX.Y.Z` (Px CI pipeline itself runs 15–30 m before this) | 15–30 m total | Phase 5a (Px dependency must match promoted lore client) | Sigstore bundles + all checksums verified; `versions.yaml` `px-client` entry + `verified-releases.json` receipt written |
 | 6 | Commit release BOM | Release engineer | `git add infra/lore/versions.yaml infra/lore/verified-images.json infra/lore/verified-releases.json && git commit` | minutes | Phases 5a–5c | diff contains only script-written pins/releases; committed with release source |
 | 7 | Pulumi config/up (contained deploy) | Platform operator | `cd infra/pulumi`; set desired counts and switches (below); `pulumi preview --diff`; `pulumi up` | 5–15 m | Phase 6 | preview creates/enables nothing public; private tasks healthy; no `dev` stack destruction |
 | 8 | JWKS bootstrap | Platform operator | see JWKS bootstrap ordering below | 15–45 m incl. applies | Phase 7 | live JWKS at `https://auth.portals.works/.well-known/jwks.json` contains expected `kid`; private Lore fetched that `kid` |
@@ -153,7 +153,7 @@ key; retain retired public keys for eight hours plus ten minutes.
 - **Audience cut invalidates tokens.** The recipient-protection audience root
   is `portals.works`, and the issuer is
   `https://auth.portals.works`. Every token issued under the old audience stops
-  validating at cutover: users re-run `nap auth login`; CI exchanges a newly
+  validating at cutover: users re-run `px auth login`; CI exchanges a newly
   created service-account API key. No legacy token is grandfathered.
 - **Two DNS phases, both DNS-only (grey cloud):**
   1. *Validation*: copy the exact ACM validation CNAME name/value pairs for
@@ -220,7 +220,7 @@ low-cost snapshot bridge (`lowCostRdsSnapshotsEnabled=true`) is enabled.
 - [ ] Previously exposed signing, S3, database, TLS, and runtime credentials rotated.
 - [ ] Only digest-pinned ECR images configured; SBOM and signature verified.
 - [ ] Image receipts match clean committed source/protocol/packaging revisions.
-- [ ] Signed Nap release and pinned `portalshq/lore` client share one security contract in `versions.yaml`.
+- [ ] Signed Px release and pinned `portalshq/lore` client share one security contract in `versions.yaml`.
 - [ ] Lore refuses missing/wrong issuer, audience, environment, algorithm, expiration, `kid`, repository, permission, wildcard, and revoked tokens.
 - [ ] AdminService/Obliterate returns `UNIMPLEMENTED`.
 - [ ] Store-aware readiness healthy on every task.
@@ -239,7 +239,7 @@ digests, tags, timestamp, and operator — never tokens, API keys, or database U
 
 | Test | Expected result |
 |---|---|
-| `nap auth login`, `nap auth status`, `nap auth logout` | Login interactive; status identifies subject; logout removes protected credential. |
+| `px auth login`, `px auth status`, `px auth logout` | Login interactive; status identifies subject; logout removes protected credential. |
 | Missing, expired, wrong issuer/audience/repository, wildcard, revoked tokens | Every request denied. |
 | Repository create, clone, commit/push, pull, sync, publish | Caller receives a five-minute token for exactly one authorized repository. |
 | Fragment write/read and branch-pointer update | Real S3/DynamoDB serialization round-trips succeed. |
@@ -294,7 +294,7 @@ Fill the **Actual** column during execution.
 | Lore server image build + publish | 5–15 m | |
 | Auth Gateway image build + publish | 5–15 m | |
 | Each `verify-and-promote-*` promotion | 3–8 m each | |
-| Nap pipeline (CI build/sign + promotion) | 15–30 m | |
+| Px pipeline (CI build/sign + promotion) | 15–30 m | |
 | `pulumi up` (contained foundation or gated apply) | 5–15 m | |
 | JWKS bootstrap + private Lore verification | 15–45 m | |
 | Opening window (preview → up → immediate E2E + probe) | ~45 m supervised | |
@@ -308,7 +308,7 @@ Fill the **Actual** column during execution.
 | 2 | Wave 1A | `RequestCertificate` rejected idempotency token with hyphens (`\w+` constraint) | Retried with `portalsworks20260821` |
 | 3 | Wave 1A | First request denied — policy requires `aws:RequestTag/Project=portals` | Re-requested with tag; issued `32f56a6f` |
 | 4 | Wave 1A | `acm:DeleteCertificate` not granted to deployer role | Operator deleted both stale certs via console |
-| 5 | Waves 1C/D | Parallel subagent runs interrupted mid-flight; lore track died 3x | Operator completed gateway+nap migrations concurrently; agent work verified complete post-mortem; ledger v2 applied directly |
+| 5 | Waves 1C/D | Parallel subagent runs interrupted mid-flight; lore track died 3x | Operator completed gateway+px migrations concurrently; agent work verified complete post-mortem; ledger v2 applied directly |
 | 8 | Wave 2 | Prod Cognito RP ID fell back to authHostname (authDomainPrefix unset in prod) | Set `portals-prod-auth-907199504810`; preview now creates hosted domain + keeps RP ID on Cognito prefix (passkeys safe) |
 | 9 | Wave 2 | Dev blocked on legacy v1 receipts after v2 gate landed | Added transitional v1-read compat (image-match enforced); full v2 receipts regenerate at promotion |
 | 10 | Wave 2 | `pulumi-language-nodejs` missing from PATH | Prepend `/Users/vibrantceo/.pulumi/bin` — documented for future runs |
@@ -319,7 +319,7 @@ Fill the **Actual** column during execution.
 | 19 | Wave 4 | Rerun still hit `~/.aws` mount error: build launched with pre-hardening scripts (40-min lore compile overlapped the fix commit); wrapper also exported TRIVY_BIN as an entire docker command string, and gateway attempt-3 hit ECR StartImageScan LimitExceeded (scanOnPush already scans) | Wrapper export removed; promote script now tolerates quota/already-scanning by polling findings; committed a1c5209 — next rerun is cache-fast |
 | 18 | Wave 4 | Trivy container step bind-mounted `~/.aws` — impossible on remote builders (`mkdir /host_mnt/... permission denied`) | Hardened `verify-and-promote-image.sh`: docker-trivy is now the default (no host install, per policy); creds resolve on the invoking host (`export-credentials` or session env), fail-fast when absent; injected via 0600 temp env-file shredded post-run; plaintext tcp:// endpoints refused (transit guard). argv/logging exposure: none |
 | 17 | Wave 4 | Root cause of `no linux/arm64 runnable manifest`: prod-mode single-arch branch omitted `--platform`, so amd64 remote-builder stamped arm64 binaries as amd64; promotion gate refused (fail-closed ✓) | Fixed properly: `$BUILDPLATFORM` guards on builder stages, `$TARGETPLATFORM` on runtime stages, explicit per-arch `--platform` in single mode, fail-fast guard against non-arm64 targets in both Dockerfiles, regression greps updated (incl. stale pre-existing PLATFORMS assertion). Works on any builder incl. amd64 CI — zero QEMU |
-| 16 | Wave 4 | Builds re-cut in progress — operator correcting immutable build-identity issues before promotion; earlier today-digests treated as non-canonical intermediates | Agent standing down from ECR fingerprinting; canonical selection rule unchanged (newest index-with-attestation per repo once operator signals done). Nap repo committed (routing `.works`) |
+| 16 | Wave 4 | Builds re-cut in progress — operator correcting immutable build-identity issues before promotion; earlier today-digests treated as non-canonical intermediates | Agent standing down from ECR fingerprinting; canonical selection rule unchanged (newest index-with-attestation per repo once operator signals done). Px repo committed (routing `.works`) |
 | 15 | Wave 4 | Concurrent publisher run triggered v1→v2 ledger migration, leaving `{schemaVersion:2, receipts:{}}` empty when its promote step did not complete → previews/tests correctly fail-closed on missing receipts | Expected transitional state; real receipts land as each `verify-and-promote-image.sh` succeeds. Ops serialization in effect |
 | 13 | Wave 3 | Image publishing had no CI consumer for the new OIDC role | Added `.github/workflows/image-release.yml` (tag v* → assume portals-github-release → same publisher scripts); first live proof deferred to Wave-7 contained run |
 | 12 | Wave 3 | Egress hardening (#7) implemented in code as `EgressControls` (6 interface endpoints + endpoints SG + private zone alias auth→ALB), flag `egressEndpointsEnabled` default false, enabled on prod | Prod preview +10 create / 0 delete; dev untouched; SG tightening deferred until endpoints verified |
@@ -347,7 +347,7 @@ Live log — append rows during execution; never delete entries.
    destroy test instance → record evidence here. Validates DATABASE backup
    recoverability (service rollback is the separate containment procedure).
 4. **Lore installer `--repo` flag**: portalshq/lore scripts/install.sh rejects
-   the flag nap passes; accept-and-ignore in next fork release.
+   the flag px passes; accept-and-ignore in next fork release.
 5. **Pin aquasec/trivy by digest** once current JSON schema stabilized.
 
 ## 11c. Current Blocker (resolved 2026-08-25 19:46 UTC)

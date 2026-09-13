@@ -1,4 +1,4 @@
-import Stripe from 'stripe'
+import {createStripePlatformClient} from '@portalshq/billing'
 import dotenv from 'dotenv'
 
 // Load environment variables from .env.local
@@ -17,7 +17,7 @@ if (!webhookUrl) {
   process.exit(1)
 }
 
-const stripe = new Stripe(secretKey)
+const stripe = createStripePlatformClient(secretKey)
 
 async function createStripeWebhook() {
   console.log(`Creating webhook for: ${webhookUrl}\n`)

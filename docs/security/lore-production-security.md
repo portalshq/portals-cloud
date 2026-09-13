@@ -12,7 +12,7 @@ control plane are at zero, the private Auth Gateway may run for readiness and
 bootstrap work, public ingress is off, and all release assertions are false.
 The repository now contains the private Auth Gateway
 runtime, Cognito authorization-code/PKCE flow, KMS RS256 signer and live JWKS,
-persistent ReBAC/API-key implementation, recovery controls, and compatible Nap
+persistent ReBAC/API-key implementation, recovery controls, and compatible Px
 login flow. It does **not** authorize reopening by itself.
 
 Before a release assertion changes, grant the documented security-bootstrap
@@ -40,17 +40,17 @@ keys, and retire the user before the identity revision is complete.
 - Images are ECR digest references. Mutable tags are build inputs only, never
   deployment pins.
 - `infra/lore/versions.yaml` identifies one compatible Lore, control-plane,
-  Lore CLI, and Nap release. Public ingress rejects a contained/incomplete
+  Lore CLI, and Px release. Public ingress rejects a contained/incomplete
   manifest even when individual images are otherwise healthy.
 - A `200` liveness response is not a release gate. Readiness must prove S3,
-  DynamoDB, locks, and the authenticated Nap workflow.
+  DynamoDB, locks, and the authenticated Px workflow.
 
 ## Endpoint inventory
 
 | Endpoint | Exposure | Caller | Purpose |
 |---|---|---|---|
-| `lore.portals.works:443` | Public through ALB/WAF | Nap/Lore clients | TLS gRPC and authenticated repository operations |
-| `auth.portals.works:443` | Public through ALB/WAF | Nap/browser | gRPC auth exchange, OAuth callback, and JWKS publication |
+| `lore.portals.works:443` | Public through ALB/WAF | Px/Lore clients | TLS gRPC and authenticated repository operations |
+| `auth.portals.works:443` | Public through ALB/WAF | Px/browser | gRPC auth exchange, OAuth callback, and JWKS publication |
 | Lore `41337` | Private task network | ALB only | Plaintext h2c gRPC residual-risk hop |
 | Lore `41339` | Task-local | ECS readiness only | Store-aware container readiness |
 | Legacy control plane `8083` | Absent; desired count locked to zero | None | Retired unfinished issuer/API; local migration work only |
@@ -61,9 +61,9 @@ keys, and retire the user before the identity revision is complete.
 
 ## Architecture and the meaning of a network hop
 
-A **hop** is one leg of a request between two components. A Nap operation does
+A **hop** is one leg of a request between two components. A Px operation does
 not travel directly from the laptop to Lore in one connection: the first hop
-is Nap to the ALB, and the next hop is the ALB to a private ECS task. TLS on one
+is Px to the ALB, and the next hop is the ALB to a private ECS task. TLS on one
 hop does not automatically encrypt the next one.
 
 ```mermaid
@@ -71,12 +71,12 @@ flowchart TB
     subgraph Clients["User and CI devices"]
         User["Human user"]
         Browser["Browser"]
-        Nap["Nap CLI"]
+        Px["Px CLI"]
         LoreCLI["Pinned Lore CLI"]
         Keyring["OS keyring"]
         CI["CI service account"]
-        User --> Nap --> LoreCLI
-        Nap --> Browser
+        User --> Px --> LoreCLI
+        Px --> Browser
         LoreCLI <--> Keyring
     end
 
@@ -128,7 +128,7 @@ flowchart TB
 ```
 
 The external hop is protected by the ACM certificate. A certificate failure is
-fail-closed: the browser, Nap, or Lore CLI refuses the connection before it
+fail-closed: the browser, Px, or Lore CLI refuses the connection before it
 sends a token or repository payload. The two ALB-to-task hops are currently
 unencrypted. Security groups make them private and restrict the permitted
 source to the ALB, but security groups do not provide cryptographic secrecy.
@@ -389,7 +389,7 @@ The baseline is cost-minimized, not guaranteed to produce a zero-dollar bill:
 ## Deployment and rollback
 
 Deploy private stores/roles first, then identity/JWKS, gateway/ReBAC, Lore, and
-Nap staging tests. Publish JWKS before activating a signer. Promote one ECR
+Px staging tests. Publish JWKS before activating a signer. Promote one ECR
 digest from staging to production; do not rebuild between environments.
 
 Image publication and image promotion are separate operations. Publication may
@@ -407,17 +407,17 @@ silently ignored; they require remediation or an explicit reviewed exception.
 caller-selected-claims issuer is recorded separately as retired and has no
 image pin. `lore-client` separately records the `portalshq/lore` fork commit,
 the pinned Epic upstream commit, release tag, installer checksum, and signed
-artifact manifest. Nap is not a container: `nap-client` records its exact Git
+artifact manifest. Px is not a container: `px-client` records its exact Git
 commit, tag, signed `SHA256SUMS` digest, Sigstore bundle, and references the
 exact top-level Lore client version it installs. All components must declare
 the same security contract. `release.status` stays `contained` or `candidate` until authenticated
 E2E and the remaining checklist pass; only a reviewed release may set it to
 `approved`.
 
-The Nap release job also refuses to publish until that Lore client release has
+The Px release job also refuses to publish until that Lore client release has
 a pinned binary `SHA256SUMS` digest and Sigstore bundle. Pinning only the Lore
 installer script is not sufficient because an altered release tarball could
-still report the expected version. Pulumi also requires the exact Nap/Lore
+still report the expected version. Pulumi also requires the exact Px/Lore
 metadata and resolved Lore release-tag source commit to match
 `verified-releases.json`, which is written only after both Sigstore identities
 and all downloaded checksums are verified.
@@ -445,7 +445,7 @@ be clear before a digest is promoted.
 - [ ] Previously exposed signing, S3, database, TLS, and runtime credentials rotated.
 - [ ] Only digest-pinned ECR images are configured; SBOM and signature verified.
 - [ ] Image receipts match clean committed source/protocol/packaging revisions.
-- [ ] The signed Nap release and its pinned `portalshq/lore` client match the
+- [ ] The signed Px release and its pinned `portalshq/lore` client match the
       release security contract in `versions.yaml`.
 - [ ] Lore refuses missing/wrong issuer, audience, environment, algorithm,
       expiration, `kid`, repository, permission, wildcard, and revoked tokens.
@@ -453,7 +453,7 @@ be clear before a digest is promoted.
 - [ ] Public probes show only TCP 443; `8083`, `41337`, and `41339` are closed.
 - [ ] Control-plane and ReBAC mutation endpoints are unreachable publicly.
 - [ ] Store-aware readiness is healthy on every task.
-- [ ] Nap staging passes login, create, clone, push, pull, sync, publish, lock,
+- [ ] Px staging passes login, create, clone, push, pull, sync, publish, lock,
       logout, expiry, and CI API-key exchange.
 - [ ] Actual fragment S3/Dynamo serialization and lock round trips pass.
 - [ ] Dependency, SAST, secret/dataflow, IaC, container, SBOM, and signature

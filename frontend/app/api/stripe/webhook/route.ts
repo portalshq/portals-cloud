@@ -1,5 +1,6 @@
 import {after, NextResponse} from 'next/server'
-import Stripe from 'stripe'
+import type Stripe from 'stripe'
+import {createStripePlatformBilling} from '@portalshq/billing'
 import {applyTransition} from '@/lib/leads/pilot'
 import {
   getPilotByPaymentSession,
@@ -31,8 +32,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   const rawBody = await request.text()
   let event: Stripe.Event
   try {
-    const stripe = new Stripe(secretKey)
-    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret)
+    const billing = createStripePlatformBilling(secretKey)
+    event = billing.constructWebhookEvent(rawBody, signature, webhookSecret)
   } catch (cause) {
     return NextResponse.json(
       {error: cause instanceof Error ? cause.message : 'invalid signature'},

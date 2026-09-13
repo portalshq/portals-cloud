@@ -3,7 +3,7 @@
 A note on method before the content: sections 1-5 below are grounded
 entirely in what's actually been built and decided in this conversation
 (`capability-contract`, `realtime-engine`, tenancy, content rating, the
-four-plane requirements doc). Section 6 (NAP) and parts of section 3 (World,
+four-plane requirements doc). Section 6 (PX) and parts of section 3 (World,
 Narrative-as-formal-noun) rest on terms introduced in the prompt that this
 conversation never defined. Those are marked **[INTERPRETED]** throughout
 and answered as a reasoned hypothesis, not recalled fact. Conflating the
@@ -268,8 +268,8 @@ characters/lore/assets across formats with attribution intact.
 - **If channels disappeared**: capabilities, the contract, tenancy, content-rating, and the registry all survive intact — a marketplace of registered capabilities with nothing composing them into anything consumable. Useless in practice, substrate intact.
 - **If capabilities disappeared**: channels/manifests become empty lists pointing at nothing; the resolver still runs, trivially resolving "no capabilities, no errors." Nothing left to compose, but the tenancy/trust machinery still functions.
 - **If Narrative *(interpreted)* disappeared**: channels with no branching/sequential structure still work fine — a pure live chat-and-poll game show, or a plotless VR room. Narrative is a pattern some channels use, not load-bearing for the platform.
-- **If NAP *(interpreted)* disappeared**: under the working definition in §8, its disappearance means the platform isn't externally federated/addressable — internally, channels/capabilities/tenancy keep working as a closed platform. If removing it *did* break something internal, that would be a sign NAP was wrongly made load-bearing and needs decoupling further.
-- **Irreducible core**: Capability + Contract/Resolver + Tenant. Channel, Session, World, Narrative, NAP are all composition built on top of those three.
+- **If PX *(interpreted)* disappeared**: under the working definition in §8, its disappearance means the platform isn't externally federated/addressable — internally, channels/capabilities/tenancy keep working as a closed platform. If removing it *did* break something internal, that would be a sign PX was wrongly made load-bearing and needs decoupling further.
+- **Irreducible core**: Capability + Contract/Resolver + Tenant. Channel, Session, World, Narrative, PX are all composition built on top of those three.
 
 ---
 
@@ -386,12 +386,12 @@ scheduled channel.
 
 ---
 
-## 9. NAP Analysis — entirely [INTERPRETED]
+## 9. PX Analysis — entirely [INTERPRETED]
 
-**NAP was never defined in this conversation.** Given the question set
+**PX was never defined in this conversation.** Given the question set
 (addressing, discovery, attribution, provenance, remixing, "what happens
 when providers disagree"), the most coherent reading is something like a
-**Narrative Addressing Protocol** — an open, URI-like resolution scheme for
+**PX protocol** — an open, URI-like resolution scheme for
 worlds/channels/narratives/assets, structurally similar to ActivityPub or
 DID: an addressing layer that could, in principle, let more than one
 platform instance resolve and serve the same addressable content. Everything
@@ -399,18 +399,18 @@ below is reasoned under that assumption, explicitly, not recalled. If that's
 not what you mean, this entire section needs to be redone against the real
 definition.
 
-- **Providers**: any platform instance implementing the NAP resolution
+- **Providers**: any platform instance implementing the PX resolution
   contract — under this model, this platform becomes *one* provider among
   potentially many, the way a Mastodon server is one ActivityPub instance
   among many.
 - **Consumers**: any client (this platform's own app, or a third party)
-  that resolves NAP addresses and renders whatever `ContentDescriptor`
+  that resolves PX addresses and renders whatever `ContentDescriptor`
   comes back.
 - **Identity ownership**: should not be centrally owned by one provider if
-  NAP is genuinely open — needs a portable scheme (DID-like) so a
+  PX is genuinely open — needs a portable scheme (DID-like) so a
   creator's identity/reputation isn't trapped on one provider.
 - **World/asset/narrative ownership**: the originating provider is
-  custodian, but NAP needs an explicit, provider-independent
+  custodian, but PX needs an explicit, provider-independent
   attribution/provenance chain so remixes trace lineage regardless of
   where the remix is hosted.
 - **Discovery**: the hardest unsolved problem in any federated protocol —
@@ -424,7 +424,7 @@ definition.
   other's databases.
 - **Remixing**: only works if world/asset metadata carries an explicit,
   machine-readable permission grant (a Creative-Commons-shaped license
-  field) as part of its NAP-addressable record.
+  field) as part of its PX-addressable record.
 - **Monetization across providers**: a real settlement layer moving money
   across provider boundaries — historically the *least*-solved problem in
   federated protocols (see: the long, still-unresolved history of
@@ -459,7 +459,7 @@ own datacenters.
 **20 years**: genuinely speculative. If generation quality keeps improving,
 "narrative" could become generated per-viewer on demand rather than
 authored once for an audience-vote branch — true individual-level
-personalization, not just audience-level. NAP-style open addressing
+personalization, not just audience-level. PX-style open addressing
 *(interpreted)*, if the federation thesis plays out, could become boring
 universal plumbing the way RSS or email are — or, consistent with the
 historical base rate for federation efforts against centralized platforms
@@ -475,7 +475,7 @@ document is trying to avoid everywhere else.
 the capability contract, the lazy-start session runtime, and tenancy/trust
 — exactly the "irreducible core" from §6's failure analysis.**
 
-Everything else — World, Narrative as a formal abstraction, NAP, the video
+Everything else — World, Narrative as a formal abstraction, PX, the video
 and VR adapters, the discovery feed, billing UI, moderation tooling — is
 either (a) a specific capability implementation, replaceable and valuable
 to a *given channel* but not load-bearing for the *platform's* value

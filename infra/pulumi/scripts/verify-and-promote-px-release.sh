@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Download a Nap release, verify its GitHub-OIDC Sigstore bundles and every
+# Download a Px release, verify its GitHub-OIDC Sigstore bundles and every
 # artifact checksum, then update versions.yaml. This never approves the whole
 # platform release; E2E/security gates do that separately.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TAG="${1:?usage: verify-and-promote-nap-release.sh <vX.Y.Z>}"
-REPOSITORY="${NAP_GITHUB_REPOSITORY:-portalshq/narrativeengine}"
-[[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || { echo "invalid Nap release tag" >&2; exit 2; }
+TAG="${1:?usage: verify-and-promote-px-release.sh <vX.Y.Z>}"
+REPOSITORY="${PX_GITHUB_REPOSITORY:-portalshq/narrativeengine}"
+[[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || { echo "invalid Px release tag" >&2; exit 2; }
 command -v gh >/dev/null || { echo "gh is required" >&2; exit 2; }
 command -v cosign >/dev/null || { echo "cosign is required" >&2; exit 2; }
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
@@ -42,9 +42,9 @@ fi
 
 EXPECTED_MANIFEST="sha256:$(sha256_file "${WORK}/SHA256SUMS")"
 [[ "$(jq -r '.artifact_manifest_sha256' "${WORK}/release-metadata.json")" == "${EXPECTED_MANIFEST}" ]] \
-  || { echo "Nap metadata does not bind SHA256SUMS" >&2; exit 1; }
+  || { echo "Px metadata does not bind SHA256SUMS" >&2; exit 1; }
 [[ "$(jq -r '.release_tag' "${WORK}/release-metadata.json")" == "${TAG}" ]] \
-  || { echo "Nap metadata tag mismatch" >&2; exit 1; }
+  || { echo "Px metadata tag mismatch" >&2; exit 1; }
 
 LORE_MANIFEST_URL="$(jq -r '.lore_client_artifact_manifest_url' "${WORK}/release-metadata.json")"
 LORE_BUNDLE_URL="$(jq -r '.lore_client_signature_bundle_url' "${WORK}/release-metadata.json")"
@@ -69,5 +69,5 @@ LORE_SOURCE_COMMIT="$(gh api "repos/portalshq/lore/commits/v${LORE_VERSION}" --j
   || { echo "Lore release tag did not resolve to a full source commit" >&2; exit 1; }
 
 BASE_URL="https://github.com/${REPOSITORY}/releases/download/${TAG}"
-node "${SCRIPT_DIR}/record-nap-release.mjs" \
+node "${SCRIPT_DIR}/record-px-release.mjs" \
   "${WORK}/release-metadata.json" "${BASE_URL}" "${LORE_SOURCE_COMMIT}"

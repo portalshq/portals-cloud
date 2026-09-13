@@ -18,11 +18,11 @@ No: do not build an image for the retired legacy control plane. It remains at
 desired count zero. The Auth Gateway is the active control-plane runtime.
 
 Yes: publish a new **Lore CLI** release from `portalshq/lore`, then a new
-**Nap** binary release that embeds/references that exact Lore CLI release. Nap
+**Px** binary release that embeds/references that exact Lore CLI release. Px
 is a signed downloadable binary, not a container image.
 
 `infra/lore/versions.yaml` is the one release bill of materials. It records
-the approved Lore CLI, Lore server image, Auth Gateway image, and Nap binary as
+the approved Lore CLI, Lore server image, Auth Gateway image, and Px binary as
 one compatible set. Never hand-edit a digest after publishing; use the
 verification scripts below.
 
@@ -230,21 +230,21 @@ timed-out certificate.
 
 Cognito is the browser-facing identity provider. A user does **not** log in to
 AWS, the ECS service, or a generic `auth.portals.works` web page. They start in
-Nap, which directs the browser to Cognito's managed login page.
+Px, which directs the browser to Cognito's managed login page.
 
-After the secured Nap release is installed, the normal command is:
+After the secured Px release is installed, the normal command is:
 
 ```bash
-nap auth login
+px auth login
 ```
 
 The exact journey is:
 
-1. Nap opens a TLS gRPC connection to the Auth Gateway at
+1. Px opens a TLS gRPC connection to the Auth Gateway at
    `https://auth.portals.works` and starts a one-time login session.
 2. The gateway returns a unique Cognito managed-login URL of the form
    `https://<cognito-domain>.auth.us-east-1.amazoncognito.com/oauth2/authorize?...`.
-   Nap opens that URL in the user's browser, or prints it when browser launch
+   Px opens that URL in the user's browser, or prints it when browser launch
    is unavailable.
 3. The person completes the invitation-only Cognito login with their passkey
    or password/TOTP recovery. This is the only browser sign-in screen.
@@ -252,12 +252,12 @@ The exact journey is:
    `https://auth.portals.works/callback?code=...&state=...`. The Auth Gateway
    checks the PKCE-bound response, exchanges the short-lived code with Cognito,
    and records completion of that one-time CLI session.
-5. Nap polls the Auth Gateway and receives Portals' eight-hour authentication
+5. Px polls the Auth Gateway and receives Portals' eight-hour authentication
    token. It stores the token in the operating-system keyring; it does not
    retain a Cognito refresh token. Later repository operations automatically
    exchange it for a five-minute, single-repository authorization token.
 
-`nap auth status` shows the current Portals identity and `nap auth logout`
+`px auth status` shows the current Portals identity and `px auth logout`
 removes its local credential. Normal clone/push/pull commands never ask for
 interactive browser input; they either use the protected cached credential or
 return an actionable login error.
@@ -298,7 +298,7 @@ aws accessanalyzer list-analyzers --type ACCOUNT
 
 | Test | Expected result |
 |---|---|
-| `nap auth login`, `nap auth status`, `nap auth logout` | Login is interactive; status identifies the signed-in subject; logout removes the protected credential. |
+| `px auth login`, `px auth status`, `px auth logout` | Login is interactive; status identifies the signed-in subject; logout removes the protected credential. |
 | Missing, expired, wrong issuer/audience/repository, wildcard, and revoked tokens | Every request is denied. |
 | Repository create, clone, commit/push, pull, sync, publish | The caller receives only a five-minute token for the one authorized repository. |
 | Fragment write/read and branch-pointer update | Actual S3 and DynamoDB serialization round-trips succeed. |
@@ -315,12 +315,12 @@ infra/pulumi/scripts/verify-external-surface.sh lore.portals.works release
 ```
 
 The first execution should be operator-supervised. Turn this table into a
-staging CI job once the published Nap release is available.
+staging CI job once the published Px release is available.
 
 ## Open the public endpoint last
 
 Public release is one reviewed configuration change, not a debugging tool.
-Before it, require: signed production images, approved Lore/Nap releases,
+Before it, require: signed production images, approved Lore/Px releases,
 successful tests above, certificate validation, healthy backup evidence, and a
 security review dated within 90 days.
 
@@ -347,7 +347,7 @@ mismatches every issued token and Lore fails closed.
 
 Review the preview. It must create or enable only the public TLS `443` edge and
 must not add an NLB, public IP, `8083`, `41337`, or `41339` listener. Apply only
-after that review, then immediately rerun the Nap workflow and external-surface
+after that review, then immediately rerun the Px workflow and external-surface
 test. If any test fails, set `publicIngressEnabled=false` and scale Lore to zero
 before investigating.
 

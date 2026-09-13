@@ -13,7 +13,7 @@
 #
 # After install:
 # 1. Set LAGO_API_URL and LAGO_API_KEY as K8s secrets
-# 2. Run bootstrap script to create plans defined in @nap/billing-engine/src/plans.ts
+# 2. Run bootstrap script to create plans defined in @px/billing-engine/src/plans.ts
 # 3. Configure Stripe payment provider in Lago UI (Settings → Payment providers)
 #    so Lago can auto-collect invoices via Stripe
 apiVersion: v1
@@ -24,6 +24,6 @@ metadata:
 data:
   note: |
     Install via Helm chart — see comments in this file.
-    In-cluster API URL for @nap/billing-engine:
+    In-cluster API URL for @px/billing-engine:
       http://lago-api.portals-platform.svc.cluster.local:3000
     Required K8s secrets: LAGO_API_URL, LAGO_API_KEY, STRIPE_SECRET_KEY

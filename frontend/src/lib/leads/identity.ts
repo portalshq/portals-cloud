@@ -21,6 +21,14 @@ const publicEmailDomains = new Set([
   'getnada.com',
 ])
 
+const developmentPersonalEmailDomains = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+])
+
 export function normalizeEmail(value: string): string {
   return value.trim().toLowerCase()
 }
@@ -46,6 +54,18 @@ export function isPublicEmailDomain(domain: string): boolean {
   return publicEmailDomains.has(domain.toLowerCase()) || additional.has(domain.toLowerCase())
 }
 
+export function allowsPersonalEmailForDevelopment(domain: string): boolean {
+  const enabled = process.env.NODE_ENV !== 'production' && (
+    process.env.LEADS_ALLOW_PERSONAL_EMAILS_FOR_DEV === 'true' ||
+    process.env.NEXT_PUBLIC_ALLOW_PERSONAL_EMAILS_FOR_DEV === 'true'
+  )
+  return enabled && developmentPersonalEmailDomains.has(domain.trim().toLowerCase())
+}
+
+export function requiresCompanyEmailDomain(domain: string): boolean {
+  return isPublicEmailDomain(domain) && !allowsPersonalEmailForDevelopment(domain)
+}
+
 export function companyDomain(identity: LeadIdentity): string {
   const domain = identity.email ? emailDomain(identity.email) : ''
   if (domain && !isPublicEmailDomain(domain)) return domain
@@ -59,7 +79,7 @@ export function validateIdentityForCapture(identity: LeadIdentity): string | nul
   }
 
   const domain = emailDomain(identity.email)
-  if (isPublicEmailDomain(domain)) {
+  if (requiresCompanyEmailDomain(domain)) {
     return 'a company email domain is required (personal email domains like gmail.com are not accepted)'
   }
 

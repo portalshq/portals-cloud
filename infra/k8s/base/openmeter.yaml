@@ -8,7 +8,7 @@
 #   --set ingress.enabled=false \
 #   --set config.telemetry.address=":10000"
 #
-# After install, create the 5 billable meters defined in @nap/billing-metering README.md
+# After install, create the 5 billable meters defined in @px/billing-metering README.md
 # via: POST http://openmeter.portals-platform.svc.cluster.local:8888/api/v1/meters
 #
 # NATS → OpenMeter bridge for high-throughput fan-out events:
@@ -22,6 +22,6 @@ metadata:
 data:
   note: |
     Install via Helm chart — see comments in this file.
-    In-cluster service URL for @nap/billing-metering:
+    In-cluster service URL for @px/billing-metering:
       http://openmeter.portals-platform.svc.cluster.local:8888
     Set OPENMETER_ENDPOINT env var on runtime-core deployment to this URL.

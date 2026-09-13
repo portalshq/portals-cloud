@@ -428,6 +428,44 @@ export async function getPilotById(id: string): Promise<StoredPilot | null> {
   return result.rows[0] ? pilotFromRow(result.rows[0]) : null
 }
 
+export async function getPilotsForCustomerAccount(
+  customerAccountId: string,
+): Promise<StoredPilot[]> {
+  if (leadsDryRun()) {
+    return [...memory().pilots.values()]
+      .filter((pilot) => pilot.customerAccountId === customerAccountId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }
+  const result = await pool().query<PilotRow>(
+    `SELECT * FROM lead_pilots
+      WHERE customer_account_id = $1
+      ORDER BY created_at DESC`,
+    [customerAccountId],
+  )
+  return result.rows.map(pilotFromRow)
+}
+
+/** Keeps the in-memory preview model aligned with the account created for a new pilot. */
+export async function setPilotCustomerAccountId(
+  pilotId: string,
+  customerAccountId: string,
+): Promise<void> {
+  if (leadsDryRun()) {
+    const pilot = memory().pilots.get(pilotId)
+    if (pilot) {
+      pilot.customerAccountId = customerAccountId
+      memory().pilots.set(pilotId, pilot)
+    }
+    return
+  }
+  await pool().query(
+    `UPDATE lead_pilots
+        SET customer_account_id = $2, updated_at = now()
+      WHERE id = $1`,
+    [pilotId, customerAccountId],
+  )
+}
+
 export async function getPilotBySubmissionId(
   submissionId: string,
 ): Promise<StoredPilot | null> {

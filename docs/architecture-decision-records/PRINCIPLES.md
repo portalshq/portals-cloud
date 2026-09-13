@@ -44,7 +44,7 @@ Portals
 
 ↓
 
-NAP
+PX
 
 ↓
 
@@ -83,13 +83,13 @@ Lore is infrastructure.
 
 ---
 
-# NAP
+# PX
 
-NAP is the Narrative Addressing Protocol.
+PX is the PX protocol.
 
-NAP provides domain semantics on top of Lore.
+PX provides domain semantics on top of Lore.
 
-NAP is responsible for:
+PX is responsible for:
 
 * stable addressing
 * repository identities
@@ -103,11 +103,11 @@ NAP is responsible for:
 * asset metadata
 * repository orchestration
 
-NAP does **not** implement version control.
+PX does **not** implement version control.
 
-NAP never duplicates Lore.
+PX never duplicates Lore.
 
-NAP treats Lore as the authoritative repository engine.
+PX treats Lore as the authoritative repository engine.
 
 ---
 
@@ -131,7 +131,7 @@ Portals owns:
 
 Portals does not implement repository semantics.
 
-Portals builds upon the NAP SDK.
+Portals builds upon the PX SDK.
 
 ---
 
@@ -148,7 +148,7 @@ Examples:
 
 ---
 
-## NAP owns narrative semantics.
+## PX owns narrative semantics.
 
 Examples:
 
@@ -182,13 +182,13 @@ For example:
 
 Repository synchronization belongs in Lore.
 
-Not in NAP.
+Not in PX.
 
 Not in Portals.
 
 Likewise:
 
-Narrative addressing belongs in NAP.
+Narrative addressing belongs in PX.
 
 Not in Lore.
 
@@ -198,7 +198,7 @@ Likewise:
 
 Collaboration UX belongs in Portals.
 
-Not in NAP.
+Not in PX.
 
 Not in Lore.
 
@@ -210,7 +210,7 @@ There is exactly one repository implementation.
 
 That implementation is Lore.
 
-NAP never provides an alternative repository implementation.
+PX never provides an alternative repository implementation.
 
 Applications never bypass Lore.
 
@@ -239,7 +239,7 @@ Applications should not distinguish between them.
 
 # Repository API
 
-Applications communicate only with the NAP Repository API.
+Applications communicate only with the PX Repository API.
 
 Applications never:
 
@@ -249,7 +249,7 @@ Applications never:
 * generate certificates
 * manage synchronization directly
 
-NAP owns repository orchestration.
+PX owns repository orchestration.
 
 ---
 
@@ -285,7 +285,7 @@ Server Provider
 
 # Server Providers
 
-NAP supports multiple Lore server providers.
+PX supports multiple Lore server providers.
 
 The server provider determines where repositories are hosted.
 
@@ -304,9 +304,9 @@ It is not part of repository semantics.
 
 ---
 
-# NAP Local Runtime
+# PX Local Runtime
 
-NAP owns the complete lifecycle of local Lore deployments.
+PX owns the complete lifecycle of local Lore deployments.
 
 Responsibilities include:
 
@@ -325,9 +325,9 @@ Applications never manage these concerns.
 
 # Repository Provisioning
 
-Repository creation always occurs through NAP.
+Repository creation always occurs through PX.
 
-NAP provisions repositories using the configured server provider.
+PX provisions repositories using the configured server provider.
 
 Applications never provision repositories directly.
 
@@ -335,7 +335,7 @@ Applications never provision repositories directly.
 
 # Addressing
 
-NAP provides stable addressing.
+PX provides stable addressing.
 
 Repositories represent universes.
 
@@ -362,11 +362,11 @@ Resource
 For example:
 
 ```
-nap://starwars/character/luke
+px://starwars/character/luke
 
-nap://starwars@episode3/character/luke
+px://starwars@episode3/character/luke
 
-nap://starwars@episode3:commit/character/luke
+px://starwars@episode3:commit/character/luke
 ```
 
 Branches represent semantic timelines.
@@ -400,7 +400,7 @@ Storage is an implementation detail.
 
 Repositories reference assets.
 
-Assets are resolved through NAP.
+Assets are resolved through PX.
 
 Storage providers remain interchangeable.
 
@@ -452,11 +452,11 @@ The following rules should never be violated.
 
 2. Lore owns repository semantics.
 
-3. NAP owns narrative semantics.
+3. PX owns narrative semantics.
 
 4. Portals owns product semantics.
 
-5. Applications communicate only through the NAP SDK.
+5. Applications communicate only through the PX SDK.
 
 6. Applications never manage Lore directly.
 
@@ -484,7 +484,7 @@ If yes, implement it in Lore or use existing Lore functionality.
 
 **Does this define narrative semantics?**
 
-If yes, it belongs in NAP.
+If yes, it belongs in PX.
 
 **Does this define a creator experience or application workflow?**
 
@@ -499,7 +499,7 @@ If ownership is unclear, refine the architecture before writing code.
 The platform intentionally separates infrastructure from domain semantics and product semantics.
 
 * Lore provides repository semantics (commits, branches, synchronization, object storage).
-* NAP provides domain semantics (addressing, manifests, resolver, assets, identities, workflow primitives).
+* PX provides domain semantics (addressing, manifests, resolver, assets, identities, workflow primitives).
 * Portals provides product semantics (editing, collaboration, AI workflows, cloud services).
 
 This separation allows every layer to evolve independently while preserving stable interfaces between them.
@@ -510,4 +510,4 @@ A change in one layer should rarely require changes in another.
 
 By maintaining strict ownership boundaries, the platform remains extensible, interoperable, and understandable as it grows.
 
-This is the **first document every engineer and AI coding agent reads**. More than a coding standard or style guide, it establishes the mental model for the entire company. Every subsequent architectural decision—from the NAP SDK to Portals Studio to future services—can be evaluated against these principles, helping prevent responsibility creep and preserving clear ownership boundaries as the platform evolves.
+This is the **first document every engineer and AI coding agent reads**. More than a coding standard or style guide, it establishes the mental model for the entire company. Every subsequent architectural decision—from the PX SDK to Portals Studio to future services—can be evaluated against these principles, helping prevent responsibility creep and preserving clear ownership boundaries as the platform evolves.

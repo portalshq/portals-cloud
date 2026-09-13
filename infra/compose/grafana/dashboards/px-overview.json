@@ -1,6 +1,6 @@
 {
   "title": "Portals Platform Overview",
-  "uid": "nap-overview",
+  "uid": "px-overview",
   "schemaVersion": 38,
   "time": { "from": "now-1h", "to": "now" },
   "refresh": "15s",

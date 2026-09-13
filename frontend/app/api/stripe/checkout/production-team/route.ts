@@ -1,5 +1,5 @@
 import {NextResponse} from 'next/server'
-import Stripe from 'stripe'
+import {createStripePlatformBilling} from '@portalshq/billing'
 import {getProductConfig} from '@/config/stripe-products'
 import {
   createBillingCustomer,
@@ -29,37 +29,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ok: false, message: 'invalid request body'}, {status: 400})
   }
 
-  const stripe = new Stripe(secretKey)
+  const billing = createStripePlatformBilling(secretKey)
   const productConfig = getProductConfig('productionTeamAnnual')
   const onboardingConfig = getProductConfig('productionTeamOnboarding')
 
   try {
-    // Create or get customer
-    let customerId: string
-    if (body.email) {
-      const existingCustomers = await stripe.customers.list({email: body.email, limit: 1})
-      if (existingCustomers.data.length > 0) {
-        customerId = existingCustomers.data[0].id
-      } else {
-        const customer = await stripe.customers.create({
-          email: body.email,
-          name: body.name,
-          metadata: body.metadata || {},
-        })
-        customerId = customer.id
-        await createBillingCustomer({
-          id: customer.id,
-          email: customer.email || undefined,
-          name: customer.name || undefined,
-          metadata: customer.metadata,
-        })
-      }
-    } else {
-      const customer = await stripe.customers.create({
-        name: body.name,
-        metadata: body.metadata || {},
-      })
-      customerId = customer.id
+    const {customer, created} = await billing.findOrCreateCustomer({
+      email: body.email,
+      name: body.name,
+      metadata: body.metadata || {},
+    })
+    const customerId = customer.id
+    if (created) {
       await createBillingCustomer({
         id: customer.id,
         email: customer.email || undefined,
@@ -84,7 +65,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       })
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await billing.createCheckoutSession({
       mode: 'subscription',
       customer: customerId,
       line_items: lineItems,

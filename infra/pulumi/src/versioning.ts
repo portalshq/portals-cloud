@@ -10,7 +10,7 @@ export interface SourcePin {
   protocolCommit?: string;
 }
 
-export interface NapClientPin {
+export interface PxClientPin {
   version: string;
   sourceRepository: string;
   sourceCommit: string;
@@ -40,7 +40,7 @@ export interface ReleasePins {
   version: string;
   status: string;
   securityContract: string;
-  napClient: NapClientPin;
+  pxClient: PxClientPin;
   loreClient: LoreClientPin;
   lore: SourcePin & { securityContract: string };
   controlPlane: SourcePin & { implementation: string; securityContract: string };
@@ -191,23 +191,23 @@ export function assertPublicReleaseApproved(release: ReleasePins): void {
     throw new Error("versions.yaml release version/security contract is incomplete");
   }
   const contracts = [
-    release.napClient.securityContract,
+    release.pxClient.securityContract,
     release.loreClient.securityContract,
     release.lore.securityContract,
     release.controlPlane.securityContract,
     ...(release.backend ? [release.backend.securityContract] : []),
   ];
   if (contracts.some(contract => contract !== release.securityContract)) {
-    throw new Error("Nap, Lore client, Lore server, and control-plane security contracts do not match the release contract");
+    throw new Error("Px, Lore client, Lore server, and control-plane security contracts do not match the release contract");
   }
-  const nap = release.napClient;
-  const napValid = SEMVER_PATTERN.test(nap.version) && nap.releaseTag === `v${nap.version}` &&
-    SHA_PATTERN.test(nap.sourceCommit) && /^https:\/\//.test(nap.sourceRepository) &&
-    /^https:\/\//.test(nap.artifactManifestUrl) && SHA256_PATTERN.test(nap.artifactManifestSha256) &&
-    /^https:\/\//.test(nap.signatureBundleUrl) &&
-    nap.loreClientVersion === release.loreClient.version;
-  if (!napValid) {
-    throw new Error("Nap client release is not commit-, checksum-, signature-, and Lore-client-pinned");
+  const px = release.pxClient;
+  const pxValid = SEMVER_PATTERN.test(px.version) && px.releaseTag === `v${px.version}` &&
+    SHA_PATTERN.test(px.sourceCommit) && /^https:\/\//.test(px.sourceRepository) &&
+    /^https:\/\//.test(px.artifactManifestUrl) && SHA256_PATTERN.test(px.artifactManifestSha256) &&
+    /^https:\/\//.test(px.signatureBundleUrl) &&
+    px.loreClientVersion === release.loreClient.version;
+  if (!pxValid) {
+    throw new Error("Px client release is not commit-, checksum-, signature-, and Lore-client-pinned");
   }
   const loreClient = release.loreClient;
   const loreClientValid = SEMVER_PATTERN.test(loreClient.version) &&
@@ -231,22 +231,22 @@ export function assertPublicReleaseApproved(release: ReleasePins): void {
   }
 }
 
-/** Require a receipt produced by cryptographic Nap and Lore artifact checks. */
-export function assertNapReleaseVerified(nap: NapClientPin, loreClient: LoreClientPin): void {
+/** Require a receipt produced by cryptographic Px and Lore artifact checks. */
+export function assertPxReleaseVerified(px: PxClientPin, loreClient: LoreClientPin): void {
   const file = resolveReleaseVerificationFile();
-  if (!fs.existsSync(file)) throw new Error(`Nap has no release-verification receipt at ${file}`);
+  if (!fs.existsSync(file)) throw new Error(`Px has no release-verification receipt at ${file}`);
   const document = JSON.parse(fs.readFileSync(file, "utf8"));
-  const receipt = document?.schemaVersion === 1 ? document?.releases?.["nap-client"] : undefined;
-  const valid = receipt?.version === nap.version && receipt?.sourceCommit === nap.sourceCommit &&
-    receipt?.releaseTag === nap.releaseTag && receipt?.securityContract === nap.securityContract &&
-    receipt?.artifactManifestSha256 === nap.artifactManifestSha256 &&
+  const receipt = document?.schemaVersion === 1 ? document?.releases?.["px-client"] : undefined;
+  const valid = receipt?.version === px.version && receipt?.sourceCommit === px.sourceCommit &&
+    receipt?.releaseTag === px.releaseTag && receipt?.securityContract === px.securityContract &&
+    receipt?.artifactManifestSha256 === px.artifactManifestSha256 &&
     receipt?.loreClientVersion === loreClient.version &&
     receipt?.loreClientSourceCommit === loreClient.sourceCommit &&
     receipt?.loreClientArtifactManifestSha256 === loreClient.artifactManifestSha256 &&
-    receipt?.napSignatureVerified === true && receipt?.napChecksumsVerified === true &&
+    receipt?.pxSignatureVerified === true && receipt?.pxChecksumsVerified === true &&
     receipt?.loreSignatureVerified === true &&
     typeof receipt?.verifiedAt === "string" && receipt.verifiedAt.length > 0;
-  if (!valid) throw new Error("Nap/Lore client pins have no matching cryptographic verification receipt");
+  if (!valid) throw new Error("Px/Lore client pins have no matching cryptographic verification receipt");
 }
 
 /**
@@ -284,7 +284,7 @@ export function readVersionPins(): VersionPins {
   const doc = YAML.parse(fs.readFileSync(file, "utf8"));
   if (doc?.schema_version !== 2) throw new Error(`versions.yaml schema_version must be 2 in ${file}`);
 
-  const nap = doc?.["nap-client"];
+  const px = doc?.["px-client"];
   const loreClient = doc?.["lore-client"];
   const lore = doc?.lore;
   const controlPlane = doc?.["control-plane"];
@@ -299,16 +299,16 @@ export function readVersionPins(): VersionPins {
     version: stringAt(releaseDoc?.version, "release.version"),
     status: stringAt(releaseDoc?.status, "release.status"),
     securityContract: stringAt(releaseDoc?.security_contract, "release.security_contract"),
-    napClient: {
-      version: stringAt(nap?.version, "nap-client.version"),
-      sourceRepository: stringAt(nap?.source_repository, "nap-client.source_repository"),
-      sourceCommit: stringAt(nap?.source_commit, "nap-client.source_commit"),
-      releaseTag: stringAt(nap?.release_tag, "nap-client.release_tag"),
-      securityContract: stringAt(nap?.security_contract, "nap-client.security_contract"),
-      artifactManifestUrl: stringAt(nap?.artifact_manifest_url, "nap-client.artifact_manifest_url"),
-      artifactManifestSha256: stringAt(nap?.artifact_manifest_sha256, "nap-client.artifact_manifest_sha256"),
-      signatureBundleUrl: stringAt(nap?.signature_bundle_url, "nap-client.signature_bundle_url"),
-      loreClientVersion: stringAt(nap?.lore_client_version, "nap-client.lore_client_version"),
+    pxClient: {
+      version: stringAt(px?.version, "px-client.version"),
+      sourceRepository: stringAt(px?.source_repository, "px-client.source_repository"),
+      sourceCommit: stringAt(px?.source_commit, "px-client.source_commit"),
+      releaseTag: stringAt(px?.release_tag, "px-client.release_tag"),
+      securityContract: stringAt(px?.security_contract, "px-client.security_contract"),
+      artifactManifestUrl: stringAt(px?.artifact_manifest_url, "px-client.artifact_manifest_url"),
+      artifactManifestSha256: stringAt(px?.artifact_manifest_sha256, "px-client.artifact_manifest_sha256"),
+      signatureBundleUrl: stringAt(px?.signature_bundle_url, "px-client.signature_bundle_url"),
+      loreClientVersion: stringAt(px?.lore_client_version, "px-client.lore_client_version"),
     },
     loreClient: {
       version: stringAt(loreClient?.version, "lore-client.version"),

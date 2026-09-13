@@ -34,7 +34,7 @@ enum ResourceKind {
     World
     Session
     CapabilityDeployment
-    NAPResolver
+    PXResolver
     AudienceSession
     RuntimeScheduling
     BillingAnchor

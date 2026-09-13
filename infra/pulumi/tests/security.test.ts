@@ -129,7 +129,7 @@ test("image promotion is scan-gated and public release also requires a signature
     "utf8",
   );
   const releaseRecorder = fs.readFileSync(
-    path.join(repositoryRoot, "infra/pulumi/scripts/record-nap-release.mjs"),
+    path.join(repositoryRoot, "infra/pulumi/scripts/record-px-release.mjs"),
     "utf8",
   );
   const versionPinWriter = fs.readFileSync(
@@ -149,7 +149,7 @@ test("image promotion is scan-gated and public release also requires a signature
   assert.match(program, /publicIngressEnabled \|\| backendApiPublicEnabled[\s\S]{0,100}assertPublicReleaseApproved\(versionPins\.release\)/);
   assert.match(
     program,
-    /assertNapReleaseVerified\(versionPins\.release\.napClient, versionPins\.release\.loreClient\)/,
+    /assertPxReleaseVerified\(versionPins\.release\.pxClient, versionPins\.release\.loreClient\)/,
   );
   assert.match(program, /loreImagePlatform,\s*publicIngressEnabled, versionPins\.release/);
   assert.match(versioning, /document\?\.receipts\?\.\[image\]/);

@@ -1,5 +1,5 @@
 import {NextResponse} from 'next/server'
-import Stripe from 'stripe'
+import {createStripePlatformBilling} from '@portalshq/billing'
 import {getBillingCustomer} from '@/lib/leads/store'
 
 export const runtime = 'nodejs'
@@ -27,7 +27,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ok: false, message: 'customerId is required'}, {status: 400})
   }
 
-  const stripe = new Stripe(secretKey)
+  const billing = createStripePlatformBilling(secretKey)
 
   try {
     // Verify customer exists in our database
@@ -37,7 +37,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     // Create customer portal session
-    const portalSession = await stripe.billingPortal.sessions.create({
+    const portalSession = await billing.createCustomerPortalSession({
       customer: body.customerId,
       return_url: body.returnUrl || `${process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'}/account`,
     })
