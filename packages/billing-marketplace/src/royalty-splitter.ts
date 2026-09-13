@@ -1,7 +1,7 @@
 /**
  * Royalty splitting for derivative/remix content.
  * The Portals lineage graph gives every derivative narrative a chain of
- * ancestor NAP addresses. This module distributes a royalty payment
+ * ancestor PX addresses. This module distributes a royalty payment
  * across that chain proportionally, implementing monetization model #4
  * ("Stripe Connect for fictional IP").
  *
@@ -17,13 +17,13 @@
  */
 
 export interface LineageEntry {
-  napAddress: string;
+  pxAddress: string;
   providerStripeAccountId: string; // Stripe Connect connected account
   depth: number;                    // 0 = original, 1 = direct derivative, etc.
 }
 
 export interface RoyaltySplit {
-  napAddress: string;
+  pxAddress: string;
   stripeAccountId: string;
   amountCents: number;
   rationale: string;
@@ -48,7 +48,7 @@ export function calculateRoyaltySplits(
     const perOriginalCents = Math.floor(originalPool / originals.length);
     for (const orig of originals) {
       splits.push({
-        napAddress: orig.napAddress,
+        pxAddress: orig.pxAddress,
         stripeAccountId: orig.providerStripeAccountId,
         amountCents: perOriginalCents,
         rationale: `Original work (${originals.length} originals sharing 60% pool)`,
@@ -61,7 +61,7 @@ export function calculateRoyaltySplits(
     const perDerivativeCents = Math.floor(derivativePool / derivatives.length);
     for (const deriv of derivatives) {
       splits.push({
-        napAddress: deriv.napAddress,
+        pxAddress: deriv.pxAddress,
         stripeAccountId: deriv.providerStripeAccountId,
         amountCents: perDerivativeCents,
         rationale: `Derivative (depth ${deriv.depth}, ${derivatives.length} derivatives sharing 40% pool)`,

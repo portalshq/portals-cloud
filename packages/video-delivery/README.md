@@ -1,10 +1,10 @@
 # @portalshq/capability-video-delivery
 
 `LiveDelivery` connects one configured HLS playback stream per instance. It
-does not create an origin, schedule programs, or define whether content is
-"live" or "VOD"; those are application business decisions. It verifies the
-configured manifest on start, retries connection failures, and continues to
-monitor its health while active.
+does not create an origin or define whether content is "live" or "VOD"; those
+are application decisions. It verifies the configured manifest on start,
+retries connection failures, monitors health, and can run the package-owned
+release scheduler from an injected application programming policy.
 
 `HlsPlaybackSession` is the common, token-free descriptor for an HLS-capable
 application player. Queue Broadcast returns this descriptor after its trusted
@@ -91,5 +91,20 @@ const afternoon = new LiveDelivery({
 });
 
 await morning.start();
-// Application-owned scheduler later calls morning.stop() and afternoon.start().
+// Application routing later calls morning.stop() and afternoon.start().
 ```
+
+For queue-backed programming, pass `programming` to `LiveDelivery`, or use
+`BufferedProgrammingPipeline` directly. The application provides candidates,
+generation/staging callbacks, release policy, limits, and configuration.
+Video Delivery owns single-flight scheduling, FIFO commit/release, safe
+canonical boundaries, shared-visual buffer accounting, monitoring, and stop.
+
+## Browser playback
+
+`HlsPlaybackController` in the `/browser` export owns native HLS selection,
+optional hls.js attachment, media recovery, bounded reconnects, replacement,
+and cleanup. `VideoDeliveryPlayer` in the `/react` export combines that
+controller with captions and a held frame. Pass `externalPlayer` when an app
+needs its own video element component; return the element through `mediaRef`
+and the package retains the HLS/reconnect state machine.

@@ -20,7 +20,7 @@ export const BillingPlans = {
    * Maps to monetization models #6 (managed platform) + #8 (compute).
    */
   DEVELOPER_BASE: {
-    lagoCode: "nap-developer-base",
+    lagoCode: "px-developer-base",
     name: "Portals Developer Base",
     interval: "monthly",
     amountCents: 0,       // freemium entry — paid plans upgrade here
@@ -58,7 +58,7 @@ export const BillingPlans = {
    * Applied as an add-on charge to sessions with >100 concurrent viewers.
    */
   LIVE_EVENT_ADD_ON: {
-    lagoCode: "nap-live-event",
+    lagoCode: "px-live-event",
     name: "Portals Live Event",
     interval: "once",     // Lago one-time charge, applied per event
     amountCents: 0,
@@ -80,7 +80,7 @@ export const BillingPlans = {
    * Negotiated per studio — amountCents set per contract.
    */
   ENTERPRISE: {
-    lagoCode: "nap-enterprise",
+    lagoCode: "px-enterprise",
     name: "Portals Enterprise",
     interval: "monthly",
     amountCents: 500_000, // $5,000/month base — overridden per customer in Lago

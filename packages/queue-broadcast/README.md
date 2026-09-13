@@ -2,6 +2,12 @@
 
 Server-only producer API for one isolated Queue Broadcast Server endpoint.
 
+`ContentQueuePipeline` is the reusable producer preparation boundary. It
+deduplicates channel/run/content identities, bounds concurrent preparation and
+measured duration/bytes/count, accounts for shared visuals once, commits
+results in enqueue order, and exposes staging/release/completion acknowledgments.
+Applications provide content preparation and persistence callbacks.
+
 The queue is deliberately separate from playback: a trusted application backend
 uses this package to enqueue and observe jobs; its browser player gets only the
 public HLS manifest returned by `getPlayback()`. Use

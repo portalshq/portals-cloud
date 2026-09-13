@@ -2,6 +2,7 @@ import { createWebVtt, normalizeCaptionTracks, type CaptionTrack } from "./capti
 import type { HlsPlaybackSession } from "./live-session.js";
 
 export * from "./live-captions.js";
+export * from "./hls-playback-controller.js";
 
 export interface MountedCaptionTracks {
   /** The exact native elements added to the player. */

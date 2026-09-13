@@ -39,7 +39,7 @@ export class BillingSync {
 
       records.push({
         externalCustomerId: tenantId,
-        externalSubscriptionId: `${tenantId}__nap-developer-base`,
+        externalSubscriptionId: `${tenantId}__px-developer-base`,
         code: meterCode,
         timestamp: toIso,
         quantity: total,

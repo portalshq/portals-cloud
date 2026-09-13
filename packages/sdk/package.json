@@ -14,7 +14,7 @@
     "dist"
   ],
   "bin": {
-    "nap": "./dist/cli.js"
+    "px": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

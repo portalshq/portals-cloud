@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { loadManifest } from "./channel-manifest-loader.js";
 
 const program = new Command();
-program.name("nap").description("Portals Platform developer CLI");
+program.name("px").description("Portals Platform developer CLI");
 
 program
   .command("channel init <name>")

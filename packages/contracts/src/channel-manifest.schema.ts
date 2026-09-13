@@ -17,7 +17,7 @@ export const CapabilityRefSchema = z.object({
 });
 
 export const ChannelManifestSchema = z.object({
-  apiVersion: z.literal("nap/v1"),
+  apiVersion: z.literal("px/v1"),
   kind: z.literal("Channel"),
   metadata: z.object({
     name: z.string(),
@@ -25,8 +25,8 @@ export const ChannelManifestSchema = z.object({
     description: z.string().optional(),
   }),
   spec: z.object({
-    worldTemplate: z.string(),               // NAP address of the world template
-    narrativeRef: z.string().optional(),     // NAP address, if this channel uses narrative state
+    worldTemplate: z.string(),               // PX address of the world template
+    narrativeRef: z.string().optional(),     // PX address, if this channel uses narrative state
     capabilities: z.array(CapabilityRefSchema).min(1),
     visibility: z.enum(["public", "unlisted", "private"]).default("public"),
   }),
