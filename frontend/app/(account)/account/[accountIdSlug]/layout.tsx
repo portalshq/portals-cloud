@@ -32,6 +32,7 @@ export default async function AccountLayout({
     getPilotNavigationForCustomerAccount(account.id),
     getCustomerAccountsForUser(user.id),
   ])
+  const otherAccounts = allAccounts.filter((a) => a.id !== account.id)
 
   return (
     <div className="min-h-[100dvh]">
@@ -45,12 +46,12 @@ export default async function AccountLayout({
             label: pilot.label,
           }))}
           accounts={
-            allAccounts.length > 1
-              ? allAccounts.map((a) => ({
+            otherAccounts.length > 0
+              ? otherAccounts.map((a) => ({
                   id: a.id,
                   href: accountPath(a.id),
                   name: a.name,
-                  active: a.id === account.id,
+                  active: false,
                 }))
               : undefined
           }

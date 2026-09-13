@@ -9,6 +9,7 @@ import {siteUrl} from '@/lib/leads/email'
 import {
   getPilotById,
   leadsDryRun,
+  mutatePilot,
   updatePilot,
 } from '@/lib/leads/store'
 import {notifyPilotRoomEvent} from '@/lib/leads/pilot-room-notifications'
@@ -30,6 +31,10 @@ export async function POST(
   if (!accessRole || !['owner', 'signer'].includes(accessRole)) {
     return NextResponse.json({ok: false, message: 'only the account owner or signer can start payment'}, {status: 403})
   }
+  // Already paid -> idempotent success (no new session)
+  if (pilot.state === 'paid') {
+    return NextResponse.json({ok: true, url: null, pilot})
+  }
   if (!applyTransition(pilot.state, 'pay').allowed) {
     return NextResponse.json(
       {ok: false, message: 'payment cannot be recorded in the current state'},
@@ -41,25 +46,35 @@ export async function POST(
   const secretKey = process.env.STRIPE_SECRET_KEY
 
   if (leadsDryRun() || !secretKey) {
-    const updated = await updatePilot(id, {
-      state: 'paid',
-      payment: {
-        ...(pilot.payment || {}),
-        sessionId: `sim_${id}`,
-        simulated: true,
-        paidAt: new Date().toISOString(),
-      },
-      historyNote: `payment recorded (simulated)`,
+    const {pilot: final} = await mutatePilot(id, (existing) => {
+      if (existing.state === 'paid') return {result: existing}
+      if (!applyTransition(existing.state, 'pay').allowed) throw new Error('payment cannot be recorded in the current state')
+      return {
+        patch: {
+          state: 'paid' as const,
+          payment: {
+            ...(existing.payment || {}),
+            sessionId: `sim_${id}`,
+            simulated: true,
+            paidAt: new Date().toISOString(),
+          },
+          historyNote: `payment recorded (simulated)`,
+        },
+        result: existing,
+      }
     })
-    await notifyPilotRoomEvent({
-      pilot: updated,
-      event: 'paid',
-      eventKey: `paid:${updated.version}:simulated:${Date.now()}`,
-    })
-    return NextResponse.json({ok: true, url: null, pilot: updated})
+    if (final.state === 'paid') {
+      await notifyPilotRoomEvent({
+        pilot: final,
+        event: 'paid',
+        eventKey: `paid:${final.version}:simulated:${Date.now()}`,
+      })
+    }
+    return NextResponse.json({ok: true, url: null, pilot: final})
   }
 
   const billing = createStripePlatformBilling(secretKey)
+
   // Production pilot uses a custom price_data approach, not a pre-configured product
   const amount = pilot.proposal?.priceAmount || Number(process.env.PILOT_PRICE_AMOUNT) || 5000
   const currency = pilot.proposal?.currency || 'USD'
@@ -99,12 +114,11 @@ export async function POST(
     )
   }
 
-  await updatePilot(id, {
-    payment: {
-      ...(pilot.payment || {}),
-      sessionId: session.id,
-    },
-  })
+  // Atomically persist sessionId without clobbering concurrent webhook paidAt
+  await mutatePilot(id, (existing) => ({
+    patch: {payment: {...existing.payment, sessionId: session.id}},
+    result: undefined as unknown as typeof pilot,
+  }))
 
   return NextResponse.json({ok: true, url: session.url})
 }

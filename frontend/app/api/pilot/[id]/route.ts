@@ -21,12 +21,13 @@ import {
   type Reviewer,
   type ReviewerRole,
 } from '@/lib/leads/pilot'
-import {APP_SESSION_COOKIE, currentApplicationUser, invitePilotMember, pilotMembershipRole} from '@/lib/leads/application-auth'
+import {APP_SESSION_COOKIE, ApplicationRole, currentApplicationUser, invitePilotMember, pilotMembershipRole, pilotMembershipWithAccountRole} from '@/lib/leads/application-auth'
 import {sendApplicationAccessEmail} from '@/lib/leads/account-email'
 import {pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
 import {
   getPilotById,
   enqueuePilotEmail,
+  leadsDryRun,
   mutatePilot,
   updatePilot,
   type StoredPilot,
@@ -442,6 +443,7 @@ async function authenticatedPilot(requestedId: string, request: Request): Promis
   user: NonNullable<Awaited<ReturnType<typeof currentApplicationUser>>>
   pilot: StoredPilot
   accessRole: NonNullable<Awaited<ReturnType<typeof pilotMembershipRole>>>
+  accountRole: ApplicationRole | null
 } | NextResponse> {
   const user = await currentPilotRequestUser(request)
   if (!user) {
@@ -451,11 +453,14 @@ async function authenticatedPilot(requestedId: string, request: Request): Promis
   if (!pilot) {
     return NextResponse.json({ok: false, message: 'pilot record not found'}, {status: 404})
   }
-  const accessRole = await pilotMembershipRole(pilot.id, user.id)
-  if (!accessRole) {
+  const membership = await pilotMembershipWithAccountRole(pilot.id, user.id)
+  if (!membership || !membership.pilotRole) {
     return NextResponse.json({ok: false, message: 'you do not have access to this pilot'}, {status: 403})
   }
-  return {user, pilot, accessRole}
+  if (!membership.accountRole) {
+    return NextResponse.json({ok: false, message: 'you do not have access to the customer account for this pilot'}, {status: 403})
+  }
+  return {user, pilot, accessRole: membership.pilotRole, accountRole: membership.accountRole}
 }
 
 export async function GET(
@@ -470,6 +475,7 @@ export async function GET(
     pilot: result.pilot,
     draftTerms: pilotTermsFromDraft(result.pilot.draft, mutableTermsFromPilot(result.pilot)),
     accessRole: result.accessRole,
+    accountRole: result.accountRole,
   })
 }
 
@@ -487,19 +493,9 @@ export async function PATCH(
   if (!body.action) {
     return NextResponse.json({ok: false, message: 'action is required'}, {status: 400})
   }
-  const user = await currentPilotRequestUser(request)
-  if (!user) {
-    return NextResponse.json({ok: false, message: 'sign in is required'}, {status: 401})
-  }
-
-  const pilot = await getPilotById(id)
-  if (!pilot) {
-    return NextResponse.json({ok: false, message: 'pilot record not found'}, {status: 404})
-  }
-  const accessRole = await pilotMembershipRole(pilot.id, user.id)
-  if (!accessRole) {
-    return NextResponse.json({ok: false, message: 'you do not have access to this pilot'}, {status: 403})
-  }
+  const authResult = await authenticatedPilot(id, request)
+  if (authResult instanceof NextResponse) return authResult
+  const {user, pilot, accessRole, accountRole} = authResult
   if (body.action === 'submit_draft') {
     return NextResponse.json(
       {ok: false, message: 'submit_draft is no longer supported; use commit_draft'},
@@ -537,14 +533,19 @@ export async function PATCH(
   if (body.action === 'sign' && accessRole !== 'owner' && accessRole !== 'signer') {
     return NextResponse.json({ok: false, message: 'only an assigned signer can sign the agreement'}, {status: 403})
   }
-  if (['confirm_scope', 'finalize', 'pay', 'kickoff', 'activate'].includes(body.action) && accessRole !== 'owner') {
-    return NextResponse.json({ok: false, message: 'only the owner can advance the pilot'}, {status: 403})
+  if (['confirm_scope', 'finalize', 'pay', 'kickoff', 'activate'].includes(body.action)) {
+    if (accessRole !== 'owner') {
+      return NextResponse.json({ok: false, message: 'only the pilot owner can advance the pilot'}, {status: 403})
+    }
+    if (!accountRole || accountRole !== 'owner') {
+      return NextResponse.json({ok: false, message: 'only the customer account owner can advance the pilot'}, {status: 403})
+    }
   }
 
   try {
     if (body.action === 'share') {
-      if (accessRole !== 'owner') {
-        return NextResponse.json({ok: false, message: 'only the account owner can invite members'}, {status: 403})
+      if (!accountRole || accountRole !== 'owner') {
+        return NextResponse.json({ok: false, message: 'only the customer account owner can invite members'}, {status: 403})
       }
       const share = body.share
       if (!share || !share.email || !['participant', 'approver', 'signer'].includes(share.role)) {
@@ -1180,6 +1181,12 @@ export async function PATCH(
     }
 
     if (body.action === 'pay') {
+      if (!leadsDryRun() && process.env.STRIPE_SECRET_KEY) {
+        return NextResponse.json(
+          {ok: false, message: 'manual payment recording is disabled; complete Stripe Checkout to mark paid'},
+          {status: 400},
+        )
+      }
       const stateChange = applyTransition(pilot.state, 'pay')
       if (!stateChange.allowed) {
         return NextResponse.json({ok: false, message: 'payment cannot be recorded in the current state'}, {status: 400})

@@ -160,7 +160,7 @@ function memory() {
 export type StoredPilot = {
   id: string
   profileId: string
-  customerAccountId?: string
+  customerAccountId?: string | null
   initialSubmissionId: string
   state: PilotState
   route: PilotRoute
@@ -193,6 +193,7 @@ export type CreatePilotInput = {
   unresolved: UnresolvedItem[]
   successCriteria: SuccessCriterion[]
   securityDecisions: SecurityDecision[]
+  customerAccountId?: string | null
 }
 
 export type PilotPatch = {
@@ -339,6 +340,7 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     securityDecisions: input.securityDecisions,
     reviewers,
     version: 1,
+    customerAccountId: input.customerAccountId || undefined,
     draft: createPilotDraft({
       terms: {
         startDate: null,
@@ -384,8 +386,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     `INSERT INTO lead_pilots(
       id, profile_id, initial_submission_id, state, route, answers_ciphertext,
       exceptions, unresolved, success_criteria, security_decisions, reviewers,
-      version, draft, draft_ciphertext, revisions, history
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+      version, draft, draft_ciphertext, revisions, history, customer_account_id
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
     [
       pilot.id,
       pilot.profileId,
@@ -403,6 +405,7 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
       encryptJson(pilot.draft),
       JSON.stringify(pilot.revisions),
       JSON.stringify(pilot.history),
+      pilot.customerAccountId || null,
     ],
   )
   return pilot

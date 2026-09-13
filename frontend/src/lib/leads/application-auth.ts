@@ -23,6 +23,7 @@ export type CustomerAccount = {
   name: string
   domain?: string
   stripeCustomerId?: string
+  role?: ApplicationRole
 }
 
 type UserRow = {
@@ -113,13 +114,15 @@ export async function getCustomerAccountForUser(
 ): Promise<CustomerAccount | null> {
   if (leadsDryRun()) {
     const stored = memoryStore()
-    return stored.memberships.has(memberKey(customerAccountId, userId))
-      ? stored.customers.get(customerAccountId) || null
-      : null
+    const role = stored.memberships.get(memberKey(customerAccountId, userId))
+    const account = stored.customers.get(customerAccountId)
+    if (!role || !account) return null
+    return {...account, role}
   }
   const result = await leadPool().query<CustomerAccount>(
     `SELECT customer.id, customer.name, customer.domain,
-            customer.stripe_customer_id AS "stripeCustomerId"
+            customer.stripe_customer_id AS "stripeCustomerId",
+            membership.role
        FROM customer_accounts customer
        JOIN customer_memberships membership
          ON membership.customer_account_id = customer.id
@@ -137,19 +140,35 @@ export async function getCustomerAccountsForUser(userId: string): Promise<Custom
     const accountIds = [...stored.memberships.keys()]
       .filter((key) => key.endsWith(`:${userId}`))
       .map((key) => key.slice(0, key.length - userId.length - 1))
-    return [...new Set(accountIds)]
-      .map((accountId) => stored.customers.get(accountId))
-      .filter((account): account is CustomerAccount => Boolean(account))
+    const accounts: CustomerAccount[] = [...new Set(accountIds)]
+      .map((accountId) => {
+        const account = stored.customers.get(accountId)
+        const role = stored.memberships.get(`${accountId}:${userId}`)
+        return account && role ? {...account, role} : null
+      })
+      .filter((account): account is NonNullable<typeof account> => account !== null)
+    const priority: Record<ApplicationRole, number> = {owner: 0, admin: 1, member: 2}
+    return accounts.sort((a, b) => {
+      const aPriority = a.role ? priority[a.role] : 3
+      const bPriority = b.role ? priority[b.role] : 3
+      return aPriority - bPriority
+    })
   }
   const result = await leadPool().query<CustomerAccount>(
     `SELECT customer.id, customer.name, customer.domain,
-            customer.stripe_customer_id AS "stripeCustomerId"
+            customer.stripe_customer_id AS "stripeCustomerId",
+            membership.role
        FROM customer_accounts customer
        JOIN customer_memberships membership
          ON membership.customer_account_id = customer.id
       WHERE membership.user_id = $1
         AND membership.revoked_at IS NULL
-      ORDER BY membership.created_at ASC`,
+      ORDER BY CASE membership.role
+        WHEN 'owner' THEN 0
+        WHEN 'admin' THEN 1
+        WHEN 'member' THEN 2
+        ELSE 3
+      END ASC`,
     [userId],
   )
   return result.rows
@@ -207,7 +226,7 @@ export async function ensureApplicationUser(input: {
 }
 
 export async function ensurePilotCustomerAccount(input: {
-  pilotId: string
+  pilotId: string | null
   profile: StoredProfile
   companyName?: string
 }): Promise<{user: ApplicationUser; customer: CustomerAccount}> {
@@ -229,16 +248,22 @@ export async function ensurePilotCustomerAccount(input: {
     const ownedCustomerId = [...stored.memberships.entries()].find(
       ([key, role]) => key.endsWith(`:${user.id}`) && role === 'owner',
     )?.[0].split(':')[0]
-    const customer = (ownedCustomerId ? stored.customers.get(ownedCustomerId) : undefined)
-      || {id: randomUUID(), name: accountName, domain}
+    const existingCustomer = ownedCustomerId ? stored.customers.get(ownedCustomerId) : undefined
+    const customer: CustomerAccount = existingCustomer
+      ? {...existingCustomer, role: 'owner' as const}
+      : {id: randomUUID(), name: accountName, domain, role: 'owner' as const}
     stored.customers.set(customer.id, customer)
     stored.memberships.set(memberKey(customer.id, user.id), 'owner')
-    stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), 'owner')
+    if (input.pilotId) {
+      stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), 'owner')
+      if (founder) {
+        stored.pilotMemberships.set(pilotMemberKey(input.pilotId, founder.id), 'approver')
+      }
+      await setPilotCustomerAccountId(input.pilotId, customer.id)
+    }
     if (founder) {
       stored.memberships.set(memberKey(customer.id, founder.id), 'admin')
-      stored.pilotMemberships.set(pilotMemberKey(input.pilotId, founder.id), 'approver')
     }
-    await setPilotCustomerAccountId(input.pilotId, customer.id)
     return {user, customer}
   }
 
@@ -247,7 +272,8 @@ export async function ensurePilotCustomerAccount(input: {
     await client.query('BEGIN')
     const owned = await client.query<CustomerAccount>(
       `SELECT customer.id, customer.name, customer.domain,
-              customer.stripe_customer_id AS "stripeCustomerId"
+              customer.stripe_customer_id AS "stripeCustomerId",
+              membership.role
          FROM customer_accounts customer
          JOIN customer_memberships membership ON membership.customer_account_id = customer.id
         WHERE membership.user_id = $1 AND membership.role = 'owner' AND membership.revoked_at IS NULL
@@ -265,15 +291,19 @@ export async function ensurePilotCustomerAccount(input: {
         : {rows: [] as {id: string}[]}
       // A matching domain is only a duplicate-review signal. It must never
       // grant an unrelated applicant access to an existing organization.
-      customer = {
+      const newCustomer: CustomerAccount = {
         id: randomUUID(),
         name: accountName,
         domain: domainMatch.rows[0] ? undefined : domain,
+        role: 'owner',
       }
       await client.query(
         `INSERT INTO customer_accounts(id, name, domain) VALUES ($1,$2,$3)`,
-        [customer.id, customer.name, customer.domain || null],
+        [newCustomer.id, newCustomer.name, newCustomer.domain || null],
       )
+      customer = newCustomer
+    } else {
+      customer = {...customer, role: 'owner'}
     }
     await client.query(
       `INSERT INTO customer_memberships(customer_account_id, user_id, role)
@@ -282,13 +312,32 @@ export async function ensurePilotCustomerAccount(input: {
        DO UPDATE SET revoked_at = NULL`,
       [customer.id, user.id],
     )
-    await client.query(
-      `INSERT INTO pilot_memberships(pilot_id, user_id, role)
-       VALUES ($1,$2,'owner')
-       ON CONFLICT(pilot_id, user_id)
-       DO UPDATE SET role = 'owner', revoked_at = NULL`,
-      [input.pilotId, user.id],
-    )
+    if (input.pilotId) {
+      await client.query(
+        `INSERT INTO pilot_memberships(pilot_id, user_id, role)
+         VALUES ($1,$2,'owner')
+         ON CONFLICT(pilot_id, user_id)
+         DO UPDATE SET role = 'owner', revoked_at = NULL`,
+        [input.pilotId, user.id],
+      )
+      if (founder) {
+        await client.query(
+          `INSERT INTO pilot_memberships(pilot_id, user_id, role)
+           VALUES ($1,$2,'approver') ON CONFLICT(pilot_id, user_id)
+           DO UPDATE SET role = 'approver', revoked_at = NULL`,
+          [input.pilotId, founder.id],
+        )
+      }
+      await client.query(
+        `UPDATE lead_pilots SET customer_account_id = $2, updated_at = now() WHERE id = $1`,
+        [input.pilotId, customer.id],
+      )
+      await client.query(
+        `INSERT INTO application_audit_events(customer_account_id, pilot_id, actor_user_id, event_type)
+         VALUES ($1,$2,$3,'pilot_applicant_account_created')`,
+        [customer.id, input.pilotId, user.id],
+      )
+    }
     if (founder) {
       await client.query(
         `INSERT INTO customer_memberships(customer_account_id, user_id, role)
@@ -296,22 +345,7 @@ export async function ensurePilotCustomerAccount(input: {
          DO UPDATE SET role = 'admin', revoked_at = NULL`,
         [customer.id, founder.id],
       )
-      await client.query(
-        `INSERT INTO pilot_memberships(pilot_id, user_id, role)
-         VALUES ($1,$2,'approver') ON CONFLICT(pilot_id, user_id)
-         DO UPDATE SET role = 'approver', revoked_at = NULL`,
-        [input.pilotId, founder.id],
-      )
     }
-    await client.query(
-      `UPDATE lead_pilots SET customer_account_id = $2, updated_at = now() WHERE id = $1`,
-      [input.pilotId, customer.id],
-    )
-    await client.query(
-      `INSERT INTO application_audit_events(customer_account_id, pilot_id, actor_user_id, event_type)
-       VALUES ($1,$2,$3,'pilot_applicant_account_created')`,
-      [customer.id, input.pilotId, user.id],
-    )
     await client.query('COMMIT')
     return {user, customer}
   } catch (error) {
@@ -520,6 +554,40 @@ export async function pilotMembershipRole(pilotId: string, userId: string): Prom
     [pilotId, userId],
   )
   return result.rows[0]?.role || null
+}
+
+export async function pilotMembershipWithAccountRole(pilotId: string, userId: string): Promise<{
+  pilotRole: PilotMemberRole | null
+  accountRole: ApplicationRole | null
+  customerAccountId: string | null
+}> {
+  if (leadsDryRun()) {
+    const pilotRole = memoryStore().pilotMemberships.get(pilotMemberKey(pilotId, userId)) || null
+    if (!pilotRole) return {pilotRole: null, accountRole: null, customerAccountId: null}
+    const pilot = await getPilotById(pilotId)
+    if (!pilot?.customerAccountId) return {pilotRole, accountRole: null, customerAccountId: null}
+    const accountRole = memoryStore().memberships.get(`${pilot.customerAccountId}:${userId}`) || null
+    return {pilotRole, accountRole, customerAccountId: pilot.customerAccountId}
+  }
+  const result = await leadPool().query<{
+    pilot_role: PilotMemberRole | null
+    account_role: ApplicationRole | null
+    customer_account_id: string | null
+  }>(
+    `SELECT pm.role AS pilot_role, cm.role AS account_role, p.customer_account_id
+       FROM lead_pilots p
+       LEFT JOIN pilot_memberships pm ON pm.pilot_id = p.id AND pm.user_id = $2 AND pm.revoked_at IS NULL
+       LEFT JOIN customer_memberships cm ON cm.customer_account_id = p.customer_account_id AND cm.user_id = $2 AND cm.revoked_at IS NULL
+      WHERE p.id = $1`,
+    [pilotId, userId],
+  )
+  const row = result.rows[0]
+  if (!row) return {pilotRole: null, accountRole: null, customerAccountId: null}
+  return {
+    pilotRole: row.pilot_role,
+    accountRole: row.account_role,
+    customerAccountId: row.customer_account_id,
+  }
 }
 
 export async function activePilotMemberEmails(pilotId: string): Promise<string[]> {

@@ -40,10 +40,12 @@ import {
   getProfileById,
   getProfileByToken,
   latestQualificationAnswers,
+  leadPool,
   leadsDryRun,
   persistSubmission,
   PROFILE_COOKIE,
   PROFILE_MAX_AGE_SECONDS,
+  setPilotCustomerAccountId,
   updatePilot,
 } from '@/lib/leads/store'
 import {
@@ -388,6 +390,7 @@ async function syncPilotRecord(
     }
   }
 
+  const profile = await getProfileById(profileId)
   const pilot = await createPilotRecord({
     profileId,
     initialSubmissionId: submissionId,
@@ -402,12 +405,14 @@ async function syncPilotRecord(
     unresolved,
     successCriteria,
     securityDecisions,
+    customerAccountId: null,
   })
   const account = await ensurePilotCustomerAccount({
     pilotId: pilot.id,
-    profile: await getProfileById(profileId),
+    profile,
     companyName: leadRequest.identity?.company,
   })
+  await setPilotCustomerAccountId(pilot.id, account.customer.id)
   const updatedPilot = await updatePilot(pilot.id, {
     proposal: buildCommercialSnapshot(answers, [], {}),
   })
