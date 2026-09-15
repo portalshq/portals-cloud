@@ -58,6 +58,7 @@ import {
   qualificationTier,
   recommendedWorkflow,
 } from '@/lib/leads/scoring'
+import {resolveCurrentPilotOffer} from '@/lib/leads/pilot-offers'
 
 export const runtime = 'nodejs'
 
@@ -316,7 +317,7 @@ async function syncPilotRecord(
       ...(submitterEmail ? {email: submitterEmail} : {}),
       ...(submitterName ? {name: submitterName} : {}),
     }
-    const proposal = buildCommercialSnapshot(answers, [], {
+    const proposal = pilot.proposal || buildCommercialSnapshot(answers, [], {
       startDate: pilot.resolvedStartDate || undefined,
     })
     const at = new Date().toISOString()
@@ -391,6 +392,7 @@ async function syncPilotRecord(
   }
 
   const profile = await getProfileById(profileId)
+  const offer = await resolveCurrentPilotOffer(leadRequest.offer, leadRequest.identity?.email)
   const pilot = await createPilotRecord({
     profileId,
     initialSubmissionId: submissionId,
@@ -414,7 +416,7 @@ async function syncPilotRecord(
   })
   await setPilotCustomerAccountId(pilot.id, account.customer.id)
   const updatedPilot = await updatePilot(pilot.id, {
-    proposal: buildCommercialSnapshot(answers, [], {}),
+    proposal: buildCommercialSnapshot(answers, [], {offer}),
   })
   await attachSubmissionToPilot(submissionId, pilot.id)
   try {

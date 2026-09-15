@@ -24,7 +24,32 @@ export function findPackageSpecification(
 export function packagePriceLabel(
   specification: PackageSpecification | undefined,
 ): string {
+  const price = specification?.price
+  return price?.displayValue || '$5,000'
+}
+
+export function packageOriginalPriceLabel(
+  specification: PackageSpecification | undefined,
+): string {
   return specification?.price?.displayValue || '$5,000'
+}
+
+export function packageDiscountPercentage(
+  specification: PackageSpecification | undefined,
+): number | null {
+  return specification?.price?.discount?.percentage || null
+}
+
+export function packageDiscountSlots(
+  specification: PackageSpecification | undefined,
+): number | null {
+  return specification?.price?.discount?.limitedSlots || null
+}
+
+export function packageUrgencyMessage(
+  specification: PackageSpecification | undefined,
+): string {
+  return specification?.price?.discount?.urgencyMessage || ''
 }
 
 export function packagePeriodLabel(

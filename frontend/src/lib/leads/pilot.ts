@@ -9,6 +9,7 @@ import {
   pilotControlledOptionLists as optionLists,
 } from './contracts'
 import { packagePriceLabel, packageTermDays } from '../package-specifications'
+import type {PilotOffer} from './pilot-offers'
 
 export type PilotRoute = 'zero-call' | 'one-call' | 'disqualified'
 
@@ -83,6 +84,16 @@ export type CommercialSnapshot = {
   termEnd?: string
   decisionDate?: string
   creditDeadline?: string
+  annualCreditAmount?: number
+  annualCreditLabel?: string
+  annualCreditRedemptionPolicy?: string
+  offerVariantSlug?: string
+  offerVariantRevision?: string
+  offerTermsVersion?: string
+  offerStartsAt?: string
+  offerEndsAt?: string
+  offerAcceptanceDeadlineLabel?: string
+  offerCopy?: string
   participantsLabel: string
   annualOption?: {
     slug: string
@@ -591,16 +602,17 @@ function annualTotalFrom(spec: PackageSpecification | undefined): number | null 
 export function buildCommercialSnapshot(
   answers: PilotAnswers,
   specs: PackageSpecification[],
-  opts: { startDate?: string; termDays?: number; currency?: string },
+  opts: { startDate?: string; termDays?: number; currency?: string; offer?: PilotOffer | null },
 ): CommercialSnapshot {
   const pilotSpec = specs.find((spec) => spec.packageKind === 'paidPilot')
   const priceAmount =
+    opts.offer?.pilotPriceAmount ||
     Number(process.env.PILOT_PRICE_AMOUNT) ||
     pilotSpec?.price?.amount ||
     5000
-  const priceLabel = packagePriceLabel(pilotSpec) || `$${priceAmount.toLocaleString()}`
+  const priceLabel = opts.offer?.pilotPriceLabel || packagePriceLabel(pilotSpec) || `$${priceAmount.toLocaleString()}`
   const currency = opts.currency || pilotSpec?.price?.currency || 'USD'
-  const termDays = opts.termDays || packageTermDays(pilotSpec)
+  const termDays = opts.termDays || opts.offer?.pilotDurationDays || packageTermDays(pilotSpec)
   const start = opts.startDate
   const end = start ? new Date(new Date(start).getTime() + (termDays - 1) * 86_400_000) : undefined
   const decisionDate = start
@@ -617,7 +629,9 @@ export function buildCommercialSnapshot(
       ? undefined
       : specs.find((spec) => spec.slug === annualSlug)
   const annualTotal = annualTotalFrom(annualSpec)
-  const annualCredit = `The $${priceAmount.toLocaleString()} pilot fee will be credited if the annual order form is signed by ${iso(creditDeadline) || 'the stated deadline'}.`
+  const annualCredit = opts.offer
+    ? `${opts.offer.annualCreditLabel} annual deployment credit under the ${opts.offer.annualCreditRedemptionPolicy}.`
+    : `The $${priceAmount.toLocaleString()} pilot fee will be credited if the annual order form is signed by ${iso(creditDeadline) || 'the stated deadline'}.`
   const annualOption =
     annualSlug === 'studio' && !annualSpec
       ? {
@@ -647,6 +661,18 @@ export function buildCommercialSnapshot(
     termEnd: end ? iso(end) : undefined,
     decisionDate: iso(decisionDate),
     creditDeadline: iso(creditDeadline),
+    ...(opts.offer ? {
+      annualCreditAmount: opts.offer.annualCreditAmount,
+      annualCreditLabel: opts.offer.annualCreditLabel,
+      annualCreditRedemptionPolicy: opts.offer.annualCreditRedemptionPolicy,
+      offerVariantSlug: opts.offer.slug,
+      offerVariantRevision: opts.offer._rev,
+      offerTermsVersion: opts.offer.termsVersion,
+      offerStartsAt: opts.offer.startsAt,
+      offerEndsAt: opts.offer.endsAt,
+      offerAcceptanceDeadlineLabel: opts.offer.acceptanceDeadlineLabel,
+      offerCopy: opts.offer.offerCopy,
+    } : {}),
     participantsLabel: answers.participantsRange || 'up to five',
     annualOption,
     valueModel: buildValueModel(

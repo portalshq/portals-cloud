@@ -66,7 +66,7 @@ The current design language is:
 
 The default HTML fallback is deep navy `#010528`. In the full experience, a fixed WebGL layer sits behind the page and supplies the visual atmosphere. Its ramps move through indigo, violet, cobalt, pale blue-gray, magenta, dusty pink, and muted green.
 
-Do not replace this experience with a single near-black surface. Color progression is a core part of the identity and gives each scroll chapter a distinct mood while preserving continuity.
+Color progression is a core part of the identity and gives each scroll chapter a distinct mood while preserving continuity.
 
 ### Foreground
 
@@ -83,8 +83,8 @@ The system does not use a separate brand accent for calls to action. Hierarchy c
 Translucent white surfaces are intentionally used over the animated canvas:
 
 - CTA fill: `white / 12%`
-- CTA border: `white / 10%`
-- CTA hover: `white / 30%`
+- CTA border: `white / 30%`
+- CTA hover: `white / 80%`
 - Overview list items: `white / 10%` with `20px` backdrop blur
 - Capability group: `20%` white separators with `12px` backdrop blur
 - CTA control: `50px` backdrop blur
@@ -135,7 +135,7 @@ Used for supporting copy, headings, branding, controls, tables, and lists.
 
 `t-m2` is a fluid `13.74–22.11px`, uppercase, 100% line-height utility style. It is used for:
 
-- Three-digit overview indices
+- Two-digit overview indices
 - Problem-card numbers
 - Comparison labels
 - Pricing periods
@@ -338,11 +338,10 @@ Use these patterns when extending the page:
 
 ### Do not
 
-- Do not restore the previous near-black and amber “archive” palette.
 - Do not use Geist or JetBrains Mono; they are not the page’s typefaces.
 - Do not describe the system as brutalist, achromatic, or zero-radius.
 - Do not prohibit backdrop blur; it is part of the implemented component language.
-- Do not place all content on opaque dark cards.
+- Do not place content on opaque dark cards.
 - Do not add shadows or elevation to create hierarchy.
 - Do not turn every repeated item into a bordered card.
 - Do not add gradients as isolated CSS decoration; color belongs to the shared WebGL environment.

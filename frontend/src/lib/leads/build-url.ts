@@ -122,7 +122,7 @@ export function buildFormUrl(baseUrl: string, params: BuildUrlParams): string {
  * Builds a URL specifically for the assessment form
  */
 export function buildAssessmentUrl(params: BuildUrlParams): string {
-  return buildFormUrl('https://portals.ai/workflow/assessment', params)
+  return buildFormUrl('https://portals.ai/assessment', params)
 }
 
 /**
@@ -186,7 +186,7 @@ export function generateExampleUrls(): Record<string, string> {
     }),
     
     'Production Guide - Asset Reproduction': buildResourceUrl(
-      'https://portals.ai/workflow/ai-production-workflow-risks#download',
+      'https://portals.ai/production-memory/brief#download',
       {
         how_did_you_hear: 'google-search',
         interest: 'asset-reproduction',

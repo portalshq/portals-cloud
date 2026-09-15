@@ -86,6 +86,43 @@ export const packagePrice = defineType({
       title: 'Billing note',
       type: 'string',
     }),
+    defineField({
+      name: 'discount',
+      title: 'Discount',
+      type: 'object',
+      fields: [
+        defineField({
+          name: 'percentage',
+          title: 'Discount percentage',
+          type: 'number',
+          description: 'Discount percentage (e.g., 25 for 25% off)',
+        }),
+        defineField({
+          name: 'discountAmount',
+          title: 'Discount amount',
+          type: 'number',
+          description: 'Fixed discount amount (alternative to percentage)',
+        }),
+        defineField({
+          name: 'discountDisplayValue',
+          title: 'Discount display value',
+          type: 'string',
+          description: 'How to display the discounted price (e.g., "$7,500")',
+        }),
+        defineField({
+          name: 'limitedSlots',
+          title: 'Limited slots available',
+          type: 'number',
+          description: 'Number of available slots for this discount (e.g., 2)',
+        }),
+        defineField({
+          name: 'urgencyMessage',
+          title: 'Urgency message',
+          type: 'string',
+          description: 'Message to create urgency (e.g., "Only 2 slots remaining")',
+        }),
+      ],
+    }),
   ],
 })
 
@@ -266,3 +303,30 @@ export const packageSpecificationTypes = [
   packageLimits,
   packageSpecification,
 ]
+
+export const pilotOfferVariant = defineType({
+  name: 'pilotOfferVariant',
+  title: 'Pilot offer variant',
+  type: 'document',
+  fields: [
+    defineField({name: 'slug', title: 'Offer slug', type: 'slug', options: {source: 'internalLabel'}, validation: (rule) => rule.required()}),
+    defineField({name: 'internalLabel', title: 'Internal label', type: 'string', validation: (rule) => rule.required()}),
+    defineField({name: 'basePackage', title: 'Base package', type: 'reference', to: [{type: 'packageSpecification'}], validation: (rule) => rule.required()}),
+    defineField({name: 'status', title: 'Status', type: 'string', options: {list: [{title: 'Active', value: 'active'}, {title: 'Inactive', value: 'inactive'}]}, validation: (rule) => rule.required()}),
+    defineField({name: 'startsAt', title: 'Starts at', type: 'datetime', validation: (rule) => rule.required()}),
+    defineField({name: 'endsAt', title: 'Ends at', type: 'datetime', validation: (rule) => rule.required()}),
+    defineField({name: 'acceptanceDeadlineLabel', title: 'Acceptance deadline label', type: 'string'}),
+    defineField({name: 'pilotPriceAmount', title: 'Pilot price amount', type: 'number', validation: (rule) => rule.required().positive()}),
+    defineField({name: 'pilotPriceLabel', title: 'Pilot price label', type: 'string', validation: (rule) => rule.required()}),
+    defineField({name: 'annualCreditAmount', title: 'Annual credit amount', type: 'number', validation: (rule) => rule.required().positive()}),
+    defineField({name: 'annualCreditLabel', title: 'Annual credit label', type: 'string', validation: (rule) => rule.required()}),
+    defineField({name: 'pilotDurationDays', title: 'Pilot duration days', type: 'number', initialValue: 21, validation: (rule) => rule.required().positive()}),
+    defineField({name: 'annualCreditRedemptionPolicy', title: 'Annual credit redemption policy', type: 'string', initialValue: 'standard-pilot-conversion-window', validation: (rule) => rule.required()}),
+    defineField({name: 'allowedEmailDomains', title: 'Allowed email domains', type: 'array', of: [defineArrayMember({type: 'string'})]}),
+    defineField({name: 'offerCopy', title: 'Offer copy', type: 'text', rows: 3}),
+    defineField({name: 'termsVersion', title: 'Terms version', type: 'string', validation: (rule) => rule.required()}),
+  ],
+  preview: {select: {title: 'internalLabel', subtitle: 'status'}},
+})
+
+export const packageSpecificationTypesWithOffers = [...packageSpecificationTypes, pilotOfferVariant]

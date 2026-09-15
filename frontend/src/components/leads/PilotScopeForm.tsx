@@ -77,12 +77,14 @@ export function PilotScopeForm({
   specSummary,
   context,
   pilotId,
+  offer,
   initialAnswers,
   assessmentOrigin = 'standard',
 }: {
   specSummary: string
   context: KnownLeadContext
   pilotId?: string
+  offer?: string
   initialAnswers?: Record<string, unknown>
   assessmentOrigin?: 'standard' | 'assessment_override'
 }) {
@@ -485,6 +487,7 @@ export function PilotScopeForm({
         formVersion: isRevision ? 'paid-pilot-revision.v1' : 'paid-pilot.v2',
         provider: 'browser',
         pilotId: pilotId || '',
+        ...(offer ? {offer} : {}),
         identity: Object.fromEntries(
           Object.entries({
             email: String(values.email || context.identity?.email || carriedAnswers.email || urlParams.email || ''),
@@ -797,7 +800,7 @@ export function PilotScopeForm({
             <option value="later">later</option>
           </LeadSelectField>
         </LeadField>
-        <LeadField label="can your organization approve the $5,000 pilot? *" name="approvalPath">
+        <LeadField label="can your organization approve the pilot fee? *" name="approvalPath">
           <LeadSelectField
             id="approvalPath"
             name="approvalPath"

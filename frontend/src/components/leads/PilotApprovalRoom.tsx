@@ -1109,7 +1109,11 @@ export function PilotApprovalRoom({
             <div><dt className="text-white/60">Pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature</dd></div>
             <div><dt className="text-white/60">Term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? `, ${pilot.proposal.termStart} to ${pilot.proposal.termEnd}` : ''}</dd></div>
             {pilot.proposal.decisionDate ? <div><dt className="text-white/60">Final decision date</dt><dd className="mt-2">{pilot.proposal.decisionDate}</dd></div> : null}
-            {pilot.proposal.creditDeadline ? <div><dt className="text-white/60">Annual credit window</dt><dd className="mt-2">Signs by {pilot.proposal.creditDeadline}</dd></div> : null}
+            {pilot.proposal.offerVariantSlug ? (
+              <div><dt className="text-white/60">Offer acceptance deadline</dt><dd className="mt-2">Sign by {pilot.proposal.offerAcceptanceDeadlineLabel || pilot.proposal.offerEndsAt}</dd></div>
+            ) : pilot.proposal.creditDeadline ? (
+              <div><dt className="text-white/60">Annual credit window</dt><dd className="mt-2">Signs by {pilot.proposal.creditDeadline}</dd></div>
+            ) : null}
             {pilot.proposal.annualOption ? (
               <div>
                 <dt className="text-white/60">Proposed annual deployment</dt>

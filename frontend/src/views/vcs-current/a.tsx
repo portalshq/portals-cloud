@@ -4,6 +4,8 @@ import { CTAButton } from '@/components/CTAButton';
 import {
   PACKAGE_SPEC_SLUGS,
   findPackageSpecification,
+  packageOriginalPriceLabel,
+  packagePriceLabel,
   packagePricingFeatures,
 } from '@/lib/package-specifications';
 import { formatNumber, scopeAPilotMailto } from '@/lib/utils';
@@ -184,6 +186,8 @@ type PricingTier = {
   slug: string;
   name: string;
   price: string;
+  originalPrice?: string;
+  discountPercentage?: number | null;
   period: string;
   subtitle?: string;
   features: string[];
@@ -195,7 +199,9 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
   return {
     slug: specification.slug,
     name: specification.name,
-    price: specification.price?.displayValue || '',
+    price: packagePriceLabel(specification),
+    originalPrice: packageOriginalPriceLabel(specification),
+    discountPercentage: specification.price?.discount?.percentage,
     period: specification.price?.periodLabel || '',
     subtitle: specification.subtitle,
     features: packagePricingFeatures(specification),
@@ -206,7 +212,7 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
 
 function pricingTierHref(tier: PricingTier): string {
   return tier.slug === PACKAGE_SPEC_SLUGS.productionTeam
-    ? '/workflow/assessment'
+    ? '/assessment'
     : scopeAPilotMailto;
 }
 
@@ -655,7 +661,7 @@ function SolutionSection() {
           </p>
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
-            <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+            <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
               Assess production workflow
             </CTAButton>
           </div>
@@ -719,7 +725,7 @@ function CapabilitiesSection() {
           ))}
         </div>
         <div className='col-span-full'>
-          <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+          <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
             Assess production workflow
           </CTAButton>
         </div>
@@ -805,7 +811,7 @@ function PricingSection({
         <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] lg:mx-auto rounded">
           {pilotTier ? [pilotTier].map((tier) => (
             <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
-              <h3 className="t-h3-sans">{tier.name}</h3>
+              <h3 className="t-h3-sans mb-20">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-h3-sans">{tier.price}</span>
                 <span className="t-m2 !lowercase">{tier.period}</span>
@@ -828,7 +834,7 @@ function PricingSection({
         <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
           {pricingTiers.map((tier) => (
             <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
-              <h3 className="t-h3-sans">{tier.name}</h3>
+              <h3 className="t-h3-sans mb-20">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-h3-sans">{tier.price}</span>
                 <span className="t-m2 !lowercase">{tier.period}</span>
@@ -924,16 +930,16 @@ export function VCS({
               build from your best{' '}
               <strong className="t-d2-serif">creative work</strong>
             </h1>
-            <p className="t-h3-sans max-w-[24ch]">reduce production costs, organize and extend successful work, and scale projects across teams and tools.</p>
+            <p className="t-h3-sans max-w-[24.5ch]">reduce production costs, organize and extend successful work, and scale projects across teams and tools.</p>
             <div className="saga-hero-assess flex flex-col gap-12 pt-12 sm:flex-row">
               <CTAButton
-                href="/workflow/assessment"
+                href="/assessment"
                 analyticsLabel="Assess Your Workflow"
                 analyticsIntent="assessment"
               >
                 Assess production workflow
               </CTAButton>
-              <CTAButton className="!hidden" href="/workflow/ai-production-workflow-risks" analyticsLabel="Explore Use Cases" analyticsIntent="education">
+              <CTAButton className="!hidden" href="/use-cases" analyticsLabel="Explore Use Cases" analyticsIntent="education">
                 Explore use cases
               </CTAButton>
             </div>
@@ -976,8 +982,8 @@ export function VCS({
                 Deliver faster at lower cost with  complete asset history and identity from first generation through shipped production.
               </p>
               <div className="flex items-center gap-16">
-                <CTAButton href={"/workflow/ai-production-workflow-risks"}>Explore use cases</CTAButton>
-                <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+                <CTAButton href={"/use-cases"}>Explore use cases</CTAButton>
+                <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
                   Assess production workflow
                 </CTAButton>
               </div>

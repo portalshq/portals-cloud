@@ -1147,6 +1147,10 @@ export async function PATCH(
       if (!stateChange.allowed) {
         return NextResponse.json({ok: false, message: 'the pilot is not ready for signature'}, {status: 400})
       }
+      const offerEndsAt = pilot.proposal?.offerEndsAt
+      if (offerEndsAt && Date.now() >= new Date(offerEndsAt).getTime()) {
+        return NextResponse.json({ok: false, message: 'this pilot offer has expired'}, {status: 409})
+      }
       const answers = {
         ...(pilot.answers as Record<string, unknown>),
         ...(body.answers || {}),
@@ -1166,6 +1170,7 @@ export async function PATCH(
           name,
           email,
           signedAt: new Date().toISOString(),
+          ...(pilot.proposal?.offerVariantSlug ? {offerLockedAt: new Date().toISOString()} : {}),
           consented: true,
           ip: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || '',
         },

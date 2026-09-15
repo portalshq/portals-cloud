@@ -15,7 +15,7 @@ export const sanityClient = createClient({
   projectId,
   dataset,
   apiVersion: '2026-07-01',
-  useCdn: true,
+  useCdn: false, // Disabled for development to avoid caching
 })
 
 export const sanityDocumentClient = sanityClient.withConfig({

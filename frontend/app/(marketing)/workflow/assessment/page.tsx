@@ -9,11 +9,11 @@ import Faq from '@/components/FAQ'
 import {getFaqsByCategories} from '@/lib/faqs'
 
 const assessmentUrl = new URL(
-  '/workflow/assessment',
+  '/assessment',
   process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works',
 ).toString()
 const assessmentImageUrl = new URL(
-  '/workflow/assessment/opengraph-image',
+  '/assessment/opengraph-image',
   process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works',
 ).toString()
 
@@ -92,7 +92,7 @@ export default async function WorkflowAssessmentPage() {
       '@context': 'https://schema.org',
       '@type': 'WebPage',
       name: 'AI Creative Production Workflow Assessment',
-      url: `${siteUrl}/workflow/assessment`,
+      url: `${siteUrl}/assessment`,
       description: metadata.description,
       isPartOf: {'@type': 'WebSite', name: 'portals', url: siteUrl},
     },
@@ -101,7 +101,7 @@ export default async function WorkflowAssessmentPage() {
       '@type': 'BreadcrumbList',
       itemListElement: [
         {'@type': 'ListItem', position: 1, name: 'portals', item: siteUrl},
-        {'@type': 'ListItem', position: 2, name: 'AI Creative Production Workflow Assessment', item: `${siteUrl}/workflow/assessment`},
+        {'@type': 'ListItem', position: 2, name: 'AI Creative Production Workflow Assessment', item: `${siteUrl}/assessment`},
       ],
     },
     {

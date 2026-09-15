@@ -189,3 +189,43 @@ export const LEGAL_DOCUMENT_BY_TYPE_QUERY = defineQuery(`
     }
   }
 `)
+
+export const USE_CASES_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "useCaseDocument"
+    && status == "published"
+    && defined(slug.current)
+  ] | order(sortOrder asc, title asc) {
+    _id,
+    _updatedAt,
+    title,
+    "slug": slug.current,
+    outcome,
+    event,
+    buyers,
+    remedy,
+    booster,
+    measure,
+    sortOrder
+  }
+`)
+
+export const USE_CASE_BY_SLUG_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "useCaseDocument"
+    && status == "published"
+    && slug.current == $slug
+  ][0] {
+    _id,
+    _updatedAt,
+    title,
+    "slug": slug.current,
+    outcome,
+    event,
+    buyers,
+    remedy,
+    booster,
+    measure,
+    sortOrder
+  }
+`)

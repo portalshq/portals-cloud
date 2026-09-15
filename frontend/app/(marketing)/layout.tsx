@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { MarketingHeader } from '@/components/MarketingHeader'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'),
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 
 function Footer() {
   return (
-    <footer className="ui-grid relative z-(--z-footer) h-[90vh] pb-36 text-white lg:pt-36 !lowercase">
+    <footer className="ui-grid relative z-(--z-footer) min-h-[52vh] pb-50 text-white lg:pt-50 !lowercase">
       <div
         className="pointer-events-none absolute inset-x-0 -top-128 bottom-0 z-0"
         aria-hidden="true"
@@ -34,31 +35,44 @@ function Footer() {
         }}
       />
       <div className="col-span-full relative z-10 flex flex-col gap-y-fluid-[32,40] mb-12">
-        <div className="col-span-full h-full space-y-fluid-[32,40] ui-grid grid-cols-1 grid-rows-[min-content_min-content_1fr] lg:grid-rows-[min-content_1fr] lg:grid-cols-5 m-0 p-0">
-          <a href="/" className="col-span-full mb-40 t-d1-sans !font-medium">portals</a>
-          <div className='col-span-full lg:col-span-3'>
-            <p className="lowercase text-white t-p-sans">
-              The repository for AI{`\u2011`}native production
+        <div className="col-span-full h-full space-y-fluid-[32,40] ui-grid grid-cols-1 lg:grid-cols-5 m-0 p-0">
+          <div className="col-span-full mb-24 lg:col-span-2 lg:mb-0">
+            <a href="/" className="t-d1-sans !font-medium">portals</a>
+            <p className="mt-24 max-w-md lowercase t-p-sans">
+              The repository for AI{`\u2011`}native production.
             </p>
           </div>
 
-          <div className='col-span-full lg:col-span-2 h-full space-y-fluid-[32,40]'>
-          {/* <h4 className="font-medium mb-4">Product</h4> */}
-            <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
-              <li><a href="/privacy-policy" className="hover:text-white transition-colors">Privacy</a></li>
-              <li><a href="/terms-of-service" className="hover:text-white transition-colors">terms of service</a></li>
-              <li><a href="/security-and-architecture" className="hover:text-white transition-colors">security</a></li>
-              <li><a href="/workflow/ai-production-workflow-risks" className="hover:text-white transition-colors">use cases</a></li>
-              <li><a href="/workflow/assessment" className="hover:text-white transition-colors">assess production workflow</a></li>
-            </ul>
-            
-            <ul className="space-y-8 lg:space-y-4 t-p-sans text-white/80">
-              <li><a href="/contact" className="hover:text-white transition-colors">contact us</a></li>
-            </ul>
+          <div className='col-span-full grid gap-y-32 sm:grid-cols-3 lg:col-span-3'>
+            <nav aria-label="Explore" className="space-y-12">
+              <h2 className="t-p-sm-sans text-white/50">explore</h2>
+              <ul className="space-y-8 t-p-sans text-white/80">
+                <li><a href="/production-memory" className="hover:text-white transition-colors">production memory</a></li>
+                <li><a href="/use-cases" className="hover:text-white transition-colors">use cases</a></li>
+                <li><a href="/assessment" className="hover:text-white transition-colors">assess your workflow</a></li>
+              </ul>
+            </nav>
+
+            <nav aria-label="Work with Portals" className="space-y-12">
+              <h2 className="t-p-sm-sans text-white/50">work with portals</h2>
+              <ul className="space-y-8 t-p-sans text-white/80">
+                <li><a href="/paid-pilot" className="hover:text-white transition-colors">paid pilot</a></li>
+                <li><a href="/security-and-architecture" className="hover:text-white transition-colors">security</a></li>
+                <li><a href="/contact" className="hover:text-white transition-colors">contact us</a></li>
+              </ul>
+            </nav>
+
+            <nav aria-label="Legal" className="space-y-12">
+              <h2 className="t-p-sm-sans text-white/50">legal</h2>
+              <ul className="space-y-8 t-p-sans text-white/80">
+                <li><a href="/privacy-policy" className="hover:text-white transition-colors">privacy</a></li>
+                <li><a href="/terms-of-service" className="hover:text-white transition-colors">terms of service</a></li>
+              </ul>
+            </nav>
           </div>
-          
+
         </div>
-        <div className="relative z-10 flex flex-col lg:items-center pt-12 t-p-sm-sans text-white col-span-full row-start-last">
+        <div className="relative z-10 flex flex-col items-center pt-12 t-p-sm-sans text-white col-span-full row-start-last lg:col-span-3 lg:col-start-3 lg:items-start">
           <span>© 2026 portals.works</span>
         </div>
       </div>
@@ -74,6 +88,7 @@ export default function MarketingLayout({
   return (
     <div className="min-h-[100dvh] flex flex-col text-foreground font-sans">
       <div className="flex-1 z-(--z-main) flex flex-col">
+        <MarketingHeader />
         {children}
       </div>
       <Footer />

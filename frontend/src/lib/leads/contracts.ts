@@ -346,6 +346,7 @@ export const leadRequestSchema = z.discriminatedUnion('submissionType', [
   commonSchema.extend({
     submissionType: z.literal('pilot_request'),
     pilotId: optionalText(80),
+    offer: z.string().trim().max(120).optional(),
     answers: pilotRequestAnswersSchema,
   }),
   commonSchema.extend({

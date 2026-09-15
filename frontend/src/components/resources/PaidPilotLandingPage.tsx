@@ -6,6 +6,7 @@ import {
   Check,
 } from 'lucide-react'
 import { CTAButton } from '@/components/CTAButton'
+import { PortalsHeader } from '@/components/PortalsHeader'
 import { PilotScopeForm } from '@/components/leads/PilotScopeForm'
 import type { KnownLeadContext } from '@/lib/leads/contracts'
 import type {
@@ -99,25 +100,10 @@ function StaticPilotBackground() {
   )
 }
 
-function Header() {
-  return (
-    <header className="absolute inset-x-0 top-0 z-(--z-header)">
-      <div className="flex h-Header-h items-center justify-between px-sms">
-        <a href="/" className="t-h3-sans !font-medium text-white">
-          portals
-        </a>
-        {/* <CTAButton href="#scope" className="!min-w-0">
-          <span>Scope a pilot</span>
-          <ArrowRight aria-hidden="true" size={17} strokeWidth={1.8} />
-        </CTAButton> */}
-      </div>
-    </header>
-  )
-}
-
 function Hero({ document }: { document: ResourceDocument }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
+
   const metrics = [
     [packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
     [packagePriceLabel(specification), specification?.price?.billingNote || 'price'],
@@ -130,7 +116,7 @@ function Hero({ document }: { document: ResourceDocument }) {
       data-header-theme="light"
       className="relative flex min-h-screen items-center overflow-hidden"
     >
-      <Header />
+      <PortalsHeader breadcrumb={[{href: '/paid-pilot', label: 'paid pilot'}]} />
       <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[96,126] text-white">
         <div className="col-span-full lg:col-span-11">
           <h1 className="t-d2-sans max-w-[11em]">
@@ -155,6 +141,7 @@ function Hero({ document }: { document: ResourceDocument }) {
             </div>
           ))}
         </dl>
+
       </div>
     </section>
   )
@@ -356,10 +343,12 @@ function Responsibilities({ document }: { document: ResourceDocument }) {
 function PilotForm({
   specSummary,
   context,
+  offer,
   assessmentOrigin,
 }: {
   specSummary: string
   context: KnownLeadContext
+  offer?: string
   assessmentOrigin: 'standard' | 'assessment_override'
 }) {
   return (
@@ -385,7 +374,7 @@ function PilotForm({
         </div>
 
         <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
-          <PilotScopeForm specSummary={specSummary} context={context} assessmentOrigin={assessmentOrigin} />
+          <PilotScopeForm specSummary={specSummary} context={context} offer={offer} assessmentOrigin={assessmentOrigin} />
         </div>
       </div>
     </section>
@@ -462,7 +451,7 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
             <p className="t-p-sans text-white/80">
-              Not ready to streamline your production workflow? <br/><a className="underline underline-offset-4" href="/workflow/assessment">Assess your creative production workflow first.</a>
+              Not ready to streamline your production workflow? <br/><a className="underline underline-offset-4" href="/assessment">Assess your creative production workflow first.</a>
             </p>
           </div>
         </div>
@@ -474,10 +463,12 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
 export function PaidPilotLandingPage({
   document,
   context,
+  offer,
   assessmentOrigin = 'standard',
 }: {
   document: ResourceDocument
   context: KnownLeadContext
+  offer?: string
   assessmentOrigin?: 'standard' | 'assessment_override'
 }) {
   const specification = paidPilotSpec(document)
@@ -512,7 +503,7 @@ export function PaidPilotLandingPage({
         <SuccessCriteria document={document} />
         <CommercialTerms document={document} />
         <Responsibilities document={document} />
-        <PilotForm specSummary={formSpecSummary} context={context} assessmentOrigin={assessmentOrigin} />
+        <PilotForm specSummary={formSpecSummary} context={context} offer={offer} assessmentOrigin={assessmentOrigin} />
         <PilotFaq document={document} />
         <FinalDecision document={document} />
       </div>

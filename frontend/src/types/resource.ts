@@ -32,6 +32,13 @@ export type PackageSpecification = {
     currency?: string
     periodLabel?: string
     billingNote?: string
+    discount?: {
+      percentage?: number
+      discountAmount?: number
+      discountDisplayValue?: string
+      limitedSlots?: number
+      urgencyMessage?: string
+    }
   }
   limits?: {
     productionTeams?: SpecificationValue

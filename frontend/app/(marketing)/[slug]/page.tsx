@@ -10,7 +10,7 @@ type PageProps = {
   params: Promise<{
     slug: string
   }>
-  searchParams: Promise<{from?: string}>
+  searchParams: Promise<{from?: string; offer?: string}>
 }
 
 export const dynamic = 'force-dynamic'
@@ -71,7 +71,7 @@ export async function generateMetadata({
 
 export default async function ResourcePage({params, searchParams}: PageProps) {
   const {slug} = await params
-  const {from} = await searchParams
+  const {from, offer} = await searchParams
   const [document, context] = await Promise.all([
     getResourceDocument(slug),
     getKnownLeadContext(),
@@ -90,6 +90,7 @@ export default async function ResourcePage({params, searchParams}: PageProps) {
       <PaidPilotLandingPage
         document={document}
         context={context}
+        offer={offer}
         assessmentOrigin={from === 'assessment-override' ? 'assessment_override' : 'standard'}
       />
     )

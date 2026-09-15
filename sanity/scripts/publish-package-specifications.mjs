@@ -17,7 +17,7 @@ const specs = [
       displayValue: '$5,000',
       amount: 5000,
       currency: 'USD',
-      periodLabel: 'once',
+      periodLabel: 'one-time',
       billingNote: 'upfront pilot fee',
     },
     limits: {
@@ -94,7 +94,7 @@ const specs = [
     ],
     ctaLabel: 'Scope a pilot',
     microcopy:
-      'Credited toward annual deployment when the annual agreement is signed within 14 days of the final pilot review. Enterprise pilots are scoped separately.',
+      'Annual deployment credit available. Exact pilot pricing, deployment credit, and expiration terms are established before the pilot begins.',
     legalNote:
       'Pilot scope, integrations, annual deployment price, credit terms, success criteria, and final decision date must be agreed in writing before kickoff.',
   },
@@ -105,7 +105,7 @@ const specs = [
     slug: {_type: 'slug', current: 'production-team'},
     sortOrder: 20,
     subtitle:
-      'For small production teams establishing a trusted system of record for AI production.',
+      'For small production teams establishing a trusted system of record for emerging AI workflows.',
     price: {
       _type: 'packagePrice',
       displayValue: '$750',
@@ -157,7 +157,7 @@ const specs = [
     slug: {_type: 'slug', current: 'studio'},
     sortOrder: 30,
     subtitle:
-      'For organizations running recurring client, campaign, episodic, animation, or game-production workflows.',
+      'For studios managing concurrent campaigns, episodic, animation, or game pipelines.',
     price: {
       _type: 'packagePrice',
       displayValue: '$2,500',

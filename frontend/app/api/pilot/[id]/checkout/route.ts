@@ -97,7 +97,7 @@ export async function POST(
               unit_amount: Math.round(amount * 100),
               product_data: {
                 name: `portals paid production pilot — ${String(pilot.answers.company || '')}`,
-                description: `${pilot.proposal?.termDays || 21}-day production pilot; fee credited toward the annual deployment if the order form is signed by ${pilot.proposal?.creditDeadline || 'the stated deadline'}.`,
+                description: `${pilot.proposal?.termDays || 21}-day production pilot; ${pilot.proposal?.annualCreditLabel || 'the pilot fee'} applies under the persisted annual conversion terms.`,
               },
             },
           },

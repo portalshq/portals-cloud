@@ -13,6 +13,7 @@ import type {KnownLeadContext} from '@/lib/leads/contracts'
 import type {ResourceDocument} from '@/types/resource'
 import {getFaqsByCategories} from '@/lib/faqs'
 import {ResourceBody} from './ResourceBody'
+import {PortalsHeader} from '@/components/PortalsHeader'
 
 const CURRENT_CERTIFICATIONS_ANCHOR = 'current-certifications'
 const PLANNED_CERTIFICATIONS_ANCHOR = 'planned-certifications'
@@ -25,24 +26,6 @@ function publicationDate(value?: string): string {
     day: 'numeric',
     year: 'numeric',
   }).format(new Date(value))
-}
-
-function Header() {
-  return (
-    <header className="absolute inset-x-0 top-0 z-(--z-header)">
-      <div className="flex h-Header-h items-center justify-between px-sms">
-        <a href="/" className="t-h3-sans !font-medium text-white">
-          portals
-        </a>
-        <a
-          href="#controls"
-          className="hidden t-p-sm-sans text-white transition-colors hover:text-white sm:block"
-        >
-          security brief / 2026
-        </a>
-      </div>
-    </header>
-  )
 }
 
 function FlowingSecurityBackground() {
@@ -80,7 +63,7 @@ function Hero({document}: {document: ResourceDocument}) {
       data-header-theme="light"
       className="relative flex min-h-screen items-center overflow-hidden"
     >
-      <Header />
+      <PortalsHeader breadcrumb={[{href: '/security-and-architecture', label: 'security'}]} action={{href: '#controls', label: 'security brief / 2026'}} />
       <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-16">
           {landing.eyebrow ? (

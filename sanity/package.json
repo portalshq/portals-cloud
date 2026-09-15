@@ -11,14 +11,18 @@
     "dev": "sanity dev",
     "attach:package-specifications": "sanity exec scripts/attach-package-specifications-to-resources.mjs --with-user-token",
     "publish:package-specifications": "sanity exec scripts/publish-package-specifications.mjs --with-user-token",
+    "publish:pilot-offer-variant": "sanity exec scripts/publish-pilot-offer-variant.mjs --with-user-token",
     "publish:paid-pilot-brief": "sanity exec scripts/publish-paid-pilot-brief.mjs --with-user-token",
+    "migrate:use-cases": "sanity exec scripts/migrate-use-cases.mjs --with-user-token",
     "start": "sanity start"
   },
   "keywords": [
     "sanity"
   ],
   "dependencies": {
+    "@sanity/client": "^7.27.0",
     "@sanity/vision": "^6.7.0",
+    "dotenv": "^17.4.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "sanity": "^6.7.0",
