@@ -14,6 +14,7 @@ import {
   buildSuccessCriteria,
   classifyPilot,
   computeUnresolved,
+  hasPendingMaterialException,
   reviewerTokenRole,
   type CommercialSnapshot,
   type PilotAction,
@@ -21,7 +22,7 @@ import {
   type Reviewer,
   type ReviewerRole,
 } from '@/lib/leads/pilot'
-import {APP_SESSION_COOKIE, ApplicationRole, currentApplicationUser, invitePilotMember, pilotMembershipRole, pilotMembershipWithAccountRole} from '@/lib/leads/application-auth'
+import {APP_SESSION_COOKIE, ApplicationRole, countPilotParticipants, currentApplicationUser, invitePilotMember, pilotMembershipRole, pilotMembershipWithAccountRole} from '@/lib/leads/application-auth'
 import {sendApplicationAccessEmail} from '@/lib/leads/account-email'
 import {pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
 import {
@@ -30,8 +31,10 @@ import {
   leadsDryRun,
   mutatePilot,
   updatePilot,
+  createTermsAcceptance,
   type StoredPilot,
 } from '@/lib/leads/store'
+import {hashValue} from '@/lib/leads/crypto'
 import {
   pilotTermsFromDraft,
   resolvePilotDraftCommit,
@@ -191,13 +194,39 @@ function recompute(
         startDate: startDate || undefined,
       })
     : pilot.proposal
+  const proposalWithOffer = baseProposal && pilot.proposal
+    ? {
+        ...baseProposal,
+        priceAmount: pilot.proposal.priceAmount,
+        priceLabel: pilot.proposal.priceLabel,
+        currency: pilot.proposal.currency,
+        termDays: pilot.proposal.termDays,
+        ...(pilot.proposal.offerVariantSlug
+          ? {
+              annualCreditAmount: pilot.proposal.annualCreditAmount,
+              annualCreditLabel: pilot.proposal.annualCreditLabel,
+              annualCreditRedemptionPolicy: pilot.proposal.annualCreditRedemptionPolicy,
+              offerVariantSlug: pilot.proposal.offerVariantSlug,
+              offerVariantRevision: pilot.proposal.offerVariantRevision,
+              offerTermsVersion: pilot.proposal.offerTermsVersion,
+              offerStartsAt: pilot.proposal.offerStartsAt,
+              offerEndsAt: pilot.proposal.offerEndsAt,
+              offerAcceptanceDeadlineLabel: pilot.proposal.offerAcceptanceDeadlineLabel,
+              offerCopy: pilot.proposal.offerCopy,
+              basePackageSlug: pilot.proposal.basePackageSlug,
+              offerResolvedAt: pilot.proposal.offerResolvedAt,
+              offerSnapshotHash: pilot.proposal.offerSnapshotHash,
+            }
+          : {}),
+      }
+    : baseProposal
   const proposal =
-    body.valueConfirmed !== undefined && baseProposal?.valueModel
+    body.valueConfirmed !== undefined && proposalWithOffer?.valueModel
       ? {
-          ...baseProposal,
-          valueModel: {...baseProposal.valueModel, confirmed: body.valueConfirmed},
+          ...proposalWithOffer,
+          valueModel: {...proposalWithOffer.valueModel, confirmed: body.valueConfirmed},
         }
-      : baseProposal
+      : proposalWithOffer
   return {
     answers,
     route: classification.route,
@@ -551,6 +580,13 @@ export async function PATCH(
       if (!share || !share.email || !['participant', 'approver', 'signer'].includes(share.role)) {
         return NextResponse.json({ok: false, message: 'share role and email are required'}, {status: 400})
       }
+      if (share.role === 'participant') {
+        const limit = pilot.proposal?.participantLimit || 5
+        const count = await countPilotParticipants(pilot.id)
+        if (count >= limit) {
+          return NextResponse.json({ok: false, code: 'participant_limit', message: `This pilot includes up to ${limit} participants. Remove an existing participant or resolve an expanded-participant exception before inviting another.`}, {status: 422})
+        }
+      }
       const invited = await invitePilotMember({pilotId: pilot.id, email: share.email, role: share.role})
       await sendApplicationAccessEmail({
         user: invited.user,
@@ -777,6 +813,13 @@ export async function PATCH(
           {ok: false, message: 'invitations unlock once the draft is ready for team review'},
           {status: 400},
         )
+      }
+      if (reviewerTokenRole(invite.role) === 'participant') {
+        const limit = pilot.proposal?.participantLimit || 5
+        const count = await countPilotParticipants(pilot.id)
+        if (count >= limit) {
+          return NextResponse.json({ok: false, code: 'participant_limit', message: `This pilot includes up to ${limit} participants. Remove an existing participant or resolve an expanded-participant exception before inviting another.`}, {status: 422})
+        }
       }
       const email = String(invite.email).trim().toLowerCase()
       const inviteEventKey = `reviewer-invited:${pilot.version}:${email}:${randomUUID()}`
@@ -1143,6 +1186,9 @@ export async function PATCH(
     }
 
     if (body.action === 'sign') {
+      if (hasPendingMaterialException(pilot.exceptions)) {
+        return NextResponse.json({ok: false, code: 'material_exception', message: 'resolve the flagged material exception before signing and paying this pilot'}, {status: 422})
+      }
       const stateChange = applyTransition(pilot.state, 'sign')
       if (!stateChange.allowed) {
         return NextResponse.json({ok: false, message: 'the pilot is not ready for signature'}, {status: 400})
@@ -1163,6 +1209,45 @@ export async function PATCH(
           {status: 400},
         )
       }
+      const acceptanceText = 'By selecting Confirm pilot & purchase, you represent that you are authorized to accept these terms on behalf of this organization and agree to the Production Pilot Terms, Privacy Policy, and pilot scope shown above.'
+      const acceptedAt = new Date().toISOString()
+      const termsSnapshot = {
+        proposal: pilot.proposal,
+        scope: {answers, criteria: pilot.successCriteria, security: pilot.securityDecisions},
+      }
+      const scopeHash = hashValue(JSON.stringify(termsSnapshot))
+      const termsVersion = String(process.env.PILOT_TERMS_VERSION || 'pilot-terms-v1')
+      const acceptanceId = randomUUID()
+      await createTermsAcceptance({
+        id: acceptanceId,
+        pilotId: id,
+        actorUserId: user.id,
+        actorEmail: email,
+        actorName: name,
+        customerAccountId: pilot.customerAccountId,
+        companyLegalName: String(answers.company || ''),
+        authorityRepresented: true,
+        termsDocumentId: 'pilot-terms',
+        termsVersion,
+        termsEffectiveDate: new Date().toISOString().slice(0, 10),
+        termsHash: hashValue(`${termsVersion}:${acceptanceText}`),
+        termsSnapshot,
+        acceptanceTextVersion: 'clickwrap-v1',
+        acceptanceTextHash: hashValue(acceptanceText),
+        acceptanceMethod: 'clickwrap_checkout',
+        affirmativeAction: 'confirm_and_purchase',
+        acceptedAt,
+        ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || '',
+        userAgent: request.headers.get('user-agent') || '',
+        sessionId: cookieFromRequest(request, APP_SESSION_COOKIE) || '',
+        pilotScopeVersion: String(pilot.version),
+        pilotScopeHash: scopeHash,
+        amount: pilot.proposal?.priceAmount || 0,
+        currency: pilot.proposal?.currency || 'USD',
+        paymentMethod: 'pending',
+        annualCreditTermsVersion: pilot.proposal?.offerTermsVersion || termsVersion,
+        materialExceptionsPending: hasPendingMaterialException(pilot.exceptions),
+      })
       const updated = await updatePilot(id, {
         state: stateChange.state,
         signing: {
@@ -1172,6 +1257,10 @@ export async function PATCH(
           signedAt: new Date().toISOString(),
           ...(pilot.proposal?.offerVariantSlug ? {offerLockedAt: new Date().toISOString()} : {}),
           consented: true,
+          termsAcceptanceId: acceptanceId,
+          termsVersion,
+          termsHash: hashValue(`${termsVersion}:${acceptanceText}`),
+          scopeHash,
           ip: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || '',
         },
         historyNote: `signed by ${name} (${email})`,
@@ -1219,6 +1308,10 @@ export async function PATCH(
       if (!stateChange.allowed) {
         return NextResponse.json({ok: false, message: 'kickoff cannot be scheduled in the current state'}, {status: 400})
       }
+      const kickoff = body.kickoff
+      if (!kickoff || !String(kickoff.date || '').trim() || !String(kickoff.timezone || '').trim() || !String(kickoff.slotLabel || '').trim() || !String(kickoff.availabilityVersion || '').trim()) {
+        return NextResponse.json({ok: false, message: 'kickoff date, timezone, slot label, and availability version are required'}, {status: 400})
+      }
       const updated = await updatePilot(id, {
         state: stateChange.state,
         kickoff: {
@@ -1264,6 +1357,9 @@ export async function PATCH(
         {status: 400},
       )
     }
+    if (transition === 'activate' && !pilot.payment?.paidAt) {
+      return NextResponse.json({ok: false, message: 'payment must clear before the pilot can be activated'}, {status: 422})
+    }
     const next = recompute(pilot, body)
     if (transition === 'resolve_exceptions') {
       next.exceptions = next.exceptions.map((item) => ({
@@ -1290,8 +1386,7 @@ export async function PATCH(
     }
     if (
       transition === 'finalize' &&
-      next.route === 'one-call' &&
-      next.exceptions.some((item) => !item.resolvedAt)
+      hasPendingMaterialException(next.exceptions)
     ) {
       return NextResponse.json(
         {ok: false, message: 'resolve the pilot terms review items before finalizing the agreement'},

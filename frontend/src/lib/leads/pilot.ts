@@ -8,10 +8,11 @@ import type {
 import {
   pilotControlledOptionLists as optionLists,
 } from './contracts'
-import { packagePriceLabel, packageTermDays } from '../package-specifications'
+import { packageLimitLabel, packagePriceLabel, packageTermDays } from '../package-specifications'
 import type {PilotOffer} from './pilot-offers'
 
 export type PilotRoute = 'zero-call' | 'one-call' | 'disqualified'
+export type PilotMode = 'standard' | 'assisted'
 
 export type PilotState =
   | 'reviewing'
@@ -63,6 +64,32 @@ export type ExceptionItem = {
   resolvedAt?: string
 }
 
+const MATERIAL_EXCEPTION_KINDS = new Set([
+  'custom-integration',
+  'extra-projects',
+  'extra-participants',
+  'regulated-data',
+  'data-classification',
+  'procurement',
+  'sso',
+  'sla',
+  'soc2',
+  'residency',
+  'dedicated',
+  'regulated-security',
+  'assessment-qualification',
+  'exact-reproduction',
+  'approval-path',
+])
+
+export function isMaterialPilotException(item: ExceptionItem): boolean {
+  return MATERIAL_EXCEPTION_KINDS.has(item.kind)
+}
+
+export function hasPendingMaterialException(exceptions: ExceptionItem[]): boolean {
+  return exceptions.some((item) => !item.resolvedAt && isMaterialPilotException(item))
+}
+
 export type ValueModel = {
   frequency: { label: string; annualized: number }
   hoursLoss: { label: string; low: number; high: number }
@@ -94,6 +121,10 @@ export type CommercialSnapshot = {
   offerEndsAt?: string
   offerAcceptanceDeadlineLabel?: string
   offerCopy?: string
+  basePackageSlug?: string
+  offerResolvedAt?: string
+  offerSnapshotHash?: string
+  participantLimit?: number
   participantsLabel: string
   annualOption?: {
     slug: string
@@ -244,9 +275,9 @@ const STATE_LABELS: Record<PilotState, string> = {
   exception_review: 'Exception review',
   scope_confirmed: 'Scope confirmed',
   ready_sign: 'Ready for signature',
-  signed: 'Signed - waiting for payment',
+  signed: 'Purchased - payment due',
   paid: 'Paid',
-  kickoff: 'Scheduled',
+  kickoff: 'Kickoff reserved',
   active: 'Active',
   not_eligible: 'Not eligible',
 }
@@ -267,9 +298,9 @@ const TRANSITIONS: Record<PilotState, Partial<Record<PilotAction, PilotState>>> 
   },
   scope_confirmed: { finalize: 'ready_sign', request_exception: 'exception_review', revise: 'revision' },
   ready_sign: { sign: 'signed', revise: 'revision' },
-  signed: { pay: 'paid' },
+  signed: { pay: 'paid', kickoff: 'kickoff' },
   paid: { kickoff: 'kickoff' },
-  kickoff: { activate: 'active' },
+  kickoff: { pay: 'kickoff', activate: 'active' },
   active: {},
   not_eligible: {},
 }
@@ -323,12 +354,18 @@ export function classifyPilot(
     return { route: 'disqualified', reasons, exceptions }
   }
   if (answers.approvalPath === 'no' || answers.approvalPath === 'not-established') {
-    reasons.push('No credible $5,000 approval path')
-    return { route: 'disqualified', reasons, exceptions }
+    exceptions.push({
+      kind: 'approval-path',
+      summary: 'The approval path is not established for the pilot purchase.',
+      amendment: 'Confirm the authorized buyer, procurement path, or exception terms before funding.',
+    })
   }
   if (answers.exactReproductionRequired) {
-    reasons.push('Guaranteed exact reproduction is outside the standard pilot')
-    return { route: 'disqualified', reasons, exceptions }
+    exceptions.push({
+      kind: 'exact-reproduction',
+      summary: 'A guaranteed exact reproduction outcome is outside the standard pilot.',
+      amendment: 'Align on a measurable reproduction objective and permitted variance before funding.',
+    })
   }
 
   if (customIntegration) {
@@ -674,6 +711,7 @@ export function buildCommercialSnapshot(
       offerCopy: opts.offer.offerCopy,
     } : {}),
     participantsLabel: answers.participantsRange || 'up to five',
+    participantLimit: Number(packageLimitLabel(pilotSpec, 'participants').match(/\d+/)?.[0] || 5),
     annualOption,
     valueModel: buildValueModel(
       answers.recreationFrequency || '',

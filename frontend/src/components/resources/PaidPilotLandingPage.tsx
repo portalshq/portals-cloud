@@ -100,7 +100,7 @@ function StaticPilotBackground() {
   )
 }
 
-function Hero({ document }: { document: ResourceDocument }) {
+function Hero({ document, offer }: { document: ResourceDocument; offer?: string }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
 
@@ -125,12 +125,21 @@ function Hero({ document }: { document: ResourceDocument }) {
           <p className="mt-28 max-w-[37em] t-p-lg-serif text-white">
             {landing.description || document.abstract}
           </p>
-          <div className="mt-32 flex flex-col gap-12 sm:flex-row">
+          <div className="mt-32 flex gap-20 flex-row">
+            <CTAButton
+              href={`/paid-pilot?${new URLSearchParams({ ...(offer ? {offer} : {}), mode: 'assisted' }).toString()}#scope`}
+              appearance="plain"
+            >
+              <span>Talk through a pilot</span>
+            </CTAButton>
             <CTAButton href="#scope">
-              <span>Build my pilot plan</span>
+              <span>Start a pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           </div>
+          <a className="mt-16 inline-block t-p-sans text-white underline underline-offset-4" href="#success-criteria">
+            see what the pilot measures
+          </a>
         </div>
 
         <dl className="col-span-full grid grid-cols-2 gap-x-12 gap-y-28 lg:col-start-15">
@@ -344,11 +353,19 @@ function PilotForm({
   specSummary,
   context,
   offer,
+  offerTerms,
+  pilotMode,
   assessmentOrigin,
 }: {
   specSummary: string
   context: KnownLeadContext
   offer?: string
+  offerTerms?: {
+    pilotPriceLabel: string
+    annualCreditLabel: string
+    acceptanceDeadlineLabel?: string
+  }
+  pilotMode?: 'standard' | 'assisted'
   assessmentOrigin: 'standard' | 'assessment_override'
 }) {
   return (
@@ -360,11 +377,10 @@ function PilotForm({
             put one production workflow under test
           </h2>
           <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
-            our onboarding moves through five short stages: eligibility, scope, success, approval, and confirmation.
+            our onboarding moves through five short stages: eligibility, scope, success, commercial context, and confirmation.
           </p>
           <p className="mt-24 max-w-[36em] t-p-lg-sans text-white">
-            your pilot plan covers technical contracts, project scope, milestones, success criteria,
-            building your customized pilot plan and security profile is completely free. The $5,000 fee applies only after you approve the finalized plan and formally launch the pilot.
+            your pilot plan covers technical contracts, project scope, milestones, success criteria, and security requirements. Building your customized pilot plan and security profile is free. After you approve the finalized plan, accept the terms, and formally launch the pilot, payment happens in the Pilot Room.
           </p>
           {/* {assessmentOrigin === 'assessment_override' ? (
             <p className="mt-18 max-w-[36em] t-p-sans text-white/80">
@@ -374,7 +390,7 @@ function PilotForm({
         </div>
 
         <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
-          <PilotScopeForm specSummary={specSummary} context={context} offer={offer} assessmentOrigin={assessmentOrigin} />
+          <PilotScopeForm specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
         </div>
       </div>
     </section>
@@ -464,11 +480,18 @@ export function PaidPilotLandingPage({
   document,
   context,
   offer,
+  pilotMode,
   assessmentOrigin = 'standard',
 }: {
   document: ResourceDocument
   context: KnownLeadContext
   offer?: string
+  offerTerms?: {
+    pilotPriceLabel: string
+    annualCreditLabel: string
+    acceptanceDeadlineLabel?: string
+  }
+  pilotMode?: 'standard' | 'assisted'
   assessmentOrigin?: 'standard' | 'assessment_override'
 }) {
   const specification = paidPilotSpec(document)
@@ -491,7 +514,7 @@ export function PaidPilotLandingPage({
       />
       <StaticPilotBackground />
       <div className="relative z-10">
-        <Hero document={document} />
+        <Hero document={document} offer={offer} />
         <div
           aria-hidden="true"
           className="pointer-events-none h-px w-full"
@@ -503,7 +526,7 @@ export function PaidPilotLandingPage({
         <SuccessCriteria document={document} />
         <CommercialTerms document={document} />
         <Responsibilities document={document} />
-        <PilotForm specSummary={formSpecSummary} context={context} offer={offer} assessmentOrigin={assessmentOrigin} />
+        <PilotForm specSummary={formSpecSummary} context={context} offer={offer} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
         <PilotFaq document={document} />
         <FinalDecision document={document} />
       </div>

@@ -299,10 +299,24 @@ async function syncPilotRecord(
   const unresolved = computeUnresolved(answers, {route: classification.route})
   const submitterEmail = leadRequest.identity?.email
   const submitterName = leadRequest.identity?.name
+  const initialAnswers = Object.fromEntries(
+    Object.entries(answers).filter(
+      ([key]) => ![
+        'economicBuyer', 'economicBuyerEmail',
+        'technicalEvaluator', 'technicalEvaluatorEmail',
+        'approverName', 'approverRole', 'approverEmail',
+        'signerName', 'signerEmail',
+      ].includes(key),
+    ),
+  )
   const pilotAnswers = {
-    ...answers,
+    ...initialAnswers,
+    ...(submitterName && !String(answers.productionOwner || '').trim()
+      ? {productionOwner: submitterName}
+      : {}),
     ...(submitterEmail ? {email: submitterEmail} : {}),
     ...(submitterName ? {name: submitterName} : {}),
+    ...(submitterEmail ? {productionOwnerEmail: submitterEmail} : {}),
   }
 
   if (leadRequest.pilotId) {
@@ -398,6 +412,7 @@ async function syncPilotRecord(
     initialSubmissionId: submissionId,
     answers: pilotAnswers,
     route: classification.route,
+    mode: leadRequest.pilotMode || 'standard',
     state: assessmentOverride
       ? 'exception_review'
       : classification.route === 'disqualified'
@@ -415,9 +430,16 @@ async function syncPilotRecord(
     companyName: leadRequest.identity?.company,
   })
   await setPilotCustomerAccountId(pilot.id, account.customer.id)
-  const updatedPilot = await updatePilot(pilot.id, {
-    proposal: buildCommercialSnapshot(answers, [], {offer}),
-  })
+  const proposal = buildCommercialSnapshot(pilotAnswers as PilotAnswers, [], {offer})
+  const immutableProposal = offer
+    ? {
+        ...proposal,
+        basePackageSlug: offer.basePackageSlug,
+        offerResolvedAt: new Date().toISOString(),
+        offerSnapshotHash: hashValue(JSON.stringify(offer)),
+      }
+    : proposal
+  const updatedPilot = await updatePilot(pilot.id, {proposal: immutableProposal})
   await attachSubmissionToPilot(submissionId, pilot.id)
   try {
     await enqueuePilotEmail(pilot.id, 'reviewing')
@@ -436,8 +458,8 @@ async function syncPilotRecord(
         : pilot.route === 'disqualified'
         ? 'Your pilot request needs clarification before it can proceed.'
         : pilot.route === 'one-call'
-          ? 'Your pilot approval room is ready with your free customized plan. A short pilot terms review is required before signing.'
-          : 'Your pilot approval room is ready with your free customized plan. The $5,000 fee applies only if you approve and conduct the pilot.',
+          ? 'Your pilot approval room is ready with your customized plan. Review any flagged items before signing.'
+          : 'Your pilot approval room is ready with your customized plan. Review the scope, accept the terms, and pay when ready.',
   }
 }
 

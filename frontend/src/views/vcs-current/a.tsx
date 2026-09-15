@@ -979,7 +979,7 @@ export function VCS({
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
               <h4 className="t-global-cta_heading max-w-[13em]">Stop losing the history of your best work. <br /> Start building on it.</h4>
               <p className="t-p-lg-serif max-w-[25em] md:w-auto text-white text-left">
-                Deliver faster at lower cost with  complete asset history and identity from first generation through shipped production.
+                Deliver faster at lower cost with complete asset history and identity from first generation through shipped production.
               </p>
               <div className="flex items-center gap-16">
                 <CTAButton href={"/use-cases"}>Explore use cases</CTAButton>

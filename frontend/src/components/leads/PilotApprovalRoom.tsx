@@ -24,6 +24,7 @@ import {
 } from '@/lib/leads/pilot-room-fields'
 import {
   reviewerRoleLabel,
+  hasPendingMaterialException,
   stateLabel,
   type PilotState,
   type Reviewer,
@@ -209,6 +210,7 @@ export function PilotApprovalRoom({
   revisePath,
   founderAccess = false,
   qualificationCalendarUrl,
+  kickoffAvailability = [],
 }: {
   pilot: StoredPilot
   draftTerms?: RoomTerms
@@ -218,6 +220,7 @@ export function PilotApprovalRoom({
   revisePath: string
   founderAccess?: boolean
   qualificationCalendarUrl?: string
+  kickoffAvailability?: Array<{date: string; label: string; timezone: string; version: string}>
 }) {
   const committedTerms = termsFromPilot(initial)
   const initialDraftTerms = draftTerms || committedTerms
@@ -232,6 +235,8 @@ export function PilotApprovalRoom({
   const [signerName, setSignerName] = useState(String(initial.answers.signerName || ''))
   const [signerEmail, setSignerEmail] = useState(String(initial.answers.signerEmail || ''))
   const [signerConsent, setSignerConsent] = useState(false)
+  const [kickoffDate, setKickoffDate] = useState(String(initial.kickoff?.date || initial.resolvedStartDate || kickoffAvailability[0]?.date || ''))
+  const [kickoffTimezone] = useState(String(initial.kickoff?.timezone || kickoffAvailability[0]?.timezone || 'America/New_York'))
   const [busy, setBusy] = useState(false)
   const [draftSaveState, setDraftSaveState] = useState<'idle' | 'saving' | 'failed'>('idle')
   const [draftRetry, setDraftRetry] = useState(0)
@@ -281,8 +286,7 @@ export function PilotApprovalRoom({
       reviewer.email.toLowerCase() === userEmail.toLowerCase() &&
       reviewer.status !== 'revoked',
   )
-  const pendingExceptionReview =
-    pilot.route === 'one-call' && pilot.exceptions.some((item) => !item.resolvedAt)
+  const pendingExceptionReview = hasPendingMaterialException(pilot.exceptions)
   const assessmentQualificationPending = pilot.exceptions.some(
     (item) => item.kind === 'assessment-qualification' && !item.resolvedAt,
   )
@@ -730,8 +734,44 @@ export function PilotApprovalRoom({
     }
   }
 
+  async function onInvoice() {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const response = await fetch(`/api/pilot/${pilot.id}/invoice`, {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({}),
+      })
+      const json = (await response.json()) as {
+        ok: boolean
+        message?: string
+        hostedInvoiceUrl?: string
+        invoicePdf?: string
+        pilot?: StoredPilot
+      }
+      if (!response.ok || !json.ok) throw new Error(json.message || 'could not issue invoice')
+      if (json.pilot) {
+        setPilot(json.pilot)
+        syncFromPilot(json.pilot)
+      }
+      if (json.hostedInvoiceUrl) window.open(json.hostedInvoiceUrl, '_blank', 'noopener,noreferrer')
+      setNotice('Invoice issued. A copy was sent to the billing contact.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'could not issue invoice')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function onKickoff() {
-    if (await patch({ action: 'kickoff' }, { sync: true })) {
+    if (!kickoffDate) {
+      setError('Choose a kickoff date before reserving the slot.')
+      return
+    }
+    const slot = kickoffAvailability.find((item) => item.date === kickoffDate)
+    if (await patch({ action: 'kickoff', kickoff: {date: kickoffDate, timezone: kickoffTimezone, slotLabel: slot?.label || kickoffDate, availabilityVersion: slot?.version || 'default'} }, { sync: true })) {
       setNotice('Kickoff scheduled. The pilot can be activated.')
     }
   }
@@ -820,12 +860,9 @@ export function PilotApprovalRoom({
     )
   }
 
-  const routeBadge =
-    pilot.route === 'zero-call'
-      ? 'No call required'
-      : pilot.route === 'one-call'
-        ? 'Portals review required'
-        : 'Needs clarification'
+  const routeBadge = pendingExceptionReview
+    ? 'Assisted review required'
+    : 'Ready for self-service purchase'
 
   const canApprove =
     canCommitDraft &&
@@ -867,11 +904,24 @@ export function PilotApprovalRoom({
         </button>
       )
     }
-    if (pilot.state === 'signed') {
+    if (pilot.state === 'signed' || (pilot.state === 'kickoff' && !pilot.payment?.paidAt)) {
       return (
-        <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>
-          Pay the ${pilot.proposal?.priceAmount || 5000} pilot fee
-        </button>
+        <div className="grid gap-10">
+          {pilot.payment?.paymentStatus === 'processing' ? <p className="t-p-sm-sans text-white/70">Payment processing. You can keep this room open; the status will update from Stripe.</p> : null}
+          {pilot.state === 'signed' && kickoffAvailability.length > 0 ? (
+            <label className="t-p-sm-sans text-white/70">
+              Reserve kickoff
+              <select className="mt-4 block w-full bg-white px-10 py-8 text-black" value={kickoffDate} onChange={(event) => setKickoffDate(event.target.value)}>
+                {kickoffAvailability.map((slot) => <option key={slot.date} value={slot.date}>{slot.label} ({slot.timezone})</option>)}
+              </select>
+            </label>
+          ) : null}
+          <div className="flex flex-wrap gap-10">
+            <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>Pay the ${pilot.proposal?.priceAmount || 5000} pilot fee</button>
+            <button onClick={() => void onInvoice()} disabled={busy} className={plainButtonClasses}>Pay by invoice / ACH</button>
+            {pilot.state === 'signed' ? <button onClick={() => void onKickoff()} disabled={busy} className={plainButtonClasses}>Reserve kickoff</button> : null}
+          </div>
+        </div>
       )
     }
     if (pilot.state === 'paid') {
@@ -923,6 +973,7 @@ export function PilotApprovalRoom({
             Review the scope, success criteria, security requirements, and commercial terms. Make any necessary changes, save them, then approve the pilot when everything is correct.
           </p>
           <div className="mt-16 flex flex-wrap items-center gap-8 lowercase">
+            <StatusPill>{pilot.mode === 'assisted' ? 'Assisted pilot' : 'Standard pilot'}</StatusPill>
             <StatusPill>{routeBadge}</StatusPill>
             <StatusPill>
               {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
@@ -1107,6 +1158,8 @@ export function PilotApprovalRoom({
         {pilot.proposal ? (
           <dl className="grid gap-14 t-p-sm-sans md:grid-cols-2">
             <div><dt className="text-white/60">Pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature</dd></div>
+            {pilot.payment?.invoiceId ? <div><dt className="text-white/60">Invoice</dt><dd className="mt-2"><a className="underline" href={String(pilot.payment.hostedInvoiceUrl || '#')} target="_blank" rel="noreferrer">{String(pilot.payment.invoiceId)}</a> · {String(pilot.payment.invoiceStatus || 'open')}</dd></div> : null}
+            {pilot.payment?.paymentStatus ? <div><dt className="text-white/60">Payment status</dt><dd className="mt-2 capitalize">{String(pilot.payment.paymentStatus)}</dd></div> : null}
             <div><dt className="text-white/60">Term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? `, ${pilot.proposal.termStart} to ${pilot.proposal.termEnd}` : ''}</dd></div>
             {pilot.proposal.decisionDate ? <div><dt className="text-white/60">Final decision date</dt><dd className="mt-2">{pilot.proposal.decisionDate}</dd></div> : null}
             {pilot.proposal.offerVariantSlug ? (
@@ -1438,11 +1491,14 @@ export function PilotApprovalRoom({
           <label className="mt-16 flex items-start gap-8">
             <RoomCheckbox checked={signerConsent} onChange={(event) => setSignerConsent(event.target.checked)} />
             <span className="t-p-sm-sans">
-              I confirm the information in this plan is accurate, that I am authorized to bind the customer, and that I understand the pilot fee becomes due on signature.
+              By selecting Confirm pilot &amp; purchase, I represent that I am authorized to accept these terms on behalf of this organization and agree to the Production Pilot Terms, Privacy Policy, and pilot scope shown above.
             </span>
           </label>
+          <p className="mt-12 t-p-sm-sans text-white/60">
+            Review the canonical <a className="underline" href="/terms-of-service" target="_blank" rel="noreferrer">Terms of Service</a>, <a className="underline" href="/privacy-policy" target="_blank" rel="noreferrer">Privacy Policy</a>, and <a className="underline" href="/security-and-architecture" target="_blank" rel="noreferrer">Security &amp; Architecture</a> documents before accepting.
+          </p>
           <button onClick={() => void onSign()} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} mt-18`}>
-            Sign the pilot agreement
+            Confirm pilot &amp; purchase
           </button>
         </SectionShell>
       ) : null}

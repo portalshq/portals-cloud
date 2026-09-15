@@ -288,15 +288,14 @@ export const pilotRequestAnswersSchema = assessmentAnswersSchema.extend({
   ...pilotControlledFields,
 })
 
+export const pilotModeSchema = z.enum(['standard', 'assisted']).default('standard')
+
 export const pilotRequiredAnswerFields = [
   'pilotWorkflow',
   'productionOwner',
-  'economicBuyer',
-  'technicalEvaluator',
   'requiredIntegrations',
   'targetStartPeriod',
   'successCriteria',
-  'securityRequirements',
   'budgetReadiness',
   'budgetOwner',
 ] as const
@@ -347,6 +346,7 @@ export const leadRequestSchema = z.discriminatedUnion('submissionType', [
     submissionType: z.literal('pilot_request'),
     pilotId: optionalText(80),
     offer: z.string().trim().max(120).optional(),
+    pilotMode: pilotModeSchema.optional(),
     answers: pilotRequestAnswersSchema,
   }),
   commonSchema.extend({

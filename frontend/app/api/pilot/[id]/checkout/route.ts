@@ -4,7 +4,7 @@ import type Stripe from 'stripe'
 import {createStripePlatformBilling} from '@portalshq/billing'
 import {pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
 import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
-import {applyTransition} from '@/lib/leads/pilot'
+import {applyTransition, hasPendingMaterialException} from '@/lib/leads/pilot'
 import {siteUrl} from '@/lib/leads/email'
 import {
   getPilotById,
@@ -32,8 +32,14 @@ export async function POST(
     return NextResponse.json({ok: false, message: 'only the account owner or signer can start payment'}, {status: 403})
   }
   // Already paid -> idempotent success (no new session)
-  if (pilot.state === 'paid') {
+  if (pilot.state === 'paid' || (pilot.state === 'kickoff' && pilot.payment?.paidAt)) {
     return NextResponse.json({ok: true, url: null, pilot})
+  }
+  if (hasPendingMaterialException(pilot.exceptions)) {
+    return NextResponse.json(
+      {ok: false, code: 'material_exception', message: 'standard payment is unavailable until the flagged pilot exception is resolved in this room'},
+      {status: 422},
+    )
   }
   if (!applyTransition(pilot.state, 'pay').allowed) {
     return NextResponse.json(
@@ -51,11 +57,13 @@ export async function POST(
       if (!applyTransition(existing.state, 'pay').allowed) throw new Error('payment cannot be recorded in the current state')
       return {
         patch: {
-          state: 'paid' as const,
+          state: existing.state === 'kickoff' ? 'kickoff' as const : 'paid' as const,
           payment: {
             ...(existing.payment || {}),
             sessionId: `sim_${id}`,
             simulated: true,
+            paymentMethod: 'card',
+            paymentStatus: 'paid',
             paidAt: new Date().toISOString(),
           },
           historyNote: `payment recorded (simulated)`,
@@ -63,7 +71,7 @@ export async function POST(
         result: existing,
       }
     })
-    if (final.state === 'paid') {
+    if (final.state === 'paid' || final.state === 'kickoff') {
       await notifyPilotRoomEvent({
         pilot: final,
         event: 'paid',
@@ -116,7 +124,7 @@ export async function POST(
 
   // Atomically persist sessionId without clobbering concurrent webhook paidAt
   await mutatePilot(id, (existing) => ({
-    patch: {payment: {...existing.payment, sessionId: session.id}},
+    patch: {payment: {...existing.payment, sessionId: session.id, paymentMethod: 'card', paymentStatus: 'processing'}},
     result: undefined as unknown as typeof pilot,
   }))
 
