@@ -3,5 +3,7 @@ Allow: /
 Disallow: /api/
 Disallow: /account/
 Disallow: /paid-pilot/room/
+Disallow: /workflow/
+Disallow: /production-memory/brief/
 
 Sitemap: https://portals.works/sitemap.xml

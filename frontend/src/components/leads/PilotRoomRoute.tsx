@@ -44,6 +44,13 @@ export async function PilotRoomRoute({
   const draftTerms = pilot
     ? pilotTermsFromDraft(pilot.draft, pilotMutableTermsFromState(pilot))
     : undefined
+  const configuredKickoffDates = String(process.env.PILOT_KICKOFF_DATES || '').split(',').map((date) => date.trim()).filter(Boolean)
+  const kickoffAvailability = configuredKickoffDates.map((date) => ({
+    date,
+    label: date,
+    timezone: process.env.PILOT_KICKOFF_TIMEZONE || 'America/New_York',
+    version: 'env-v1',
+  }))
 
   return (
     <main className="relative z-(--z-main) min-h-screen overflow-hidden">
@@ -86,6 +93,7 @@ export async function PilotRoomRoute({
               String(process.env.LEADS_NOTIFICATION_EMAIL).trim().toLowerCase()
             }
             qualificationCalendarUrl={process.env.PILOT_CALENDAR_URL}
+            kickoffAvailability={kickoffAvailability}
           />
         )}
       </section>

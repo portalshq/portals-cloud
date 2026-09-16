@@ -24,6 +24,14 @@ import {
 } from '@/lib/package-specifications'
 import { getFaqsByCategories } from '@/lib/faqs'
 
+type OfferTerms = {
+  pilotPriceLabel: string
+  annualCreditLabel: string
+  pilotDurationDays: number
+  acceptanceDeadlineLabel?: string
+  offerCopy?: string
+}
+
 type SubmitState =
   | { status: 'idle' }
   | { status: 'submitting' }
@@ -100,13 +108,13 @@ function StaticPilotBackground() {
   )
 }
 
-function Hero({ document, offer }: { document: ResourceDocument; offer?: string }) {
+function Hero({ document, offer, offerTerms }: { document: ResourceDocument; offer?: string; offerTerms?: OfferTerms }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
 
   const metrics = [
-    [packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
-    [packagePriceLabel(specification), specification?.price?.billingNote || 'price'],
+    [offerTerms ? `${offerTerms.pilotDurationDays} days` : packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
+    [offerTerms?.pilotPriceLabel || packagePriceLabel(specification), specification?.price?.billingNote || 'price'],
     [packageMilestoneLabel(specification, 'first value'), 'time to first value'],
     [packageLimitLabel(specification, 'participants'), 'participants'],
   ].filter(([value]) => Boolean(value))
@@ -125,6 +133,7 @@ function Hero({ document, offer }: { document: ResourceDocument; offer?: string 
           <p className="mt-28 max-w-[37em] t-p-lg-serif text-white">
             {landing.description || document.abstract}
           </p>
+          {offerTerms?.offerCopy ? <p className="mt-20 max-w-[37em] t-p-sans text-white/80">{offerTerms.offerCopy}</p> : null}
           <div className="mt-32 flex gap-20 flex-row">
             <CTAButton
               href={`/paid-pilot?${new URLSearchParams({ ...(offer ? {offer} : {}), mode: 'assisted' }).toString()}#scope`}
@@ -243,12 +252,12 @@ function ScopeAndMilestone({ document }: { document: ResourceDocument }) {
   )
 }
 
-function SuccessCriteria({ document }: { document: ResourceDocument }) {
+function SuccessCriteria({ document, offerTerms }: { document: ResourceDocument; offerTerms?: OfferTerms }) {
   const section = sectionByAnchor(document, 'success-criteria')
   if (!section) return null
 
   return (
-    <section data-header-theme="light">
+    <section id="success-criteria" data-header-theme="light">
       <div className="px-sms py-fluid-[76,106]">
       <div className="ui-grid gap-y-40 py-sms !text-black bg-white rounded-[1em] lg:rounded-[2em]">
         <div className="col-span-full lg:col-span-10">
@@ -269,6 +278,19 @@ function SuccessCriteria({ document }: { document: ResourceDocument }) {
             </li>
           ))}
         </ol>
+      </div>
+      <div className="ui-grid mt-24">
+        <div className="col-span-full">
+          {offerTerms?.offerCopy || offerTerms?.acceptanceDeadlineLabel ? (
+            <p className="mb-16 max-w-[42em] t-p-sans !text-white">
+              {offerTerms.offerCopy || `sign by ${offerTerms.acceptanceDeadlineLabel} to lock in ${offerTerms.annualCreditLabel}.`}
+            </p>
+          ) : null}
+          <CTAButton href="#scope">
+            <span>Start a pilot</span>
+            <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
+          </CTAButton>
+        </div>
       </div>
       </div>
     </section>
@@ -363,7 +385,9 @@ function PilotForm({
   offerTerms?: {
     pilotPriceLabel: string
     annualCreditLabel: string
+    pilotDurationDays: number
     acceptanceDeadlineLabel?: string
+    offerCopy?: string
   }
   pilotMode?: 'standard' | 'assisted'
   assessmentOrigin: 'standard' | 'assessment_override'
@@ -463,7 +487,7 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
           <p className="mt-28 t-p-lg-serif text-white">{review.summary}</p>
           <div className="mt-28 flex flex-col gap-18 ">
             <CTAButton href="#scope">
-              <span>Scope a paid pilot</span>
+              <span>Start a pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
             <p className="t-p-sans text-white/80">
@@ -480,27 +504,24 @@ export function PaidPilotLandingPage({
   document,
   context,
   offer,
+  offerTerms,
   pilotMode,
   assessmentOrigin = 'standard',
 }: {
   document: ResourceDocument
   context: KnownLeadContext
   offer?: string
-  offerTerms?: {
-    pilotPriceLabel: string
-    annualCreditLabel: string
-    acceptanceDeadlineLabel?: string
-  }
+  offerTerms?: OfferTerms
   pilotMode?: 'standard' | 'assisted'
   assessmentOrigin?: 'standard' | 'assessment_override'
 }) {
   const specification = paidPilotSpec(document)
   const formSpecSummary = [
     [
-      packagePriceLabel(specification),
+      offerTerms?.pilotPriceLabel || packagePriceLabel(specification),
       specification?.price?.billingNote,
     ].filter(Boolean).join(' '),
-    packageMilestoneLabel(specification, 'pilot period'),
+    offerTerms ? `${offerTerms.pilotDurationDays} days` : packageMilestoneLabel(specification, 'pilot period'),
   ].filter(Boolean).join(' / ')
 
   return (
@@ -514,7 +535,7 @@ export function PaidPilotLandingPage({
       />
       <StaticPilotBackground />
       <div className="relative z-10">
-        <Hero document={document} offer={offer} />
+        <Hero document={document} offer={offer} offerTerms={offerTerms} />
         <div
           aria-hidden="true"
           className="pointer-events-none h-px w-full"
@@ -523,10 +544,10 @@ export function PaidPilotLandingPage({
         />
         <Objective document={document} />
         <ScopeAndMilestone document={document} />
-        <SuccessCriteria document={document} />
+        <SuccessCriteria document={document} offerTerms={offerTerms} />
         <CommercialTerms document={document} />
         <Responsibilities document={document} />
-        <PilotForm specSummary={formSpecSummary} context={context} offer={offer} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
+        <PilotForm specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
         <PilotFaq document={document} />
         <FinalDecision document={document} />
       </div>

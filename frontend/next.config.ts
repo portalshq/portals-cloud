@@ -12,9 +12,12 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   async redirects() {
     return [
-      {source: '/assessment', destination: '/workflow/assessment', permanent: true},
-      {source: '/assessment/opengraph-image', destination: '/workflow/assessment/opengraph-image', permanent: true},
-      {source: '/ai-production-workflow-risks', destination: '/workflow/ai-production-workflow-risks', permanent: true},
+      // Canonical IA: /assessment is canonical, /workflow/* are legacy.
+      {source: '/workflow/assessment', destination: '/assessment', permanent: true},
+      {source: '/workflow/assessment/:path*', destination: '/assessment', permanent: true},
+      {source: '/production-memory/brief', destination: '/resources/production-memory-brief', permanent: true},
+      {source: '/production-memory/brief/:path*', destination: '/resources/production-memory-brief', permanent: true},
+      {source: '/ai-production-workflow-risks', destination: '/use-cases', permanent: true},
     ]
   },
   env: {

@@ -12,6 +12,7 @@
     "generate-pdfs": "export $(grep -v '^#' .env.local | xargs) && tsx scripts/generate-pdfs.ts",
     "migrate:leads": "tsx scripts/migrate-leads.ts",
     "provision:apollo": "tsx scripts/provision-apollo.ts",
+    "check:marketing": "node scripts/check-marketing.mjs",
     "backfill:apollo": "tsx scripts/backfill-apollo-leads.ts",
     "test:leads": "tsx --test src/lib/leads/*.test.ts"
   },

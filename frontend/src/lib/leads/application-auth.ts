@@ -316,14 +316,14 @@ export async function ensurePilotCustomerAccount(input: {
       await client.query(
         `INSERT INTO pilot_memberships(pilot_id, user_id, role)
          VALUES ($1,$2,'owner')
-         ON CONFLICT(pilot_id, user_id)
+         ON CONFLICT(pilot_id, user_id, role)
          DO UPDATE SET role = 'owner', revoked_at = NULL`,
         [input.pilotId, user.id],
       )
       if (founder) {
         await client.query(
           `INSERT INTO pilot_memberships(pilot_id, user_id, role)
-           VALUES ($1,$2,'approver') ON CONFLICT(pilot_id, user_id)
+           VALUES ($1,$2,'approver') ON CONFLICT(pilot_id, user_id, role)
            DO UPDATE SET role = 'approver', revoked_at = NULL`,
           [input.pilotId, founder.id],
         )
@@ -550,10 +550,30 @@ export async function pilotMembershipRole(pilotId: string, userId: string): Prom
   if (leadsDryRun()) return memoryStore().pilotMemberships.get(pilotMemberKey(pilotId, userId)) || null
   const result = await leadPool().query<{role: PilotMemberRole}>(
     `SELECT role FROM pilot_memberships
-      WHERE pilot_id = $1 AND user_id = $2 AND revoked_at IS NULL`,
+      WHERE pilot_id = $1 AND user_id = $2 AND revoked_at IS NULL
+      ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'approver' THEN 1 WHEN 'signer' THEN 2 ELSE 3 END
+      LIMIT 1`,
     [pilotId, userId],
   )
   return result.rows[0]?.role || null
+}
+
+export async function countPilotParticipants(pilotId: string): Promise<number> {
+  if (leadsDryRun()) {
+    const prefix = `${pilotId}:`
+    return new Set(
+      [...memoryStore().pilotMemberships.entries()]
+        .filter(([key, role]) => key.startsWith(prefix) && role === 'participant')
+        .map(([key]) => key.slice(prefix.length)),
+    ).size
+  }
+  const result = await leadPool().query<{count: string}>(
+    `SELECT COUNT(*)::text AS count
+       FROM pilot_memberships
+      WHERE pilot_id = $1 AND role = 'participant' AND revoked_at IS NULL`,
+    [pilotId],
+  )
+  return Number(result.rows[0]?.count || 0)
 }
 
 export async function pilotMembershipWithAccountRole(pilotId: string, userId: string): Promise<{
@@ -578,7 +598,9 @@ export async function pilotMembershipWithAccountRole(pilotId: string, userId: st
        FROM lead_pilots p
        LEFT JOIN pilot_memberships pm ON pm.pilot_id = p.id AND pm.user_id = $2 AND pm.revoked_at IS NULL
        LEFT JOIN customer_memberships cm ON cm.customer_account_id = p.customer_account_id AND cm.user_id = $2 AND cm.revoked_at IS NULL
-      WHERE p.id = $1`,
+      WHERE p.id = $1
+      ORDER BY CASE pm.role WHEN 'owner' THEN 0 WHEN 'approver' THEN 1 WHEN 'signer' THEN 2 ELSE 3 END
+      LIMIT 1`,
     [pilotId, userId],
   )
   const row = result.rows[0]
@@ -601,7 +623,7 @@ export async function activePilotMemberEmails(pilotId: string): Promise<string[]
       .map((user) => user.email)
   }
   const result = await leadPool().query<{identity_ciphertext: string}>(
-    `SELECT users.identity_ciphertext
+    `SELECT DISTINCT users.identity_ciphertext
        FROM pilot_memberships membership
        JOIN application_users users ON users.id = membership.user_id
       WHERE membership.pilot_id = $1
@@ -649,7 +671,7 @@ export async function invitePilotMember(input: {
     )
     await client.query(
       `INSERT INTO pilot_memberships(pilot_id, user_id, role)
-       VALUES ($1,$2,$3) ON CONFLICT(pilot_id, user_id)
+       VALUES ($1,$2,$3) ON CONFLICT(pilot_id, user_id, role)
        DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
       [input.pilotId, user.id, input.role],
     )
@@ -709,7 +731,7 @@ export async function ensurePilotRecipientAccess(input: {
     }
     await client.query(
       `INSERT INTO pilot_memberships(pilot_id, user_id, role)
-       VALUES ($1,$2,$3) ON CONFLICT(pilot_id, user_id)
+       VALUES ($1,$2,$3) ON CONFLICT(pilot_id, user_id, role)
        DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
       [input.pilotId, user.id, input.pilotRole],
     )

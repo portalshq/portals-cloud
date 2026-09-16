@@ -411,6 +411,8 @@ export type LeadResponse = {
   downloadUrl?: string
   calendarUrl?: string
   pilotUrl?: string
+  /** One-time credential for the applicant's immediate first room visit. */
+  pilotAuthToken?: string
   pilotState?: string
   pilotRoute?: string
   qualificationTier?: QualificationTier

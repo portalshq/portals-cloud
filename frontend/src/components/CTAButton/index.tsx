@@ -35,7 +35,7 @@ const defaultClasses =
 
 const appearanceClasses = {
   default: `md:min-w-220 w-fit border border-white/30 bg-white/8 backdrop-blur-[32px] hover:bg-white/16 hover:border-white/80`,
-  plain: `gap-x-9 w-fit`
+  plain: `gap-x-9 w-fit underline decoration-2 underline-offset-4`
 }
 
 export function CTAButton(props: CTAButtonProps) {

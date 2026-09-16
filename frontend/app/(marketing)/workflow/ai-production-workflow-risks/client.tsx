@@ -281,7 +281,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
                 <span className="t-p-sans">{cta.primaryCta.label}</span>
               </a>
               <CTAButton
-                href="/workflow/assessment"
+                href="/assessment"
                 appearance="plain"
                 className="underline underline-offset-4"
                 analyticsLabel="Assess Your AI Creative Production Workflow"
@@ -353,7 +353,7 @@ function FinalCTA() {
           <div className="flex flex-col sm:flex-row gap-16 items-center justify-center">
             <CTAButton href="/paid-pilot#scope">Scope a pilot</CTAButton>
             <CTAButton
-              href="/workflow/assessment"
+              href="/assessment"
               appearance="plain"
               className="underline underline-offset-4"
               analyticsLabel="Assess Your AI Creative Production Workflow"

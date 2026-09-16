@@ -1,58 +1,37 @@
-import {readdir} from 'node:fs/promises'
-import path from 'node:path'
 import type {MetadataRoute} from 'next'
 import {getUseCases} from '@/sanity/lib/use-cases'
 
-const appDirectory = path.join(process.cwd(), 'app')
-const excludedRouteRoots = new Set(['account', 'auth', 'workflow', 'resources'])
-
-/**
- * Return public, statically addressable pages from the App Router.
- *
- * Dynamic routes are included separately when their params are owned by the
- * application. CMS-driven routes remain excluded until their SEO fields can
- * be queried alongside their slugs.
- */
-async function discoverStaticPages(directory: string, segments: string[] = []): Promise<string[]> {
-  if (segments.some((segment) => excludedRouteRoots.has(segment))) return []
-  const entries = await readdir(directory, {withFileTypes: true})
-  const pages: string[] = []
-
-  for (const entry of entries) {
-    if (entry.name.startsWith('.') || entry.name.startsWith('_')) continue
-
-    const entryPath = path.join(directory, entry.name)
-    if (entry.isDirectory()) {
-      // Route groups do not contribute to the URL path.
-      const nextSegments = entry.name.startsWith('(') && entry.name.endsWith(')')
-        ? segments
-        : [...segments, entry.name]
-      pages.push(...(await discoverStaticPages(entryPath, nextSegments)))
-      continue
-    }
-
-    if (entry.name !== 'page.tsx' || segments.some((segment) => segment.startsWith('['))) continue
-    pages.push(`/${segments.join('/')}`.replace(/\/$/, '') || '/')
-  }
-
-  return pages
-}
+// Allowlist IA. Adding a marketing route requires adding it here + metadata + OG image.
+// Use-case URLs come solely from published Sanity `useCaseDocument` documents.
+const STATIC_PATHS: Array<{path: string; changeFrequency: 'weekly' | 'monthly' | 'yearly'; priority: number}> = [
+  {path: '/', changeFrequency: 'weekly', priority: 1},
+  {path: '/assessment', changeFrequency: 'weekly', priority: 0.9},
+  {path: '/production-memory', changeFrequency: 'weekly', priority: 0.9},
+  {path: '/use-cases', changeFrequency: 'weekly', priority: 0.9},
+  {path: '/resources/production-memory-brief', changeFrequency: 'monthly', priority: 0.7},
+  {path: '/paid-pilot', changeFrequency: 'monthly', priority: 0.7},
+  {path: '/security-and-architecture', changeFrequency: 'monthly', priority: 0.7},
+  {path: '/contact', changeFrequency: 'monthly', priority: 0.7},
+  {path: '/workflow/ai-production-workflow-risks', changeFrequency: 'monthly', priority: 0.6},
+  {path: '/privacy-policy', changeFrequency: 'yearly', priority: 0.3},
+  {path: '/terms-of-service', changeFrequency: 'yearly', priority: 0.3},
+]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
   const useCases = await getUseCases()
-  const paths = [
-    ...(await discoverStaticPages(appDirectory)),
-    ...useCases.map(({slug}) => `/use-cases/${slug}`),
-  ]
-    .filter((value, index, all) => all.indexOf(value) === index)
-    .sort((a, b) => a.localeCompare(b))
-
-  const useCaseByPath = new Map(useCases.map((useCase) => [`/use-cases/${useCase.slug}`, useCase]))
-  return paths.map((path) => ({
-    url: new URL(path, siteUrl).toString(),
-    lastModified: useCaseByPath.get(path)?._updatedAt,
-    changeFrequency: path === '/' ? 'weekly' : 'monthly',
-    priority: path === '/' ? 1 : path === '/assessment' ? 0.9 : 0.7,
+  const useCaseEntries: MetadataRoute.Sitemap = useCases.map((useCase) => ({
+    url: new URL(`/use-cases/${useCase.slug}`, siteUrl).toString(),
+    lastModified: useCase._updatedAt,
+    changeFrequency: 'monthly',
+    priority: 0.8,
   }))
+
+  const staticEntries: MetadataRoute.Sitemap = STATIC_PATHS.map(({path, changeFrequency, priority}) => ({
+    url: new URL(path, siteUrl).toString(),
+    changeFrequency,
+    priority,
+  }))
+
+  return [...staticEntries, ...useCaseEntries].sort((a, b) => a.url.localeCompare(b.url))
 }

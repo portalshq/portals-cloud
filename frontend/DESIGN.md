@@ -353,3 +353,20 @@ Use these patterns when extending the page:
 ## 9. Source-of-truth rule
 
 `src/views/vcs-current/a.tsx`, together with `src/saga-repro.css`, `src/saga.css`, and `public/saga-webgl.js`, defines the current design language. This document should follow those implementations. If the page and this document diverge, update this document to describe the page rather than preserving obsolete guidance.
+
+## 10. Marketing subpages (everything under `app/(marketing)/` except `/`)
+
+Subpages reuse homepage tokens without depending on the WebGL canvas. The canvas may
+tint the background where present; the flat fallback is `#010528` and must hold
+contrast on its own.
+
+- Type: pillar H1s use `t-d2-sans`. `t-d1-sans` is reserved for `/` and the
+  `/use-cases` hub. Eyebrow labels (`t-p-sans`, uppercase, `tracking-[.16em]`,
+  `text-white/45`) mark page position, not every section.
+- Surfaces: hairlines `white/15–20`, fills `white/5–12`, hover `white/10–15`.
+  One primary glass CTA + one quiet `plain` secondary per viewport.
+- Banned on subpages (do not reintroduce): solid `#343434`, `#101010`, amber/beige
+  `#d4a15c`, `bg-white/8`, forced `!lowercase` on containers, per-page bespoke
+  headers. Use `src/components/marketing/MarketingPageShell.tsx`.
+- Page shell: `ui-grid`, section padding `py-fluid-[76,106]`, hero `min-h-[70vh]`,
+  H1 `max-w-5xl`, lede `max-w-3xl`, shared `MarketingHeader` breadcrumbs.

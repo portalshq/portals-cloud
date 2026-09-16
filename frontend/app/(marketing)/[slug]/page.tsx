@@ -96,7 +96,9 @@ export default async function ResourcePage({params, searchParams}: PageProps) {
         offerTerms={offerVariant ? {
           pilotPriceLabel: offerVariant.pilotPriceLabel,
           annualCreditLabel: offerVariant.annualCreditLabel,
+          pilotDurationDays: offerVariant.pilotDurationDays,
           acceptanceDeadlineLabel: offerVariant.acceptanceDeadlineLabel,
+          offerCopy: offerVariant.offerCopy,
         } : undefined}
         pilotMode={mode}
         assessmentOrigin={from === 'assessment-override' ? 'assessment_override' : 'standard'}

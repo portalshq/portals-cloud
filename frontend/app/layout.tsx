@@ -1,21 +1,25 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Providers } from './providers'
+import { canonical, orgWebSiteJsonLd, SITE_DESCRIPTION } from '@/lib/seo'
 
 export const metadata: Metadata = {
-  title: 'The Repository for Creative Production Teams | portals',
-  description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'),
+  title: 'Production memory for AI-native creative teams | portals',
+  description: SITE_DESCRIPTION,
   icons: { icon: '/favicon.svg' },
   robots: 'index, follow',
+  alternates: { canonical: canonical('/') },
   openGraph: {
-    title: 'Version Control for Creative Production Teams | portals',
-    description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+    title: 'Production memory for AI-native creative teams | portals',
+    description: SITE_DESCRIPTION,
     type: 'website',
+    siteName: 'portals',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Version Control for Creative Production Teams | portals',
-    description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+    title: 'Production memory for AI-native creative teams | portals',
+    description: SITE_DESCRIPTION,
   },
 }
 
@@ -47,6 +51,10 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{__html: JSON.stringify(orgWebSiteJsonLd())}}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -55,6 +55,7 @@ type SubmitState =
   | {
       status: 'success'
       pilotUrl?: string
+      pilotAuthToken?: string
       calendarUrl?: string
       downloadUrl?: string
       pilotRoute?: string
@@ -98,7 +99,7 @@ const SUCCESS_CRITERIA_OPTIONS = [
     label: 'Preserve consistency across future iterations',
     benefit: 'Keep recurring work aligned across people, tools, and production cycles.',
   },
-  {key: 'other', label: 'Other (describe in the target outcome)'},
+  // {key: 'other', label: 'Other (describe in the target outcome)'},
 ]
 
 export function PilotScopeForm({
@@ -118,7 +119,9 @@ export function PilotScopeForm({
   offerTerms?: {
     pilotPriceLabel: string
     annualCreditLabel: string
+    pilotDurationDays: number
     acceptanceDeadlineLabel?: string
+    offerCopy?: string
   }
   pilotMode?: 'standard' | 'assisted'
   initialAnswers?: Record<string, unknown>
@@ -474,7 +477,6 @@ export function PilotScopeForm({
       annualPriceAcknowledged: checked('annualPriceAcknowledged'),
       signerName: string('signerName'),
       signerEmail: string('signerEmail'),
-      exactReproductionRequired: checked('exactReproductionRequired'),
       pilotBlocker: string('pilotBlocker'),
     }
   }
@@ -556,7 +558,9 @@ export function PilotScopeForm({
       clear()
       if (!isRevision) {
         writePilotConfirmation({
-          pilotUrl: result.pilotUrl,
+          pilotUrl: result.pilotAuthToken && result.pilotUrl
+            ? `/auth/verify?token=${encodeURIComponent(result.pilotAuthToken)}&next=${encodeURIComponent(result.pilotUrl)}`
+            : result.pilotUrl,
           calendarUrl: result.calendarUrl,
           downloadUrl: result.downloadUrl,
           pilotRoute: result.pilotRoute,
@@ -565,7 +569,9 @@ export function PilotScopeForm({
       }
       setSubmitState({
         status: 'success',
-        pilotUrl: result.pilotUrl,
+        pilotUrl: result.pilotAuthToken && result.pilotUrl
+          ? `/auth/verify?token=${encodeURIComponent(result.pilotAuthToken)}&next=${encodeURIComponent(result.pilotUrl)}`
+          : result.pilotUrl,
         calendarUrl: result.calendarUrl,
         downloadUrl: result.downloadUrl,
         pilotRoute: result.pilotRoute,
@@ -830,8 +836,6 @@ export function PilotScopeForm({
             <option value="" disabled>select one</option>
             <option value="within-30-days">within 30 days</option>
             <option value="within-60-days">within 60 days</option>
-            <option value="this-quarter">this quarter</option>
-            <option value="later">later</option>
           </LeadSelectField>
         </LeadField>
         <LeadField label="can your organization approve the pilot fee? *" name="approvalPath">
@@ -865,27 +869,16 @@ export function PilotScopeForm({
             <option value="not-sure">not sure</option>
           </LeadSelectField>
         </LeadField>
-        <label className="flex items-start gap-10 t-p-sm-sans text-white sm:col-span-2">
-          <LeadCheckbox
-            name="exactReproductionRequired"
-            defaultChecked={Boolean(initialAnswers?.exactReproductionRequired)}
-          />
-          <span>
-            Do you require exact reproductions in your workflows? 
-            <br/>
-            (guaranteed reproduction is outside the standard pilot and requires a review)
-          </span>
-        </label>
         {offerTerms ? (
           <p className="sm:col-span-2 t-p-sm-sans text-white/70" role="note">
-            This offer applies to the pilot terms created from this request: {offerTerms.pilotPriceLabel} pilot fee and {offerTerms.annualCreditLabel} first-year deployment credit{offerTerms.acceptanceDeadlineLabel ? ` when the agreement is signed by ${offerTerms.acceptanceDeadlineLabel}` : ''}.
+            This offer applies: {offerTerms.pilotPriceLabel} pilot fee, {offerTerms.pilotDurationDays}-day pilot, and {offerTerms.annualCreditLabel} first-year deployment credit{offerTerms.acceptanceDeadlineLabel ? ` when the agreement is signed by ${offerTerms.acceptanceDeadlineLabel}` : ''}.
           </p>
         ) : null}
       </div>
 
       <div data-pilot-stage={1} hidden={stage !== 1} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <p className="t-p-sm-sans text-white/70">who is involved and what does the work touch?</p>
+          <p className="t-p-sm-sans text-white">who is involved and what does the work touch?</p>
         </div>
         {missing('productionOwner') ? (
           <LeadField label="production-team owner *" name="productionOwner">
@@ -949,15 +942,15 @@ export function PilotScopeForm({
         </div>
       </div>
 
-      <div data-pilot-stage={2} hidden={stage !== 2} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
+      <div data-pilot-stage={2} hidden={stage !== 2} onChange={refreshLive} className="grid gap-32 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <p className="t-p-sm-sans text-white">what should this pilot prove for your team?</p>
-          <p className="mt-10 max-w-[42em] t-p-sm-sans text-white/70">
-            Portals has defined the baseline outcomes below. Select the ones that matter most to your workflow; we will help turn them into final pilot targets.
+          <p className="mt-10 max-w-[42em] t-p-sm-sans text-white">
+            we have defined the baseline outcomes below. Select the ones that matter most to your workflow to define pilot targets.
+            {" "}
+            <a className="inline-block t-p-sm-sans text-white underline underline-offset-4" href="#success-criteria">
+              review pilot success criteria
+            </a>
           </p>
-          <a className="mt-10 inline-block t-p-sm-sans text-white underline underline-offset-4" href="#success-criteria">
-            review the success criteria explained above
-          </a>
         </div>
         <fieldset className="sm:col-span-2">
           <legend className="t-p-sm-sans text-white">which improvements would matter most to your team? *</legend>
@@ -976,9 +969,9 @@ export function PilotScopeForm({
                   }
                 />
                 <span>
-                  <span className="block">{option.label}</span>
+                  {/* <span className="block">{option.label}</span> */}
                   {option.benefit ? (
-                    <span className="mt-4 block text-white/60">{option.benefit}</span>
+                    <span className="block text-white">{option.benefit}</span>
                   ) : null}
                 </span>
               </label>
@@ -998,7 +991,7 @@ export function PilotScopeForm({
           </LeadField>
         </div>
         <div className="sm:col-span-2">
-          <LeadField label="security requirements, optional" name="securityRequirements">
+          <LeadField label="security requirements (optional)" name="securityRequirements">
             <LeadTextareaField
               id="securityRequirements"
               name="securityRequirements"
@@ -1012,7 +1005,7 @@ export function PilotScopeForm({
 
       <div data-pilot-stage={3} hidden={stage !== 3} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <p className="t-p-sm-sans text-white/70">you can invite participants, reviewers, approvers, and the signer after your pilot room is created.</p>
+          <p className="t-p-sm-sans text-white">you can invite participants, reviewers, approvers, and the signer after your pilot room is created.</p>
         </div>
         {missing('budgetOwner') ? (
           <LeadField label="budget-owning function *" name="budgetOwner">
@@ -1079,12 +1072,12 @@ export function PilotScopeForm({
               <span>purchase order required</span>
             </label>
             <LeadField label="expected review time" name="procurementReviewTime">
-              <LeadTextField id="procurementReviewTime" name="procurementReviewTime" defaultValue={String(initialAnswers?.procurementReviewTime || '')} placeholder="e.g. 2-3 weeks" />
+              <LeadTextField id="procurementReviewTime" name="procurementReviewTime" defaultValue={String(initialAnswers?.procurementReviewTime || '')} placeholder="e.g. 2 weeks" />
             </LeadField>
           </div>
         ) : null}
         <div className="sm:col-span-2">
-          <LeadField label="anything that would block the pilot, optional" name="pilotBlocker">
+          <LeadField label="anything that would block the pilot (optional)" name="pilotBlocker">
             <LeadTextareaField
               id="pilotBlocker"
               name="pilotBlocker"
@@ -1118,7 +1111,11 @@ export function PilotScopeForm({
           </p>
         ) : null}
         <div className="sm:col-span-2">
-          <ConsentFields onStarted={onStarted} showMarketing={!context.known} />
+          <ConsentFields
+            onStarted={onStarted}
+            showMarketing={!context.known}
+            marketingDefaultChecked
+          />
           <NoScriptLeadFallback />
         </div>
       </div>

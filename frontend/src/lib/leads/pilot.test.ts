@@ -96,16 +96,18 @@ test('no production owner disqualifies', () => {
   assert.equal(result.route, 'disqualified')
 })
 
-test('no approval path disqualifies', () => {
+test('no approval path routes to assisted review', () => {
   const result = classifyPilot({...eligible, approvalPath: 'no'})
 
-  assert.equal(result.route, 'disqualified')
+  assert.equal(result.route, 'one-call')
+  assert.ok(result.exceptions.some((item) => item.kind === 'approval-path'))
 })
 
-test('exact reproduction guarantee disqualifies', () => {
+test('exact reproduction guarantee routes to assisted review', () => {
   const result = classifyPilot({...eligible, exactReproductionRequired: true})
 
-  assert.equal(result.route, 'disqualified')
+  assert.equal(result.route, 'one-call')
+  assert.ok(result.exceptions.some((item) => item.kind === 'exact-reproduction'))
 })
 
 test('procurement approval routes one-call', () => {

@@ -10,7 +10,7 @@ import {
   type PilotAnswers,
 } from '@/lib/leads/contracts'
 import {hashValue, verifySignature} from '@/lib/leads/crypto'
-import {APP_SESSION_COOKIE, currentApplicationUser, ensurePilotCustomerAccount, pilotMembershipRole} from '@/lib/leads/application-auth'
+import {APP_SESSION_COOKIE, currentApplicationUser, ensurePilotCustomerAccount, issueMagicLink, pilotMembershipRole} from '@/lib/leads/application-auth'
 import {leadDownloadUrl} from '@/lib/leads/downloads'
 import {normalizeEmail, validateIdentityForCapture} from '@/lib/leads/identity'
 import {extractClientIp, sanitizeIp} from '@/lib/leads/ip-utils'
@@ -406,7 +406,10 @@ async function syncPilotRecord(
   }
 
   const profile = await getProfileById(profileId)
-  const offer = await resolveCurrentPilotOffer(leadRequest.offer, leadRequest.identity?.email)
+  const offer = await resolveCurrentPilotOffer(leadRequest.offer, leadRequest.identity?.email).catch((cause) => {
+    console.error('pilot offer resolution failed', cause)
+    return null
+  })
   const pilot = await createPilotRecord({
     profileId,
     initialSubmissionId: submissionId,
@@ -440,6 +443,17 @@ async function syncPilotRecord(
       }
     : proposal
   const updatedPilot = await updatePilot(pilot.id, {proposal: immutableProposal})
+  // The applicant has just proven control of this email address in the form.
+  // Issue a short-lived, single-use credential so the first room visit can
+  // establish the same session as the emailed magic-link flow.
+  const pilotRoomPath = pilotRoomPathForPilot(updatedPilot)
+  const pilotAuthToken = await issueMagicLink({
+    userId: account.user.id,
+    purpose: 'sign_in',
+    customerAccountId: account.customer.id,
+    nextPath: pilotRoomPath,
+    maxAgeSeconds: 10 * 60,
+  })
   await attachSubmissionToPilot(submissionId, pilot.id)
   try {
     await enqueuePilotEmail(pilot.id, 'reviewing')
@@ -449,7 +463,8 @@ async function syncPilotRecord(
   return {
     ...response,
     nextAction: 'pilot_room',
-    pilotUrl: pilotRoomPath(account.customer.id, updatedPilot.id),
+    pilotUrl: pilotRoomPath,
+    pilotAuthToken,
     pilotState: updatedPilot.state,
     pilotRoute: updatedPilot.route,
     message:

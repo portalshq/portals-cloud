@@ -29,13 +29,13 @@ export const faqs: FaqItem[] = [
   {
     question: 'When does the $5,000 pilot fee apply?',
     answer:
-      'The fee applies only after your team approves the customized plan and commercial terms and chooses to conduct the production pilot.',
+      'The fee applies when you approve the customized plan and commercial terms and choose to conduct the production pilot. Payment is completed in the Pilot Room.',
     categories: ['assessment'],
   },
   {
     question: 'When is a qualification call required?',
     answer:
-      'No call is required for standard candidates unless the completed scope reveals an exception. A call is required when someone self-selects into pilot scoping after an educational assessment outcome.',
+      'No call is required for a standard pilot. Use the Pilot Room to review the scope, invite teammates, accept terms, pay, and reserve kickoff. Human review is available when the request reveals a material exception.',
     categories: ['assessment'],
   },
   {

@@ -17,6 +17,7 @@ import type {
   ExceptionItem,
   PilotAction,
   PilotHistoryEntry,
+  PilotMode,
   PilotRoute,
   PilotState,
   Reviewer,
@@ -116,6 +117,7 @@ const globalForLeads = globalThis as typeof globalThis & {
     pilots: Map<string, StoredPilot>
     submissionPilots: Map<string, string>
     outbox: Map<string, MemoryOutboxRow>
+    termsAcceptances: Map<string, Record<string, unknown>>
   }
 }
 
@@ -153,6 +155,7 @@ function memory() {
     pilots: new Map(),
     submissionPilots: new Map(),
     outbox: new Map(),
+    termsAcceptances: new Map(),
   }
   return globalForLeads.portalsLeadMemory
 }
@@ -163,6 +166,7 @@ export type StoredPilot = {
   customerAccountId?: string | null
   initialSubmissionId: string
   state: PilotState
+  mode: PilotMode
   route: PilotRoute
   answers: Record<string, unknown>
   exceptions: ExceptionItem[]
@@ -189,6 +193,7 @@ export type CreatePilotInput = {
   answers: Record<string, unknown>
   route: PilotRoute
   state: PilotState
+  mode?: PilotMode
   exceptions: ExceptionItem[]
   unresolved: UnresolvedItem[]
   successCriteria: SuccessCriterion[]
@@ -198,6 +203,7 @@ export type CreatePilotInput = {
 
 export type PilotPatch = {
   state?: PilotState
+  mode?: PilotMode
   action?: PilotAction
   route?: PilotRoute
   answers?: Record<string, unknown>
@@ -224,6 +230,7 @@ type PilotRow = {
   customer_account_id: string | null
   initial_submission_id: string | null
   state: PilotState
+  mode?: PilotMode
   route: PilotRoute
   answers_ciphertext: string
   exceptions: ExceptionItem[]
@@ -280,6 +287,7 @@ function pilotFromRow(row: PilotRow): StoredPilot {
     customerAccountId: row.customer_account_id || undefined,
     initialSubmissionId: row.initial_submission_id || '',
     state: row.state,
+    mode: row.mode || 'standard',
     route: row.route,
     answers,
     exceptions: row.exceptions,
@@ -317,7 +325,7 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
   const now = new Date().toISOString()
   const reviewers: Reviewer[] = recommendedReviewers(
     input.answers as Parameters<typeof recommendedReviewers>[0],
-  ).map((row) => ({
+  ).filter((row) => !input.answers.productionOwnerEmail || Boolean(row.email)).map((row) => ({
     id: randomUUID(),
     role: row.role,
     name: row.name,
@@ -331,6 +339,7 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     profileId: input.profileId,
     initialSubmissionId: input.initialSubmissionId,
     state: input.state,
+    mode: input.mode || 'standard',
     route: input.route,
     answers: input.answers,
     exceptions: input.exceptions,
@@ -386,8 +395,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     `INSERT INTO lead_pilots(
       id, profile_id, initial_submission_id, state, route, answers_ciphertext,
       exceptions, unresolved, success_criteria, security_decisions, reviewers,
-      version, draft, draft_ciphertext, revisions, history, customer_account_id
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+      version, draft, draft_ciphertext, revisions, history, customer_account_id, mode
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
     [
       pilot.id,
       pilot.profileId,
@@ -406,6 +415,7 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
       JSON.stringify(pilot.revisions),
       JSON.stringify(pilot.history),
       pilot.customerAccountId || null,
+      pilot.mode,
     ],
   )
   return pilot
@@ -549,6 +559,37 @@ export async function getPilotByPaymentSession(
   return result.rows[0] ? pilotFromRow(result.rows[0]) : null
 }
 
+export async function createTermsAcceptance(input: Record<string, unknown>): Promise<void> {
+  const id = String(input.id || '')
+  if (!id) throw new Error('terms acceptance id is required')
+  if (leadsDryRun()) {
+    memory().termsAcceptances.set(id, input)
+    return
+  }
+  await pool().query(
+    `INSERT INTO pilot_terms_acceptances(
+       id, pilot_id, actor_user_id, actor_email, actor_name, customer_account_id,
+       company_legal_name, authority_represented, terms_document_id, terms_version,
+       terms_effective_date, terms_hash, terms_snapshot, acceptance_text_version,
+       acceptance_text_hash, acceptance_method, affirmative_action, accepted_at,
+       ip_address, user_agent, session_id, pilot_scope_version, pilot_scope_hash,
+       amount, currency, payment_method, annual_credit_terms_version,
+       material_exceptions_pending
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
+     ON CONFLICT (pilot_id, terms_hash, pilot_scope_hash) DO NOTHING`,
+    [
+      id, input.pilotId, input.actorUserId || null, input.actorEmail, input.actorName || null,
+      input.customerAccountId || null, input.companyLegalName || null, Boolean(input.authorityRepresented),
+      input.termsDocumentId, input.termsVersion, input.termsEffectiveDate || null, input.termsHash,
+      JSON.stringify(input.termsSnapshot || {}), input.acceptanceTextVersion, input.acceptanceTextHash,
+      input.acceptanceMethod, input.affirmativeAction, input.acceptedAt, input.ipAddress || null,
+      input.userAgent || null, input.sessionId || null, input.pilotScopeVersion, input.pilotScopeHash,
+      input.amount, input.currency, input.paymentMethod, input.annualCreditTermsVersion || null,
+      Boolean(input.materialExceptionsPending),
+    ],
+  )
+}
+
 function applyPilotPatch(existing: StoredPilot, patch: PilotPatch): StoredPilot {
   const state = patch.state || existing.state
   const history = [...existing.history]
@@ -564,6 +605,7 @@ function applyPilotPatch(existing: StoredPilot, patch: PilotPatch): StoredPilot 
   const updated: StoredPilot = {
     ...existing,
     state,
+    mode: patch.mode || existing.mode,
     route: patch.route || existing.route,
     answers: patch.answers || existing.answers,
     exceptions: patch.exceptions || existing.exceptions,
@@ -594,16 +636,17 @@ async function persistPilot(
 ): Promise<void> {
   await database.query(
     `UPDATE lead_pilots
-        SET state = $2, route = $3, answers_ciphertext = $4, exceptions = $5,
-            unresolved = $6, proposal = $7, success_criteria = $8,
-            security_decisions = $9, reviewers = $10, version = $11,
-            draft = $12, draft_ciphertext = $13, revisions = $14, signing = $15, payment = $16,
-            kickoff = $17, resolved_start_date = $18, history = $19,
+        SET state = $2, mode = $3, route = $4, answers_ciphertext = $5, exceptions = $6,
+            unresolved = $7, proposal = $8, success_criteria = $9,
+            security_decisions = $10, reviewers = $11, version = $12,
+            draft = $13, draft_ciphertext = $14, revisions = $15, signing = $16, payment = $17,
+            kickoff = $18, resolved_start_date = $19, history = $20,
             updated_at = now()
       WHERE id = $1`,
     [
       updated.id,
       updated.state,
+      updated.mode,
       updated.route,
       encryptJson(updated.answers),
       JSON.stringify(updated.exceptions),

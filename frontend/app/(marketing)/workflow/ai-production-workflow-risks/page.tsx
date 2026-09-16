@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getResourceDocument } from '@/sanity/lib/resources'
-import {getUseCases} from '@/sanity/lib/use-cases'
 import {getKnownLeadContext} from '@/lib/leads/profile'
 import { ResourceBriefClient } from './client'
 
@@ -31,12 +30,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ResourceBriefPage() {
-  const [document, context, useCases] = await Promise.all([
+  const [document, context] = await Promise.all([
     getResourceDocument(SLUG),
     getKnownLeadContext(),
-    getUseCases(),
   ])
   if (!document) notFound()
 
-  return <ResourceBriefClient document={document} context={context} useCases={useCases} />
+  return <ResourceBriefClient document={document} context={context} />
 }

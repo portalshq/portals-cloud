@@ -1,28 +1,31 @@
 import type { Metadata } from 'next'
 import { MarketingHeader } from '@/components/MarketingHeader'
+import { canonical, SITE_DESCRIPTION } from '@/lib/seo'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'),
-  title: 'The Repository for Creative Production Teams | portals',
-  description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+  title: 'Production memory for AI-native creative teams | portals',
+  description: SITE_DESCRIPTION,
   icons: { icon: '/favicon.svg' },
   robots: 'index, follow',
+  alternates: { canonical: canonical('/') },
   openGraph: {
-    title: 'Version Control for Creative Production Teams | portals',
-    description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+    title: 'Production memory for AI-native creative teams | portals',
+    description: SITE_DESCRIPTION,
     type: 'website',
+    siteName: 'portals',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Version Control for Creative Production Teams | portals',
-    description: 'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.',
+    title: 'Production memory for AI-native creative teams | portals',
+    description: SITE_DESCRIPTION,
   },
 }
 
 
 function Footer() {
   return (
-    <footer className="ui-grid relative z-(--z-footer) min-h-[52vh] pb-50 text-white lg:pt-50 !lowercase">
+    <footer className="ui-grid relative z-(--z-footer) min-h-[52vh] pb-50 text-white lg:pt-50">
       <div
         className="pointer-events-none absolute inset-x-0 -top-128 bottom-0 z-0"
         aria-hidden="true"
@@ -38,8 +41,8 @@ function Footer() {
         <div className="col-span-full h-full space-y-fluid-[32,40] ui-grid grid-cols-1 lg:grid-cols-5 m-0 p-0">
           <div className="col-span-full mb-24 lg:col-span-2 lg:mb-0">
             <a href="/" className="t-d1-sans !font-medium">portals</a>
-            <p className="mt-24 max-w-md lowercase t-p-sans">
-              The repository for AI{`\u2011`}native production.
+            <p className="mt-24 max-w-md t-p-sans">
+              Production memory for AI-native creative teams.
             </p>
           </div>
 
@@ -50,6 +53,7 @@ function Footer() {
                 <li><a href="/production-memory" className="hover:text-white transition-colors">production memory</a></li>
                 <li><a href="/use-cases" className="hover:text-white transition-colors">use cases</a></li>
                 <li><a href="/assessment" className="hover:text-white transition-colors">assess your workflow</a></li>
+                <li><a href="/resources/production-memory-brief" className="hover:text-white transition-colors">production memory brief</a></li>
               </ul>
             </nav>
 

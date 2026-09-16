@@ -1,6 +1,6 @@
 import {leadDownloadUrl} from './downloads'
 import {pilotRoomPathForPilot, pilotRoomPathForPilotOrFallback} from './account-paths'
-import {reviewerTokenRole, stateLabel, summarizeProposal} from './pilot'
+import {hasPendingMaterialException, reviewerTokenRole, stateLabel, summarizeProposal} from './pilot'
 import type {StoredPilot, StoredSubmission} from './store'
 import {getPilotBySubmissionId, getPilotById} from './store'
 import {
@@ -142,6 +142,16 @@ export function submitterGreeting(pilot: StoredPilot): string | null {
   const local = email.split('@')[0].replace(/[._-]+/g, ' ').trim()
   if (local && local.length >= 2) return `hi ${local.toLowerCase()},`
   return null
+}
+
+export function internalPilotLabels(pilot: Pick<StoredPilot, 'mode' | 'exceptions'>): {
+  preferredExperience: 'self-serve' | 'assisted'
+  termsPath: 'standard' | 'exception review required'
+} {
+  return {
+    preferredExperience: pilot.mode === 'assisted' ? 'assisted' : 'self-serve',
+    termsPath: hasPendingMaterialException(pilot.exceptions) ? 'exception review required' : 'standard',
+  }
 }
 
 export async function pilotCopy(
@@ -590,6 +600,7 @@ export async function sendFounderNotification(
         pilotRoomPathForPilotOrFallback(pilot),
       )}`
     : null
+  const pilotLabels = pilot ? internalPilotLabels(pilot) : null
   await sendEmail({
     idempotencyKey: `${submission.id}-founder`,
     to: recipient,
@@ -617,6 +628,8 @@ export async function sendFounderNotification(
         ? [
             '',
             `pilot route: ${pilot.route}`,
+            `customer preferred experience: ${pilotLabels?.preferredExperience}`,
+            `terms path: ${pilotLabels?.termsPath}`,
             `pilot state: ${pilot.state}`,
             `unresolved items: ${pilot.unresolved.length}`,
             `exceptions: ${pilot.exceptions.length}`,

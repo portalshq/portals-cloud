@@ -151,9 +151,11 @@ export function IdentityFields({
 export function ConsentFields({
   onStarted,
   showMarketing = true,
+  marketingDefaultChecked = false,
 }: {
   onStarted: () => void
   showMarketing?: boolean
+  marketingDefaultChecked?: boolean
 }) {
   return (
     <div className="space-y-12">
@@ -168,6 +170,7 @@ export function ConsentFields({
         <label className="flex items-start gap-10 t-p-sm-sans text-white">
           <LeadCheckbox
             name="marketingConsent"
+            defaultChecked={marketingDefaultChecked}
             onChange={onStarted}
           />
           <span>Send me resources and product updates from portals. Unsubscribe anytime.</span>

@@ -97,10 +97,12 @@ export async function POST(request: Request): Promise<NextResponse> {
               if (!applyTransition(existing.state, 'pay').allowed) return {result: existing}
               return {
                 patch: {
-                  state: 'paid' as const,
+                  state: existing.state === 'kickoff' ? 'kickoff' as const : 'paid' as const,
                   payment: {
                     ...(existing.payment || {}),
                     sessionId,
+                    paymentMethod: 'card',
+                    paymentStatus: 'paid',
                     paidAt: new Date().toISOString(),
                   },
                   historyNote: `payment received (${session.amount_total ? `$${(session.amount_total / 100).toLocaleString('en-US')}` : 'confirmed'})`,
@@ -109,7 +111,7 @@ export async function POST(request: Request): Promise<NextResponse> {
               }
             })
             updated = res.pilot
-          } else if (pilot.state !== 'paid') {
+          } else if (pilot.state !== 'paid' && pilot.state !== 'kickoff') {
             // Not pay-able and not already paid -> ignore
             return NextResponse.json({received: true})
           }
@@ -201,7 +203,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   // Handle successful invoice payments
-  if (event.type === 'invoice.payment_succeeded') {
+  if (event.type === 'invoice.payment_succeeded' || event.type === 'invoice.paid') {
     const invoice = event.data.object as Stripe.Invoice
     const customerId = invoice.customer as string
     try {
@@ -217,6 +219,31 @@ export async function POST(request: Request): Promise<NextResponse> {
         paidAt: (invoice as any).status_transitions?.paid_at ? new Date((invoice as any).status_transitions.paid_at * 1000) : undefined,
         metadata: invoice.metadata as Record<string, unknown>,
       })
+      const pilotId = String(invoice.metadata?.pilotId || '')
+      if (pilotId) {
+        const pilot = await getPilotById(pilotId)
+        if (pilot) {
+          const {pilot: updated} = await mutatePilot(pilotId, (current) => {
+            if (!['signed', 'kickoff'].includes(current.state)) return {result: current}
+            return {
+              patch: {
+                state: current.state === 'kickoff' ? 'kickoff' as const : 'paid' as const,
+                payment: {
+                  ...(current.payment || {}),
+                  invoiceId: invoice.id,
+                  invoiceStatus: 'paid',
+                  paidAt: new Date().toISOString(),
+                  paymentMethod: 'invoice',
+                  paymentStatus: 'paid',
+                },
+                historyNote: 'invoice payment received',
+              },
+              result: current,
+            }
+          })
+          await notifyPilotRoomEvent({pilot: updated, event: 'paid', eventKey: `invoice-paid:${event.id}`})
+        }
+      }
     } catch (error) {
       console.error('Invoice succeeded handling failed:', error)
       return NextResponse.json({error: 'invoice handling failed'}, {status: 500})
@@ -240,6 +267,16 @@ export async function POST(request: Request): Promise<NextResponse> {
         paidAt: undefined,
         metadata: invoice.metadata as Record<string, unknown>,
       })
+      const pilotId = String(invoice.metadata?.pilotId || '')
+      if (pilotId) {
+        const pilot = await getPilotById(pilotId)
+        if (pilot) {
+          await mutatePilot(pilotId, (current) => ({
+            patch: {payment: {...current.payment, invoiceId: invoice.id, invoiceStatus: 'payment_failed', paymentStatus: 'failed'}},
+            result: current,
+          }))
+        }
+      }
     } catch (error) {
       console.error('Invoice failed handling failed:', error)
       return NextResponse.json({error: 'invoice handling failed'}, {status: 500})
