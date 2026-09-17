@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownToLine, ArrowRight } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpRight, ArrowRight } from 'lucide-react'
 import { CTAButton } from '@/components/CTAButton'
 import { LeadCheckbox, LeadSelectField, LeadTextField, LeadTextareaField } from '@/components/mui/fields'
 import {
@@ -372,17 +372,25 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           Still needed: {result.missingFields.map((field) => field.replaceAll(/([A-Z])/g, ' $1').toLowerCase()).join(', ')}.
         </p> : null}
         <div className="max-w-[720px] space-y-16">
-          {result.nextAction === 'pilot_scope' && (
-              <p className="t-p-sans">
-                Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
-              </p>
-          )}
           <div className="flex items-center gap-16">
+            {result.downloadUrl ? (
+              <CTAButton href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
+                <ArrowDownToLine aria-hidden="true" size={18} />
+                Download my evaluation
+              </CTAButton>
+            ) : null}
             {result.nextAction === 'pilot_scope' ? (
+              <div>
                 <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
                   Build my customized pilot plan
-                  <ArrowRight aria-hidden="true" size={18} />
+                  <ArrowUpRight aria-hidden="true" size={18} />
                 </CTAButton>
+                {result.nextAction === 'pilot_scope' && (
+                    <p className="t-p-sans">
+                      Your assessment answers carry over. There is no fee to receive your customized plan. The pilot fee applies only if you approve and conduct the pilot. The pilot fee is credited to the first annual agreement if the agreement is signed within the agreed credit window.
+                    </p>
+                )}
+              </div>
             ) : (
               <div>
                 <CTAButton
@@ -408,17 +416,11 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
                     className="mt-14"
                   >
                     Build a customized pilot plan
-                    <ArrowRight aria-hidden="true" size={18} />
+                    <ArrowUpRight aria-hidden="true" size={18} />
                   </CTAButton>
                 </div>
               </div>
             )}
-            {result.downloadUrl ? (
-              <CTAButton href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
-                <ArrowDownToLine aria-hidden="true" size={18} />
-                Download my evaluation
-              </CTAButton>
-            ) : null}
           </div>
         </div>
       </div>

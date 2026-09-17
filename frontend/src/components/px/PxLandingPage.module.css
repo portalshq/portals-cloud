@@ -1,0 +1,200 @@
+.page {
+  --px-ink: #111111;
+  --px-dim: #656565;
+  --px-line: #d8d8d8;
+  --px-panel: #f3f3f3;
+  --px-yellow: #efdc3d;
+  color: var(--px-ink);
+  background: transparent;
+  font-family: var(--font-die-grotesk-b), sans-serif;
+  overflow: hidden;
+}
+
+.page :global(.px-mono) {
+  font-family: var(--font-aeonik-fono), monospace;
+  letter-spacing: .06em;
+}
+
+.page :global(.px-serif) {
+  font-family: var(--font-stk-bureau), Georgia, serif;
+}
+
+.aurora {
+  display: none;
+}
+
+.gridNoise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .52;
+  background-image:
+    linear-gradient(rgb(17 17 17 / .08) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(17 17 17 / .08) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, black, transparent 80%);
+}
+
+.chromeWord {
+  position: relative;
+  display: inline-block;
+  color: #000;
+}
+
+.chromeWord::after {
+  content: "px"; 
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  color: transparent;
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+  /* Allows the shadow to render outside boundaries without clipping */
+  width: 200%; 
+  height: 200%;
+  
+  /* CONVERTED TO EM: The shadow now scales dynamically with clamp() */
+  text-shadow: 
+    0.20rem  0.20rem  0px #d7d7d7, 
+    0.45rem  0.45rem  0px #bcbcbc, 
+    0.70rem  0.70rem  0px #efdc3d;
+}
+
+.worldArt {
+  position: relative;
+  isolation: isolate;
+  min-height: 430px;
+  overflow: hidden;
+  border: 1px solid rgb(231 245 192 / .3);
+  background:
+    radial-gradient(circle at 68% 20%, #dff78d 0 5%, transparent 5.5%),
+    linear-gradient(146deg, transparent 55%, rgb(44 79 43 / .88) 55.5% 63%, transparent 63.5%),
+    linear-gradient(27deg, transparent 40%, rgb(22 53 32 / .8) 40.5% 60%, transparent 60.5%),
+    linear-gradient(140deg, #233f2b 0%, #102418 52%, #09120d 100%);
+}
+
+.worldArt::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: auto -18% -28% 5%;
+  height: 76%;
+  border-radius: 50% 50% 0 0;
+  background: repeating-radial-gradient(ellipse at 44% 100%, rgb(148 187 95 / .23) 0 1px, transparent 2px 28px);
+  transform: rotate(-7deg);
+}
+
+.bear {
+  position: absolute;
+  bottom: 6%;
+  width: 158px;
+  height: 188px;
+  border-radius: 46% 46% 40% 40% / 38% 38% 52% 52%;
+  background: linear-gradient(140deg, #191817, #513a27 65%, #0d0d0c);
+  box-shadow: inset 14px 8px 20px rgb(255 211 145 / .13), 0 18px 48px #030604;
+}
+
+.bear::before,
+.bear::after {
+  content: '';
+  position: absolute;
+  top: -17px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #2c2118;
+}
+
+.bear::before { left: 8px; }
+.bear::after { right: 8px; }
+.bearSmall { transform: scale(.68); transform-origin: bottom center; filter: brightness(.74); }
+
+.scanLine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 49.5%, rgb(223 255 141 / .75) 50%, transparent 50.5%);
+  background-size: 100% 160px;
+  mix-blend-mode: screen;
+  animation: scan 6s linear infinite;
+}
+
+.node {
+  width: 11px;
+  height: 11px;
+  background: #111;
+  box-shadow: 0 0 0 5px rgb(239 220 61 / .42);
+}
+
+.code {
+  overflow-x: auto;
+  background: #eeeeee;
+  border-radius: 4px;
+  color: #111;
+  font: 13px/1.7 var(--font-aeonik-fono), monospace;
+}
+
+.codeWrap { position: relative; }
+.copyButton {
+  position: absolute;
+  border-radius: 4px;
+  top: 10px;
+  right: 10px;
+  background: #fff;
+  padding: 5px 9px;
+  color: #111;
+  font: 11px var(--font-aeonik-fono), monospace;
+  cursor: pointer;
+}
+
+.manifestLine { color: #111; }
+.manifestDim { color: #656565; }
+
+.page > div:first-child,
+.page > section,
+.page > footer {
+  background: #fff !important;
+}
+
+.page :global([class*="text-white"]),
+.page :global([class*="text-[#dffc72]"]) {
+  color: #111 !important;
+}
+
+.page :global([class*="bg-[#dffc72]"]) {
+  background-color: var(--px-yellow) !important;
+}
+
+.page > .sagaBanner {
+  background: transparent !important;
+}
+
+.sagaBanner {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  color: #fff;
+  background: transparent !important;
+}
+
+.sagaBanner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  /* Neutral tint so the PX black/yellow WebGL field reads unshifted. */
+  background: rgb(0 0 0 / .14);
+}
+
+.sagaBanner :global([class*="text-white"]) {
+  color: #fff !important;
+}
+
+@keyframes drift { to { transform: translate3d(8%, 5%, 0) scale(1.1); } }
+@keyframes scan { to { background-position: 0 160px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora, .scanLine { animation: none; }
+}

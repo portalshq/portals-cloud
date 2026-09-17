@@ -139,7 +139,7 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
           </div>
         </section>
         <section className="col-span-full border-t border-white/15 py-fluid-[76,106]">
-          <h2 className="t-d2-sans">Keep going</h2>
+          <h2 className="t-d2-sans">Explore use cases</h2>
           <div className="mt-32 grid gap-2 md:grid-cols-3">
             {related.map((item) => (
               <a

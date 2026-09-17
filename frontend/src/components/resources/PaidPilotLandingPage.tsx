@@ -490,9 +490,10 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
               <span>Start a pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
-            <p className="t-p-sans text-white/80">
-              Not ready to streamline your production workflow? <br/><a className="underline underline-offset-4" href="/assessment">Assess your creative production workflow first.</a>
+            <p className="items-center gap-2 t-p-sans text-white/80">
+              Not ready to streamline your production workflow?
             </p>
+            <a className="t-p-sans underline decoration-2 underline-offset-4" href="/assessment">Assess your creative production workflow first.</a>
           </div>
         </div>
       </div>

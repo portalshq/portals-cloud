@@ -5,6 +5,7 @@ import {getUseCases} from '@/sanity/lib/use-cases'
 // Use-case URLs come solely from published Sanity `useCaseDocument` documents.
 const STATIC_PATHS: Array<{path: string; changeFrequency: 'weekly' | 'monthly' | 'yearly'; priority: number}> = [
   {path: '/', changeFrequency: 'weekly', priority: 1},
+  {path: '/px', changeFrequency: 'weekly', priority: 0.9},
   {path: '/assessment', changeFrequency: 'weekly', priority: 0.9},
   {path: '/production-memory', changeFrequency: 'weekly', priority: 0.9},
   {path: '/use-cases', changeFrequency: 'weekly', priority: 0.9},
