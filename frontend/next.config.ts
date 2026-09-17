@@ -20,6 +20,15 @@ const nextConfig: NextConfig = {
       {source: '/ai-production-workflow-risks', destination: '/use-cases', permanent: true},
     ]
   },
+  async rewrites() {
+    return [
+      // Proxy PX landing page from GitHub Pages while keeping /px URL
+      {
+        source: '/px/:path*',
+        destination: 'https://portalshq.github.io/narrativeengine/:path*',
+      },
+    ]
+  },
   env: {
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || '/',
   },
