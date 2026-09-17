@@ -34,18 +34,66 @@ function SectionMark({number, children}: {number: string; children: ReactNode}) 
   return <p className="flex items-center gap-12 t-p-sm-sans"><span className={styles.node} />{number} / {children}</p>
 }
 
-function WorldArt() {
+function EntityCards() {
+  const yamlManifest = `id: px://bears/character/papa
+name: Papa Bear
+entity_type: character
+version: 10
+properties:
+  appearance.left_leg: full of glossy golden honey from foot up the leg; honey is on Papa Bear's left leg only and should remain a persistent visual continuity detail
+blake3:afbd73b1e7fc896dd75c3792cb2461947da3e012992ffc6af72efcaf02608b2b
+representations:
+  character_sheet:
+    hash: blake3:185c275794f2044fd5b7a7464df92a7196f643ce41d727c89e374efaa81fbeea
+    format: png
+    uri: character_sheet.png
+    provenance: 
+      model: gpt-image-2
+      prompt_hash: blake3:7730cee23da503ea29289ececb14175ffa0a376d8d4c876799a3d1388b5f77d4
+  face_image:
+    hash: blake3:9753abf79e5aef60bd95ab76c1e5a14d01639beb37ff9897b6af8e040eb2413a
+    format: png
+    uri: face_image.png
+    provenance: 
+      model: gpt-image-2
+      prompt_hash: blake3:afbd73b1e7fc896dd75c3792cb6461947da3e012992ffc6af72efcaf02608b2b
+references: {}`
+
   return (
-    <div className={styles.worldArt} aria-label="An illustrated PX world with persistent bear characters" role="img">
-      <div className="px-mono absolute left-18 top-16 text-[10px] uppercase text-[#e7f5c0]">bears / scene_04 / dusk</div>
-      <div className="absolute right-[12%] top-[12%] h-48 w-48 rounded-full border border-[#e8f0eb]/45" />
-      <div className="absolute right-[12%] top-[12%] h-48 w-48 rounded-full border border-[#e8f0eb]/20 [transform:translate(22px,22px)]" />
-      <div className={`${styles.bear} left-[17%]`} />
-      <div className={`${styles.bear} ${styles.bearSmall} left-[45%]`} />
-      <div className={`${styles.bear} ${styles.bearSmall} right-[12%]`} />
-      <div className={styles.scanLine} />
-      <div className="absolute inset-x-18 bottom-16 flex items-end justify-between border-t border-[#e8f0eb]/30 pt-10 text-xs text-[#d3decf]">
-        <span className="px-mono">3 entities resolved</span><span>Lonnie appears in scene</span>
+    <div className={styles.entityCards} style={{ perspective: '1000px' }}>
+      {/* Rear card - YAML manifest */}
+      <div 
+        className="absolute inset-0 bg-black/6 border border-white/10 rounded-lg p-6 overflow-hidden"
+        style={{
+          transform: 'rotateY(-15deg) rotateX(10deg) translateZ(-40px) translateX(20px)',
+          transformStyle: 'preserve-3d',
+        }}
+      >
+        <div className="px-mono text-[10px] uppercase text-[#dffc72]/60 mb-3">px://bears/character/papa</div>
+        <pre className="text-[10px] leading-[1.2] text-white/70 font-mono whitespace-pre-wrap break-all">
+          {yamlManifest}
+        </pre>
+      </div>
+
+      {/* Front card - Image representation */}
+      <div 
+        className="relative bg-black/8 border border-white/15 rounded-lg overflow-hidden"
+        style={{
+          transform: 'rotateY(-15deg) rotateX(10deg)',
+          transformStyle: 'preserve-3d',
+        }}
+      >
+        <div className="aspect-square bg-gradient-to-br from-white/5 to-white/10 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-32 h-32 mx-auto bg-white/10 rounded-lg border border-white/20 flex items-center justify-center">
+              <span className="text-white/40 text-4xl">🐻</span>
+            </div>
+            <p className="mt-4 text-white/40 text-sm px-mono">character_sheet.png</p>
+          </div>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 bg-black/20 px-4 py-2">
+          <p className="text-[10px] text-white/50 px-mono">representation: character_sheet</p>
+        </div>
       </div>
     </div>
   )
@@ -81,7 +129,7 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
               <LinkButton href="#install">Install PX</LinkButton>
             </div>
           </div>
-          <div className="lg:pt-38"><WorldArt /></div>
+          <div className="lg:pt-38"><EntityCards /></div>
         </section>
       </div>
 
@@ -134,7 +182,7 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
             </details>
             <details className={`${styles.card} group p-18`}>
               <summary className="cursor-pointer list-none marker:hidden t-p-sm-sans"><span className="mr-12 ">03</span> Revise and reuse <span className="float-right t-p-sm-sans group-open:rotate-45">+</span></summary>
-              <p className="mt-16 border-t-2 border-white/50 pt-16 text-white t-p-sm-sans">“Actually — no baseball cap. Give him blue shorts.” Then bring the same Lonnie into a new scene, image, clip, or future iteration.</p>
+              <p className="mt-16 border-t-2 border-white/50 pt-16 text-white t-p-sm-sans">“Give him blue shorts.” Then bring the same Lonnie into a new scene, image, clip, or future iteration.</p>
             </details>
           </div>
         </div>
