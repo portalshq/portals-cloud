@@ -104,13 +104,13 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
 
       <PxSagaBanner>
         <div className="max-w-4xl">
-          <p className="t-d2-sans leading-[.92]">A world keeps its shape<br /><span className="t-d2-serif">when the tool changes.</span></p>
+          <p className="t-d2-sans leading-[.92]">A world keeps its <span className="t-d2-serif text-[var(--px-yellow)]">shape</span><br />when the tool changes.</p>
           <p className="mt-20 max-w-xl t-p-sm-sans">px keeps characters, locations, scenes, and representations resolvable for the next creative move.</p>
         </div>
       </PxSagaBanner>
 
       <section className="px-20 py-14 text-black md:px-40">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-20 text-[clamp(22px,3vw,42px)] leading-none"><span>CREATE IT ONCE.</span><span className="px-serif">KEEP CREATING WITH IT.</span><span className="hidden lg:inline">✳</span></div>
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-20 text-[clamp(22px,3vw,42px)] leading-none"><span>BUILD ONCE.</span><span className="px-serif">CREATE INFINITELY.</span><span className="hidden lg:inline">✳</span></div>
       </section>
 
       <section className="mx-auto">
@@ -137,7 +137,7 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
           <div>
             <SectionMark number="02">Bears</SectionMark>
             <h2 className="mt-24 t-d2-sans">Stop starting over.</h2>
-            <p className="t-p-serif mt-24 max-w-md">Your creative work stops disappearing between generations.</p>
+            <p className="t-p-serif mt-24 max-w-md">Generative AI creates new content, but work disappears between generations. px keeps your creative work saved, organized, and simplifies context management.</p>
             <p className="t-p-sm-sans mt-24 max-w-md">px entities have identity, history, and representations. Correct Lonnie once; reuse the evolving character anywhere your next agent can resolve PX.</p>
           </div>
           <div className="space-y-10">
@@ -191,27 +191,20 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
 
       <section id="install" className="mx-auto">
         <div className="mx-auto max-w-[1440px] px-20 py-28 md:px-40 md:py-40">
-          <div className="grid gap-28 lg:grid-cols-[.72fr_1.28fr]">
-            <div><SectionMark number="05">the developer surface</SectionMark><h2 className="mt-24 t-d2-sans leading-[.92]">Install it.<br />Make something.</h2><p className="mt-22 max-w-md leading-[1.35] t-p-sm-sans">px ships with a CLI, agent skills, an on-demand MCP server, and a resolver for the narrative resources inside your project.</p></div>
-            <div className="space-y-14">
-              <div><p className="mb-8 t-p-sm-sans">Install px</p><PxCodeBlock>{content.install}</PxCodeBlock></div>
-              <div className="grid gap-[2px] md:grid-cols-2">
-                <div><p className="mb-8 t-p-sm-sans">Start a world</p><PxCodeBlock>{content.initialize}</PxCodeBlock></div>
-                <div><p className="mb-8 t-p-sm-sans">Teach px to an agent</p><PxCodeBlock>{content.skillInstall}</PxCodeBlock></div>
+          <div className="grid gap-[2px] lg:grid-cols-2">
+            <div><SectionMark number="05">the developer surface</SectionMark><h2 className="mt-24 t-d2-sans leading-[.92]">Install it.<br />Make something.</h2><p className="mt-22 max-w-md leading-[1.35] t-p-sm-sans">px ships with an MCP server, agent skills, and a command line tool for resolving and editing resources inside your project.</p></div>
+            <div className="min-w-0 space-y-14">
+              <div><p className="mb-8 t-p-sm-sans">1. Install px + skills</p><PxCodeBlock>{content.install}</PxCodeBlock></div>
+              <div><p className="mb-8 t-p-sm-sans">a. Connect MCP with Codex</p><PxCodeBlock>{content.codexMcpInstall}</PxCodeBlock></div>
+              <div><p className="mb-8 t-p-sm-sans">b. Connect MCP with Claude Code</p><PxCodeBlock>{content.claudeMcpInstall}</PxCodeBlock></div>
+              <div><p className="mb-8 t-p-sm-sans">2. Start a world</p><PxCodeBlock>{content.initialize}</PxCodeBlock></div>
+              <div>
+                <p className="mb-8 t-p-sm-sans">3. Add representations</p>
+                <PxCodeBlock>{content.addRepresentation}</PxCodeBlock>
               </div>
             </div>
           </div>
-          <div className="mt-40 grid gap-[2px] border-t-2 border-white/15 pt-28 lg:grid-cols-2">
-            <article>
-              <p className="t-p-sm-sans">Agents & MCP</p>
-              <p className="mt-14 max-w-lg t-p-sm-sans leading-[1.35]">{content.mcpSummary}</p>
-            </article>
-            <article>
-              <p className="t-p-sm-sans">Representations</p>
-              <PxCodeBlock>{content.addRepresentation}</PxCodeBlock>
-            </article>
-          </div>
-          <div className="mt-16 grid gap-[2px] lg:grid-cols-2">
+          <div className="mt-16 grid gap-[2px] lg:grid-cols-2 space-y-14">
             <article>
               <p className="mb-8 t-p-sm-sans">TypeScript SDK</p>
               <PxCodeBlock>{content.typescriptSdk}</PxCodeBlock>

@@ -14,6 +14,7 @@
     "publish:pilot-offer-variant": "sanity exec scripts/publish-pilot-offer-variant.mjs --with-user-token",
     "publish:paid-pilot-brief": "sanity exec scripts/publish-paid-pilot-brief.mjs --with-user-token",
     "migrate:use-cases": "sanity exec scripts/migrate-use-cases.mjs --with-user-token",
+    "migrate:blog-posts": "sanity exec scripts/migrate-blog-posts.mjs --with-user-token",
     "start": "sanity start"
   },
   "keywords": [

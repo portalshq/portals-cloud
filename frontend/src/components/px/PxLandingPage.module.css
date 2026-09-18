@@ -58,9 +58,9 @@
   
   /* CONVERTED TO EM: The shadow now scales dynamically with clamp() */
   text-shadow: 
-    0.20rem  0.20rem  0px #d7d7d7, 
-    0.45rem  0.45rem  0px #bcbcbc, 
-    0.70rem  0.70rem  0px #efdc3d;
+    0.25rem  0.25rem  0px #d7d7d7, 
+    0.55rem  0.55rem  0px #bcbcbc, 
+    0.85rem  0.85rem  0px #efdc3d;
 }
 
 .entityCards {
@@ -82,11 +82,13 @@
 }
 
 .code {
-  overflow-x: auto;
   background: #eeeeee;
   border-radius: 4px;
   color: #111;
   font: 13px/1.7 var(--font-aeonik-fono), monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .codeWrap { position: relative; }

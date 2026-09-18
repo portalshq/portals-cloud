@@ -34,6 +34,7 @@ export function MarketingPageShell({
         <nav className="hidden gap-24 text-sm lowercase md:flex" aria-label="Marketing">
           <a href="/production-memory">production memory</a>
           <a href="/use-cases">use cases</a>
+          <a href="/blog">blog</a>
           <a href="/assessment">assess workflow</a>
           <a href="/contact">contact</a>
         </nav>

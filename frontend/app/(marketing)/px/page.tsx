@@ -11,7 +11,7 @@ export const metadata: Metadata = marketingMetadata({
   image: '/px/opengraph-image',
 })
 
-export default function PxPage() {
+export default async function PxPage() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -35,5 +35,5 @@ export default function PxPage() {
     ],
   }
 
-  return <><script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(jsonLd)}} /><PxLandingPage content={getPxTechnicalContent()} chrome="integrated" /></>
+  return <><script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(jsonLd)}} /><PxLandingPage content={await getPxTechnicalContent()} chrome="integrated" /></>
 }

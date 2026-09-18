@@ -34,6 +34,8 @@ export function MarketingFooter() {
               <ul className="space-y-8 t-p-sans text-white/80">
                 <li><a href="/production-memory" className="transition-colors hover:text-white">production memory</a></li>
                 <li><a href="/use-cases" className="transition-colors hover:text-white">use cases</a></li>
+                <li><a href="/blog" className="transition-colors hover:text-white">blog</a>
+                </li>
                 <li><a href="/px" className="transition-colors hover:text-white">px</a></li>
                 <li><a href="/assessment" className="transition-colors hover:text-white">assess your workflow</a></li>
                 <li><a href="/resources/production-memory-brief" className="transition-colors hover:text-white">production memory brief</a></li>
