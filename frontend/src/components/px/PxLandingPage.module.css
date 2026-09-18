@@ -66,10 +66,12 @@
 .entityCards {
   position: relative;
   isolation: isolate;
-  min-height: 430px;
+  min-height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
+  max-width: 350px;
+  margin: 0 auto;
 }
 
 .node {

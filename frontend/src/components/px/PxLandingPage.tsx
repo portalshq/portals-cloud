@@ -4,6 +4,7 @@ import styles from './PxLandingPage.module.css'
 import {PxSagaBanner} from './PxSagaBanner'
 import {PxCodeBlock} from './PxCodeBlock'
 import {PxWebGLTheme} from './PxWebGLTheme'
+import {EntityCards} from './EntityCards'
 
 export type PxLandingPageProps = {
   content: PxTechnicalContent
@@ -34,14 +35,13 @@ function SectionMark({number, children}: {number: string; children: ReactNode}) 
   return <p className="flex items-center gap-12 t-p-sm-sans"><span className={styles.node} />{number} / {children}</p>
 }
 
-function EntityCards() {
+function EntityManifest() {
   const yamlManifest = `id: px://bears/character/papa
 name: Papa Bear
 entity_type: character
 version: 10
 properties:
   appearance.left_leg: full of glossy golden honey from foot up the leg; honey is on Papa Bear's left leg only and should remain a persistent visual continuity detail
-blake3:afbd73b1e7fc896dd75c3792cb2461947da3e012992ffc6af72efcaf02608b2b
 representations:
   character_sheet:
     hash: blake3:185c275794f2044fd5b7a7464df92a7196f643ce41d727c89e374efaa81fbeea
@@ -60,41 +60,10 @@ representations:
 references: {}`
 
   return (
-    <div className={styles.entityCards} style={{ perspective: '1000px' }}>
-      {/* Rear card - YAML manifest */}
-      <div 
-        className="absolute inset-0 bg-black/6 border border-white/10 rounded-lg p-6 overflow-hidden"
-        style={{
-          transform: 'rotateY(-15deg) rotateX(10deg) translateZ(-40px) translateX(20px)',
-          transformStyle: 'preserve-3d',
-        }}
-      >
-        <div className="px-mono text-[10px] uppercase text-[#dffc72]/60 mb-3">px://bears/character/papa</div>
-        <pre className="text-[10px] leading-[1.2] text-white/70 font-mono whitespace-pre-wrap break-all">
-          {yamlManifest}
-        </pre>
-      </div>
-
-      {/* Front card - Image representation */}
-      <div 
-        className="relative bg-black/8 border border-white/15 rounded-lg overflow-hidden"
-        style={{
-          transform: 'rotateY(-15deg) rotateX(10deg)',
-          transformStyle: 'preserve-3d',
-        }}
-      >
-        <div className="aspect-square bg-gradient-to-br from-white/5 to-white/10 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-32 h-32 mx-auto bg-white/10 rounded-lg border border-white/20 flex items-center justify-center">
-              <span className="text-white/40 text-4xl">🐻</span>
-            </div>
-            <p className="mt-4 text-white/40 text-sm px-mono">character_sheet.png</p>
-          </div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 bg-black/20 px-4 py-2">
-          <p className="text-[10px] text-white/50 px-mono">representation: character_sheet</p>
-        </div>
-      </div>
+    <div className="mt-24">
+      <pre className="text-[10px] leading-[1.2] text-white/70 font-mono whitespace-pre-wrap break-all">
+        {yamlManifest}
+      </pre>
     </div>
   )
 }
@@ -109,24 +78,24 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
         <div className={styles.aurora} aria-hidden="true" />
         <div className={styles.gridNoise} aria-hidden="true" />
         <nav className="relative z-10 mx-auto flex max-w-[1440px] items-center justify-between px-20 py-20 md:px-40" aria-label="PX">
-          <a href={isStandalone ? '/' : '/'} className="flex items-baseline gap-8 text-xl"><span className="t-h3-sans font-medium text-white">px</span>{!isStandalone && <span className="t-p-sm-sans">by portals</span>}</a>
+          <a href={isStandalone ? '/' : '/'} className="flex items-baseline gap-8 text-xl"><span className="t-h3-sans font-medium text-white">px</span>{!isStandalone && <span className="t-p-sm-sans"></span>}</a>
           <div className="hidden items-center gap-20 md:flex">
             <LinkButton href="#how-it-works" quiet>Docs</LinkButton>
             <LinkButton href="#bears" quiet>Examples</LinkButton>
             <LinkButton href={GITHUB_URL} quiet>GitHub</LinkButton>
-            <LinkButton href="#install">Install PX</LinkButton>
+            <LinkButton href="#install">Install</LinkButton>
           </div>
         </nav>
 
-        <section className="relative z-10 mx-auto grid min-h-[calc(100svh-80px)] max-w-[1440px] items-center gap-40 px-20 pb-68 pt-24 md:px-40 lg:grid-cols-[1.04fr_.96fr]">
+        <section className="relative z-10 mx-auto grid min-h-[calc(100svh-80px)] max-w-[1440px] items-center gap-40 px-20 pb-68 pt-24 md:px-40 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="max-w-3xl">
             {/* <p className="mb-20 t-p-sm-sans text-[#dffc72]">Introducing PX <span className="text-white/45">/ protocol for persistent creative work</span></p> */}
-            <h1 className={`${styles.chromeWord} text-[clamp(92px,18vw,260px)] font-medium leading-[1em]`}>px</h1>
-            <h2 className="mt-32 max-w-[10.5em] text-[clamp(36px,5vw,78px)] leading-[.94]">A harness for your <span className="px-serif text-[#dffc72]">AI creative work.</span></h2>
+            <h1 className={`${styles.chromeWord} text-[clamp(92px,18vw,260px)] font-medium leading-[1.2em]`}>px</h1>
+            <h2 className="mt-32 max-w-[10.5em] text-[clamp(36px,5vw,60px)] leading-[.94]">The AI agent for <span className="px-serif text-[#dffc72]">creative work</span></h2>
             <p className="mt-28 max-w-xl t-p-sans">Create persistent characters, worlds, objects, and scenes with AI agents — then keep building on them across tools and formats.</p>
             <div className="mt-34 flex flex-wrap gap-20">
               <LinkButton href={GITHUB_URL} quiet>View on GitHub</LinkButton>
-              <LinkButton href="#install">Install PX</LinkButton>
+              <LinkButton href="#install">Install</LinkButton>
             </div>
           </div>
           <div className="lg:pt-38"><EntityCards /></div>
@@ -195,13 +164,8 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
             <div><h2 className="t-d2-sans leading-[.92]">One character.<br /><span className="t-d2-serif text-[#dffc72]">Many representations.</span></h2>
             <p className="mt-24 max-w-lg t-p-sm-sans leading-[1.3]">Keep the entity. Change the representation. PX manifests can attach direct representations with their format and provenance — for example, a reference image or a scene clip.</p></div>
             <div className={`bg-black/2 rounded-sm p-20 md:p-30`}>
-              <p className="t-p-sm-sans">px://bears/character/lonnie</p>
-              <div className="mt-24 space-y-14 t-p-sm-sans leading-[1.3]">
-                <p><span className="">identity</span><br />Lonnie — black bear, restless climber</p>
-                <p><span className="">representation</span><br /><span className="text-[#dffc72]">reference_image</span> / png</p>
-                <p><span className="">representation</span><br /><span className="text-[#dffc72]">alternate_take</span> / png</p>
-                <p><span className="">scene appearance</span><br />Bears / scene_04 / dusk</p>
-              </div>
+              <p className="t-p-sm-sans">px://bears/character/papa</p>
+              <EntityManifest />
             </div>
           </div>
         </div>
