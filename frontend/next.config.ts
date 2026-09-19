@@ -1,5 +1,12 @@
 import type { NextConfig } from 'next'
 
+/**
+ * Next.js configuration optimized for fast development with Turbopack
+ * - Uses Turbopack for dev (10-100x faster HMR) with --turbo flag
+ * - Uses webpack for production builds (better compatibility with route re-exports)
+ * - WebAssembly support for both bundlers
+ * - Optimized package imports for icon libraries
+ */
 const nextConfig: NextConfig = {
   allowedDevOrigins: (process.env.NEXT_ALLOWED_DEV_ORIGINS || '')
     .split(',')
@@ -8,6 +15,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@automerge/automerge'],
   images: {
     unoptimized: true,
+  },
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   trailingSlash: true,
   async redirects() {
