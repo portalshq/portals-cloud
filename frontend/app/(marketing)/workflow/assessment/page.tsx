@@ -70,7 +70,7 @@ const pageLinks = [
 const nextSteps = [
   {
     label: 'you map your workflow friction',
-    detail: 'tell us about one workflow where continuity issues, finding approved work, or handoffs keep forcing your team to rediscover or remake work.',
+    detail: 'tell us about one workflow where finding approved work, conducting handoffs, or managing continuity issues keep forcing your team into rework.',
   },
   {
     label: 'you see where time and cost leak',
@@ -78,7 +78,7 @@ const nextSteps = [
   },
   {
     label: 'you choose the next step',
-    detail: 'explore the workflow pattern that can make production faster and more cost-effective, or build a pilot plan when the fit is clear.',
+    detail: 'explore the workflow pattern that can make production faster and more cost-effective. build a pilot plan when the fit is clear.',
   },
 ]
 
@@ -140,20 +140,24 @@ export default async function WorkflowAssessmentPage() {
       </header>
 
       <div className="relative z-10">
-        <section className="relative flex min-h-screen items-start overflow-hidden">
-          <div className="ui-grid relative z-10 w-full gap-y-fluid-[30,52] py-fluid-[76,106] pt-[max(var(--spacing-Header-h),24svh)] text-white">
+        <section className="relative flex min-h-screen items-center overflow-hidden">
+          <div className="ui-grid relative z-10 w-full gap-y-fluid-[30,52] py-fluid-[76,106] pt-[max(var(--spacing-Header-h),16svh)] text-white">
             <div className="col-span-full lg:col-span-14">
               <h1 className="mt-20 max-w-[10em] t-d2-sans">
-                Save your creative team the hidden costs of AI production
+                reduce the hidden costs of AI production
               </h1>
               <p className="mt-28 max-w-[38em] t-p-serif text-white">
-                Assess how well your team preserves approved work, production context, handoffs, continuity, and reproducibility.
+                take a quick assessment to measure how your team preserves approved work, production context, team handoffs, and continuity.
               </p>
-              <p className="mt-20 max-w-[28em] t-p-serif text-white">
-                For agencies, creative studios, production companies, in-house brand and marketing teams, film and animation teams, game and entertainment teams.
+              <p className="mt-20 max-w-[32em] t-p-sans text-white">
+                for film and animation studios, content and brand agencies, in-house marketing teams, and game and entertainment companies.
               </p>
               <p className="mt-20 max-w-[42em] t-p-sm-sans text-white">
-                Complete in four minutes. You’ll receive a practical evaluation of where your team can become faster, more repeatable, and more cost-effective. Depending on your result, you may build a customized pilot plan at no cost. No meeting is required unless the completed scope needs an integration review.
+                complete in four minutes. you’ll receive an evaluation of where your production workflow may be creating avoidable cost, rework, and delays—and where portals will improve operating efficiency. 
+                <br/><br/>
+                after reviewing your results, you can build a customized pilot plan and evaluate the potential cost savings, productivity gains, and return on investment from improving the workflow with portals.
+                <br/><br/>
+                scoping and receiving your pilot plan is free. a pilot is applied only if you approve the plan and proceed with the 21-day production pilot.
               </p>
             </div>
             <nav
@@ -166,6 +170,13 @@ export default async function WorkflowAssessmentPage() {
                     <a
                       href={link.href}
                       className="grid grid-cols-[2.9em_1fr] gap-x-12 text-white transition-colors hover:text-white/80"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        const element = globalThis.document.querySelector(link.href)
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }
+                      }}
                     >
                       <span className="t-m2 text-white/80">{String(index + 1).padStart(2, '0')}</span>
                       <span className="t-p-sm-sans">{link.label}</span>
@@ -235,8 +246,8 @@ export default async function WorkflowAssessmentPage() {
             <div className="col-span-2">
               <NumberLabel index={2} />
             </div> 
-            <p className="col-span-full max-w-[28em] lg:col-span-14 lg:col-start-9 t-p-lg-serif text-white">
-              Assess how well your team preserves approved work, production context, handoffs, continuity, and reproducibility.
+            <p className="col-span-full max-w-[24em] lg:col-span-14 lg:col-start-9 t-p-lg-serif text-white">
+              assess how your team preserves approved work, production context, team handoffs, and continuity.
             </p>
             <section className="col-span-full scroll-mt-24 lg:col-span-14 lg:col-start-9">
               <div className="max-w-[42em] space-y-5 text-white">
@@ -262,18 +273,18 @@ export default async function WorkflowAssessmentPage() {
             </div>
             <div className="col-span-full lg:col-span-13 lg:col-start-8">
               <h2 className="max-w-[10em] t-d2-sans">
-                make your production workflow cost-effective
+                turn your assessment into a more efficient production workflow
               </h2>
               <p className="mt-24 max-w-[34em] t-p-lg-serif text-white">
-                Your assessment points to the clearest next action:
-                <br/>
-                explore a relevant production workflow, or scope a pilot when the fit is clear.
+                Your results point to the most valuable next step for your workflow.
+                See the recommended production approach, complete any remaining qualification,
+                or build a customized pilot plan when the fit is clear.
               </p>
               <div className="mt-32 flex flex-wrap items-center gap-16">
-                <CTAButton href="#the-assessment" analyticsLabel="View My Recommended Next Step" analyticsIntent="workflow_assessment">
-                  <span>View my recommended next step</span>
+                <CTAButton href="#the-assessment" analyticsLabel="See My Recommendation" analyticsIntent="workflow_assessment">
+                  <span>See my recommendation</span>
                 </CTAButton>
-                <CTAButton
+                {/* <CTAButton
                   href="/contact?intent=workflow-assessment"
                   appearance="plain"
                   className="underline underline-offset-4"
@@ -282,7 +293,7 @@ export default async function WorkflowAssessmentPage() {
                 >
                   <span>contact us</span>
                   <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
-                </CTAButton>
+                </CTAButton> */}
               </div>
             </div>
           </div>

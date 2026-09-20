@@ -784,6 +784,13 @@ export default function PortalsComparisonMatrix() {
                 "hover:decoration-white focus:outline-none focus-visible:ring-2",
                 "focus-visible:ring-white/70 focus-visible:ring-offset-4 focus-visible:ring-offset-[#070708]",
               ].join(" ")}
+              onClick={(e) => {
+                e.preventDefault()
+                const element = globalThis.document.querySelector('#detailed-comparisons')
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+              }}
             >
               Explore detailed comparisons
               <ArrowIcon />

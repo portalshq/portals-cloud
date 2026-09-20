@@ -750,7 +750,7 @@ export function PilotScopeForm({
         {/* What brought you here - with URL param support and field hiding */}
         {showField.whatBroughtYouHere ? (
           <div className="sm:col-span-2">
-            <LeadField label="What brought you here?" name="whatBroughtYouHere">
+            <LeadField label="what brought you here?" name="whatBroughtYouHere">
               <LeadSelectField
                 id="whatBroughtYouHere"
                 name="whatBroughtYouHere"
@@ -781,7 +781,7 @@ export function PilotScopeForm({
         {/* How did you hear about portals - with URL param support and field hiding */}
         {showField.howDidYouHearAboutPortals ? (
           <div className="sm:col-span-2">
-            <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
+            <LeadField label="how did you hear about portals?" name="howDidYouHearAboutPortals">
               <LeadSelectField
                 id="howDidYouHearAboutPortals"
                 name="howDidYouHearAboutPortals"
@@ -947,7 +947,17 @@ export function PilotScopeForm({
           <p className="mt-10 max-w-[42em] t-p-sm-sans text-white">
             we have defined the baseline outcomes below. Select the ones that matter most to your workflow to define pilot targets.
             {" "}
-            <a className="inline-block t-p-sm-sans text-white underline underline-offset-4" href="#success-criteria">
+            <a 
+              className="inline-block t-p-sm-sans text-white underline underline-offset-4" 
+              href="#success-criteria"
+              onClick={(e) => {
+                e.preventDefault()
+                const element = globalThis.document.querySelector('#success-criteria')
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+              }}
+            >
               review pilot success criteria
             </a>
           </p>

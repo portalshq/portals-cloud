@@ -8,6 +8,13 @@ import type {
 import {trackEvent} from '@/lib/leads/analytics-client'
 import { cn } from '@/lib/utils'
 
+function smoothScrollTo(hash: string) {
+  const element = globalThis.document.querySelector(hash)
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
 type SharedProps = {
   children: ReactNode
   className?: string
@@ -57,6 +64,8 @@ export function CTAButton(props: CTAButtonProps) {
 
   if ('href' in elementProps && typeof elementProps.href === 'string') {
     const {onClick, ...anchorProps} = elementProps
+    const isSamePageAnchor = elementProps.href.startsWith('#')
+    
     return (
       <a
         {...anchorProps}
@@ -69,6 +78,14 @@ export function CTAButton(props: CTAButtonProps) {
             use_case: analyticsUseCase,
             destination: elementProps.href,
           })
+          
+          // Only handle smooth scroll for same-page anchors (href starts with #)
+          // Cross-page links with hashes should navigate normally
+          if (isSamePageAnchor) {
+            event.preventDefault()
+            smoothScrollTo(elementProps.href)
+          }
+          
           onClick?.(event)
         }}
       >

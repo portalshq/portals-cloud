@@ -146,7 +146,17 @@ function Hero({ document, offer, offerTerms }: { document: ResourceDocument; off
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           </div>
-          <a className="mt-16 inline-block t-p-sans text-white underline underline-offset-4" href="#success-criteria">
+          <a 
+            className="mt-16 inline-block t-p-sans text-white underline underline-offset-4" 
+            href="#success-criteria"
+            onClick={(e) => {
+              e.preventDefault()
+              const element = globalThis.document.querySelector('#success-criteria')
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            }}
+          >
             see what the pilot measures
           </a>
         </div>
