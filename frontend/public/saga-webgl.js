@@ -317,6 +317,7 @@ class Timer {
     this._delta = 0;
     this._elapsed = 0;
     this._timescale = 0.317; // Reduced from 0.95 for 3x slower animation
+    this._originalTimescale = 0.317; // Store original for restoration
     this._onVis = this._onVis.bind(this);
   }
 
@@ -334,6 +335,14 @@ class Timer {
 
   getDelta()   { return this._delta / 1000; }
   getElapsed() { return this._elapsed / 1000; }
+
+  setTimescale(value) {
+    this._timescale = value;
+  }
+
+  restoreOriginalTimescale() {
+    this._timescale = this._originalTimescale;
+  }
 
   update(now) {
     if (document.hidden) { this._delta = 0; return; }
@@ -999,7 +1008,7 @@ class SagaEngine {
   // PX-exclusive theme. Swaps the live uniforms immediately and repoints the
   // module-level DEFAULT_* bindings so scroll-driven transitions also use the
   // PX palette while active. Restores everything when turned off, so no other
-  // page ever sees these colors.
+  // page ever sees these colors. Also restores normal animation speed for PX page.
   setPxThemeActive(on) {
     const active = !!on;
     const bg1 = active ? PX_BG_COLOR1 : ORIGINAL_BG_COLOR1;
@@ -1021,6 +1030,13 @@ class SagaEngine {
     this.meshUniforms.uColor1.value.set(active ? PX_MESH_COLOR1 : ORIGINAL_MESH_COLOR1);
     this.meshUniforms.uColor2.value.set(active ? PX_MESH_COLOR2 : ORIGINAL_MESH_COLOR2);
     this.meshUniforms.uMiddleColor.value.set(active ? PX_MESH_MIDDLE : ORIGINAL_MESH_MIDDLE);
+
+    // Restore normal animation speed for PX page, use slow speed for other pages
+    if (active) {
+      this.timer.setTimescale(0.95); // Normal speed for PX page
+    } else {
+      this.timer.restoreOriginalTimescale(); // Slow speed for other pages
+    }
   }
 
   _applyRampImmediate(slot, stops, uniforms) {
