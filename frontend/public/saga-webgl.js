@@ -316,8 +316,8 @@ class Timer {
     this._start = performance.now();
     this._delta = 0;
     this._elapsed = 0;
-    this._timescale = 0.317; // Reduced from 0.95 for 3x slower animation
-    this._originalTimescale = 0.317; // Store original for restoration
+    this._timescale = 0.475; // Reduced from 0.95 for half speed animation
+    this._originalTimescale = 0.475; // Store original for restoration
     this._onVis = this._onVis.bind(this);
   }
 
@@ -457,7 +457,7 @@ float perlinNoise(vec3 p) {
 }
 
 void main() {
-  float noise = perlinNoise(vec3(vUv.x*5., vUv.y*5., uTime*0.317)); // Slower animation
+  float noise = perlinNoise(vec3(vUv.x*5., vUv.y*5., uTime*0.5)); // Half speed animation
   vec3 fromColor = mix(uColor1, uColor2, noise);
   vec3 toColor = mix(uColor1To, uColor2To, noise);
   vec3 color = mix(fromColor, toColor, smoothstep(0.0, 1.0, uBackgroundMix));
@@ -598,9 +598,9 @@ vec3 sampleColorRamp(sampler2D rampFrom, sampler2D rampTo, float rampMix, float 
 
 void main() {
   vec3 color = vec3(0.0, 0.0, 0.0);
-  float waveSpeed1 = .1; // Reduced from .3 for 3x slower animation
-  float noiseSpeedZ = .033; // Reduced from .1 for 3x slower animation
-  float noiseSpeedY = .067; // Reduced from .2 for 3x slower animation
+  float waveSpeed1 = .15; // Reduced from .3 for half speed animation
+  float noiseSpeedZ = .05; // Reduced from .1 for half speed animation
+  float noiseSpeedY = .1; // Reduced from .2 for half speed animation
   float waveShift = perlinNoise(vec3(sin(vUv.x*PI*2.), sin(mod(uTime*waveSpeed1, PI*2.)), vUv.y)) * 0.5;
   float wave = sin(vUv.x * PI * 10. + waveShift) * 0.5 + 0.5;
   wave = smoothstep(1., 0.2, wave);
@@ -965,7 +965,7 @@ class SagaEngine {
     this._syncBgColorUniforms(0);
   }
 
-  animateBackgroundColors(c1, c2, duration = 3.6) { // 3x slower transition
+  animateBackgroundColors(c1, c2, duration = 2.4) { // Half speed transition
     let mix = this.backgroundUniforms.uBackgroundMix.value;
     let to1 = this.backgroundUniforms.uColor1To.value;
     let to2 = this.backgroundUniforms.uColor2To.value;
@@ -1031,11 +1031,11 @@ class SagaEngine {
     this.meshUniforms.uColor2.value.set(active ? PX_MESH_COLOR2 : ORIGINAL_MESH_COLOR2);
     this.meshUniforms.uMiddleColor.value.set(active ? PX_MESH_MIDDLE : ORIGINAL_MESH_MIDDLE);
 
-    // Restore normal animation speed for PX page, use slow speed for other pages
+    // Restore normal animation speed for PX page, use half speed for other pages
     if (active) {
       this.timer.setTimescale(0.95); // Normal speed for PX page
     } else {
-      this.timer.restoreOriginalTimescale(); // Slow speed for other pages
+      this.timer.restoreOriginalTimescale(); // Half speed for other pages
     }
   }
 
@@ -1073,7 +1073,7 @@ class SagaEngine {
     }
   }
 
-  transitionColorRamps(ramp1Stops, ramp2Stops, duration = 3.6) { // 3x slower transition
+  transitionColorRamps(ramp1Stops, ramp2Stops, duration = 2.4) { // Half speed transition
     this._startRampTransition(this.colorRamp1, ramp1Stops, duration, {
       from: "uColorRamp1", to: "uColorRamp1To", mix: "uColorRamp1Mix",
     });
@@ -1205,7 +1205,7 @@ function createPostEffects(renderer, scene, camera, width, height) {
 
   return {
     render(delta) {
-      bloomPass.strength = 0.015 * Math.sin(0.00033 * performance.now()) + 0.02; // Reduced overall bloom for performance
+      bloomPass.strength = 0.015 * Math.sin(0.0005 * performance.now()) + 0.02; // Half speed bloom animation
       composer.render(delta);
     },
     setSize(w, h, pr) {
@@ -1507,12 +1507,12 @@ class ScrollSystem {
     this.lastColorRampIdx = activeIdx;
 
     if (activeIdx === -1) {
-      this.engine.transitionColorRamps(DEFAULT_RAMP1, DEFAULT_RAMP2, 3.6); // 3x slower
-      this.engine.animateBackgroundColors(DEFAULT_BG_COLOR1, DEFAULT_BG_COLOR2, 3.6); // 3x slower
+      this.engine.transitionColorRamps(DEFAULT_RAMP1, DEFAULT_RAMP2, 2.4); // Half speed
+      this.engine.animateBackgroundColors(DEFAULT_BG_COLOR1, DEFAULT_BG_COLOR2, 2.4); // Half speed
     } else {
       const ramp = SECTION_RAMPS[Math.min(activeIdx, SECTION_RAMPS.length - 1)];
-      this.engine.transitionColorRamps(ramp.ramp1, ramp.ramp2, 3.6); // 3x slower
-      this.engine.animateBackgroundColors(ramp.bg1, ramp.bg2, 3.6); // 3x slower
+      this.engine.transitionColorRamps(ramp.ramp1, ramp.ramp2, 2.4); // Half speed
+      this.engine.animateBackgroundColors(ramp.bg1, ramp.bg2, 2.4); // Half speed
     }
   }
 
@@ -1685,14 +1685,14 @@ class ReactOwnedScrollSystem {
     this.lastColorRampIdx = activeIdx;
 
     if (activeIdx < 0) {
-      this.engine.transitionColorRamps(DEFAULT_RAMP1, DEFAULT_RAMP2, 3.6); // 3x slower
-      this.engine.animateBackgroundColors(DEFAULT_BG_COLOR1, DEFAULT_BG_COLOR2, 3.6); // 3x slower
+      this.engine.transitionColorRamps(DEFAULT_RAMP1, DEFAULT_RAMP2, 2.4); // Half speed
+      this.engine.animateBackgroundColors(DEFAULT_BG_COLOR1, DEFAULT_BG_COLOR2, 2.4); // Half speed
       return;
     }
 
     const ramp = SECTION_RAMPS[Math.min(activeIdx, SECTION_RAMPS.length - 1)];
-    this.engine.transitionColorRamps(ramp.ramp1, ramp.ramp2, 3.6); // 3x slower
-    this.engine.animateBackgroundColors(ramp.bg1, ramp.bg2, 3.6); // 3x slower
+    this.engine.transitionColorRamps(ramp.ramp1, ramp.ramp2, 2.4); // Half speed
+    this.engine.animateBackgroundColors(ramp.bg1, ramp.bg2, 2.4); // Half speed
   }
 
   dispose() {
