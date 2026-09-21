@@ -189,7 +189,7 @@ export type StoredPilot = {
   history: PilotHistoryEntry[]
   signing: Record<string, unknown>
   payment: Record<string, unknown>
-  kickoff: Record<string, unknown>
+  launch: Record<string, unknown>
   resolvedStartDate: string | null
   createdAt: string
   updatedAt: string
@@ -226,7 +226,7 @@ export type PilotPatch = {
   revisions?: PilotCommittedRevision[]
   signing?: Record<string, unknown>
   payment?: Record<string, unknown>
-  kickoff?: Record<string, unknown>
+  launch?: Record<string, unknown>
   resolvedStartDate?: string | null
   historyNote?: string
   by?: string
@@ -254,7 +254,7 @@ type PilotRow = {
   history: PilotHistoryEntry[]
   signing: Record<string, unknown>
   payment: Record<string, unknown>
-  kickoff: Record<string, unknown>
+  launch: Record<string, unknown>
   resolved_start_date: string | null
   created_at: Date | string
   updated_at: Date | string
@@ -321,7 +321,7 @@ function pilotFromRow(row: PilotRow): StoredPilot {
     history: row.history,
     signing: row.signing,
     payment: row.payment,
-    kickoff: row.kickoff,
+    launch: row.launch,
     resolvedStartDate: row.resolved_start_date,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -330,9 +330,17 @@ function pilotFromRow(row: PilotRow): StoredPilot {
 
 export async function createPilotRecord(input: CreatePilotInput): Promise<StoredPilot> {
   const now = new Date().toISOString()
+  // Invites are in-room only: create owner reviewer here, rest via invitePilotMember.
+  // Fall back to submitter email when productionOwnerEmail is not set (direct store usage).
+  const answersWithOwner = {
+    ...(input.answers as Record<string, unknown>),
+    ...(!String((input.answers as Record<string, unknown>).productionOwnerEmail || '').trim() && String((input.answers as Record<string, unknown>).email || '').trim()
+      ? { productionOwnerEmail: String((input.answers as Record<string, unknown>).email) }
+      : {}),
+  }
   const reviewers: Reviewer[] = recommendedReviewers(
-    input.answers as Parameters<typeof recommendedReviewers>[0],
-  ).filter((row) => !input.answers.productionOwnerEmail || Boolean(row.email)).map((row) => ({
+    answersWithOwner as Parameters<typeof recommendedReviewers>[0],
+  ).filter((row) => row.role === 'production_owner' && Boolean(row.email)).map((row) => ({
     id: randomUUID(),
     role: row.role,
     name: row.name,
@@ -382,7 +390,7 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     history: [{ at: now, action: 'created', state: input.state }],
     signing: {},
     payment: {},
-    kickoff: {},
+    launch: {},
     resolvedStartDate: null,
     createdAt: now,
     updatedAt: now,
@@ -564,6 +572,32 @@ export async function getPilotByPaymentSession(
   return result.rows[0] ? pilotFromRow(result.rows[0]) : null
 }
 
+export async function getTermsAcceptanceByPilotAndEmail(
+  pilotId: string,
+  actorEmail: string,
+  termsHash: string,
+  scopeHash: string,
+): Promise<Record<string, unknown> | null> {
+  if (leadsDryRun()) {
+    return (
+      Array.from(memory().termsAcceptances.values()).find(
+        (a) =>
+          String(a.pilotId) === pilotId &&
+          String(a.actorEmail) === actorEmail &&
+          String(a.termsHash) === termsHash &&
+          String(a.pilotScopeHash) === scopeHash,
+      ) || null
+    )
+  }
+  const result = await pool().query(
+    `SELECT * FROM pilot_terms_acceptances
+     WHERE pilot_id = $1 AND actor_email = $2 AND terms_hash = $3 AND pilot_scope_hash = $4
+     LIMIT 1`,
+    [pilotId, actorEmail, termsHash, scopeHash],
+  )
+  return result.rows[0] || null
+}
+
 export async function createTermsAcceptance(input: Record<string, unknown>): Promise<void> {
   const id = String(input.id || '')
   if (!id) throw new Error('terms acceptance id is required')
@@ -624,7 +658,7 @@ function applyPilotPatch(existing: StoredPilot, patch: PilotPatch): StoredPilot 
     revisions: patch.revisions || existing.revisions,
     signing: patch.signing || existing.signing,
     payment: patch.payment || existing.payment,
-    kickoff: patch.kickoff || existing.kickoff,
+    launch: patch.launch || existing.launch,
     resolvedStartDate:
       patch.resolvedStartDate !== undefined
         ? patch.resolvedStartDate
@@ -645,7 +679,7 @@ async function persistPilot(
             unresolved = $7, proposal = $8, success_criteria = $9,
             security_decisions = $10, reviewers = $11, version = $12,
             draft = $13, draft_ciphertext = $14, revisions = $15, signing = $16, payment = $17,
-            kickoff = $18, resolved_start_date = $19, history = $20,
+            launch = $18, resolved_start_date = $19, history = $20,
             updated_at = now()
       WHERE id = $1`,
     [
@@ -666,7 +700,7 @@ async function persistPilot(
       JSON.stringify(updated.revisions),
       JSON.stringify(updated.signing),
       JSON.stringify(updated.payment),
-      JSON.stringify(updated.kickoff),
+      JSON.stringify(updated.launch),
       updated.resolvedStartDate,
       JSON.stringify(updated.history),
     ],

@@ -8,7 +8,7 @@ import type {
 import {
   pilotControlledOptionLists as optionLists,
 } from './contracts'
-import { packageLimitLabel, packagePriceLabel, packageTermDays } from '../package-specifications'
+import { packageLimitLabel, packageMilestoneLabel, packagePriceLabel, packageTermDays } from '../package-specifications'
 import type {PilotOffer} from './pilot-offers'
 
 export type PilotRoute = 'zero-call' | 'one-call' | 'disqualified'
@@ -23,7 +23,7 @@ export type PilotState =
   | 'ready_sign'
   | 'signed'
   | 'paid'
-  | 'kickoff'
+  | 'launch'
   | 'active'
   | 'not_eligible'
 
@@ -38,7 +38,7 @@ export type PilotAction =
   | 'finalize'
   | 'sign'
   | 'pay'
-  | 'kickoff'
+  | 'launch'
   | 'activate'
   | 'share'
 
@@ -353,7 +353,7 @@ const STATE_LABELS: Record<PilotState, string> = {
   ready_sign: 'Ready for signature',
   signed: 'Purchased - payment due',
   paid: 'Paid',
-  kickoff: 'Kickoff reserved',
+  launch: 'Launch scheduled',
   active: 'Active',
   not_eligible: 'Not eligible',
 }
@@ -374,9 +374,9 @@ const TRANSITIONS: Record<PilotState, Partial<Record<PilotAction, PilotState>>> 
   },
   scope_confirmed: { finalize: 'ready_sign', request_exception: 'exception_review', revise: 'revision' },
   ready_sign: { sign: 'signed', revise: 'revision' },
-  signed: { pay: 'paid', kickoff: 'kickoff' },
-  paid: { kickoff: 'kickoff' },
-  kickoff: { pay: 'kickoff', activate: 'active' },
+  signed: { pay: 'paid' },
+  paid: { launch: 'launch' },
+  launch: { activate: 'active' },
   active: {},
   not_eligible: {},
 }
@@ -549,13 +549,17 @@ export const STANDARD_SUCCESS_KEYS = [
 export function buildSuccessCriteria(
   answers: PilotAnswers,
 ): SuccessCriterion[] {
-  const selected = new Set(parseSuccessKeys(answers.successCriterionKeysJson))
+  const raw = answers.successCriterionKeysJson
+  const hasExplicitSelection = typeof raw === 'string' && raw.trim() !== ''
+  const selected = new Set(parseSuccessKeys(raw))
   const label = (key: string) =>
     optionLists.successCriterionLabel[key as keyof typeof optionLists.successCriterionLabel] || key
-  return [...new Set([...STANDARD_SUCCESS_KEYS, ...selected])].map((key) => ({
+  // If no explicit selection, use standard keys as defaults. Otherwise, use only selected keys.
+  const keysToUse = hasExplicitSelection ? selected : new Set(STANDARD_SUCCESS_KEYS)
+  return [...keysToUse].map((key) => ({
     key,
     label: label(key),
-    status: selected.has(key) || STANDARD_SUCCESS_KEYS.includes(key) ? 'accepted' : 'not-applicable',
+    status: hasExplicitSelection ? (selected.has(key) ? 'accepted' : 'not-applicable') : 'accepted',
   }))
 }
 
@@ -730,8 +734,13 @@ export function buildCommercialSnapshot(
   const decisionDate = start
     ? new Date(new Date(start).getTime() + termDays * 86_400_000)
     : undefined
+  // Offer policy decides the credit window; Sanity milestone is the fallback.
+  // No hard-coded day counts here.
+  const windowLabel = packageMilestoneLabel(pilotSpec, 'annual-credit decision window')
+  const windowDays = Number.parseInt(String(windowLabel), 10)
+  const creditWindowDays = Number.isFinite(windowDays) && windowDays > 0 ? windowDays : 14
   const creditDeadline = decisionDate
-    ? new Date(decisionDate.getTime() + 6 * 86_400_000)
+    ? new Date(decisionDate.getTime() + creditWindowDays * 86_400_000)
     : undefined
   const iso = (date?: Date) => date?.toISOString().slice(0, 10)
 
@@ -1038,16 +1047,16 @@ export function computePilotProgressUnresolved(input: PilotProgressInput): Unres
   if (input.state === 'paid') {
     add({
       key: 'kickoff',
-      label: 'Schedule kickoff',
-      resolution: 'Schedule kickoff before activating the pilot.',
+      label: 'Schedule launch',
+      resolution: 'Schedule launch before activating the pilot.',
       href: '#pilot-actions',
     })
   }
-  if (input.state === 'kickoff') {
+  if (input.state === 'launch') {
     add({
       key: 'activation',
       label: 'Activate the pilot',
-      resolution: 'Activate the pilot once kickoff is scheduled.',
+      resolution: 'Activate the pilot once launch is scheduled.',
       href: '#pilot-actions',
     })
   }

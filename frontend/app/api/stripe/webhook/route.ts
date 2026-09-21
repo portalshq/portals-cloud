@@ -97,7 +97,7 @@ export async function POST(request: Request): Promise<NextResponse> {
               if (!applyTransition(existing.state, 'pay').allowed) return {result: existing}
               return {
                 patch: {
-                  state: existing.state === 'kickoff' ? 'kickoff' as const : 'paid' as const,
+                  state: existing.state === 'launch' ? 'launch' as const : 'paid' as const,
                   payment: {
                     ...(existing.payment || {}),
                     sessionId,
@@ -111,7 +111,7 @@ export async function POST(request: Request): Promise<NextResponse> {
               }
             })
             updated = res.pilot
-          } else if (pilot.state !== 'paid' && pilot.state !== 'kickoff') {
+          } else if (pilot.state !== 'paid' && pilot.state !== 'launch') {
             // Not pay-able and not already paid -> ignore
             return NextResponse.json({received: true})
           }
@@ -224,10 +224,10 @@ export async function POST(request: Request): Promise<NextResponse> {
         const pilot = await getPilotById(pilotId)
         if (pilot) {
           const {pilot: updated} = await mutatePilot(pilotId, (current) => {
-            if (!['signed', 'kickoff'].includes(current.state)) return {result: current}
+            if (!['signed', 'launch'].includes(current.state)) return {result: current}
             return {
               patch: {
-                state: current.state === 'kickoff' ? 'kickoff' as const : 'paid' as const,
+                state: current.state === 'launch' ? 'launch' as const : 'paid' as const,
                 payment: {
                   ...(current.payment || {}),
                   invoiceId: invoice.id,

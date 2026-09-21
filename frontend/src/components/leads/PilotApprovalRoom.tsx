@@ -275,8 +275,8 @@ export function PilotApprovalRoom({
   const [signerName, setSignerName] = useState(String(initial.answers.signerName || ''))
   const [signerEmail, setSignerEmail] = useState(String(initial.answers.signerEmail || ''))
   const [signerConsent, setSignerConsent] = useState(false)
-  const [kickoffDate, setKickoffDate] = useState(String(initial.kickoff?.date || initial.resolvedStartDate || kickoffAvailability[0]?.date || ''))
-  const [kickoffTimezone] = useState(String(initial.kickoff?.timezone || kickoffAvailability[0]?.timezone || 'America/New_York'))
+  const [kickoffDate, setKickoffDate] = useState(String(initial.launch?.date || initial.resolvedStartDate || kickoffAvailability[0]?.date || ''))
+  const [kickoffTimezone] = useState(String(initial.launch?.timezone || kickoffAvailability[0]?.timezone || 'America/New_York'))
   const [busy, setBusy] = useState(false)
   const [draftSaveState, setDraftSaveState] = useState<'idle' | 'saving' | 'failed'>('idle')
   const [draftRetry, setDraftRetry] = useState(0)
@@ -827,12 +827,12 @@ export function PilotApprovalRoom({
 
   async function onKickoff() {
     if (!kickoffDate) {
-      setError('Choose a kickoff date before reserving the slot.')
+      setError('Choose a launch date before reserving the slot.')
       return
     }
     const slot = kickoffAvailability.find((item) => item.date === kickoffDate)
-    if (await patch({ action: 'kickoff', kickoff: { date: kickoffDate, timezone: kickoffTimezone, slotLabel: slot?.label || kickoffDate, availabilityVersion: slot?.version || 'default' } }, { sync: true })) {
-      setNotice('Kickoff scheduled. The pilot can be activated.')
+    if (await patch({ action: 'launch', launch: { date: kickoffDate, timezone: kickoffTimezone, slotLabel: slot?.label || kickoffDate, availabilityVersion: slot?.version || 'default' } }, { sync: true })) {
+      setNotice('Launch scheduled. The pilot can be activated.')
     }
   }
 
@@ -963,13 +963,13 @@ export function PilotApprovalRoom({
         </button>
       )
     }
-    if (pilot.state === 'signed' || (pilot.state === 'kickoff' && !pilot.payment?.paidAt)) {
+    if (pilot.state === 'signed' || (pilot.state === 'launch' && !pilot.payment?.paidAt)) {
       return (
         <div className="grid gap-10">
           {pilot.payment?.paymentStatus === 'processing' ? <p className="t-p-sm-sans text-white/70">Payment processing. You can keep this room open; the status will update from Stripe.</p> : null}
           {pilot.state === 'signed' && kickoffAvailability.length > 0 ? (
             <label className="t-p-sm-sans text-white/70">
-              Reserve kickoff
+              Reserve launch
               <select className="mt-4 block w-full bg-white px-10 py-8 text-black" value={kickoffDate} onChange={(event) => setKickoffDate(event.target.value)}>
                 {kickoffAvailability.map((slot) => <option key={slot.date} value={slot.date}>{slot.label} ({slot.timezone})</option>)}
               </select>
@@ -978,7 +978,7 @@ export function PilotApprovalRoom({
           <div className="flex flex-wrap gap-10">
             <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>Pay the ${pilot.proposal?.priceAmount || 5000} pilot fee</button>
             <button onClick={() => void onInvoice()} disabled={busy} className={plainButtonClasses}>Pay by invoice / ACH</button>
-            {pilot.state === 'signed' ? <button onClick={() => void onKickoff()} disabled={busy} className={plainButtonClasses}>Reserve kickoff</button> : null}
+            {pilot.state === 'signed' ? <button onClick={() => void onKickoff()} disabled={busy} className={plainButtonClasses}>Reserve launch</button> : null}
           </div>
         </div>
       )
@@ -986,11 +986,11 @@ export function PilotApprovalRoom({
     if (pilot.state === 'paid') {
       return (
         <button onClick={() => void onKickoff()} disabled={busy} className={accentButtonClasses}>
-          Schedule kickoff
+          Schedule launch
         </button>
       )
     }
-    if (pilot.state === 'kickoff') {
+    if (pilot.state === 'launch') {
       return (
         <button onClick={() => void onActivate()} disabled={busy} className={accentButtonClasses}>
           Activate pilot
@@ -1013,7 +1013,7 @@ export function PilotApprovalRoom({
     {
       section: 'Agreement',
       view:
-        pilot.state === 'ready_sign' || pilot.state === 'signed' || pilot.state === 'paid' || pilot.state === 'kickoff' || pilot.state === 'active'
+        pilot.state === 'ready_sign' || pilot.state === 'signed' || pilot.state === 'paid' || pilot.state === 'launch' || pilot.state === 'active'
           ? { label: stateLabel(pilot.state), tone: 'ok' }
           : { label: 'Not yet available', tone: 'muted' },
     },
@@ -1098,7 +1098,7 @@ export function PilotApprovalRoom({
       </div>
 
       {
-        pilot.state === 'paid' || (pilot.state === 'kickoff' && pilot.payment?.paidAt) ? (
+        pilot.state === 'paid' || (pilot.state === 'launch' && pilot.payment?.paidAt) ? (
           <div className="mt-24 bg-white/10 rounded-sm px-18 py-16" role="status">
             <p className="t-p-sm-sans font-medium">Thank you — payment received.</p>
             <p className="mt-8 t-p-sm-sans text-white/60">Your pilot is confirmed. Schedule your launch below to keep production on track.</p>

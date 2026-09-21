@@ -24,15 +24,16 @@ import {
   type Reviewer,
   type ReviewerRole,
 } from '@/lib/leads/pilot'
-import { ApplicationRole, countPilotParticipants, pilotMembershipWithAccountRole } from '@/lib/leads/application-auth'
-import { pilotRoomPathForPilotOrFallback } from '@/lib/leads/account-paths'
 import {
   APP_SESSION_COOKIE,
+  ApplicationRole,
+  countPilotParticipants,
   currentApplicationUser,
   invitePilotMember,
-  pilotMembershipRole,
+  pilotMembershipWithAccountRole,
   revokePilotMember,
 } from '@/lib/leads/application-auth'
+import { pilotRoomPathForPilotOrFallback } from '@/lib/leads/account-paths'
 import { sendApplicationAccessEmail, sendPilotReviewInviteEmail } from '@/lib/leads/account-email'
 import { enqueueExceptionReviewTask } from '@/lib/leads/crm-events'
 import {
@@ -42,6 +43,7 @@ import {
   mutatePilot,
   updatePilot,
   createTermsAcceptance,
+  getTermsAcceptanceByPilotAndEmail,
   type StoredPilot,
 } from '@/lib/leads/store'
 import { hashValue } from '@/lib/leads/crypto'
@@ -85,7 +87,7 @@ type PatchAction =
   | 'finalize'
   | 'sign'
   | 'pay'
-  | 'kickoff'
+  | 'launch'
   | 'activate'
   | 'share'
 
@@ -110,7 +112,7 @@ type PatchBody = {
   resolutions?: Record<string, ConflictResolution>
   sectionChange?: { section: string; note: string }
   payment?: Record<string, unknown>
-  kickoff?: Record<string, unknown>
+  launch?: Record<string, unknown>
 }
 
 export const runtime = 'nodejs'
@@ -495,8 +497,8 @@ async function currentPilotRequestUser(request: Request) {
 async function authenticatedPilot(requestedId: string, request: Request): Promise<{
   user: NonNullable<Awaited<ReturnType<typeof currentApplicationUser>>>
   pilot: StoredPilot
-  accessRole: NonNullable<Awaited<ReturnType<typeof pilotMembershipRole>>>
-  accountRole: ApplicationRole | null
+  accessRole: NonNullable<Awaited<ReturnType<typeof pilotMembershipWithAccountRole>>>['pilotRole']
+  accountRole: NonNullable<Awaited<ReturnType<typeof pilotMembershipWithAccountRole>>>['accountRole']
 } | NextResponse> {
   const user = await currentPilotRequestUser(request)
   if (!user) {
@@ -590,7 +592,7 @@ export async function PATCH(
   if (body.action === 'sign' && accessRole !== 'owner' && accessRole !== 'signer') {
     return NextResponse.json({ ok: false, message: 'only an assigned signer can sign the agreement' }, { status: 403 })
   }
-  if (['confirm_scope', 'finalize', 'pay', 'kickoff', 'activate'].includes(body.action)) {
+  if (['confirm_scope', 'finalize', 'pay', 'launch', 'activate'].includes(body.action)) {
     if (accessRole !== 'owner') {
       return NextResponse.json({ ok: false, message: 'only the pilot owner can advance the pilot' }, { status: 403 })
     }
@@ -1044,12 +1046,12 @@ export async function PATCH(
       })
       const { reviewers } = result
       if (decision === 'changes') {
-        await enqueuePilotEmail(id, 'change_requested')
+        await enqueuePilotEmail(id, 'change_requested', undefined, `revision:${updated.version}:change_requested`)
       } else if (result.confirmedRoles.includes('technical_evaluator')) {
-        await enqueuePilotEmail(id, 'technical_confirmed')
+        await enqueuePilotEmail(id, 'technical_confirmed', undefined, `revision:${updated.version}:technical_confirmed`)
       }
       if (decision === 'confirm' && result.confirmedRoles.includes('economic_buyer')) {
-        await enqueuePilotEmail(id, 'terms_confirmed')
+        await enqueuePilotEmail(id, 'terms_confirmed', undefined, `revision:${updated.version}:terms_confirmed`)
       }
       const buyer = reviewers.find(
         (candidate) => candidate.role === 'economic_buyer' && candidate.status !== 'revoked',
@@ -1061,7 +1063,7 @@ export async function PATCH(
           candidate.status === 'reviewed',
       )
       if (buyer && buyer.status !== 'reviewed' && otherReviewed && decision === 'confirm' && buyer.email) {
-        await enqueuePilotEmail(id, 'buyer_nudge', buyer.email)
+        await enqueuePilotEmail(id, 'buyer_nudge', buyer.email, `revision:${updated.version}:buyer_nudge`)
       }
       return NextResponse.json({ ok: true, pilot: updated })
     }
@@ -1247,6 +1249,17 @@ export async function PATCH(
           { status: 400 },
         )
       }
+      // Single rule: owner-only rooms may skip team_review; rooms with other
+      // invited reviewers must confirm from team_review with all approvals.
+      const invitedOthers = pilot.reviewers.some(
+        (candidate) => candidate.role !== 'production_owner' && candidate.status !== 'revoked' && Boolean(candidate.email.trim()),
+      )
+      if (invitedOthers && pilot.state !== 'team_review') {
+        return NextResponse.json(
+          { ok: false, message: 'request team review and collect all approvals before confirming scope' },
+          { status: 422 },
+        )
+      }
       const next = recompute(pilot, body)
       const unresolved = computePilotProgressUnresolved({
         state: pilot.state,
@@ -1308,7 +1321,7 @@ export async function PATCH(
       finalize: null,
       sign: null,
       pay: null,
-      kickoff: null,
+      launch: null,
       activate: null,
       share: null,
     }
@@ -1370,12 +1383,28 @@ export async function PATCH(
       }
       const acceptanceText = 'By selecting Confirm pilot & purchase, you represent that you are authorized to accept these terms on behalf of this organization and agree to the Production Pilot Terms, Privacy Policy, and pilot scope shown above.'
       const acceptedAt = new Date().toISOString()
+      const signerEmailError = validatePilotMemberEmail(email, 'signer')
+      if (signerEmailError) {
+        return NextResponse.json({ ok: false, message: signerEmailError }, { status: 400 })
+      }
       const termsSnapshot = {
         proposal: pilot.proposal,
         scope: { answers, criteria: pilot.successCriteria, security: pilot.securityDecisions },
       }
       const scopeHash = hashValue(JSON.stringify(termsSnapshot))
       const termsVersion = String(process.env.PILOT_TERMS_VERSION || 'pilot-terms-v1')
+      const termsHash = hashValue(`${termsVersion}:${acceptanceText}`)
+      
+      // Check for existing acceptance with this email to prevent duplicate inserts
+      // (UNIQUE constraint is on pilot_id, terms_hash, pilot_scope_hash - not actor_email)
+      const existingAcceptance = await getTermsAcceptanceByPilotAndEmail(id, email, termsHash, scopeHash)
+      if (existingAcceptance) {
+        return NextResponse.json(
+          { ok: false, message: 'Terms already accepted by this signer' },
+          { status: 409 },
+        )
+      }
+      
       const acceptanceId = randomUUID()
       await createTermsAcceptance({
         id: acceptanceId,
@@ -1407,10 +1436,6 @@ export async function PATCH(
         annualCreditTermsVersion: pilot.proposal?.offerTermsVersion || termsVersion,
         materialExceptionsPending: hasPendingMaterialException(pilot.exceptions),
       })
-      const signerEmailError = validatePilotMemberEmail(email, 'signer')
-      if (signerEmailError) {
-        return NextResponse.json({ ok: false, message: signerEmailError }, { status: 400 })
-      }
       const updated = await updatePilot(id, {
         state: stateChange.state,
         signing: {
@@ -1466,20 +1491,24 @@ export async function PATCH(
       return NextResponse.json({ ok: true, pilot: updated })
     }
 
-    if (body.action === 'kickoff') {
-      const stateChange = applyTransition(pilot.state, 'kickoff')
+    if (body.action === 'launch') {
+      const stateChange = applyTransition(pilot.state, 'launch')
       if (!stateChange.allowed) {
-        return NextResponse.json({ ok: false, message: 'kickoff cannot be scheduled in the current state' }, { status: 400 })
+        return NextResponse.json({ ok: false, message: 'launch cannot be scheduled in the current state' }, { status: 400 })
       }
-      const kickoff = body.kickoff
-      if (!kickoff || !String(kickoff.date || '').trim() || !String(kickoff.timezone || '').trim() || !String(kickoff.slotLabel || '').trim() || !String(kickoff.availabilityVersion || '').trim()) {
-        return NextResponse.json({ ok: false, message: 'kickoff date, timezone, slot label, and availability version are required' }, { status: 400 })
+      // Require payment before launch
+      if (!pilot.payment?.paidAt) {
+        return NextResponse.json({ ok: false, message: 'Payment is required before scheduling launch' }, { status: 400 })
+      }
+      const launch = body.launch
+      if (!launch || !String(launch.date || '').trim() || !String(launch.timezone || '').trim() || !String(launch.slotLabel || '').trim() || !String(launch.availabilityVersion || '').trim()) {
+        return NextResponse.json({ ok: false, message: 'launch date, timezone, slot label, and availability version are required' }, { status: 400 })
       }
       const updated = await updatePilot(id, {
         state: stateChange.state,
-        kickoff: {
-          ...(pilot.kickoff || {}),
-          ...(body.kickoff || {}),
+        launch: {
+          ...(pilot.launch || {}),
+          ...(body.launch || {}),
           scheduledAt: new Date().toISOString(),
         },
         historyNote: body.note,
@@ -1487,8 +1516,8 @@ export async function PATCH(
       })
       await notifyPilotRoomEvent({
         pilot: updated,
-        event: 'kickoff_scheduled',
-        eventKey: `kickoff:${updated.version}:${Date.now()}`,
+        event: 'launch_scheduled',
+        eventKey: `launch:${updated.version}:${Date.now()}`,
       })
       return NextResponse.json({ ok: true, pilot: updated })
     }
@@ -1570,7 +1599,7 @@ export async function PATCH(
       by: body.by,
     })
     const variant = emailVariant[body.action]
-    if (variant) await enqueuePilotEmail(id, variant)
+    if (variant) await enqueuePilotEmail(id, variant, undefined, `revision:${updated.version}:${variant}`)
     if (transition === 'request_exception') {
       const eventKey = `exception-review:${updated.id}:${updated.updatedAt}`
       await notifyPilotRoomEvent({

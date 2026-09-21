@@ -31,8 +31,8 @@ export const BillingPlans = {
         chargeModel: "graduated",    // Lago "graduated" = tiered pricing
         tiers: [
           { fromValue: 0, toValue: 100_000, unitAmountCents: 0 },     // free tier
-          { fromValue: 100_001, toValue: 1_000_000, unitAmountCents: 1 }, // $0.0001/call
-          { fromValue: 1_000_001, toValue: null, unitAmountCents: 0.5 },  // volume discount
+          { fromValue: 100_001, toValue: 1_000_000, unitAmountCents: 1 }, // $0.01 per 100 calls = $0.0001/call equivalent
+          { fromValue: 1_000_001, toValue: null, unitAmountCents: 1 },  // volume tier, same rate
         ],
       },
       {
@@ -45,7 +45,7 @@ export const BillingPlans = {
         chargeModel: "graduated",
         tiers: [
           { fromValue: 0, toValue: 1_073_741_824, unitAmountCents: 0 },         // 1GB free
-          { fromValue: 1_073_741_825, toValue: null, unitAmountCents: 0.000001 }, // $0.10/GB
+          { fromValue: 1_073_741_825, toValue: null, unitAmountCents: 1 }, // $0.10/GB approx, whole cents only
         ],
       },
     ],

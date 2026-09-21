@@ -1,7 +1,7 @@
 import {cookies} from 'next/headers'
 import {NextResponse} from 'next/server'
 import {createStripePlatformBilling, createStripePlatformClient} from '@portalshq/billing'
-import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole, linkPilotStripeCustomer} from '@/lib/leads/application-auth'
+import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipWithAccountRole, linkPilotStripeCustomer} from '@/lib/leads/application-auth'
 import {hasPendingMaterialException} from '@/lib/leads/pilot'
 import {createBillingCustomer, getPilotById, leadsDryRun, mutatePilot} from '@/lib/leads/store'
 
@@ -21,12 +21,12 @@ export async function POST(
   const pilot = await getPilotById(id)
   if (!pilot) return NextResponse.json({ok: false, message: 'pilot record not found'}, {status: 404})
   const user = await currentApplicationUser(cookieValue(request, APP_SESSION_COOKIE) || (await cookies()).get(APP_SESSION_COOKIE)?.value)
-  const role = user ? await pilotMembershipRole(id, user.id) : null
-  if (!user || role !== 'owner') return NextResponse.json({ok: false, message: 'only the account owner can issue the invoice'}, {status: 403})
+  const {pilotRole, accountRole, customerAccountId} = user ? await pilotMembershipWithAccountRole(id, user.id) : {pilotRole: null, accountRole: null, customerAccountId: null}
+  if (!user || pilotRole !== 'owner' || accountRole !== 'owner') return NextResponse.json({ok: false, message: 'only the account owner can issue the invoice'}, {status: 403})
   if (hasPendingMaterialException(pilot.exceptions)) {
     return NextResponse.json({ok: false, code: 'material_exception', message: 'invoice creation is unavailable until the flagged pilot exception is resolved'}, {status: 422})
   }
-  if (pilot.state !== 'signed' && pilot.state !== 'kickoff') return NextResponse.json({ok: false, message: 'the pilot must be signed before an invoice can be issued'}, {status: 400})
+  if (pilot.state !== 'signed' && pilot.state !== 'launch') return NextResponse.json({ok: false, message: 'the pilot must be signed before an invoice can be issued'}, {status: 400})
 
   const existingInvoice = String(pilot.payment?.invoiceId || '')
   if (existingInvoice) {

@@ -330,9 +330,21 @@ async function syncPilotRecord(
     if (pilot.profileId !== profileId) return response
     const transition = applyTransition(pilot.state, 'revise')
     if (!transition.allowed && pilot.state !== 'not_eligible') return response
+    // Preserve existing reviewer emails on revision; don't overwrite with empty strings from form
+    // (invites are now in-room only, form may send empty values)
+    const existingAnswers = pilot.answers as Record<string, unknown>
+    const reviewerEmailFields = [
+      'economicBuyerEmail', 'technicalEvaluatorEmail', 'approverEmail', 'signerEmail'
+    ]
     const nextAnswers = {
-      ...(pilot.answers as Record<string, unknown>),
+      ...existingAnswers,
       ...answers,
+      // Restore existing reviewer emails if form sends empty strings
+      ...Object.fromEntries(
+        reviewerEmailFields
+          .filter(field => existingAnswers[field] && !String((answers as Record<string, unknown>)[field] || '').trim())
+          .map(field => [field, existingAnswers[field]])
+      ),
       ...(submitterEmail ? { email: submitterEmail } : {}),
       ...(submitterName ? { name: submitterName } : {}),
     }
@@ -472,7 +484,7 @@ async function syncPilotRecord(
   })
   await attachSubmissionToPilot(submissionId, pilot.id)
   try {
-    await enqueuePilotEmail(pilot.id, 'reviewing')
+    await enqueuePilotEmail(pilot.id, 'reviewing', undefined, `revision:${pilot.version}:reviewing`)
   } catch (cause) {
     console.error('pilot email failed', cause)
   }

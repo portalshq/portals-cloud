@@ -410,7 +410,7 @@ test('commercial snapshot synthesizes the studio annual option without specs', (
   assert.equal(snapshot.termStart, '2026-08-10')
   assert.equal(snapshot.termEnd, '2026-08-30')
   assert.equal(snapshot.decisionDate, '2026-08-31')
-  assert.equal(snapshot.creditDeadline, '2026-09-06')
+  assert.equal(snapshot.creditDeadline, '2026-09-14')
   assert.equal(snapshot.annualOption?.slug, 'studio')
   assert.equal(snapshot.annualOption?.annualTotal, 30000)
   assert.match(String(snapshot.annualOption?.creditNote), /credited if the annual order form/)

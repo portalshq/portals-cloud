@@ -219,18 +219,7 @@ export async function trackQualificationAnswers(
   await trackEvent('qualification_answers_submitted', properties)
 }
 
-export async function trackDealRoles(
-  properties: {
-    initialContact?: {name: string; email: string}
-    projectManager?: {name: string; email: string}
-    buyer?: {name: string; email: string}
-    evaluator?: {name: string; email: string}
-    decisionMaker?: {name: string; email: string}
-    contractSigner?: {name: string; email: string}
-  },
-): Promise<void> {
-  await trackEvent('deal_roles_identified', properties)
-}
+// trackDealRoles removed: sent PII to Mixpanel and was never called
 
 /**
  * Stores form parameters in localStorage for cross-page persistence
@@ -301,8 +290,9 @@ export function captureUrlParams(): void {
     const params = new URLSearchParams(window.location.search)
     const paramObj: Record<string, string> = {}
     
-    // Store all URL parameters
+    // Store all URL parameters except secrets (magic-link token, next redirect)
     for (const [key, value] of params.entries()) {
+      if (key === 'token' || key === 'next') continue
       paramObj[key] = value
     }
     

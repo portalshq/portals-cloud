@@ -24,7 +24,7 @@ export type PilotRoomEvent =
   | 'agreement_ready'
   | 'signed'
   | 'paid'
-  | 'kickoff_scheduled'
+  | 'launch_scheduled'
   | 'pilot_active'
 
 const ANSWER_SECTIONS: Record<string, PilotRoomSection> = {
@@ -237,7 +237,7 @@ export async function notifyPilotRoomEvent(input: {
         'agreement_ready',
         'signed',
         'paid',
-        'kickoff_scheduled',
+        'launch_scheduled',
         'pilot_active',
       ].includes(input.event)
     ) {

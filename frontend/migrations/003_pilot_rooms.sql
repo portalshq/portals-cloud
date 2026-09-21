@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS lead_pilots (
   history jsonb NOT NULL DEFAULT '[]'::jsonb,
   signing jsonb NOT NULL DEFAULT '{}'::jsonb,
   payment jsonb NOT NULL DEFAULT '{}'::jsonb,
-  kickoff jsonb NOT NULL DEFAULT '{}'::jsonb,
+  launch jsonb NOT NULL DEFAULT '{}'::jsonb,
   resolved_start_date date,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()

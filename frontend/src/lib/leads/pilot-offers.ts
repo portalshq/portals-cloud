@@ -25,6 +25,7 @@ const offerClient = createClient({
   dataset: process.env.NEXT_PUBLIC_SANITY_DATASET!,
   apiVersion: '2026-07-01',
   useCdn: false,
+  // Use public read client for published content; token only for preview/drafts
   token: process.env.SANITY_API_TOKEN,
 })
 
@@ -53,9 +54,31 @@ export async function resolveCurrentPilotOffer(
   if (offerSlug && !normalizedOfferSlug) {
     throw new Error('invalid pilot offer selector')
   }
-  if (!process.env.SANITY_API_TOKEN) {
-    if (normalizedOfferSlug) throw new Error('pilot offer resolution is not configured')
-    return null
+  // Public read client works for published content; token only needed for preview/drafts
+  // If token is missing and we have a specific offer slug, we can't resolve it
+  if (!process.env.SANITY_API_TOKEN && normalizedOfferSlug) {
+    throw new Error('pilot offer resolution is not configured')
+  }
+  // If no token and no specific offer, try public read - may fail silently
+  if (!process.env.SANITY_API_TOKEN && !normalizedOfferSlug) {
+    try {
+      // Attempt public read for auto-resolve
+      const publicClient = createClient({
+        projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
+        dataset: process.env.NEXT_PUBLIC_SANITY_DATASET!,
+        apiVersion: '2026-07-01',
+        useCdn: true,
+      })
+      const query = `*[_type == "pilotOfferVariant" && basePackage->slug.current == "paid-pilot" && status == "active" && startsAt <= $now && endsAt > $now] | order(startsAt desc)${OFFER_FIELDS}`
+      const offers = await publicClient.fetch<PilotOffer[]>(query, {now: now.toISOString()})
+      if (offers.length > 1) throw new Error('multiple active pilot offers are configured')
+      const offer = offers[0]
+      if (!offer) return null
+      return validateAndNormalizeOffer(offer, now, email)
+    } catch {
+      // Public read failed, return null to fall back to base price
+      return null
+    }
   }
 
   const query = normalizedOfferSlug
@@ -71,6 +94,10 @@ export async function resolveCurrentPilotOffer(
   }
   const offer = offers[0]
   if (!offer) return null
+  return validateAndNormalizeOffer(offer, now, email)
+}
+
+function validateAndNormalizeOffer(offer: PilotOffer, now: Date, email?: string): PilotOffer {
   if (offer.basePackageSlug !== 'paid-pilot') throw new Error('invalid pilot offer package')
 
   const startsAt = new Date(offer.startsAt).getTime()

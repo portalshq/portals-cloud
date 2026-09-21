@@ -3,7 +3,7 @@ import {cookies} from 'next/headers'
 import type Stripe from 'stripe'
 import {createStripePlatformBilling} from '@portalshq/billing'
 import {pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
-import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
+import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipWithAccountRole} from '@/lib/leads/application-auth'
 import {applyTransition, hasPendingMaterialException} from '@/lib/leads/pilot'
 import {siteUrl} from '@/lib/leads/email'
 import {
@@ -27,12 +27,12 @@ export async function POST(
     return NextResponse.json({ok: false, message: 'pilot record not found'}, {status: 404})
   }
   const user = await currentApplicationUser((await cookies()).get(APP_SESSION_COOKIE)?.value)
-  const accessRole = user ? await pilotMembershipRole(pilot.id, user.id) : null
-  if (!accessRole || !['owner', 'signer'].includes(accessRole)) {
+  const {pilotRole, accountRole, customerAccountId} = user ? await pilotMembershipWithAccountRole(pilot.id, user.id) : {pilotRole: null, accountRole: null, customerAccountId: null}
+  if (!pilotRole || !['owner', 'signer'].includes(pilotRole) || accountRole !== 'owner') {
     return NextResponse.json({ok: false, message: 'only the account owner or signer can start payment'}, {status: 403})
   }
   // Already paid -> idempotent success (no new session)
-  if (pilot.state === 'paid' || (pilot.state === 'kickoff' && pilot.payment?.paidAt)) {
+  if (pilot.state === 'paid' || (pilot.state === 'launch' && pilot.payment?.paidAt)) {
     return NextResponse.json({ok: true, url: null, pilot})
   }
   if (hasPendingMaterialException(pilot.exceptions)) {
@@ -58,7 +58,7 @@ export async function POST(
       if (!applyTransition(existing.state, 'pay').allowed) throw new Error('payment cannot be recorded in the current state')
       return {
         patch: {
-          state: existing.state === 'kickoff' ? 'kickoff' as const : 'paid' as const,
+          state: existing.state === 'launch' ? 'launch' as const : 'paid' as const,
           payment: {
             ...(existing.payment || {}),
             sessionId: `sim_${id}`,
@@ -72,7 +72,7 @@ export async function POST(
         result: existing,
       }
     })
-    if (final.state === 'paid' || final.state === 'kickoff') {
+    if (final.state === 'paid' || final.state === 'launch') {
       await notifyPilotRoomEvent({
         pilot: final,
         event: 'paid',

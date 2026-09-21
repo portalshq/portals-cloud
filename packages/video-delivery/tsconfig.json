@@ -5,7 +5,8 @@
         "outDir": "dist",
         "jsx": "react-jsx",
         "types": [
-            "node"
+            "node",
+            "dom"
         ],
         "downlevelIteration": false
     },

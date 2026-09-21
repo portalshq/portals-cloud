@@ -613,10 +613,38 @@ async function addToLists(modality: 'contacts' | 'accounts', id: string, names: 
 async function reconcileOperationalList(accountId: string, desired: ListKey | null): Promise<void> {
   if (!desired) return
   const lists = listConfig()
-  const all = [lists.nurture, lists.qualifiedOpportunities, lists.pilotRequests, lists.paidPilots, lists.customers]
-  await apolloRequest('/api/v1/labels/remove_entity_ids_from_label_names', 'POST', {
-    entity_ids: [accountId], label_names: all.filter((item) => item !== lists[desired]), modality: 'accounts',
-  })
+  // Progression hierarchy: nurture -> qualifiedOpportunities -> pilotRequests -> paidPilots -> customers
+  const progression = ['nurture', 'qualifiedOpportunities', 'pilotRequests', 'paidPilots', 'customers'] as const
+  const desiredIndex = progression.indexOf(desired as typeof progression[number])
+  
+  // If desired is not an operational list, just set it directly
+  if (desiredIndex === -1) {
+    await addToLists('accounts', accountId, [lists[desired]])
+    return
+  }
+  
+  // Get current lists to check if already in higher tier
+  const current = await apolloRequest<{labels: Array<{name: string}>}>('/api/v1/accounts/' + accountId, 'GET')
+  const currentLabels = new Set(current?.labels?.map((l) => l.name) || [])
+  
+  // Find highest current tier
+  let currentIndex = -1
+  for (let i = 0; i < progression.length; i++) {
+    if (currentLabels.has(lists[progression[i]])) {
+      currentIndex = i
+    }
+  }
+  
+  // Only upgrade, never downgrade. If already in higher tier, stay there.
+  if (currentIndex >= desiredIndex) return
+  
+  // Remove all operational lists below current tier, add desired
+  const toRemove = progression.slice(0, desiredIndex).map((key) => lists[key])
+  if (toRemove.length > 0) {
+    await apolloRequest('/api/v1/labels/remove_entity_ids_from_label_names', 'POST', {
+      entity_ids: [accountId], label_names: toRemove, modality: 'accounts',
+    })
+  }
   await addToLists('accounts', accountId, [lists[desired]])
 }
 

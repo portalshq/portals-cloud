@@ -94,19 +94,17 @@ function validateBuildParams(params: BuildUrlParams): { valid: boolean; errors: 
  * Builds a complete URL with encoded query parameters
  */
 export function buildFormUrl(baseUrl: string, params: BuildUrlParams): string {
-  // Validate parameters
+  // Validate parameters; invalid fields are dropped by normalizeBuildParams.
   const validation = validateBuildParams(params)
   if (!validation.valid) {
     console.warn('[Build URL] Validation errors:', validation.errors)
-    // Continue with valid parameters only - filter out invalid fields
-    const result = buildUrlParamSchema.safeParse(params)
-    if (result.success) {
-      // Use validated (and filtered) params
-      const normalizedParams = normalizeBuildParams(result.data)
-      const queryString = new URLSearchParams(normalizedParams).toString()
-      return queryString ? `${baseUrl}?${queryString}` : baseUrl
-    }
+    // Continue anyway - normalizeBuildParams will drop invalid fields
   }
+  
+  // Handle fragment properly: split on first # only, in case fragment contains ?
+  const hashIndex = baseUrl.indexOf('#')
+  const base = hashIndex === -1 ? baseUrl : baseUrl.slice(0, hashIndex)
+  const fragment = hashIndex === -1 ? undefined : baseUrl.slice(hashIndex + 1)
 
   // Normalize parameters
   const normalizedParams = normalizeBuildParams(params)
@@ -114,8 +112,9 @@ export function buildFormUrl(baseUrl: string, params: BuildUrlParams): string {
   // Build query string
   const queryString = new URLSearchParams(normalizedParams).toString()
 
-  // Return URL with query string
-  return queryString ? `${baseUrl}?${queryString}` : baseUrl
+  // Return URL with query string, preserving any #fragment
+  const withQuery = queryString ? `${base}?${queryString}` : base
+  return fragment !== undefined ? `${withQuery}#${fragment}` : withQuery
 }
 
 /**

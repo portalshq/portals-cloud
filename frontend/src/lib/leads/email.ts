@@ -270,7 +270,7 @@ export async function pilotCopy(
         ].join('\n'),
       }
     }
-    case 'kickoff': {
+    case 'launch': {
       return {
         subject: 'your production pilot is live',
         text: [
@@ -393,7 +393,7 @@ export async function pilotCopy(
         ].join('\n'),
       }
     }
-    case 'kickoff_scheduled': {
+    case 'launch_scheduled': {
       return {
         subject: 'pilot scheduled',
         text: [
