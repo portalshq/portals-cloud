@@ -1,6 +1,6 @@
 'use client'
 
-import {usePathname} from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 export function MarketingFooter() {
   const pathname = usePathname()
@@ -9,7 +9,7 @@ export function MarketingFooter() {
   return (
     <footer
       className="ui-grid relative z-(--z-footer) min-h-[52vh] pb-50 text-white lg:pt-50"
-      style={isPx ? {backgroundColor: '#000', isolation: 'isolate'} : undefined}
+      style={isPx ? { backgroundColor: '#000', isolation: 'isolate' } : undefined}
     >
       {!isPx && <div
         className="pointer-events-none absolute inset-x-0 -top-128 bottom-0 z-0"
@@ -32,17 +32,17 @@ export function MarketingFooter() {
             <nav aria-label="Explore" className="space-y-12">
               <h2 className="t-p-sm-sans text-white/60">explore</h2>
               <ul className="space-y-8 t-p-sans text-white/80">
-                <li><a href="/production-memory" className="transition-colors hover:text-white">production memory</a></li>
                 <li><a href="/use-cases" className="transition-colors hover:text-white">use cases</a></li>
+                <li><a href="/production-memory" className="transition-colors hover:text-white">production memory</a></li>
                 <li><a href="/blog" className="transition-colors hover:text-white">blog</a>
                 </li>
                 <li><a href="/px" className="transition-colors hover:text-white">px</a></li>
-                <li><a href="/assessment" className="transition-colors hover:text-white">assess your workflow</a></li>
                 <li><a href="/resources/production-memory-brief" className="transition-colors hover:text-white">production memory brief</a></li>
+                <li><a href="/assessment" className="transition-colors hover:text-white">assess your workflow</a></li>
               </ul>
             </nav>
             <nav aria-label="Work with Portals" className="space-y-12">
-              <h2 className="t-p-sm-sans text-white/60">work with portals</h2>
+              <h2 className="t-p-sm-sans text-white/60">get started</h2>
               <ul className="space-y-8 t-p-sans text-white/80">
                 <li><a href="/pilot" className="transition-colors hover:text-white">paid pilot</a></li>
                 <li><a href="/security-and-architecture" className="transition-colors hover:text-white">security</a></li>

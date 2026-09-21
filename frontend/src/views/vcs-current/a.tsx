@@ -876,8 +876,7 @@ function PricingSection({
             </article>
           )) : null}
         </div>
-
-        <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
+        <div className="mt-40 col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
           {pricingTiers.map((tier) => (
             <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
               <h3 className="t-h3-sans mb-20">{tier.name}</h3>

@@ -61,7 +61,7 @@ let DEFAULT_BG_COLOR2 = "#726DD2";
 
 let DEFAULT_RAMP1 = [
   { stop: 0, color: "#0E115F" },
-  { stop: 0.148, color: "#ffffff" },
+  { stop: 0.148, color: "#0E115F" },
   { stop: 0.381, color: "#0E115F" },
   { stop: 0.673, color: "#726DD2" },
   { stop: 0.891, color: "#726DD2" },

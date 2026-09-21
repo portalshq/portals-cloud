@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'),
   title: 'Production memory for AI-native creative teams | portals',
   description: SITE_DESCRIPTION,
-  icons: { icon: '/favicon-blue.svg' },
+  icons: { icon: '/favicon.svg' },
   robots: 'index, follow',
   alternates: { canonical: canonical('/') },
   openGraph: {
@@ -53,7 +53,7 @@ export default function RootLayout({
       <body>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{__html: JSON.stringify(orgWebSiteJsonLd())}}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgWebSiteJsonLd()) }}
         />
         <Providers>{children}</Providers>
       </body>
