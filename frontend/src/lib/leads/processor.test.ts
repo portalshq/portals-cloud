@@ -45,7 +45,7 @@ async function createPilot(email: string): Promise<{pilot: StoredPilot; submissi
     formVersion: 'resource.v1',
     provider: 'browser' as const,
     identity: {email, company: 'Studio Example', role: 'producer', website: ''},
-    attribution: {sourcePage: '/paid-pilot'},
+    attribution: {sourcePage: '/pilot'},
     consent: {disclosureVersion: '2026-08-01' as const, marketing: false, analytics: false},
     companyFax: '',
     answers: {interest: 'asset-reproduction'},

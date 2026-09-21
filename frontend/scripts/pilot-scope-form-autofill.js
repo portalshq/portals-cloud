@@ -1,4 +1,4 @@
-// console auto-fill script. Paste it into the browser console on the /paid-pilot page (the pilot-scope form). All option values are taken directly from PilotScopeForm.tsx / ProgressiveAssessmentFields.tsx so they pass the :invalid gating on each stage.
+// console auto-fill script. Paste it into the browser console on the /pilot page (the pilot-scope form). All option values are taken directly from PilotScopeForm.tsx / ProgressiveAssessmentFields.tsx so they pass the :invalid gating on each stage.
 (() => {
   const $ = (s) => document.querySelector(s)
   const $$ = (s) => Array.from(document.querySelectorAll(s))

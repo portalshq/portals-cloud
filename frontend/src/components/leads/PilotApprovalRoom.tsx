@@ -1003,6 +1003,13 @@ export function PilotApprovalRoom({
         </div>
       </div>
 
+      {pilot.state === 'paid' || (pilot.state === 'kickoff' && pilot.payment?.paidAt) ? (
+        <div className="mt-24 bg-white/10 rounded-sm px-18 py-16" role="status">
+          <p className="t-p-sm-sans font-medium">Thank you — payment received.</p>
+          <p className="mt-8 t-p-sm-sans text-white/60">Your pilot is confirmed. Schedule your launch below to keep production on track.</p>
+        </div>
+      ) : null}
+
       {pilot.state === 'not_eligible' ? (
         <div className="mt-24 bg-white/10 rounded-sm px-18 py-16">
           <p className="t-p-sm-sans">The standard pilot cannot proceed as drafted.</p>

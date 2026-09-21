@@ -8,7 +8,7 @@ Single positioning sentence (use everywhere, never rephrase into new jargon):
 
 Canonical routes: `/`, `/production-memory`, `/use-cases`, `/use-cases/[slug]`,
 `/blog`, `/blog/[slug]`,
-`/assessment`, `/resources/production-memory-brief`, `/contact`, `/paid-pilot`,
+`/assessment`, `/resources/production-memory-brief`, `/contact`, `/pilot`,
 `/security-and-architecture`, `/privacy-policy`, `/terms-of-service`,
 `/workflow/ai-production-workflow-risks` (legacy, keep until folded into `/use-cases`).
 
@@ -16,7 +16,7 @@ Canonical routes: `/`, `/production-memory`, `/use-cases`, `/use-cases/[slug]`,
   (see `next.config.ts`); the file under `workflow/assessment/` is the implementation,
   `/assessment` re-exports it.
 - No path aliases: one URL per page. Deleting an alias means adding a `redirects()` entry.
-- `/paid-pilot` and `/security-and-architecture` are explicit static routes that read
+- `/pilot` and `/security-and-architecture` are explicit static routes that read
   fixed Sanity slugs — do not add them to the `[slug]` catch-all.
 - Dead placeholder routes (`roadmap`, `interactive`) were deleted. Do not recreate
   without content, metadata, and a sitemap entry.

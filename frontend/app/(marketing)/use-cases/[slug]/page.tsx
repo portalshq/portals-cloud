@@ -72,7 +72,7 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
           <p className="t-p-lg-serif mt-32 max-w-3xl text-white/75">{useCase.outcome}</p>
           <div className="mt-40 flex flex-wrap gap-16">
             <CTAButton href="/assessment">Assess this workflow</CTAButton>
-            <CTAButton href="/paid-pilot#scope" appearance="plain">
+            <CTAButton href="/pilot#scope" appearance="plain">
               Scope a production pilot
             </CTAButton>
           </div>

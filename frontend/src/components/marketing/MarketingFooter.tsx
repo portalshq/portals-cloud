@@ -44,7 +44,7 @@ export function MarketingFooter() {
             <nav aria-label="Work with Portals" className="space-y-12">
               <h2 className="t-p-sm-sans text-white/60">work with portals</h2>
               <ul className="space-y-8 t-p-sans text-white/80">
-                <li><a href="/paid-pilot" className="transition-colors hover:text-white">paid pilot</a></li>
+                <li><a href="/pilot" className="transition-colors hover:text-white">paid pilot</a></li>
                 <li><a href="/security-and-architecture" className="transition-colors hover:text-white">security</a></li>
                 <li><a href="/contact" className="transition-colors hover:text-white">contact us</a></li>
               </ul>

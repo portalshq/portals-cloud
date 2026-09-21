@@ -258,7 +258,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
 
   if (!cta) return null
 
-  const href = '/paid-pilot#scope'
+  const href = '/pilot#scope'
 
   return (
     <section id="pilot" data-header-theme="light">
@@ -351,7 +351,7 @@ function FinalCTA() {
             Deliver faster at lower cost with complete asset history and identity from first generation through shipped production.
           </p>
           <div className="flex flex-col sm:flex-row gap-16 items-center justify-center">
-            <CTAButton href="/paid-pilot#scope">Scope a pilot</CTAButton>
+            <CTAButton href="/pilot#scope">Scope a pilot</CTAButton>
             <CTAButton
               href="/assessment"
               appearance="plain"

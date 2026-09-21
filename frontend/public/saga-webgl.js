@@ -254,8 +254,7 @@ function interpolateColor(stops, t) {
   return last.color.clone();
 }
 
-function generateGradientTexture(stops, width = 256) {
-  // Performance optimization: Reduced from 1024 to 256 for better performance
+function generateGradientTexture(stops, width = 1024) {
   const data = new Uint8Array(4 * width);
   const sorted = [...stops].sort((a, b) => a.stop - b.stop);
   for (let i = 0; i < width; i++) {
@@ -316,8 +315,7 @@ class Timer {
     this._start = performance.now();
     this._delta = 0;
     this._elapsed = 0;
-    this._timescale = 0.475; // Reduced from 0.95 for half speed animation
-    this._originalTimescale = 0.475; // Store original for restoration
+    this._timescale = 0.95;
     this._onVis = this._onVis.bind(this);
   }
 
@@ -335,14 +333,6 @@ class Timer {
 
   getDelta()   { return this._delta / 1000; }
   getElapsed() { return this._elapsed / 1000; }
-
-  setTimescale(value) {
-    this._timescale = value;
-  }
-
-  restoreOriginalTimescale() {
-    this._timescale = this._originalTimescale;
-  }
 
   update(now) {
     if (document.hidden) { this._delta = 0; return; }
@@ -457,7 +447,7 @@ float perlinNoise(vec3 p) {
 }
 
 void main() {
-  float noise = perlinNoise(vec3(vUv.x*5., vUv.y*5., uTime*0.5)); // Half speed animation
+  float noise = perlinNoise(vec3(vUv.x*5., vUv.y*5., uTime));
   vec3 fromColor = mix(uColor1, uColor2, noise);
   vec3 toColor = mix(uColor1To, uColor2To, noise);
   vec3 color = mix(fromColor, toColor, smoothstep(0.0, 1.0, uBackgroundMix));
@@ -525,8 +515,7 @@ float blenderNoise(vec3 p, float scale, float detail, float roughness) {
   float total = 0.0;
   float amplitude = 1.0;
   float maxValue = 0.0;
-  // Performance optimization: Reduced max octaves from 16 to 8
-  int octaves = int(clamp(detail, 1.0, 8.0));
+  int octaves = int(clamp(detail, 1.0, 16.0));
   for (int i = 0; i < octaves; i++) {
     float n = perlinNoise(p) * 0.5 + 0.5;
     total += n * amplitude;
@@ -549,8 +538,7 @@ float blenderWave(vec3 p, float scale, float distortion, float detail, float rou
 }
 
 vec3 middleGradient(vec3 base, vec3 c1, vec3 c2, float wave) {
-  // Performance optimization: Reduced noise complexity
-  float n = wave * perlinNoise(vec3(vUv.x, 1., (vUv.y - uTime*0.04) * .2) * 25.) + .2;
+  float n = wave * perlinNoise(vec3(vUv.x, 1., (vUv.y - uTime*0.04) * .2) * 50.) + .2;
   vec3 baseColor = base;
   vec3 color = c1;
   float center = 0.48;
@@ -598,9 +586,9 @@ vec3 sampleColorRamp(sampler2D rampFrom, sampler2D rampTo, float rampMix, float 
 
 void main() {
   vec3 color = vec3(0.0, 0.0, 0.0);
-  float waveSpeed1 = .15; // Reduced from .3 for half speed animation
-  float noiseSpeedZ = .05; // Reduced from .1 for half speed animation
-  float noiseSpeedY = .1; // Reduced from .2 for half speed animation
+  float waveSpeed1 = .3;
+  float noiseSpeedZ = .1;
+  float noiseSpeedY = .2;
   float waveShift = perlinNoise(vec3(sin(vUv.x*PI*2.), sin(mod(uTime*waveSpeed1, PI*2.)), vUv.y)) * 0.5;
   float wave = sin(vUv.x * PI * 10. + waveShift) * 0.5 + 0.5;
   wave = smoothstep(1., 0.2, wave);
@@ -618,7 +606,7 @@ void main() {
 const CHROMATIC_ABERRATION = {
   uniforms: {
     tDiffuse: { value: null },
-    uFactor:  { value: 0.03 }, // Reduced from 0.05 for better performance
+    uFactor:  { value: 0.05 },
   },
   vertexShader: FULLSCREEN_VS,
   fragmentShader: `
@@ -630,7 +618,7 @@ void main() {
   vec2 dir = uv - 0.5;
   float dist = length(dir);
   vec2 offset = dir * dist * uFactor;
-  offset = clamp(offset, -0.03, 0.03); // Adjusted clamp range
+  offset = clamp(offset, -0.05, 0.05);
   uv = (vUv - 0.5) * .9 + 0.5;
   float r = texture2D(tDiffuse, uv + offset).r;
   float g = texture2D(tDiffuse, uv).g;
@@ -718,9 +706,6 @@ class SagaEngine {
       antialias: false,
       powerPreference: "high-performance",
       alpha: false,
-      preserveDrawingBuffer: false,
-      stencil: false,
-      depth: true,
     });
     this.renderer.toneMapping = THREE.NoToneMapping;
 
@@ -795,8 +780,7 @@ class SagaEngine {
     const viewport = window.visualViewport;
     const w = Math.max(1, Math.ceil(bounds?.width || viewport?.width || window.innerWidth));
     const h = Math.max(1, Math.ceil(bounds?.height || viewport?.height || window.innerHeight));
-    // Performance optimization: Cap DPR at 1.5 instead of 2 for better performance
-    const dpr = Math.min(window.devicePixelRatio, 1.5);
+    const dpr = Math.min(window.devicePixelRatio, 2);
 
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(w, h);
@@ -836,8 +820,7 @@ class SagaEngine {
 
     if (this.rig) this.rig.update(delta);
 
-    // Performance optimization: Only render if visible
-    if (this.camera && !document.hidden) {
+    if (this.camera) {
       if (this.postEffects) {
         this.postEffects.render(delta);
       } else {
@@ -883,21 +866,11 @@ class SagaEngine {
     this.timer.connect();
     this.tick(performance.now());
 
-    // Performance optimization: Use requestIdleCallback for model loading if available
-    const loadModel = () => {
-      this._gltfLoader.load("/models/scene.glb",
-        (gltf) => this.applyLoadedModel(gltf),
-        undefined,
-        (err) => console.error("SagaEngine: Failed to load model", err)
-      );
-    };
-
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => loadModel(), { timeout: 2000 });
-    } else {
-      // Fallback for browsers without requestIdleCallback
-      setTimeout(loadModel, 100);
-    }
+    this._gltfLoader.load("/models/scene.glb",
+      (gltf) => this.applyLoadedModel(gltf),
+      undefined,
+      (err) => console.error("SagaEngine: Failed to load model", err)
+    );
   }
 
   setStartPosition(pos) {
@@ -965,7 +938,7 @@ class SagaEngine {
     this._syncBgColorUniforms(0);
   }
 
-  animateBackgroundColors(c1, c2, duration = 2.4) { // Half speed transition
+  animateBackgroundColors(c1, c2, duration = 1.2) {
     let mix = this.backgroundUniforms.uBackgroundMix.value;
     let to1 = this.backgroundUniforms.uColor1To.value;
     let to2 = this.backgroundUniforms.uColor2To.value;
@@ -1008,7 +981,7 @@ class SagaEngine {
   // PX-exclusive theme. Swaps the live uniforms immediately and repoints the
   // module-level DEFAULT_* bindings so scroll-driven transitions also use the
   // PX palette while active. Restores everything when turned off, so no other
-  // page ever sees these colors. Also restores normal animation speed for PX page.
+  // page ever sees these colors.
   setPxThemeActive(on) {
     const active = !!on;
     const bg1 = active ? PX_BG_COLOR1 : ORIGINAL_BG_COLOR1;
@@ -1030,13 +1003,6 @@ class SagaEngine {
     this.meshUniforms.uColor1.value.set(active ? PX_MESH_COLOR1 : ORIGINAL_MESH_COLOR1);
     this.meshUniforms.uColor2.value.set(active ? PX_MESH_COLOR2 : ORIGINAL_MESH_COLOR2);
     this.meshUniforms.uMiddleColor.value.set(active ? PX_MESH_MIDDLE : ORIGINAL_MESH_MIDDLE);
-
-    // Restore normal animation speed for PX page, use half speed for other pages
-    if (active) {
-      this.timer.setTimescale(0.95); // Normal speed for PX page
-    } else {
-      this.timer.restoreOriginalTimescale(); // Half speed for other pages
-    }
   }
 
   _applyRampImmediate(slot, stops, uniforms) {
@@ -1073,7 +1039,7 @@ class SagaEngine {
     }
   }
 
-  transitionColorRamps(ramp1Stops, ramp2Stops, duration = 2.4) { // Half speed transition
+  transitionColorRamps(ramp1Stops, ramp2Stops, duration = 1.2) {
     this._startRampTransition(this.colorRamp1, ramp1Stops, duration, {
       from: "uColorRamp1", to: "uColorRamp1To", mix: "uColorRamp1Mix",
     });
@@ -1153,16 +1119,8 @@ class SagaEngine {
     this.positionAnimation = null;
     this.startPosition = 0;
     this.timer.disconnect();
-    if (this._dracoLoader) {
-      try {
-        this._dracoLoader.dispose();
-      } catch (e) {
-        console.warn("SagaEngine: Error disposing dracoLoader", e);
-      }
-      this._dracoLoader = null;
-    }
-    this._gltfLoader = null;
     this.renderer.dispose();
+    this._dracoLoader.dispose();
   }
 
   _disposeRampSlot(slot) {
@@ -1190,7 +1148,7 @@ function createPostEffects(renderer, scene, camera, width, height) {
   composer.addPass(chromaticPass);
 
   const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(width, height), 0.02, 0.4, 0 // Further reduced radius for performance
+    new THREE.Vector2(width, height), 0.03, 0.885, 0
   );
   composer.addPass(bloomPass);
 
@@ -1205,7 +1163,7 @@ function createPostEffects(renderer, scene, camera, width, height) {
 
   return {
     render(delta) {
-      bloomPass.strength = 0.015 * Math.sin(0.0005 * performance.now()) + 0.02; // Half speed bloom animation
+      bloomPass.strength = 0.03 * Math.sin(0.001 * performance.now()) + 0.1;
       composer.render(delta);
     },
     setSize(w, h, pr) {
@@ -1507,12 +1465,12 @@ class ScrollSystem {
     this.lastColorRampIdx = activeIdx;
 
     if (activeIdx === -1) {
-      this.engine.transitionColorRamps(DEFAULT_RAMP1, DEFAULT_RAMP2, 2.4); // Half speed
-      this.engine.animateBackgroundColors(DEFAULT_BG_COLOR1, DEFAULT_BG_COLOR2, 2.4); // Half speed
+      this.engine.transitionColorRamps(DEFAULT_RAMP1, DEFAULT_RAMP2, 1.2);
+      this.engine.animateBackgroundColors(DEFAULT_BG_COLOR1, DEFAULT_BG_COLOR2, 1.2);
     } else {
       const ramp = SECTION_RAMPS[Math.min(activeIdx, SECTION_RAMPS.length - 1)];
-      this.engine.transitionColorRamps(ramp.ramp1, ramp.ramp2, 2.4); // Half speed
-      this.engine.animateBackgroundColors(ramp.bg1, ramp.bg2, 2.4); // Half speed
+      this.engine.transitionColorRamps(ramp.ramp1, ramp.ramp2, 1.2);
+      this.engine.animateBackgroundColors(ramp.bg1, ramp.bg2, 1.2);
     }
   }
 
@@ -1602,9 +1560,6 @@ class ReactOwnedScrollSystem {
     this.overviewSection = null;
     this.lastColorRampIdx = -2;
     this.rafId = 0;
-    this._boundScroll = null;
-    this._boundResize = null;
-    this._resizeTimeout = null;
 
     this._parseMarkers();
     this._bind();
@@ -1624,7 +1579,7 @@ class ReactOwnedScrollSystem {
   }
 
   _bind() {
-    this._boundScroll = () => {
+    const schedule = () => {
       if (this.rafId) return;
       this.rafId = requestAnimationFrame(() => {
         this.rafId = 0;
@@ -1632,16 +1587,8 @@ class ReactOwnedScrollSystem {
         this._update();
       });
     };
-    this._boundResize = () => {
-      // Performance optimization: Debounce resize events
-      if (this._resizeTimeout) clearTimeout(this._resizeTimeout);
-      this._resizeTimeout = setTimeout(() => {
-        this._parseMarkers();
-        this._update();
-      }, 100);
-    };
-    window.addEventListener("scroll", this._boundScroll, { passive: true });
-    window.addEventListener("resize", this._boundResize, { passive: true });
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
   }
 
   _scrollTop(el) {
@@ -1685,29 +1632,18 @@ class ReactOwnedScrollSystem {
     this.lastColorRampIdx = activeIdx;
 
     if (activeIdx < 0) {
-      this.engine.transitionColorRamps(DEFAULT_RAMP1, DEFAULT_RAMP2, 2.4); // Half speed
-      this.engine.animateBackgroundColors(DEFAULT_BG_COLOR1, DEFAULT_BG_COLOR2, 2.4); // Half speed
+      this.engine.transitionColorRamps(DEFAULT_RAMP1, DEFAULT_RAMP2, 1.2);
+      this.engine.animateBackgroundColors(DEFAULT_BG_COLOR1, DEFAULT_BG_COLOR2, 1.2);
       return;
     }
 
     const ramp = SECTION_RAMPS[Math.min(activeIdx, SECTION_RAMPS.length - 1)];
-    this.engine.transitionColorRamps(ramp.ramp1, ramp.ramp2, 2.4); // Half speed
-    this.engine.animateBackgroundColors(ramp.bg1, ramp.bg2, 2.4); // Half speed
-  }
-
-  dispose() {
-    window.removeEventListener("scroll", this._boundScroll);
-    window.removeEventListener("resize", this._boundResize);
-    if (this._resizeTimeout) {
-      clearTimeout(this._resizeTimeout);
-      this._resizeTimeout = null;
-    }
-    this.rafId = 0;
+    this.engine.transitionColorRamps(ramp.ramp1, ramp.ramp2, 1.2);
+    this.engine.animateBackgroundColors(ramp.bg1, ramp.bg2, 1.2);
   }
 }
 
 let sagaEngineInstance = null;
-let scrollSystemInstance = null;
 
 if (typeof window !== "undefined") {
   // Page-scoped theme switch. Only the PX page calls this (via its
@@ -1721,24 +1657,6 @@ if (typeof window !== "undefined") {
 }
 
 function bootstrap() {
-  // Clean up any existing instance to ensure per-page application
-  if (sagaEngineInstance) {
-    try {
-      sagaEngineInstance.dispose();
-    } catch (e) {
-      console.warn("SagaEngine: Error disposing previous instance", e);
-    }
-    sagaEngineInstance = null;
-  }
-  if (scrollSystemInstance) {
-    try {
-      scrollSystemInstance.dispose();
-    } catch (e) {
-      console.warn("SagaEngine: Error disposing previous scroll system", e);
-    }
-    scrollSystemInstance = null;
-  }
-
   const canvas = document.querySelector(
     ".fixed.inset-0 canvas, .fixed canvas.size-full, [class*='fixed'] canvas"
   );
@@ -1757,7 +1675,7 @@ function bootstrap() {
   engine.init({
     onReady() {
       console.log("SagaEngine: Model loaded, marker scroll system active.");
-      scrollSystemInstance = new ReactOwnedScrollSystem(engine);
+      new ReactOwnedScrollSystem(engine);
     },
   });
   if (window.__sagaPendingPxTheme === true || document.querySelector('[data-webgl-theme="px"]')) {

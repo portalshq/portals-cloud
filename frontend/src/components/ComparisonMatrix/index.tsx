@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useId, useState } from "react";
+import {SmoothAnchor} from "@/components/SmoothAnchor";
 
 type CapabilityStatus = "strong" | "partial" | "limited" | "absent";
 
@@ -776,7 +777,7 @@ export default function PortalsComparisonMatrix() {
               preserves the cross-tool history connecting them.
             </p>
 
-            <a
+            <SmoothAnchor
               href="#detailed-comparisons"
               className={[
                 "mt-7 inline-flex items-center gap-2 text-sm font-medium text-white",
@@ -784,17 +785,10 @@ export default function PortalsComparisonMatrix() {
                 "hover:decoration-white focus:outline-none focus-visible:ring-2",
                 "focus-visible:ring-white/70 focus-visible:ring-offset-4 focus-visible:ring-offset-[#070708]",
               ].join(" ")}
-              onClick={(e) => {
-                e.preventDefault()
-                const element = globalThis.document.querySelector('#detailed-comparisons')
-                if (element) {
-                  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-              }}
             >
               Explore detailed comparisons
               <ArrowIcon />
-            </a>
+            </SmoothAnchor>
           </div>
         </header>
 

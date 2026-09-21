@@ -134,7 +134,7 @@ test('buildPilotUrl returns pilot URL', () => {
   const result = buildPilotUrl({
     how_did_you_hear: 'linkedin',
   })
-  assert.equal(result, 'https://portals.ai/paid-pilot?how_did_you_hear=linkedin')
+  assert.equal(result, 'https://portals.ai/pilot?how_did_you_hear=linkedin')
 })
 
 test('buildResourceUrl returns resource URL with custom base', () => {

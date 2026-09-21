@@ -83,7 +83,7 @@ function Hero({document}: {document: ResourceDocument}) {
               <span>Download security details</span>
             </CTAButton>
             <CTAButton
-              href="/paid-pilot#scope"
+              href="/pilot#scope"
               analyticsLabel="Scope a Paid Pilot"
               analyticsIntent="pilot_scope"
             >
@@ -309,7 +309,7 @@ function DownloadSection({
             downloadLabel="Download security brief"
             sourcePage="/security-and-architecture"
           />
-          <CTAButton className="mt-20" href="/paid-pilot#scope" analyticsLabel="Scope a Paid Pilot" analyticsIntent="pilot_scope">
+          <CTAButton className="mt-20" href="/pilot#scope" analyticsLabel="Scope a Paid Pilot" analyticsIntent="pilot_scope">
             <span>Scope a paid pilot</span>
             <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
           </CTAButton>

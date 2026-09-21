@@ -37,7 +37,7 @@ test('cleanLabel truncates to the configured maximum', () => {
 
 test('linkIsExternal classifies relative, hash, and query links as internal', () => {
   const origin = 'https://portals.test'
-  assert.equal(linkIsExternal('/paid-pilot', origin), false)
+  assert.equal(linkIsExternal('/pilot', origin), false)
   assert.equal(linkIsExternal('/assessment?from=pricing#scope', origin), false)
   assert.equal(linkIsExternal('#faq', origin), false)
   assert.equal(linkIsExternal('?utm_source=x', origin), false)

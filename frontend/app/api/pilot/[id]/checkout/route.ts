@@ -48,7 +48,8 @@ export async function POST(
     )
   }
 
-  const roomUrl = `${siteUrl()}${pilotRoomPathForPilotOrFallback(pilot)}`
+  const roomPath = pilotRoomPathForPilotOrFallback(pilot)
+  const roomUrl = `${siteUrl()}${roomPath}`
   const secretKey = process.env.STRIPE_SECRET_KEY
 
   if (leadsDryRun() || !secretKey) {
@@ -110,7 +111,7 @@ export async function POST(
             },
           },
         ],
-        success_url: `${roomUrl}?session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${siteUrl()}/checkout/success?session_id={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(roomPath)}`,
         cancel_url: roomUrl,
       },
       {idempotencyKey: `pilot-checkout-${id}-${pilot.signing?.signedAt || 'unsigned'}`},

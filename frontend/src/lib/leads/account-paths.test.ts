@@ -17,13 +17,15 @@ test('account paths keep pilot rooms nested under the account', () => {
 })
 
 test('legacy pilot path extraction is robust', () => {
+  assert.equal(extractLegacyPilotId('/pilot/room/pilot-123'), 'pilot-123')
+  assert.equal(extractLegacyPilotId('/pilot/room/pilot-123/revise'), 'pilot-123')
+  assert.equal(extractLegacyPilotId('/pilot/room/pilot-123?session_id=abc'), 'pilot-123')
   assert.equal(extractLegacyPilotId('/paid-pilot/room/pilot-123'), 'pilot-123')
-  assert.equal(extractLegacyPilotId('/paid-pilot/room/pilot-123/revise'), 'pilot-123')
-  assert.equal(extractLegacyPilotId('/paid-pilot/room/pilot-123?session_id=abc'), 'pilot-123')
   assert.equal(extractLegacyPilotId('/account/account-123/pilot-room/pilot-456'), null)
+  assert.equal(isLegacyPilotPath('/pilot/room/x'), true)
   assert.equal(isLegacyPilotPath('/paid-pilot/room/x'), true)
   assert.equal(isLegacyPilotPath('/account'), false)
-  assert.equal(legacyPilotPath('pilot-123', true, '?session_id=abc&foo=bar'), '/paid-pilot/room/pilot-123/revise?session_id=abc&foo=bar')
+  assert.equal(legacyPilotPath('pilot-123', true, '?session_id=abc&foo=bar'), '/pilot/room/pilot-123/revise?session_id=abc&foo=bar')
   assert.equal(safeInternalPath('//example.com'), '/account')
   assert.equal(safeInternalPath('/account/a?tab=pilot'), '/account/a?tab=pilot')
 })

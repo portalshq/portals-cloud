@@ -136,7 +136,7 @@ export function buildContactUrl(params: BuildUrlParams): string {
  * Builds a URL specifically for the pilot scope form
  */
 export function buildPilotUrl(params: BuildUrlParams): string {
-  return buildFormUrl('https://portals.ai/paid-pilot', params)
+  return buildFormUrl('https://portals.ai/pilot', params)
 }
 
 /**

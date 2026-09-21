@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 
 export const SagaWebGLEngine: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cleanupCalledRef = useRef(false);
 
   useEffect(() => {
     const targetScriptId = 'saga-webgl-standalone-module';
@@ -15,7 +14,7 @@ export const SagaWebGLEngine: React.FC = () => {
       return;
     }
 
-    console.debug('[SagaWebGLEngine] Initializing WebGL engine with proper cleanup.');
+    console.debug('[SagaWebGLEngine] Initializing unmodified ES module injection.');
     
     const webglScriptElement = document.createElement('script');
     webglScriptElement.id = targetScriptId;
@@ -29,22 +28,11 @@ export const SagaWebGLEngine: React.FC = () => {
     document.body.appendChild(webglScriptElement);
 
     return () => {
-      if (cleanupCalledRef.current) {
-        console.debug('[SagaWebGLEngine] Cleanup already called, skipping.');
-        return;
-      }
-      
-      cleanupCalledRef.current = true;
-      console.debug('[SagaWebGLEngine] Component unmounting - cleaning up WebGL engine.');
-      
-      // Remove the script element
+      console.debug('[SagaWebGLEngine] Component unmounting. Warning: Underlying WebGL context cannot be disposed due to module scoping.');
       const injectedScriptNode = document.getElementById(targetScriptId);
       if (injectedScriptNode) {
          injectedScriptNode.remove();
       }
-      
-      // Note: The saga-webgl.js script now handles its own cleanup via the bootstrap function
-      // which disposes existing instances before creating new ones. This ensures per-page application.
     };
   }, []);
 

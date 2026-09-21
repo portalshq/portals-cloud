@@ -10,6 +10,7 @@ import {
   Check,
 } from 'lucide-react'
 import {CTAButton} from '@/components/CTAButton'
+import {SmoothAnchor} from '@/components/SmoothAnchor'
 import {LeadCheckbox, LeadSelectField, LeadTextField, LeadTextareaField} from '@/components/mui/fields'
 import {ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback} from '@/components/leads/LeadFields'
 import {ProgressiveAssessmentFields} from '@/components/leads/ProgressiveAssessmentFields'
@@ -534,7 +535,7 @@ export function PilotScopeForm({
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
-          sourcePage: isRevision ? '/account' : '/paid-pilot',
+          sourcePage: isRevision ? '/account' : '/pilot',
           ctaLabel: isRevision ? 'Submit Revision' : 'Build my pilot plan',
           intent: isRevision
             ? 'pilot_revision'
@@ -947,19 +948,12 @@ export function PilotScopeForm({
           <p className="mt-10 max-w-[42em] t-p-sm-sans text-white">
             we have defined the baseline outcomes below. Select the ones that matter most to your workflow to define pilot targets.
             {" "}
-            <a 
+            <SmoothAnchor 
               className="inline-block t-p-sm-sans text-white underline underline-offset-4" 
               href="#success-criteria"
-              onClick={(e) => {
-                e.preventDefault()
-                const element = globalThis.document.querySelector('#success-criteria')
-                if (element) {
-                  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-              }}
             >
               review pilot success criteria
-            </a>
+            </SmoothAnchor>
           </p>
         </div>
         <fieldset className="sm:col-span-2">
