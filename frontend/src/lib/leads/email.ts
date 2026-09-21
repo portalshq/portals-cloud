@@ -1,8 +1,16 @@
-import {leadDownloadUrl} from './downloads'
-import {pilotRoomPathForPilot, pilotRoomPathForPilotOrFallback} from './account-paths'
-import {hasPendingMaterialException, reviewerTokenRole, stateLabel, summarizeProposal} from './pilot'
-import type {StoredPilot, StoredSubmission} from './store'
-import {getPilotBySubmissionId, getPilotById} from './store'
+import { leadDownloadUrl } from './downloads'
+import { pilotRoomPathForPilot, pilotRoomPathForPilotOrFallback } from './account-paths'
+import { hasPendingMaterialException, reviewerTokenRole, stateLabel, summarizeProposal } from './pilot'
+import { hashValue } from './crypto'
+import { highestPrivilegeReviewer } from './pilot'
+import type { StoredPilot, StoredSubmission } from './store'
+import {
+  getPilotBySubmissionId,
+  getPilotById,
+  claimPilotEmailDeduplication,
+  completePilotEmailDeduplication,
+  releasePilotEmailDeduplication,
+} from './store'
 import {
   ensurePilotRecipientAccess,
   issueMagicLink,
@@ -40,7 +48,7 @@ export async function sendEmail({
       to,
       subject,
       text,
-      ...(replyTo ? {reply_to: replyTo} : {}),
+      ...(replyTo ? { reply_to: replyTo } : {}),
     }),
     cache: 'no-store',
   })
@@ -53,20 +61,13 @@ export function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works').replace(/\/$/, '')
 }
 
-function recipientRole(pilot: StoredPilot, email: string): {
+export function recipientRole(pilot: StoredPilot, email: string): {
   pilotRole: PilotMemberRole
   customerRole: 'owner' | 'member'
   displayName?: string
 } | null {
   const normalized = email.trim().toLowerCase()
   const portalsEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
-  if (portalsEmail && normalized === portalsEmail) {
-    return {
-      pilotRole: 'approver',
-      customerRole: 'member',
-      displayName: 'portals team',
-    }
-  }
   if (String(pilot.answers.email || '').trim().toLowerCase() === normalized) {
     return {
       pilotRole: 'owner',
@@ -74,11 +75,19 @@ function recipientRole(pilot: StoredPilot, email: string): {
       displayName: String(pilot.answers.name || '').trim() || undefined,
     }
   }
-  const reviewer = pilot.reviewers.find(
+  if (portalsEmail && normalized === portalsEmail) {
+    return {
+      pilotRole: 'approver',
+      customerRole: 'member',
+      displayName: 'portals team',
+    }
+  }
+  const reviewers = pilot.reviewers.filter(
     (candidate) =>
       candidate.status !== 'revoked' &&
       candidate.email.trim().toLowerCase() === normalized,
   )
+  const reviewer = highestPrivilegeReviewer(reviewers)
   if (reviewer) {
     return {
       pilotRole: reviewerTokenRole(reviewer.role),
@@ -158,8 +167,8 @@ export async function pilotCopy(
   pilot: StoredPilot,
   variant: string,
   submitterEmail?: string,
-): Promise<{subject: string; text: string}> {
-  const {roomUrl, packetUrl, securityUrl} = await pilotDocuments(pilot, submitterEmail)
+): Promise<{ subject: string; text: string }> {
+  const { roomUrl, packetUrl, securityUrl } = await pilotDocuments(pilot, submitterEmail)
   const calendar = process.env.PILOT_CALENDAR_URL
   const greeting = submitterGreeting(pilot)
   const base = [
@@ -167,7 +176,7 @@ export async function pilotCopy(
     `route: ${pilot.route}`,
     `status: ${stateLabel(pilot.state)}`,
     '',
-    'review your personalized pilot approval room',
+    'review your pilot terms:',
     roomUrl,
     'this secure link opens the room directly and expires after 15 minutes.',
   ]
@@ -175,9 +184,9 @@ export async function pilotCopy(
   switch (variant) {
     case 'revised': {
       return {
-        subject: 'your pilot plan was updated',
+        subject: 'your pilot agreement was revised',
         text: [
-          'your pilot plan was updated and is back under review.',
+          'your pilot plan agreement has been revised.',
           '',
           ...base,
           '',
@@ -190,17 +199,36 @@ export async function pilotCopy(
         .map((item) => `- ${item.summary}`)
         .join('\n')
       return {
-        subject: 'review your pilot terms',
+        subject: 'your pilot terms',
         text: [
-          'your pilot request includes items outside the standard scope, so a single pilot terms review is required.',
+          ...(greeting ? [greeting, ''] : []),
+          'To ensure we cover all your pilot requirements, we\'ll conduct a pilot terms review.',
           '',
           ...(exceptions ? [`the items:`, '', exceptions, ''] : []),
-          'during the review we will resolve the terms, then you can confirm scope and sign.',
+          'during the review we will resolve the terms, then you can review the revised terms, confirm, and sign.',
           '',
-          'open your pilot approval room:',
+          ...(calendar ? ['or schedule the pilot terms review directly:', calendar, ''] : []),
+          'review your pilot terms:',
           roomUrl,
-          ...(calendar ? ['', 'or schedule the pilot terms review directly:', calendar] : []),
-          ...(securityUrl ? ['', `security and architecture brief: ${securityUrl}`] : []),
+          '',
+          ...(securityUrl ? [`our security overview: ${securityUrl}`, ''] : []),
+          'portals',
+        ].join('\n'),
+      }
+    }
+    case 'portals_review_requested': {
+      const exceptions = pilot.exceptions
+        .filter((item) => !item.resolvedAt)
+        .map((item) => `- ${item.summary}`)
+        .join('\n')
+      return {
+        subject: 'Portals review requested for a paid pilot',
+        text: [
+          `A paid pilot for ${String(pilot.answers.company || 'a prospective customer')} needs exception review.`,
+          '',
+          ...(exceptions ? ['Review items:', exceptions, ''] : []),
+          'Review the pilot terms:',
+          roomUrl,
           '',
           'portals',
         ].join('\n'),
@@ -211,18 +239,18 @@ export async function pilotCopy(
       return {
         subject: 'your pilot agreement is ready to sign',
         text: [
-          'your pilot scope is confirmed and the standard pilot agreement is ready.',
+          'your pilot scope is confirmed and the pilot agreement is ready.',
           '',
           summarizeProposal(snapshot),
           '',
           ...(snapshot?.annualOption?.creditNote
             ? [`annual deployment note: ${snapshot.annualOption.creditNote}`, '']
             : []),
-          'your personalized plan and order form:',
-          packetUrl,
-          ...(securityUrl ? ['', `security and architecture brief: ${securityUrl}`] : []),
-          '',
-          'sign and fund the pilot in your approval room:',
+          // 'your personalized plan and order form:',
+          // packetUrl,
+          // ...(securityUrl ? ['', `security and architecture brief: ${securityUrl}`] : []),
+          // '',
+          'sign and fund the pilot:',
           roomUrl,
           '',
           'portals',
@@ -233,9 +261,9 @@ export async function pilotCopy(
       return {
         subject: 'payment received — schedule your pilot launch',
         text: [
-          'your pilot payment is confirmed.',
+          'your pilot payment is received.',
           '',
-          'schedule the pilot launch, or review the plan:',
+          'review the launch session, participants, and pilot terms:',
           roomUrl,
           '',
           'portals',
@@ -248,7 +276,7 @@ export async function pilotCopy(
         text: [
           'your production pilot is live.',
           '',
-          'the launch session, participants, and the plan are in your approval room:',
+          'review the launch session, participants, and pilot terms:',
           roomUrl,
           '',
           'portals',
@@ -257,11 +285,9 @@ export async function pilotCopy(
     }
     case 'change_requested': {
       return {
-        subject: 'a reviewer requested changes to your pilot plan',
+        subject: 'a member requested changes to your pilot plan',
         text: [
-          'one of your reviewers requested changes to the pilot plan.',
-          '',
-          'open your pilot approval room to review the requested changes and submit a revised plan:',
+          'review the requested changes and submit a revised agreement:',
           roomUrl,
           '',
           'portals',
@@ -270,11 +296,9 @@ export async function pilotCopy(
     }
     case 'terms_changed': {
       return {
-        subject: 'your pilot plan was updated',
+        subject: 'your pilot agreement was revised',
         text: [
-          'your pilot plan was updated.',
-          '',
-          'open your pilot approval room to review the latest committed terms:',
+          'review and confirm the terms:',
           roomUrl,
           '',
           'portals',
@@ -288,11 +312,9 @@ export async function pilotCopy(
     case 'procurement_changed':
     case 'signature_changed': {
       return {
-        subject: 'your pilot plan was updated',
+        subject: 'your pilot agreement was revised',
         text: [
-          'a section you own in the pilot plan was updated.',
-          '',
-          'open your pilot approval room to review the latest committed terms:',
+          'review and confirm the terms:',
           roomUrl,
           '',
           'portals',
@@ -301,11 +323,11 @@ export async function pilotCopy(
     }
     case 'team_review_started': {
       return {
-        subject: 'pilot team review started',
+        subject: 'review your pilot plan',
         text: [
-          'the pilot plan is ready for team review.',
+          'your pilot plan is ready for team review.',
           '',
-          'open the pilot approval room:',
+          'review the terms:',
           roomUrl,
           '',
           'portals',
@@ -314,11 +336,9 @@ export async function pilotCopy(
     }
     case 'reviewer_invited': {
       return {
-        subject: 'a reviewer was invited to the pilot room',
+        subject: 'a member was invited to review the pilot terms',
         text: [
-          'a reviewer was invited to the pilot approval room.',
-          '',
-          'open the pilot approval room:',
+          'review the terms:',
           roomUrl,
           '',
           'portals',
@@ -327,11 +347,9 @@ export async function pilotCopy(
     }
     case 'security_change_requested': {
       return {
-        subject: 'security changes requested for your pilot plan',
+        subject: 'pilot security changes were requested',
         text: [
-          'security changes were requested for the pilot plan.',
-          '',
-          'open the pilot approval room to review the request:',
+          'review the security changes:',
           roomUrl,
           '',
           'portals',
@@ -342,9 +360,7 @@ export async function pilotCopy(
       return {
         subject: 'pilot terms confirmed',
         text: [
-          'the pilot terms were confirmed.',
-          '',
-          'open the pilot approval room:',
+          'review the terms:',
           roomUrl,
           '',
           'portals',
@@ -353,11 +369,11 @@ export async function pilotCopy(
     }
     case 'agreement_ready': {
       return {
-        subject: 'pilot agreement ready',
+        subject: 'review your pilot plan',
         text: [
-          'the pilot agreement is ready.',
+          'your pilot agreement is ready for review.',
           '',
-          'open the pilot approval room:',
+          'review the terms:',
           roomUrl,
           '',
           'portals',
@@ -366,11 +382,11 @@ export async function pilotCopy(
     }
     case 'signed': {
       return {
-        subject: 'pilot agreement signed',
+        subject: 'pilot signed',
         text: [
-          'the pilot agreement was signed.',
+          'your pilot agreement was signed.',
           '',
-          'open the pilot approval room:',
+          'review the pilot terms:',
           roomUrl,
           '',
           'portals',
@@ -379,11 +395,11 @@ export async function pilotCopy(
     }
     case 'kickoff_scheduled': {
       return {
-        subject: 'pilot kickoff scheduled',
+        subject: 'pilot scheduled',
         text: [
-          'the pilot kickoff was scheduled.',
+          'your pilot launch has been scheduled.',
           '',
-          'open the pilot approval room:',
+          'review the pilot terms:',
           roomUrl,
           '',
           'portals',
@@ -392,11 +408,9 @@ export async function pilotCopy(
     }
     case 'pilot_active': {
       return {
-        subject: 'pilot activated',
+        subject: 'your pilot program is live',
         text: [
-          'the pilot was activated.',
-          '',
-          'open the pilot approval room:',
+          'review the terms:',
           roomUrl,
           '',
           'portals',
@@ -405,11 +419,11 @@ export async function pilotCopy(
     }
     case 'revised_ready': {
       return {
-        subject: 'the pilot plan was revised — please re-review',
+        subject: 'your pilot agreement was revised',
         text: [
-          'the pilot plan you were invited to review has been revised.',
+          'your pilot plan agreement has been revised.',
           '',
-          'review the updated plan and confirm your decision in the approval room:',
+          'review and confirm the terms:',
           roomUrl,
           '',
           'portals',
@@ -431,13 +445,11 @@ export async function pilotCopy(
     }
     case 'buyer_nudge': {
       return {
-        subject: 'the pilot plan awaits your review',
+        subject: 'review pilot commercial terms',
         text: [
-          `you have been asked to review the commercial terms of a portals production pilot for ${String(pilot.answers.company || 'the customer')}.`,
+          `you've been asked to review the commercial terms of a portals production pilot for ${String(pilot.answers.company || 'the customer')}.`,
           '',
-          'the technical scope is confirmed and the remaining decision sits with the economic buyer.',
-          '',
-          'open the pilot approval room:',
+          'review the terms:',
           roomUrl,
           '',
           'portals',
@@ -446,11 +458,11 @@ export async function pilotCopy(
     }
     case 'terms_confirmed': {
       return {
-        subject: 'commercial terms confirmed — your pilot agreement can be finalized',
+        subject: 'commercial terms confirmed — finalize your pilot agreement',
         text: [
-          'the economic buyer has confirmed the commercial terms of your pilot plan.',
+          "your pilot's commercial terms have been approved.",
           '',
-          'confirm scope and finalize the agreement in your approval room:',
+          'finalize your pilot agreement:',
           roomUrl,
           '',
           'portals',
@@ -462,24 +474,24 @@ export async function pilotCopy(
       return {
         subject: 'your pilot approval room is ready',
         text: [
-          'thanks for scoping a paid production pilot with portals.',
-          '',
+          // 'thanks for scoping a paid production pilot with portals.',
+          // '',
           oneCall
-            ? 'your free customized pilot plan is assembled; one pilot terms review is required:'
-            : 'your free customized pilot plan is assembled — no call required:',
+            ? `your customized pilot plan is ready - ${pilot.answers.company || 'the customer'} and portals will review the terms:`
+            : 'your customized pilot plan is ready for review — no call required:',
           roomUrl,
           '',
-          'your customized pilot brief and the portals security brief are packaged together:',
-          packetUrl,
-          'open this link in the same browser used to complete the form.',
-          ...(securityUrl ? ['', `security and architecture brief: ${securityUrl}`] : []),
-          '',
-          'in the approval room you can confirm the scope as drafted, request changes, or share the plan with the approver.',
-          'the $5,000 fee applies only if you approve the plan and conduct the pilot.',
-          ...(oneCall && calendar
-            ? ['', `a pilot terms review is required: choose a time: ${calendar}`]
-            : []),
-          '',
+          // 'your customized pilot brief and the portals security brief are packaged together:',
+          // packetUrl,
+          // 'open this link in the same browser used to complete the form.',
+          // ...(securityUrl ? ['', `security and architecture brief: ${securityUrl}`] : []),
+          // '',
+          // 'in the approval room you can confirm the scope as drafted, request changes, or share the plan with the approver.',
+          // 'the $5,000 fee applies only if you approve the plan and conduct the pilot.',
+          // ...(oneCall && calendar
+          //   ? ['', `a pilot terms review is required: choose a time: ${calendar}`]
+          //   : []),
+          // '',
           'portals',
         ].join('\n'),
       }
@@ -489,8 +501,8 @@ export async function pilotCopy(
 
 async function confirmationCopy(
   submission: StoredSubmission,
-): Promise<{subject: string; text: string}> {
-  const {submissionType} = submission.request
+): Promise<{ subject: string; text: string }> {
+  const { submissionType } = submission.request
   const downloadUrl = leadDownloadUrl(submissionType)
   if (downloadUrl) {
     const labels = {
@@ -574,12 +586,41 @@ export async function sendPilotStatusEmail(
     ? String(recipient).trim()
     : String(pilot.answers.email || '')
   if (!target) throw new Error('Pilot recipient email is missing.')
-  const copy = await pilotCopy(pilot, variant, target)
-  await sendEmail({
-    idempotencyKey: `${pilot.id}-status-${variant}-${target}${eventKey ? `-${eventKey}` : ''}`,
-    to: target,
-    ...copy,
+  const normalizedTarget = target.toLowerCase()
+  const recipientAccess = recipientRole(pilot, target)
+  const event = eventKey || `status:${variant}`
+  const recipientKey = hashValue(normalizedTarget)
+  const claimToken = await claimPilotEmailDeduplication({
+    pilotId: pilot.id,
+    recipientKey,
+    eventType: variant,
+    eventKey: event,
   })
+  if (!claimToken) return
+  try {
+    const copy = await pilotCopy(pilot, variant, target)
+    await sendEmail({
+      idempotencyKey: `${pilot.id}-status-${variant}-${normalizedTarget}-${recipientAccess?.pilotRole || 'default'}${eventKey ? `-${eventKey}` : ''}`,
+      to: target,
+      ...copy,
+    })
+    await completePilotEmailDeduplication({
+      pilotId: pilot.id,
+      recipientKey,
+      eventType: variant,
+      eventKey: event,
+      claimToken,
+    })
+  } catch (error) {
+    await releasePilotEmailDeduplication({
+      pilotId: pilot.id,
+      recipientKey,
+      eventType: variant,
+      eventKey: event,
+      claimToken,
+    })
+    throw error
+  }
 }
 
 export async function sendFounderNotification(
@@ -597,8 +638,8 @@ export async function sendFounderNotification(
   )
   const founderPilotLink = pilot
     ? `${siteUrl()}/auth/sign-in?next=${encodeURIComponent(
-        pilotRoomPathForPilotOrFallback(pilot),
-      )}`
+      pilotRoomPathForPilotOrFallback(pilot),
+    )}`
     : null
   const pilotLabels = pilot ? internalPilotLabels(pilot) : null
   await sendEmail({
@@ -626,15 +667,15 @@ export async function sendFounderNotification(
       `next action: ${submission.response.nextAction}`,
       ...(pilot
         ? [
-            '',
-            `pilot route: ${pilot.route}`,
-            `customer preferred experience: ${pilotLabels?.preferredExperience}`,
-            `terms path: ${pilotLabels?.termsPath}`,
-            `pilot state: ${pilot.state}`,
-            `unresolved items: ${pilot.unresolved.length}`,
-            `exceptions: ${pilot.exceptions.length}`,
-            `approval room: ${founderPilotLink}`,
-          ]
+          '',
+          `pilot route: ${pilot.route}`,
+          `customer preferred experience: ${pilotLabels?.preferredExperience}`,
+          `terms path: ${pilotLabels?.termsPath}`,
+          `pilot state: ${pilot.state}`,
+          `unresolved items: ${pilot.unresolved.length}`,
+          `exceptions: ${pilot.exceptions.length}`,
+          `approval room: ${founderPilotLink}`,
+        ]
         : []),
       '',
       'the complete submission is retained in the application database and projected to apollo.',

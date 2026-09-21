@@ -1,5 +1,5 @@
-import {randomUUID} from 'node:crypto'
-import pg, {type Pool, type PoolClient} from 'pg'
+import { randomUUID } from 'node:crypto'
+import pg, { type Pool, type PoolClient } from 'pg'
 import type {
   LeadAttribution,
   LeadIdentity,
@@ -10,8 +10,8 @@ import type {
   SecurityDecision,
   SuccessCriterion,
 } from './contracts'
-import {decryptJson, encryptJson, hashValue, randomToken} from './crypto'
-import {companyDomain, normalizeEmail} from './identity'
+import { decryptJson, encryptJson, hashValue, randomToken } from './crypto'
+import { companyDomain, normalizeEmail } from './identity'
 import type {
   CommercialSnapshot,
   ExceptionItem,
@@ -23,9 +23,9 @@ import type {
   Reviewer,
   UnresolvedItem,
 } from './pilot'
-import {recommendedReviewers} from './pilot'
-import {createPilotDraft} from './pilot-collaboration'
-import {pilotDirectAnswersFrom} from './pilot-room-fields'
+import { recommendedReviewers } from './pilot'
+import { createPilotDraft } from './pilot-collaboration'
+import { pilotDirectAnswersFrom } from './pilot-room-fields'
 import type {
   PilotCollaborativeDraft,
   PilotCommittedRevision,
@@ -108,6 +108,12 @@ type MemoryOutboxRow = OutboxRow & {
   due_at: number
 }
 
+type MemoryEmailDelivery = {
+  status: 'sending' | 'sent'
+  claimToken?: string
+  claimExpiresAt?: number
+}
+
 const globalForLeads = globalThis as typeof globalThis & {
   portalsLeadPool?: Pool
   portalsLeadMemory?: {
@@ -118,6 +124,7 @@ const globalForLeads = globalThis as typeof globalThis & {
     submissionPilots: Map<string, string>
     outbox: Map<string, MemoryOutboxRow>
     termsAcceptances: Map<string, Record<string, unknown>>
+    emailDeduplication: Map<string, MemoryEmailDelivery>
   }
 }
 
@@ -156,6 +163,7 @@ function memory() {
     submissionPilots: new Map(),
     outbox: new Map(),
     termsAcceptances: new Map(),
+    emailDeduplication: new Map(),
   }
   return globalForLeads.portalsLeadMemory
 }
@@ -277,7 +285,6 @@ function pilotFromRow(row: PilotRow): StoredPilot {
   const answers = decryptJson<Record<string, unknown>>(row.answers_ciphertext)
   const currentTerms: PilotMutableTerms = {
     startDate: row.resolved_start_date,
-    valueConfirmed: Boolean(row.proposal?.valueModel?.confirmed),
     criteria: row.success_criteria,
     answers: pilotDirectAnswersFrom(answers),
   }
@@ -353,7 +360,6 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     draft: createPilotDraft({
       terms: {
         startDate: null,
-        valueConfirmed: false,
         criteria: input.successCriteria,
         answers: pilotDirectAnswersFrom(input.answers),
       },
@@ -367,14 +373,13 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
         committedAt: now,
         terms: {
           startDate: null,
-          valueConfirmed: false,
           criteria: input.successCriteria,
           answers: pilotDirectAnswersFrom(input.answers),
         },
         changes: [],
       },
     ],
-    history: [{at: now, action: 'created', state: input.state}],
+    history: [{ at: now, action: 'created', state: input.state }],
     signing: {},
     payment: {},
     kickoff: {},
@@ -466,7 +471,7 @@ export type PilotNavigationItem = {
 
 function pilotNavigationLabel(createdAt: string, pilotId: string): string {
   const date = new Date(createdAt)
-  const formatted = date.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
+  const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   // Include short id suffix to keep multiple pilots distinct even if created same day
   return `Pilot room • ${formatted} • ${pilotId.slice(0, 4)}`
 }
@@ -484,13 +489,13 @@ export async function getPilotNavigationForCustomerAccount(
         label: pilotNavigationLabel(pilot.createdAt, pilot.id),
       }))
   }
-  const result = await pool().query<{id: string; created_at: Date | string}>(
+  const result = await pool().query<{ id: string; created_at: Date | string }>(
     `SELECT id, created_at FROM lead_pilots WHERE customer_account_id = $1 ORDER BY created_at DESC`,
     [customerAccountId],
   )
   return result.rows.map((row) => {
     const createdAt = new Date(row.created_at).toISOString()
-    return {id: row.id, createdAt, label: pilotNavigationLabel(createdAt, row.id)}
+    return { id: row.id, createdAt, label: pilotNavigationLabel(createdAt, row.id) }
   })
 }
 
@@ -522,7 +527,7 @@ export async function getPilotBySubmissionId(
     const pilotId = memory().submissionPilots.get(submissionId)
     return pilotId ? memory().pilots.get(pilotId) || null : null
   }
-  const result = await pool().query<{pilot_id: string | null}>(
+  const result = await pool().query<{ pilot_id: string | null }>(
     'SELECT pilot_id FROM lead_submissions WHERE id = $1',
     [submissionId],
   )
@@ -680,14 +685,14 @@ export type PilotMutation<T> = {
 export async function mutatePilot<T>(
   id: string,
   mutator: (pilot: StoredPilot) => PilotMutation<T>,
-): Promise<{pilot: StoredPilot; result: T}> {
+): Promise<{ pilot: StoredPilot; result: T }> {
   if (leadsDryRun()) {
     const existing = memory().pilots.get(id)
     if (!existing) throw new Error('Pilot record not found.')
     const mutation = mutator(existing)
     const pilot = mutation.patch ? applyPilotPatch(existing, mutation.patch) : existing
     if (mutation.patch) memory().pilots.set(id, pilot)
-    return {pilot, result: mutation.result}
+    return { pilot, result: mutation.result }
   }
 
   const client = await pool().connect()
@@ -703,7 +708,7 @@ export async function mutatePilot<T>(
     const pilot = mutation.patch ? applyPilotPatch(existing, mutation.patch) : existing
     if (mutation.patch) await persistPilot(client, pilot)
     await client.query('COMMIT')
-    return {pilot, result: mutation.result}
+    return { pilot, result: mutation.result }
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -713,7 +718,7 @@ export async function mutatePilot<T>(
 }
 
 export async function updatePilot(id: string, patch: PilotPatch): Promise<StoredPilot> {
-  const {pilot} = await mutatePilot(id, () => ({patch, result: undefined}))
+  const { pilot } = await mutatePilot(id, () => ({ patch, result: undefined }))
   return pilot
 }
 
@@ -724,7 +729,7 @@ export async function latestSubmissionIdForPilot(pilotId: string): Promise<strin
     )
     return entries.length ? entries[entries.length - 1][0] : null
   }
-  const result = await pool().query<{id: string}>(
+  const result = await pool().query<{ id: string }>(
     `SELECT id FROM lead_submissions WHERE pilot_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [pilotId],
   )
@@ -759,6 +764,121 @@ export async function enqueuePilotEmail(
     `INSERT INTO lead_outbox(submission_id, action_type, action_key)
      VALUES ($1,'pilot_email',$2) ON CONFLICT(action_key) DO NOTHING`,
     [submissionId, actionKey],
+  )
+}
+
+function pilotEmailDeduplicationKey(
+  pilotId: string,
+  recipientKey: string,
+  eventType: string,
+  eventKey: string,
+) {
+  return `${pilotId}:${recipientKey}:${eventType}:${eventKey}`
+}
+
+/**
+ * Atomically reserves delivery for an email event. A reservation expires so a
+ * crashed worker cannot suppress a durable outbox retry forever.
+ */
+export async function claimPilotEmailDeduplication(input: {
+  pilotId: string
+  recipientKey: string
+  eventType: string
+  eventKey: string
+}): Promise<string | null> {
+  const key = pilotEmailDeduplicationKey(
+    input.pilotId,
+    input.recipientKey,
+    input.eventType,
+    input.eventKey,
+  )
+  const claimToken = randomUUID()
+  if (leadsDryRun()) {
+    const existing = memory().emailDeduplication.get(key)
+    if (
+      existing?.status === 'sent' ||
+      (existing?.status === 'sending' && (existing.claimExpiresAt || 0) > Date.now())
+    ) {
+      return null
+    }
+    memory().emailDeduplication.set(key, {
+      status: 'sending',
+      claimToken,
+      claimExpiresAt: Date.now() + 5 * 60_000,
+    })
+    return claimToken
+  }
+  const result = await pool().query<{ claim_token: string }>(
+    `INSERT INTO email_deduplication(
+       pilot_id, recipient_key, event_type, event_key, delivery_status, claim_token, claim_expires_at
+     ) VALUES ($1,$2,$3,$4,'sending',$5,now() + interval '5 minutes')
+     ON CONFLICT(pilot_id, recipient_key, event_type, event_key) DO UPDATE
+       SET delivery_status = 'sending',
+           claim_token = EXCLUDED.claim_token,
+           claim_expires_at = EXCLUDED.claim_expires_at
+       WHERE email_deduplication.delivery_status = 'sending'
+         AND email_deduplication.claim_expires_at <= now()
+     RETURNING claim_token`,
+    [input.pilotId, input.recipientKey, input.eventType, input.eventKey, claimToken],
+  )
+  return result.rows[0]?.claim_token || null
+}
+
+/** Completes the claim after the provider acknowledges delivery. */
+export async function completePilotEmailDeduplication(input: {
+  pilotId: string
+  recipientKey: string
+  eventType: string
+  eventKey: string
+  claimToken: string
+}): Promise<void> {
+  const key = pilotEmailDeduplicationKey(
+    input.pilotId,
+    input.recipientKey,
+    input.eventType,
+    input.eventKey,
+  )
+  if (leadsDryRun()) {
+    const existing = memory().emailDeduplication.get(key)
+    if (existing?.claimToken === input.claimToken) {
+      memory().emailDeduplication.set(key, { status: 'sent' })
+    }
+    return
+  }
+  await pool().query(
+    `UPDATE email_deduplication
+        SET delivery_status = 'sent', claim_token = NULL, claim_expires_at = NULL, sent_at = now()
+      WHERE pilot_id = $1 AND recipient_key = $2 AND event_type = $3 AND event_key = $4
+        AND delivery_status = 'sending' AND claim_token = $5`,
+    [input.pilotId, input.recipientKey, input.eventType, input.eventKey, input.claimToken],
+  )
+}
+
+/** Releases an unsuccessful claim so the outbox can retry the event. */
+export async function releasePilotEmailDeduplication(input: {
+  pilotId: string
+  recipientKey: string
+  eventType: string
+  eventKey: string
+  claimToken: string
+}): Promise<void> {
+  const key = pilotEmailDeduplicationKey(
+    input.pilotId,
+    input.recipientKey,
+    input.eventType,
+    input.eventKey,
+  )
+  if (leadsDryRun()) {
+    if (memory().emailDeduplication.get(key)?.claimToken === input.claimToken) {
+      memory().emailDeduplication.delete(key)
+    }
+    return
+  }
+  await pool().query(
+    `DELETE FROM email_deduplication
+      WHERE pilot_id = $1 AND recipient_key = $2 AND event_type = $3 AND event_key = $4
+        AND delivery_status = 'sending' AND claim_token = $5`,
+    [input.pilotId, input.recipientKey, input.eventType, input.eventKey, input.claimToken],
   )
 }
 
@@ -899,7 +1019,7 @@ export async function getProfileByEmail(
       ) || null
     )
   }
-  const result = await pool().query<{id: string}>(
+  const result = await pool().query<{ id: string }>(
     'SELECT id FROM lead_profiles WHERE email_hash = $1',
     [hashValue(normalizeEmail(email))],
   )
@@ -930,7 +1050,7 @@ async function findProfileByEmail(
   client: PoolClient,
 ): Promise<StoredProfile | null> {
   if (!identity?.email) return null
-  const result = await client.query<{id: string}>(
+  const result = await client.query<{ id: string }>(
     'SELECT id FROM lead_profiles WHERE email_hash = $1',
     [hashValue(normalizeEmail(identity.email))],
   )
@@ -975,7 +1095,7 @@ async function findProfileByEmail(
 async function upsertProfile(
   input: PersistInput,
   client?: PoolClient,
-): Promise<{profile: StoredProfile; token?: string}> {
+): Promise<{ profile: StoredProfile; token?: string }> {
   if (leadsDryRun()) {
     const tokenProfile = input.currentProfileToken
       ? await profileFromToken(input.currentProfileToken)
@@ -1200,7 +1320,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
         created: false,
       }
     }
-    const {profile, token} = await upsertProfile(input)
+    const { profile, token } = await upsertProfile(input)
     await persistQualification(profile, input)
     const submission: StoredSubmission = {
       id: randomUUID(),
@@ -1213,7 +1333,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
       verified: input.verified,
     }
     memory().submissions.set(input.request.idempotencyKey, submission)
-    return {submission, profileToken: token, created: true}
+    return { submission, profileToken: token, created: true }
   }
 
   const client = await pool().connect()
@@ -1234,7 +1354,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
 
     if (existing.rows[0]) {
       const row = existing.rows[0]
-      const stored = decryptJson<{request: LeadRequest; identity: LeadIdentity}>(
+      const stored = decryptJson<{ request: LeadRequest; identity: LeadIdentity }>(
         row.payload_ciphertext,
       )
       const profile = await getProfileById(row.profile_id)
@@ -1254,7 +1374,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
       }
     }
 
-    const {profile, token} = await upsertProfile(input, client)
+    const { profile, token } = await upsertProfile(input, client)
     await persistQualification(profile, input, client)
     const id = randomUUID()
     await client.query(
@@ -1275,7 +1395,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
         input.request.formVersion,
         profile.id,
         profile.companyDomain || null,
-        encryptJson({request: input.request, identity: profile.identity}),
+        encryptJson({ request: input.request, identity: profile.identity }),
         input.scores ? JSON.stringify(input.scores) : null,
         input.tier || null,
         input.response.recommendedWorkflow || null,
@@ -1294,9 +1414,9 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
       for (const action of actions) {
         const actionKey =
           action === 'founder_notification' &&
-          ['assessment', 'commercial_readiness'].includes(input.request.submissionType) &&
-          input.tier &&
-          input.scores
+            ['assessment', 'commercial_readiness'].includes(input.request.submissionType) &&
+            input.tier &&
+            input.scores
             ? `${profile.id}:${input.scores.version}:${input.tier}:${action}`
             : `${input.request.idempotencyKey}:${action}`
         await client.query(
@@ -1386,7 +1506,7 @@ export async function latestQualificationAnswers(
           ),
       )
       .reduce((answers, submission) => {
-        const merged = {...answers, ...submission.request.answers} as Record<string, unknown>
+        const merged = { ...answers, ...submission.request.answers } as Record<string, unknown>
         if (submission.request.whatBroughtYouHere) {
           merged.whatBroughtYouHere = submission.request.whatBroughtYouHere
         }
@@ -1414,8 +1534,8 @@ export async function latestQualificationAnswers(
     [profileId],
   )
   return result.rows.reduce<Record<string, unknown>>((answers, row) => {
-    const payload = decryptJson<{request: LeadRequest}>(row.payload_ciphertext)
-    const merged = {...answers, ...payload.request.answers} as Record<string, unknown>
+    const payload = decryptJson<{ request: LeadRequest }>(row.payload_ciphertext)
+    const merged = { ...answers, ...payload.request.answers } as Record<string, unknown>
     if (row.what_brought_you_here) {
       merged.whatBroughtYouHere = row.what_brought_you_here
     }
@@ -1446,7 +1566,7 @@ export async function takeDueOutbox(limit = 20): Promise<OutboxRow[]> {
           (row.status === 'retry' && row.due_at <= now),
       )
       .slice(0, limit)
-      .map(({id, submission_id, action_type, action_key, attempts}) => ({
+      .map(({ id, submission_id, action_type, action_key, attempts }) => ({
         id,
         submission_id,
         action_type,
@@ -1491,7 +1611,7 @@ export async function getSubmission(id: string): Promise<StoredSubmission> {
   }>('SELECT * FROM lead_submissions WHERE id = $1', [id])
   const row = result.rows[0]
   if (!row) throw new Error('Submission not found.')
-  const payload = decryptJson<{request: LeadRequest; identity: LeadIdentity}>(
+  const payload = decryptJson<{ request: LeadRequest; identity: LeadIdentity }>(
     row.payload_ciphertext,
   )
   return {
@@ -1530,7 +1650,7 @@ export async function companyScoreContext(domain: string): Promise<{
           const value = submission.scores?.[dimension].normalized
           return value === undefined ? current : Math.max(current ?? 0, value)
         }, undefined)
-    return {fit: maximum('fit', 365), pain: maximum('pain', 180), intent: maximum('intent', 90)}
+    return { fit: maximum('fit', 365), pain: maximum('pain', 180), intent: maximum('intent', 90) }
   }
 
   const result = await pool().query<{
@@ -1559,7 +1679,7 @@ export async function companyScoreContext(domain: string): Promise<{
 
 export async function markSubmissionSynced(id: string): Promise<void> {
   if (leadsDryRun()) return
-  const pending = await pool().query<{count: string}>(
+  const pending = await pool().query<{ count: string }>(
     `SELECT count(*)::text AS count FROM lead_outbox
       WHERE submission_id = $1 AND status <> 'complete'`,
     [id],
@@ -1628,7 +1748,7 @@ export async function cleanupLeadStore(): Promise<void> {
         SET payload_ciphertext = $1
       WHERE payload_delete_after < now() AND synced_at IS NOT NULL
         AND payload_ciphertext <> $1`,
-    [encryptJson({redacted: true})],
+    [encryptJson({ redacted: true })],
   )
   await pool().query('DELETE FROM lead_profile_tokens WHERE expires_at < now()')
   await pool().query('DELETE FROM lead_rate_limits WHERE expires_at < now()')
@@ -1642,7 +1762,7 @@ export async function consumeRateLimit(key: string, limit = 12): Promise<boolean
   if (leadsDryRun()) return true
   const now = Date.now()
   const windowStart = new Date(Math.floor(now / 60_000) * 60_000)
-  const result = await pool().query<{request_count: number}>(
+  const result = await pool().query<{ request_count: number }>(
     `INSERT INTO lead_rate_limits(rate_key, window_start, expires_at)
      VALUES ($1,$2,$3)
      ON CONFLICT(rate_key, window_start)

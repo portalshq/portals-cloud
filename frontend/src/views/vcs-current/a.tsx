@@ -865,14 +865,14 @@ function PricingSection({
               <p className="t-p-sans">{tier.subtitle}</p>
               <ul className="my-24 flex flex-1 flex-col gap-y-8">
                 {tier.features.map((feature) => (
-                  <li key={feature} className="flex gap-x-8 t-p-sans text-white">
-                    <span className="text-white">+</span>
+                  <li key={feature} className="flex gap-x-8 t-p-sans">
+                    <span>+</span>
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
               <CTAButton href={pricingTierHref(tier)}>{tier.cta}</CTAButton>
-              {tier.micro && <p className="mt-24 t-p-sans text-white">{tier.micro}</p>}
+              {tier.micro && <p className="mt-24 t-p-sans">{tier.micro}</p>}
             </article>
           )) : null}
         </div>

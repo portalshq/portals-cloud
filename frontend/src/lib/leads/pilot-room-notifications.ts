@@ -17,6 +17,7 @@ export type PilotRoomEvent =
   | 'terms_changed'
   | 'team_review_started'
   | 'reviewer_invited'
+  | 'exception_review_requested'
   | 'change_requested'
   | 'security_change_requested'
   | 'pilot_terms_confirmed'
@@ -147,7 +148,6 @@ export function pilotRoomSectionsForChanges(changes: PilotDraftChange[]): PilotR
   const sections = new Set<PilotRoomSection>()
   for (const change of changes) {
     if (change.field === 'startDate') sections.add('scope')
-    else if (change.field === 'valueConfirmed') sections.add('commercial')
     else if (change.field.startsWith('criteria.')) sections.add('success_criteria')
     else if (change.field.startsWith('answers.')) {
       const field = change.field.slice('answers.'.length)
@@ -222,7 +222,12 @@ export async function notifyPilotRoomEvent(input: {
       }
     }
   } else {
-    pushEmail(targets, ownerEmail, input.event)
+    if (input.event === 'exception_review_requested') {
+      pushEmail(targets, ownerEmail, 'exception')
+      pushEmail(targets, portalsEmail, 'portals_review_requested')
+    } else {
+      pushEmail(targets, ownerEmail, input.event)
+    }
     if (
       [
         'team_review_started',

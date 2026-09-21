@@ -1,4 +1,4 @@
-import {after, NextResponse} from 'next/server'
+import { after, NextResponse } from 'next/server'
 import {
   leadRequestSchema,
   pilotRequestAnswersSchema,
@@ -9,11 +9,15 @@ import {
   type LeadResponse,
   type PilotAnswers,
 } from '@/lib/leads/contracts'
-import {hashValue, verifySignature} from '@/lib/leads/crypto'
-import {APP_SESSION_COOKIE, currentApplicationUser, ensurePilotCustomerAccount, issueMagicLink, pilotMembershipRole} from '@/lib/leads/application-auth'
-import {leadDownloadUrl} from '@/lib/leads/downloads'
-import {normalizeEmail, validateIdentityForCapture} from '@/lib/leads/identity'
-import {extractClientIp, sanitizeIp} from '@/lib/leads/ip-utils'
+import { hashValue, verifySignature } from '@/lib/leads/crypto'
+import { APP_SESSION_COOKIE, currentApplicationUser, ensurePilotCustomerAccount, issueMagicLink, pilotMembershipRole } from '@/lib/leads/application-auth'
+import { leadDownloadUrl } from '@/lib/leads/downloads'
+import {
+  normalizeEmail,
+  validateIdentityForCapture,
+  validatePilotRoleEmailDomains,
+} from '@/lib/leads/identity'
+import { extractClientIp, sanitizeIp } from '@/lib/leads/ip-utils'
 import {
   applyTransition,
   buildCommercialSnapshot,
@@ -22,14 +26,15 @@ import {
   classifyPilot,
   computeUnresolved,
 } from '@/lib/leads/pilot'
-import {processLeadOutbox} from '@/lib/leads/processor'
-import {pilotRoomPath, pilotRoomPathForPilot} from '@/lib/leads/account-paths'
+import { processLeadOutbox } from '@/lib/leads/processor'
+import { pilotRoomPath, pilotRoomPathForPilot } from '@/lib/leads/account-paths'
+import { enqueueExceptionReviewTask } from '@/lib/leads/crm-events'
 import {
   changedPilotRoomFields,
   notifyPilotRoomEvent,
   pilotRoomSectionsForChanges,
 } from '@/lib/leads/pilot-room-notifications'
-import {commitPilotTermRevision, pilotMutableTermsFromState} from '@/lib/leads/pilot-room-revisions'
+import { commitPilotTermRevision, pilotMutableTermsFromState } from '@/lib/leads/pilot-room-revisions'
 import {
   attachSubmissionToPilot,
   consumeRateLimit,
@@ -58,7 +63,7 @@ import {
   qualificationTier,
   recommendedWorkflow,
 } from '@/lib/leads/scoring'
-import {resolveCurrentPilotOffer} from '@/lib/leads/pilot-offers'
+import { resolveCurrentPilotOffer } from '@/lib/leads/pilot-offers'
 
 export const runtime = 'nodejs'
 
@@ -140,13 +145,13 @@ function routeResponse(
     : undefined
   const publicQualification = scores && tier && outcome
     ? {
-        qualificationOutcome: outcome,
-        reasonCodes,
-        missingFields: outcome === 'clarify'
-          ? missingReadinessFields(qualificationAnswers || request.answers)
-          : [],
-        workflowRiskScore: scores.workflowRiskScore,
-      }
+      qualificationOutcome: outcome,
+      reasonCodes,
+      missingFields: outcome === 'clarify'
+        ? missingReadinessFields(qualificationAnswers || request.answers)
+        : [],
+      workflowRiskScore: scores.workflowRiskScore,
+    }
     : {}
   const workflow = recommendedWorkflow({
     ...(qualificationAnswers || request.answers),
@@ -154,20 +159,20 @@ function routeResponse(
   })
   const downloadUrl = leadDownloadUrl(request.submissionType)
   if (downloadUrl) {
-    return {ok: true, nextAction: 'download', downloadUrl}
+    return { ok: true, nextAction: 'download', downloadUrl }
   }
   if (request.submissionType === 'pilot_request') {
     const calendarUrl = process.env.PILOT_CALENDAR_URL
     return {
       ok: true,
       nextAction: calendarUrl ? 'calendar' : 'follow_up',
-      ...(calendarUrl ? {calendarUrl} : {}),
+      ...(calendarUrl ? { calendarUrl } : {}),
       downloadUrl: '/api/leads/documents/pilot-packet',
       message: 'Your paid pilot request is recorded for review.',
     }
   }
   if (request.submissionType === 'contact') {
-    return {ok: true, nextAction: 'follow_up', message: 'Your request is recorded.'}
+    return { ok: true, nextAction: 'follow_up', message: 'Your request is recorded.' }
   }
   if (
     ['assessment', 'commercial_readiness'].includes(request.submissionType) &&
@@ -215,7 +220,7 @@ function routeResponse(
       ...publicQualification,
       recommendedWorkflow: workflow,
       ...(request.submissionType === 'assessment'
-        ? {downloadUrl: '/api/leads/documents/assessment-result'}
+        ? { downloadUrl: '/api/leads/documents/assessment-result' }
         : {}),
       message: 'This workflow is a viable candidate for a paid production pilot.',
     }
@@ -235,7 +240,7 @@ function routeResponse(
         missingFields: [],
         recommendedWorkflow: workflow,
         ...(request.submissionType === 'assessment'
-          ? {downloadUrl: '/api/leads/documents/assessment-result'}
+          ? { downloadUrl: '/api/leads/documents/assessment-result' }
           : {}),
         message: 'Your answers point to a concrete workflow to improve. Explore that production pattern to see how Portals can reduce repeat work before deciding on a pilot.',
       }
@@ -254,7 +259,7 @@ function routeResponse(
     ...publicQualification,
     recommendedWorkflow: workflow,
     ...(request.submissionType === 'assessment'
-      ? {downloadUrl: '/api/leads/documents/assessment-result'}
+      ? { downloadUrl: '/api/leads/documents/assessment-result' }
       : {}),
     message: 'Based on the available information, education is the most useful next step.',
   }
@@ -272,31 +277,31 @@ async function syncPilotRecord(
   const assessmentOverride = answers.assessmentOrigin === 'assessment_override'
   const classification = assessmentOverride
     ? {
-        ...baseClassification,
-        route: 'one-call' as const,
-        reasons: [
-          ...baseClassification.reasons,
-          'assessment override requires a qualification decision',
+      ...baseClassification,
+      route: 'one-call' as const,
+      reasons: [
+        ...baseClassification.reasons,
+        'assessment override requires a qualification decision',
+      ],
+      exceptions: baseClassification.exceptions.some(
+        (item) => item.kind === 'assessment-qualification',
+      )
+        ? baseClassification.exceptions
+        : [
+          ...baseClassification.exceptions,
+          {
+            kind: 'assessment-qualification',
+            summary:
+              'The assessment did not establish a credible active workflow or sufficient fit and pain.',
+            amendment:
+              'A founder qualification call must confirm or decline this pilot request.',
+          },
         ],
-        exceptions: baseClassification.exceptions.some(
-          (item) => item.kind === 'assessment-qualification',
-        )
-          ? baseClassification.exceptions
-          : [
-              ...baseClassification.exceptions,
-              {
-                kind: 'assessment-qualification',
-                summary:
-                  'The assessment did not establish a credible active workflow or sufficient fit and pain.',
-                amendment:
-                  'A founder qualification call must confirm or decline this pilot request.',
-              },
-            ],
-      }
+    }
     : baseClassification
   const successCriteria = buildSuccessCriteria(answers)
   const securityDecisions = buildSecurityDecisions(answers)
-  const unresolved = computeUnresolved(answers, {route: classification.route})
+  const unresolved = computeUnresolved(answers, { route: classification.route })
   const submitterEmail = leadRequest.identity?.email
   const submitterName = leadRequest.identity?.name
   const initialAnswers = Object.fromEntries(
@@ -312,11 +317,11 @@ async function syncPilotRecord(
   const pilotAnswers = {
     ...initialAnswers,
     ...(submitterName && !String(answers.productionOwner || '').trim()
-      ? {productionOwner: submitterName}
+      ? { productionOwner: submitterName }
       : {}),
-    ...(submitterEmail ? {email: submitterEmail} : {}),
-    ...(submitterName ? {name: submitterName} : {}),
-    ...(submitterEmail ? {productionOwnerEmail: submitterEmail} : {}),
+    ...(submitterEmail ? { email: submitterEmail } : {}),
+    ...(submitterName ? { name: submitterName } : {}),
+    ...(submitterEmail ? { productionOwnerEmail: submitterEmail } : {}),
   }
 
   if (leadRequest.pilotId) {
@@ -328,8 +333,8 @@ async function syncPilotRecord(
     const nextAnswers = {
       ...(pilot.answers as Record<string, unknown>),
       ...answers,
-      ...(submitterEmail ? {email: submitterEmail} : {}),
-      ...(submitterName ? {name: submitterName} : {}),
+      ...(submitterEmail ? { email: submitterEmail } : {}),
+      ...(submitterName ? { name: submitterName } : {}),
     }
     const proposal = pilot.proposal || buildCommercialSnapshot(answers, [], {
       startDate: pilot.resolvedStartDate || undefined,
@@ -337,7 +342,7 @@ async function syncPilotRecord(
     const at = new Date().toISOString()
     const roomChanges = changedPilotRoomFields({
       before: pilot,
-      after: {answers: nextAnswers, securityDecisions},
+      after: { answers: nextAnswers, securityDecisions },
       at,
       by: submitterEmail,
     })
@@ -369,16 +374,18 @@ async function syncPilotRecord(
       historyNote: 'revision submitted',
     })
     if (committed.version > pilot.version) {
-      const stale = updated.reviewers.filter(
-        (reviewer) =>
-          reviewer.status !== 'revoked' &&
-          reviewer.status !== 'proposed' &&
-          reviewer.versionSeen < committed.version &&
-          reviewer.email,
-      )
-      for (const reviewer of stale) {
+      const staleEmails = new Set(updated.reviewers
+        .filter(
+          (reviewer) =>
+            reviewer.status !== 'revoked' &&
+            reviewer.status !== 'proposed' &&
+            reviewer.versionSeen < committed.version &&
+            reviewer.email,
+        )
+        .map((reviewer) => reviewer.email.trim().toLowerCase()))
+      for (const email of staleEmails) {
         try {
-          await enqueuePilotEmail(updated.id, 'revised_ready', reviewer.email)
+          await enqueuePilotEmail(updated.id, 'revised_ready', email, `revision:${updated.version}`)
         } catch (cause) {
           console.error('revised_ready email failed', cause)
         }
@@ -394,6 +401,15 @@ async function syncPilotRecord(
       await enqueuePilotEmail(updated.id, 'revised')
     } catch (cause) {
       console.error('revised email failed', cause)
+    }
+    if (assessmentOverride) {
+      const eventKey = `exception-review:${updated.id}:${updated.updatedAt}`
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'exception_review_requested',
+        eventKey,
+      })
+      await enqueueExceptionReviewTask(updated.id, eventKey)
     }
     return {
       ...response,
@@ -433,16 +449,16 @@ async function syncPilotRecord(
     companyName: leadRequest.identity?.company,
   })
   await setPilotCustomerAccountId(pilot.id, account.customer.id)
-  const proposal = buildCommercialSnapshot(pilotAnswers as PilotAnswers, [], {offer})
+  const proposal = buildCommercialSnapshot(pilotAnswers as PilotAnswers, [], { offer })
   const immutableProposal = offer
     ? {
-        ...proposal,
-        basePackageSlug: offer.basePackageSlug,
-        offerResolvedAt: new Date().toISOString(),
-        offerSnapshotHash: hashValue(JSON.stringify(offer)),
-      }
+      ...proposal,
+      basePackageSlug: offer.basePackageSlug,
+      offerResolvedAt: new Date().toISOString(),
+      offerSnapshotHash: hashValue(JSON.stringify(offer)),
+    }
     : proposal
-  const updatedPilot = await updatePilot(pilot.id, {proposal: immutableProposal})
+  const updatedPilot = await updatePilot(pilot.id, { proposal: immutableProposal })
   // The applicant has just proven control of this email address in the form.
   // Issue a short-lived, single-use credential so the first room visit can
   // establish the same session as the emailed magic-link flow.
@@ -460,6 +476,15 @@ async function syncPilotRecord(
   } catch (cause) {
     console.error('pilot email failed', cause)
   }
+  if (assessmentOverride) {
+    const eventKey = `exception-review:${pilot.id}:${pilot.updatedAt}`
+    await notifyPilotRoomEvent({
+      pilot,
+      event: 'exception_review_requested',
+      eventKey,
+    })
+    await enqueueExceptionReviewTask(pilot.id, eventKey)
+  }
   return {
     ...response,
     nextAction: 'pilot_room',
@@ -471,10 +496,10 @@ async function syncPilotRecord(
       assessmentOverride
         ? 'Your free customized pilot plan is ready in the approval room. A qualification call is required before the pilot can proceed.'
         : pilot.route === 'disqualified'
-        ? 'Your pilot request needs clarification before it can proceed.'
-        : pilot.route === 'one-call'
-          ? 'Your pilot approval room is ready with your customized plan. Review any flagged items before signing.'
-          : 'Your pilot approval room is ready with your customized plan. Review the scope, accept the terms, and pay when ready.',
+          ? 'Your pilot request needs clarification before it can proceed.'
+          : pilot.route === 'one-call'
+            ? 'Your pilot approval room is ready with your customized plan. Review any flagged items before signing.'
+            : 'Your pilot approval room is ready with your customized plan. Review the scope, accept the terms, and pay when ready.',
   }
 }
 
@@ -488,12 +513,12 @@ async function handleLeadRequest(
   if (configurationError) {
     console.error(configurationError)
     return NextResponse.json(
-      {ok: false, error: 'requests are temporarily unavailable. please try again.'},
-      {status: 503},
+      { ok: false, error: 'requests are temporarily unavailable. please try again.' },
+      { status: 503 },
     )
   }
   if (leadRequest.companyFax) {
-    return NextResponse.json({ok: true, nextAction: 'follow_up'})
+    return NextResponse.json({ ok: true, nextAction: 'follow_up' })
   }
 
   // Capture client IP for geolocation
@@ -536,7 +561,7 @@ async function handleLeadRequest(
   }
   const identityError = validateIdentityForCapture(identity)
   if (identityError) {
-    return NextResponse.json({ok: false, error: identityError}, {status: 400})
+    return NextResponse.json({ ok: false, error: identityError }, { status: 400 })
   }
 
   const priorAnswers = profile
@@ -546,18 +571,18 @@ async function handleLeadRequest(
     priorAnswers,
     effectiveLeadRequest.answers,
     ...(effectiveLeadRequest.submissionType === 'workflow_review'
-      ? [{workflowReviewRequested: true}]
+      ? [{ workflowReviewRequested: true }]
       : []),
     ...(effectiveLeadRequest.submissionType === 'assessment' || effectiveLeadRequest.submissionType === 'commercial_readiness'
-      ? [{commercialReadinessCompleted: true}]
+      ? [{ commercialReadinessCompleted: true }]
       : []),
     ...(effectiveLeadRequest.submissionType === 'pilot_request'
       ? [{
-          activeWorkflow: effectiveLeadRequest.answers.pilotWorkflow,
-          targetStartPeriod: effectiveLeadRequest.answers.targetStartPeriod,
-          stakeholderInvolved: true,
-          pricingOrPilotViewed: true,
-        }]
+        activeWorkflow: effectiveLeadRequest.answers.pilotWorkflow,
+        targetStartPeriod: effectiveLeadRequest.answers.targetStartPeriod,
+        stakeholderInvolved: true,
+        pricingOrPilotViewed: true,
+      }]
       : []),
   )
   if (effectiveLeadRequest.submissionType === 'pilot_request') {
@@ -570,32 +595,32 @@ async function handleLeadRequest(
     const readiness = effectiveLeadRequest.answers
     qualificationAnswers = mergeQualificationAnswers(qualificationAnswers, {
       ...(readiness.objectionDetail
-        ? {pilotBlocker: readiness.objectionDetail}
+        ? { pilotBlocker: readiness.objectionDetail }
         : {}),
       ...(readiness.primaryObjection === 'integration' && readiness.objectionDetail
-        ? {requiredIntegrations: readiness.objectionDetail}
+        ? { requiredIntegrations: readiness.objectionDetail }
         : {}),
       ...(readiness.primaryObjection === 'security' && readiness.objectionDetail
-        ? {securityRequirements: readiness.objectionDetail}
+        ? { securityRequirements: readiness.objectionDetail }
         : {}),
     })
   }
   const finalLeadRequest: LeadRequest =
     effectiveLeadRequest.submissionType === 'pilot_request'
       ? {
-          ...effectiveLeadRequest,
-          identity,
-          answers: pilotRequestAnswersSchema.parse({
-            ...effectiveLeadRequest.answers,
-            ...Object.fromEntries(
-              pilotRequiredAnswerFields.map((field) => [
-                field,
-                String(qualificationAnswers[field] || ''),
-              ]),
-            ),
-          }),
-        }
-      : {...effectiveLeadRequest, identity}
+        ...effectiveLeadRequest,
+        identity,
+        answers: pilotRequestAnswersSchema.parse({
+          ...effectiveLeadRequest.answers,
+          ...Object.fromEntries(
+            pilotRequiredAnswerFields.map((field) => [
+              field,
+              String(qualificationAnswers[field] || ''),
+            ]),
+          ),
+        }),
+      }
+      : { ...effectiveLeadRequest, identity }
   if (
     finalLeadRequest.submissionType === 'pilot_request' &&
     pilotRequiredAnswerFields.some(
@@ -603,9 +628,15 @@ async function handleLeadRequest(
     )
   ) {
     return NextResponse.json(
-      {ok: false, error: 'please complete every required pilot field'},
-      {status: 400},
+      { ok: false, error: 'please complete every required pilot field' },
+      { status: 400 },
     )
+  }
+  if (finalLeadRequest.submissionType === 'pilot_request') {
+    const roleEmailError = validatePilotRoleEmailDomains(finalLeadRequest.answers)
+    if (roleEmailError) {
+      return NextResponse.json({ ok: false, error: roleEmailError }, { status: 400 })
+    }
   }
   const scoreable = ['assessment', 'commercial_readiness', 'workflow_review', 'pilot_request'].includes(
     finalLeadRequest.submissionType,
@@ -637,11 +668,11 @@ async function handleLeadRequest(
   const pilotResponse =
     finalLeadRequest.submissionType === 'pilot_request'
       ? await syncPilotRecord(
-          finalLeadRequest,
-          persisted.submission.id,
-          persisted.submission.profile.id,
-          finalResponse,
-        )
+        finalLeadRequest,
+        persisted.submission.id,
+        persisted.submission.profile.id,
+        finalResponse,
+      )
       : finalResponse
   const nextResponse = NextResponse.json(pilotResponse)
   if (persisted.profileToken) {
@@ -660,26 +691,26 @@ async function handleLeadRequest(
 export async function POST(request: Request) {
   const declaredLength = Number(request.headers.get('content-length') || 0)
   if (declaredLength > MAX_BODY_BYTES) {
-    return NextResponse.json({ok: false, error: 'request is too large'}, {status: 413})
+    return NextResponse.json({ ok: false, error: 'request is too large' }, { status: 413 })
   }
   const rawBody = await request.text()
   if (Buffer.byteLength(rawBody) > MAX_BODY_BYTES) {
-    return NextResponse.json({ok: false, error: 'request is too large'}, {status: 413})
+    return NextResponse.json({ ok: false, error: 'request is too large' }, { status: 413 })
   }
 
   const providerSignature = request.headers.get('x-portals-signature')
   if (providerSignature) {
     if (!process.env.APOLLO_CALLBACK_SECRET) {
-      return NextResponse.json({ok: false, error: 'provider callback unavailable'}, {status: 503})
+      return NextResponse.json({ ok: false, error: 'provider callback unavailable' }, { status: 503 })
     }
     if (!verifySignature(rawBody, providerSignature, 'APOLLO_CALLBACK_SECRET')) {
-      return NextResponse.json({ok: false, error: 'invalid signature'}, {status: 401})
+      return NextResponse.json({ ok: false, error: 'invalid signature' }, { status: 401 })
     }
     let parsedBody: unknown
     try {
       parsedBody = JSON.parse(rawBody)
     } catch {
-      return NextResponse.json({ok: false, error: 'invalid request body'}, {status: 400})
+      return NextResponse.json({ ok: false, error: 'invalid request body' }, { status: 400 })
     }
     const parsed = leadRequestSchema.safeParse(parsedBody)
     if (
@@ -687,11 +718,11 @@ export async function POST(request: Request) {
       parsed.data.submissionType !== 'commercial_event' ||
       parsed.data.provider !== 'apollo'
     ) {
-      return NextResponse.json({ok: false, error: 'invalid provider event'}, {status: 400})
+      return NextResponse.json({ ok: false, error: 'invalid provider event' }, { status: 400 })
     }
     const profile = await getProfileByEmail(parsed.data.identity?.email)
     if (!profile) {
-      return NextResponse.json({ok: false, error: 'lead profile not found'}, {status: 404})
+      return NextResponse.json({ ok: false, error: 'lead profile not found' }, { status: 404 })
     }
     return handleLeadRequest(
       request,
@@ -709,17 +740,17 @@ export async function POST(request: Request) {
   }
 
   if (!validBrowserOrigin(request)) {
-    return NextResponse.json({ok: false, error: 'invalid origin'}, {status: 403})
+    return NextResponse.json({ ok: false, error: 'invalid origin' }, { status: 403 })
   }
   let json: unknown
   try {
     json = JSON.parse(rawBody)
   } catch {
-    return NextResponse.json({ok: false, error: 'invalid request body'}, {status: 400})
+    return NextResponse.json({ ok: false, error: 'invalid request body' }, { status: 400 })
   }
   const reset = profileResetSchema.safeParse(json)
   if (reset.success) {
-    const response = NextResponse.json({ok: true, nextAction: 'follow_up'})
+    const response = NextResponse.json({ ok: true, nextAction: 'follow_up' })
     const cookieOptions = {
       path: '/',
       maxAge: 0,
@@ -738,8 +769,8 @@ export async function POST(request: Request) {
   ) {
     console.error('Lead intake requires LEADS_DATABASE_URL and LEADS_HASH_KEY.')
     return NextResponse.json(
-      {ok: false, error: 'requests are temporarily unavailable. please try again.'},
-      {status: 503},
+      { ok: false, error: 'requests are temporarily unavailable. please try again.' },
+      { status: 503 },
     )
   }
   const sessionToken = request.headers.get('cookie')
@@ -751,17 +782,17 @@ export async function POST(request: Request) {
     hashValue(`lead:${requestIp(request)}:${sessionToken || 'anonymous'}`),
   )
   if (!allowed) {
-    return NextResponse.json({ok: false, error: 'too many requests'}, {status: 429})
+    return NextResponse.json({ ok: false, error: 'too many requests' }, { status: 429 })
   }
   const parsed = leadRequestSchema.safeParse(json)
   if (!parsed.success) {
     return NextResponse.json(
-      {ok: false, error: 'please complete every required field'},
-      {status: 400},
+      { ok: false, error: 'please complete every required field' },
+      { status: 400 },
     )
   }
   if (!['browser', 'apollo'].includes(parsed.data.provider)) {
-    return NextResponse.json({ok: false, error: 'invalid provider'}, {status: 400})
+    return NextResponse.json({ ok: false, error: 'invalid provider' }, { status: 400 })
   }
   const applicationSession = request.headers.get('cookie')
     ?.split(';')
@@ -775,7 +806,7 @@ export async function POST(request: Request) {
       ? await pilotMembershipRole(revisedPilotId, applicationUser.id)
       : null
     if (!applicationUser?.profileId || role !== 'owner') {
-      return NextResponse.json({ok: false, error: 'only the pilot account owner can submit a revision'}, {status: 403})
+      return NextResponse.json({ ok: false, error: 'only the pilot account owner can submit a revision' }, { status: 403 })
     }
     return handleLeadRequest(request, parsed.data, true, applicationUser.profileId)
   }

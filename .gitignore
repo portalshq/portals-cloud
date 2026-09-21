@@ -10,6 +10,7 @@ infra/lore/certs/*.pem
 dist/
 node_modules/
 .turbo/
+coverage/
 target/
 infra/pulumi/bin/
 

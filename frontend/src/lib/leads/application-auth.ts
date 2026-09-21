@@ -1,7 +1,7 @@
-import {randomUUID} from 'node:crypto'
-import {decryptJson, encryptJson, hashValue, randomToken} from './crypto'
-import {normalizeEmail} from './identity'
-import {getPilotById, leadPool, leadsDryRun, setPilotCustomerAccountId, type StoredProfile} from './store'
+import { randomUUID } from 'node:crypto'
+import { decryptJson, encryptJson, hashValue, randomToken } from './crypto'
+import { normalizeEmail } from './identity'
+import { getPilotById, leadPool, leadsDryRun, setPilotCustomerAccountId, type StoredProfile } from './store'
 
 export const APP_SESSION_COOKIE = 'portals_session'
 export const APP_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 14
@@ -9,6 +9,13 @@ const MAGIC_LINK_MAX_AGE_SECONDS = 60 * 15
 
 export type ApplicationRole = 'owner' | 'admin' | 'member'
 export type PilotMemberRole = 'owner' | 'participant' | 'approver' | 'signer'
+
+const PILOT_MEMBER_ROLE_PRIVILEGE: Record<PilotMemberRole, number> = {
+  owner: 4,
+  signer: 3,
+  approver: 2,
+  participant: 1,
+}
 
 export type ApplicationUser = {
   id: string
@@ -48,7 +55,7 @@ const memory = globalThis as typeof globalThis & {
       nextPath?: string
       expiresAt: number
     }>
-    sessions: Map<string, {userId: string; expiresAt: number}>
+    sessions: Map<string, { userId: string; expiresAt: number }>
   }
 }
 
@@ -68,12 +75,32 @@ function memberKey(customerAccountId: string, userId: string) {
   return `${customerAccountId}:${userId}`
 }
 
-function pilotMemberKey(pilotId: string, userId: string) {
-  return `${pilotId}:${userId}`
+function pilotMemberKey(pilotId: string, userId: string, role: PilotMemberRole) {
+  return `${pilotId}:${userId}:${role}`
+}
+
+function addMemoryPilotMembership(pilotId: string, userId: string, role: PilotMemberRole) {
+  memoryStore().pilotMemberships.set(pilotMemberKey(pilotId, userId, role), role)
+}
+
+function pilotMembershipFromMemoryKey(key: string): { pilotId: string; userId: string; role: PilotMemberRole } | null {
+  const [pilotId, userId, role] = key.split(':')
+  if (!pilotId || !userId || !role || !Object.hasOwn(PILOT_MEMBER_ROLE_PRIVILEGE, role)) return null
+  return { pilotId, userId, role: role as PilotMemberRole }
+}
+
+export function highestPilotMembershipRole(roles: Iterable<PilotMemberRole>): PilotMemberRole | null {
+  let highest: PilotMemberRole | null = null
+  for (const role of roles) {
+    if (!highest || PILOT_MEMBER_ROLE_PRIVILEGE[role] > PILOT_MEMBER_ROLE_PRIVILEGE[highest]) {
+      highest = role
+    }
+  }
+  return highest
 }
 
 function userFromRow(row: UserRow): ApplicationUser {
-  const identity = decryptJson<{email: string}>(row.identity_ciphertext)
+  const identity = decryptJson<{ email: string }>(row.identity_ciphertext)
   return {
     id: row.id,
     profileId: row.profile_id || undefined,
@@ -117,7 +144,7 @@ export async function getCustomerAccountForUser(
     const role = stored.memberships.get(memberKey(customerAccountId, userId))
     const account = stored.customers.get(customerAccountId)
     if (!role || !account) return null
-    return {...account, role}
+    return { ...account, role }
   }
   const result = await leadPool().query<CustomerAccount>(
     `SELECT customer.id, customer.name, customer.domain,
@@ -144,10 +171,10 @@ export async function getCustomerAccountsForUser(userId: string): Promise<Custom
       .map((accountId) => {
         const account = stored.customers.get(accountId)
         const role = stored.memberships.get(`${accountId}:${userId}`)
-        return account && role ? {...account, role} : null
+        return account && role ? { ...account, role } : null
       })
       .filter((account): account is NonNullable<typeof account> => account !== null)
-    const priority: Record<ApplicationRole, number> = {owner: 0, admin: 1, member: 2}
+    const priority: Record<ApplicationRole, number> = { owner: 0, admin: 1, member: 2 }
     return accounts.sort((a, b) => {
       const aPriority = a.role ? priority[a.role] : 3
       const bPriority = b.role ? priority[b.role] : 3
@@ -218,7 +245,7 @@ export async function ensureApplicationUser(input: {
       user.id,
       user.profileId || null,
       hashValue(user.email),
-      encryptJson({email: user.email}),
+      encryptJson({ email: user.email }),
       user.displayName,
     ],
   )
@@ -229,7 +256,7 @@ export async function ensurePilotCustomerAccount(input: {
   pilotId: string | null
   profile: StoredProfile
   companyName?: string
-}): Promise<{user: ApplicationUser; customer: CustomerAccount}> {
+}): Promise<{ user: ApplicationUser; customer: CustomerAccount }> {
   const email = input.profile.identity.email
   if (!email) throw new Error('A pilot applicant email is required to create an application account.')
   const user = await ensureApplicationUser({
@@ -241,7 +268,7 @@ export async function ensurePilotCustomerAccount(input: {
   const accountName = input.companyName || input.profile.identity.company || domain || email
   const founderEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim()
   const founder = founderEmail && normalizeEmail(founderEmail) !== email
-    ? await ensureApplicationUser({email: founderEmail, displayName: 'portals team'})
+    ? await ensureApplicationUser({ email: founderEmail, displayName: 'portals team' })
     : null
   if (leadsDryRun()) {
     const stored = memoryStore()
@@ -250,21 +277,21 @@ export async function ensurePilotCustomerAccount(input: {
     )?.[0].split(':')[0]
     const existingCustomer = ownedCustomerId ? stored.customers.get(ownedCustomerId) : undefined
     const customer: CustomerAccount = existingCustomer
-      ? {...existingCustomer, role: 'owner' as const}
-      : {id: randomUUID(), name: accountName, domain, role: 'owner' as const}
+      ? { ...existingCustomer, role: 'owner' as const }
+      : { id: randomUUID(), name: accountName, domain, role: 'owner' as const }
     stored.customers.set(customer.id, customer)
     stored.memberships.set(memberKey(customer.id, user.id), 'owner')
     if (input.pilotId) {
-      stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), 'owner')
+      stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id, "owner"), 'owner')
       if (founder) {
-        stored.pilotMemberships.set(pilotMemberKey(input.pilotId, founder.id), 'approver')
+        stored.pilotMemberships.set(pilotMemberKey(input.pilotId, founder.id, "approver"), 'approver')
       }
       await setPilotCustomerAccountId(input.pilotId, customer.id)
     }
     if (founder) {
       stored.memberships.set(memberKey(customer.id, founder.id), 'admin')
     }
-    return {user, customer}
+    return { user, customer }
   }
 
   const client = await leadPool().connect()
@@ -284,11 +311,11 @@ export async function ensurePilotCustomerAccount(input: {
     let customer = owned.rows[0]
     if (!customer) {
       const domainMatch = domain
-        ? await client.query<{id: string}>(
-            'SELECT id FROM customer_accounts WHERE domain = $1 FOR UPDATE',
-            [domain],
-          )
-        : {rows: [] as {id: string}[]}
+        ? await client.query<{ id: string }>(
+          'SELECT id FROM customer_accounts WHERE domain = $1 FOR UPDATE',
+          [domain],
+        )
+        : { rows: [] as { id: string }[] }
       // A matching domain is only a duplicate-review signal. It must never
       // grant an unrelated applicant access to an existing organization.
       const newCustomer: CustomerAccount = {
@@ -303,7 +330,7 @@ export async function ensurePilotCustomerAccount(input: {
       )
       customer = newCustomer
     } else {
-      customer = {...customer, role: 'owner'}
+      customer = { ...customer, role: 'owner' }
     }
     await client.query(
       `INSERT INTO customer_memberships(customer_account_id, user_id, role)
@@ -347,7 +374,7 @@ export async function ensurePilotCustomerAccount(input: {
       )
     }
     await client.query('COMMIT')
-    return {user, customer}
+    return { user, customer }
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -407,7 +434,7 @@ export async function issueMagicLink(input: {
   return token
 }
 
-export async function consumeMagicLink(token: string): Promise<{sessionToken: string; user: ApplicationUser; nextPath?: string} | null> {
+export async function consumeMagicLink(token: string): Promise<{ sessionToken: string; user: ApplicationUser; nextPath?: string } | null> {
   const tokenHash = hashValue(token)
   if (leadsDryRun()) {
     const stored = memoryStore().magicLinks.get(tokenHash)
@@ -422,7 +449,7 @@ export async function consumeMagicLink(token: string): Promise<{sessionToken: st
       expiresAt: Date.now() + APP_SESSION_MAX_AGE_SECONDS * 1000,
     })
     const user = await getApplicationUserById(stored.userId)
-    return user ? {sessionToken, user, nextPath: stored.nextPath} : null
+    return user ? { sessionToken, user, nextPath: stored.nextPath } : null
   }
   const client = await leadPool().connect()
   try {
@@ -460,7 +487,7 @@ export async function consumeMagicLink(token: string): Promise<{sessionToken: st
     )
     await client.query('COMMIT')
     const user = await getApplicationUserById(row.user_id)
-    return user ? {sessionToken, user, nextPath: row.next_path || undefined} : null
+    return user ? { sessionToken, user, nextPath: row.next_path || undefined } : null
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -484,14 +511,14 @@ export async function inspectMagicLink(token: string): Promise<{
     const user = stored ? await getApplicationUserById(stored.userId) : null
     return stored && user
       ? {
-          user,
-          purpose: stored.purpose,
-          customerAccountId: stored.customerAccountId,
-          role: stored.role,
-          nextPath: stored.nextPath,
-          expired: stored.expiresAt < Date.now(),
-          consumed: false,
-        }
+        user,
+        purpose: stored.purpose,
+        customerAccountId: stored.customerAccountId,
+        role: stored.role,
+        nextPath: stored.nextPath,
+        expired: stored.expiresAt < Date.now(),
+        consumed: false,
+      }
       : null
   }
   const result = await leadPool().query<{
@@ -511,14 +538,14 @@ export async function inspectMagicLink(token: string): Promise<{
   const user = row ? await getApplicationUserById(row.user_id) : null
   return row && user
     ? {
-        user,
-        purpose: row.purpose,
-        customerAccountId: row.customer_account_id || undefined,
-        role: row.role || undefined,
-        nextPath: row.next_path || undefined,
-        expired: new Date(row.expires_at).getTime() < Date.now(),
-        consumed: Boolean(row.consumed_at),
-      }
+      user,
+      purpose: row.purpose,
+      customerAccountId: row.customer_account_id || undefined,
+      role: row.role || undefined,
+      nextPath: row.next_path || undefined,
+      expired: new Date(row.expires_at).getTime() < Date.now(),
+      consumed: Boolean(row.consumed_at),
+    }
     : null
 }
 
@@ -531,7 +558,7 @@ export async function currentApplicationUser(sessionToken?: string): Promise<App
     const user = await getApplicationUserById(session.userId)
     return user?.status === 'active' ? user : null
   }
-  const result = await leadPool().query<{user_id: string}>(
+  const result = await leadPool().query<{ user_id: string }>(
     `UPDATE application_sessions sessions
         SET last_seen_at = now()
        FROM application_users users
@@ -546,16 +573,37 @@ export async function currentApplicationUser(sessionToken?: string): Promise<App
   return result.rows[0] ? getApplicationUserById(result.rows[0].user_id) : null
 }
 
-export async function pilotMembershipRole(pilotId: string, userId: string): Promise<PilotMemberRole | null> {
-  if (leadsDryRun()) return memoryStore().pilotMemberships.get(pilotMemberKey(pilotId, userId)) || null
-  const result = await leadPool().query<{role: PilotMemberRole}>(
+export async function pilotMembershipRoles(pilotId: string, userId: string): Promise<PilotMemberRole[]> {
+  if (leadsDryRun()) {
+    return [...memoryStore().pilotMemberships.entries()]
+      .map(([key, role]) => ({ key: pilotMembershipFromMemoryKey(key), role }))
+      .filter((entry): entry is { key: { pilotId: string; userId: string; role: PilotMemberRole }; role: PilotMemberRole } =>
+        Boolean(entry.key && entry.key.pilotId === pilotId && entry.key.userId === userId),
+      )
+      .map((entry) => entry.role)
+  }
+  const result = await leadPool().query<{ role: PilotMemberRole }>(
     `SELECT role FROM pilot_memberships
       WHERE pilot_id = $1 AND user_id = $2 AND revoked_at IS NULL
       ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'approver' THEN 1 WHEN 'signer' THEN 2 ELSE 3 END
       LIMIT 1`,
     [pilotId, userId],
   )
-  return result.rows[0]?.role || null
+  return result.rows.map((row) => row.role)
+}
+
+/** Resolves the most privileged active role for callers that need one display/access role. */
+export async function pilotMembershipRole(pilotId: string, userId: string): Promise<PilotMemberRole | null> {
+  return highestPilotMembershipRole(await pilotMembershipRoles(pilotId, userId))
+}
+
+export async function hasPilotMembershipRole(
+  pilotId: string,
+  userId: string,
+  allowed: readonly PilotMemberRole[],
+): Promise<boolean> {
+  const roles = await pilotMembershipRoles(pilotId, userId)
+  return roles.some((role) => allowed.includes(role))
 }
 
 export async function countPilotParticipants(pilotId: string): Promise<number> {
@@ -567,7 +615,7 @@ export async function countPilotParticipants(pilotId: string): Promise<number> {
         .map(([key]) => key.slice(prefix.length)),
     ).size
   }
-  const result = await leadPool().query<{count: string}>(
+  const result = await leadPool().query<{ count: string }>(
     `SELECT COUNT(*)::text AS count
        FROM pilot_memberships
       WHERE pilot_id = $1 AND role = 'participant' AND revoked_at IS NULL`,
@@ -582,12 +630,12 @@ export async function pilotMembershipWithAccountRole(pilotId: string, userId: st
   customerAccountId: string | null
 }> {
   if (leadsDryRun()) {
-    const pilotRole = memoryStore().pilotMemberships.get(pilotMemberKey(pilotId, userId)) || null
-    if (!pilotRole) return {pilotRole: null, accountRole: null, customerAccountId: null}
+    const pilotRole = memoryStore().pilotMemberships.get(pilotMemberKey(pilotId, userId, "owner")) || null
+    if (!pilotRole) return { pilotRole: null, accountRole: null, customerAccountId: null }
     const pilot = await getPilotById(pilotId)
-    if (!pilot?.customerAccountId) return {pilotRole, accountRole: null, customerAccountId: null}
+    if (!pilot?.customerAccountId) return { pilotRole, accountRole: null, customerAccountId: null }
     const accountRole = memoryStore().memberships.get(`${pilot.customerAccountId}:${userId}`) || null
-    return {pilotRole, accountRole, customerAccountId: pilot.customerAccountId}
+    return { pilotRole, accountRole, customerAccountId: pilot.customerAccountId }
   }
   const result = await leadPool().query<{
     pilot_role: PilotMemberRole | null
@@ -604,7 +652,7 @@ export async function pilotMembershipWithAccountRole(pilotId: string, userId: st
     [pilotId, userId],
   )
   const row = result.rows[0]
-  if (!row) return {pilotRole: null, accountRole: null, customerAccountId: null}
+  if (!row) return { pilotRole: null, accountRole: null, customerAccountId: null }
   return {
     pilotRole: row.pilot_role,
     accountRole: row.account_role,
@@ -614,25 +662,29 @@ export async function pilotMembershipWithAccountRole(pilotId: string, userId: st
 
 export async function activePilotMemberEmails(pilotId: string): Promise<string[]> {
   if (leadsDryRun()) {
-    const prefix = `${pilotId}:`
-    return [...memoryStore().pilotMemberships.keys()]
-      .filter((key) => key.startsWith(prefix))
-      .map((key) => key.slice(prefix.length))
+    const userIds = new Set(
+      [...memoryStore().pilotMemberships.keys()]
+        .map(pilotMembershipFromMemoryKey)
+        .filter((entry): entry is { pilotId: string; userId: string; role: PilotMemberRole } => entry?.pilotId === pilotId)
+        .map((entry) => entry.userId),
+    )
+    return [...userIds]
       .map((userId) => memoryStore().users.get(userId))
       .filter((user): user is ApplicationUser => Boolean(user && user.status === 'active'))
       .map((user) => user.email)
   }
-  const result = await leadPool().query<{identity_ciphertext: string}>(
+  const result = await leadPool().query<{ identity_ciphertext: string }>(
     `SELECT DISTINCT users.identity_ciphertext
        FROM pilot_memberships membership
        JOIN application_users users ON users.id = membership.user_id
       WHERE membership.pilot_id = $1
         AND membership.revoked_at IS NULL
-        AND users.status = 'active'`,
+        AND users.status = 'active'
+      GROUP BY users.id, users.identity_ciphertext`,
     [pilotId],
   )
   return result.rows
-    .map((row) => decryptJson<{email: string}>(row.identity_ciphertext).email)
+    .map((row) => decryptJson<{ email: string }>(row.identity_ciphertext).email)
     .filter(Boolean)
 }
 
@@ -641,8 +693,8 @@ export async function invitePilotMember(input: {
   email: string
   displayName?: string
   role: Exclude<PilotMemberRole, 'owner'>
-}): Promise<{user: ApplicationUser; customerAccountId: string}> {
-  const user = await ensureApplicationUser({email: input.email, displayName: input.displayName})
+}): Promise<{ user: ApplicationUser; customerAccountId: string }> {
+  const user = await ensureApplicationUser({ email: input.email, displayName: input.displayName })
   if (leadsDryRun()) {
     const stored = memoryStore()
     const pilot = await getPilotById(input.pilotId)
@@ -651,13 +703,13 @@ export async function invitePilotMember(input: {
       : [...stored.customers.values()][0]
     if (!customer) throw new Error('Pilot customer account is missing.')
     stored.memberships.set(memberKey(customer.id, user.id), 'member')
-    stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), input.role)
-    return {user, customerAccountId: customer.id}
+    stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id, input.role), input.role)
+    return { user, customerAccountId: customer.id }
   }
   const client = await leadPool().connect()
   try {
     await client.query('BEGIN')
-    const pilot = await client.query<{customer_account_id: string | null}>(
+    const pilot = await client.query<{ customer_account_id: string | null }>(
       'SELECT customer_account_id FROM lead_pilots WHERE id = $1 FOR UPDATE',
       [input.pilotId],
     )
@@ -678,10 +730,10 @@ export async function invitePilotMember(input: {
     await client.query(
       `INSERT INTO application_audit_events(customer_account_id, pilot_id, actor_user_id, event_type, detail)
        VALUES ($1,$2,$3,'pilot_member_invited',$4)`,
-      [customerAccountId, input.pilotId, user.id, JSON.stringify({role: input.role})],
+      [customerAccountId, input.pilotId, user.id, JSON.stringify({ role: input.role })],
     )
     await client.query('COMMIT')
-    return {user, customerAccountId}
+    return { user, customerAccountId }
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -690,13 +742,33 @@ export async function invitePilotMember(input: {
   }
 }
 
+/** Revokes one pilot-specific access role without changing the user's customer-account membership. */
+export async function revokePilotMember(input: {
+  pilotId: string
+  email: string
+  role: PilotMemberRole
+}): Promise<void> {
+  const user = await getApplicationUserByEmail(input.email)
+  if (!user) return
+  if (leadsDryRun()) {
+    memoryStore().pilotMemberships.delete(pilotMemberKey(input.pilotId, user.id, input.role))
+    return
+  }
+  await leadPool().query(
+    `UPDATE pilot_memberships
+        SET revoked_at = now()
+      WHERE pilot_id = $1 AND user_id = $2 AND role = $3 AND revoked_at IS NULL`,
+    [input.pilotId, user.id, input.role],
+  )
+}
+
 export async function ensurePilotRecipientAccess(input: {
   pilotId: string
   email: string
   displayName?: string
   pilotRole: PilotMemberRole
   customerRole?: ApplicationRole
-}): Promise<{user: ApplicationUser; customerAccountId?: string}> {
+}): Promise<{ user: ApplicationUser; customerAccountId?: string }> {
   const user = await ensureApplicationUser({
     email: input.email,
     displayName: input.displayName,
@@ -710,13 +782,13 @@ export async function ensurePilotRecipientAccess(input: {
     if (customer && input.customerRole) {
       stored.memberships.set(memberKey(customer.id, user.id), input.customerRole)
     }
-    stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id), input.pilotRole)
-    return {user, customerAccountId: customer?.id}
+    stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id, input.pilotRole), input.pilotRole)
+    return { user, customerAccountId: customer?.id }
   }
   const client = await leadPool().connect()
   try {
     await client.query('BEGIN')
-    const pilot = await client.query<{customer_account_id: string | null}>(
+    const pilot = await client.query<{ customer_account_id: string | null }>(
       'SELECT customer_account_id FROM lead_pilots WHERE id = $1 FOR UPDATE',
       [input.pilotId],
     )
@@ -725,7 +797,12 @@ export async function ensurePilotRecipientAccess(input: {
       await client.query(
         `INSERT INTO customer_memberships(customer_account_id, user_id, role)
          VALUES ($1,$2,$3) ON CONFLICT(customer_account_id, user_id)
-         DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
+         DO UPDATE SET
+           role = CASE
+             WHEN customer_memberships.role IN ('owner', 'admin') THEN customer_memberships.role
+             ELSE EXCLUDED.role
+           END,
+           revoked_at = NULL`,
         [customerAccountId, user.id, input.customerRole],
       )
     }
@@ -736,7 +813,7 @@ export async function ensurePilotRecipientAccess(input: {
       [input.pilotId, user.id, input.pilotRole],
     )
     await client.query('COMMIT')
-    return {user, customerAccountId}
+    return { user, customerAccountId }
   } catch (error) {
     await client.query('ROLLBACK')
     throw error

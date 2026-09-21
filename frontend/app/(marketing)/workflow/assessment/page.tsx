@@ -1,13 +1,13 @@
-import type {Metadata} from 'next'
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import {ArrowUpRight} from 'lucide-react'
-import {AssessmentForm} from '@/components/leads/AssessmentForm'
-import {CTAButton} from '@/components/CTAButton'
-import {SmoothAnchor} from '@/components/SmoothAnchor'
-import {getKnownLeadContext} from '@/lib/leads/profile'
-import {SagaWebGLEngine} from '@/lib/SagaWebGLEngine'
+import { ArrowUpRight } from 'lucide-react'
+import { AssessmentForm } from '@/components/leads/AssessmentForm'
+import { CTAButton } from '@/components/CTAButton'
+import { SmoothAnchor } from '@/components/SmoothAnchor'
+import { getKnownLeadContext } from '@/lib/leads/profile'
+import { SagaWebGLEngine } from '@/lib/SagaWebGLEngine'
 import Faq from '@/components/FAQ'
-import {getFaqsByCategories} from '@/lib/faqs'
+import { getFaqsByCategories } from '@/lib/faqs'
 
 const assessmentUrl = new URL(
   '/assessment',
@@ -35,14 +35,14 @@ export const metadata: Metadata = {
     'AI character consistency workflow',
     'creative production handoff',
   ],
-  alternates: {canonical: assessmentUrl},
+  alternates: { canonical: assessmentUrl },
   openGraph: {
     type: 'website',
     url: assessmentUrl,
     siteName: 'portals',
     title: 'AI Creative Production Workflow Assessment | portals',
     description: 'Assess your creative production workflows. Find the workflow gaps in approval, context, handoffs, and reproducibility. Fix creative production costs with production memory.',
-    images: [{url: assessmentImageUrl, width: 1200, height: 630, alt: 'portals AI creative production workflow assessment'}],
+    images: [{ url: assessmentImageUrl, width: 1200, height: 630, alt: 'portals AI creative production workflow assessment' }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
-function NumberLabel({index}: {index: number}) {
+function NumberLabel({ index }: { index: number }) {
   return (
     <div className="flex items-center gap-x-8">
       <span className="size-8 bg-white" />
@@ -64,8 +64,8 @@ function NumberLabel({index}: {index: number}) {
 }
 
 const pageLinks = [
-  {href: '#what-happens-next', label: 'what happens next'},
-  {href: '#the-assessment', label: 'start the assessment'},
+  { href: '#what-happens-next', label: 'what happens next' },
+  { href: '#the-assessment', label: 'start the assessment' },
 ]
 
 const nextSteps = [
@@ -95,14 +95,14 @@ export default async function WorkflowAssessmentPage() {
       name: 'AI Creative Production Workflow Assessment',
       url: `${siteUrl}/assessment`,
       description: metadata.description,
-      isPartOf: {'@type': 'WebSite', name: 'portals', url: siteUrl},
+      isPartOf: { '@type': 'WebSite', name: 'portals', url: siteUrl },
     },
     {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
-        {'@type': 'ListItem', position: 1, name: 'portals', item: siteUrl},
-        {'@type': 'ListItem', position: 2, name: 'AI Creative Production Workflow Assessment', item: `${siteUrl}/assessment`},
+        { '@type': 'ListItem', position: 1, name: 'portals', item: siteUrl },
+        { '@type': 'ListItem', position: 2, name: 'AI Creative Production Workflow Assessment', item: `${siteUrl}/assessment` },
       ],
     },
     {
@@ -111,13 +111,13 @@ export default async function WorkflowAssessmentPage() {
       mainEntity: faqs.map((faq) => ({
         '@type': 'Question',
         name: faq.question,
-        acceptedAnswer: {'@type': 'Answer', text: faq.answer},
+        acceptedAnswer: { '@type': 'Answer', text: faq.answer },
       })),
     },
   ]
   return (
     <main className="relative z-(--z-main) min-h-screen overflow-hidden text-white">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(structuredData)}} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <SagaWebGLEngine />
       <div
         className="pointer-events-none h-px w-full"
@@ -154,16 +154,16 @@ export default async function WorkflowAssessmentPage() {
                 for film and animation studios, content and brand agencies, in-house marketing teams, and game and entertainment companies.
               </p>
               <p className="mt-20 max-w-[42em] t-p-sm-sans text-white">
-                complete in four minutes. you’ll receive an evaluation of where your production workflow may be creating avoidable cost, rework, and delays—and where portals will improve operating efficiency. 
-                <br/><br/>
+                complete in four minutes. you’ll receive an evaluation of where your production workflow may be creating avoidable cost, rework, and delays—and where portals will improve operating efficiency.
+                <br /><br />
                 after reviewing your results, you can build a customized pilot plan and evaluate the potential cost savings, productivity gains, and return on investment from improving the workflow with portals.
-                <br/><br/>
+                <br /><br />
                 scoping and receiving your pilot plan is free. a pilot is applied only if you approve the plan and proceed with the 21-day production pilot.
               </p>
             </div>
             <nav
               aria-label="assessment sections"
-              className="col-span-full lg:col-span-6 lg:col-start-19 lg:self-end"
+              className="col-span-full lg:col-span-6 lg:col-start-19 lg:self-center"
             >
               <ol className="mt-18 space-y-12 border-t border-white/20 pt-16">
                 {pageLinks.map((link, index) => (
@@ -184,9 +184,11 @@ export default async function WorkflowAssessmentPage() {
 
         <section className="relative">
           <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-            <blockquote className="col-span-full mb-20 lg:col-span-18 lg:col-start-4 px-18">
+            <blockquote className="col-span-full mb-20">
               <p className="mb-12 t-p-sans text-white">
-                <a className="underline underline-offset-4" href="https://openai.com/business/plugins/creative-production/" target="_blank" rel="noreferrer">OpenAI describes creative production</a> that adapts top-performing assets across channels while maintaining consistency. <a className="underline underline-offset-4" href="https://business.adobe.com/products/firefly-business/firefly-creative-production/production-workflows.html" target="_blank" rel="noreferrer">Adobe describes enterprise production workflows</a> for approved-asset variants, localization, and reduced rework. Its <a className="underline underline-offset-4" href="https://business.adobe.com/au/blog/ipg-healths-studio-rx-supercharges-campaign-production-adobe-firefly-custom-ai-models" target="_blank" rel="noreferrer">IPG Health Studio Rx example</a> shows high-volume character variation with brand consistency.
+                <a className="underline underline-offset-4" href="https://openai.com/business/plugins/creative-production/" target="_blank" rel="noreferrer">OpenAI describes creative production</a> that adapts top-performing assets across channels while maintaining consistency.
+                <br />
+                <a className="underline underline-offset-4" href="https://business.adobe.com/products/firefly-business/firefly-creative-production/production-workflows.html" target="_blank" rel="noreferrer">Adobe describes enterprise production workflows</a> for approved-asset variants, localization, and reduced rework. Its <a className="underline underline-offset-4" href="https://business.adobe.com/au/blog/ipg-healths-studio-rx-supercharges-campaign-production-adobe-firefly-custom-ai-models" target="_blank" rel="noreferrer">IPG Health Studio Rx example</a> shows high-volume character variation with brand consistency.
               </p>
             </blockquote>
             <div className="col-span-full lg:col-span-9">
@@ -239,7 +241,7 @@ export default async function WorkflowAssessmentPage() {
           <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
             <div className="col-span-2">
               <NumberLabel index={2} />
-            </div> 
+            </div>
             <p className="col-span-full max-w-[24em] lg:col-span-14 lg:col-start-9 t-p-lg-serif text-white">
               assess how your team preserves approved work, production context, team handoffs, and continuity.
             </p>
@@ -265,7 +267,7 @@ export default async function WorkflowAssessmentPage() {
             <div className="col-span-full lg:col-span-3">
               <NumberLabel index={3} />
             </div>
-            <div className="col-span-full lg:col-span-13 lg:col-start-8">
+            <div className="col-span-full lg:col-span-13 lg:col-start-9">
               <h2 className="max-w-[10em] t-d2-sans">
                 turn your assessment into a more efficient production workflow
               </h2>

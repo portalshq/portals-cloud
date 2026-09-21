@@ -51,7 +51,6 @@ describe("generateUUID", () => {
     vi.spyOn(globalThis, "crypto", "get").mockReturnValue(undefined as any);
 
     const uuids = Array.from({ length: 100 }, () => generateUUID());
-
     // All should be valid UUID v4 format
     uuids.forEach(uuid => {
       expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);

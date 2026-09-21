@@ -57,6 +57,14 @@ export type UnresolvedItem = {
   href: string
 }
 
+export type PilotProgressInput = {
+  state: PilotState
+  version: number
+  unresolved: UnresolvedItem[]
+  exceptions: ExceptionItem[]
+  reviewers: Reviewer[]
+}
+
 export type ExceptionItem = {
   kind: string
   summary: string
@@ -98,7 +106,6 @@ export type ValueModel = {
   high: number
   midpoint: number
   formula: string
-  confirmed: boolean
 }
 
 export type CommercialSnapshot = {
@@ -151,6 +158,20 @@ export type ReviewerRole =
   | 'approver'
   | 'signer'
 
+export const REVIEWER_ROLES = [
+  'production_owner',
+  'economic_buyer',
+  'technical_evaluator',
+  'security_reviewer',
+  'procurement_reviewer',
+  'approver',
+  'signer',
+] as const satisfies readonly ReviewerRole[]
+
+export function isReviewerRole(value: unknown): value is ReviewerRole {
+  return typeof value === 'string' && (REVIEWER_ROLES as readonly string[]).includes(value)
+}
+
 export type ReviewerStatus =
   | 'proposed'
   | 'invited'
@@ -177,6 +198,61 @@ export type RecommendedReviewer = {
   name: string
   email: string
   required: boolean
+}
+
+const REVIEWER_ROLE_PRIVILEGE: Record<ReviewerRole, number> = {
+  signer: 3,
+  economic_buyer: 2,
+  approver: 2,
+  procurement_reviewer: 2,
+  security_reviewer: 2,
+  production_owner: 1,
+  technical_evaluator: 1,
+}
+
+export function reviewerRolePrivilege(role: ReviewerRole): number {
+  return REVIEWER_ROLE_PRIVILEGE[role]
+}
+
+export function highestPrivilegeReviewer(reviewers: Reviewer[]): Reviewer | null {
+  return reviewers.reduce<Reviewer | null>(
+    (highest, reviewer) =>
+      !highest || reviewerRolePrivilege(reviewer.role) > reviewerRolePrivilege(highest.role)
+        ? reviewer
+        : highest,
+    null,
+  )
+}
+
+export type ReviewerGroup = {
+  email: string
+  reviewers: Reviewer[]
+  primary: Reviewer
+  additional: Reviewer[]
+}
+
+/** Groups role entries by person while preserving separate role records. */
+export function groupReviewersByEmail(reviewers: Reviewer[]): ReviewerGroup[] {
+  const grouped = new Map<string, Reviewer[]>()
+  for (const reviewer of reviewers) {
+    const email = reviewer.email.trim().toLowerCase()
+    // Empty addresses are unassigned roles, not a shared person.
+    const key = email || `unassigned:${reviewer.id}`
+    const entries = grouped.get(key) || []
+    entries.push(reviewer)
+    grouped.set(key, entries)
+  }
+  return [...grouped.entries()].map(([key, entries]) => {
+    const active = entries.filter((reviewer) => reviewer.status !== 'revoked')
+    const primary = highestPrivilegeReviewer(active.length ? active : entries)
+    if (!primary) throw new Error('Reviewer groups must contain a reviewer.')
+    return {
+      email: key.startsWith('unassigned:') ? '' : key,
+      reviewers: entries,
+      primary,
+      additional: (active.length ? active : entries).filter((reviewer) => reviewer.id !== primary.id),
+    }
+  })
 }
 
 export function recommendedReviewers(
@@ -625,7 +701,6 @@ export function buildValueModel(
     high,
     midpoint: Math.round((low + high) / 2),
     formula: `Annualized recreation frequency \u00d7 hours lost per incident \u00d7 affected contributors`,
-    confirmed: false,
   }
 }
 
@@ -809,6 +884,174 @@ export function computeUnresolved(
       }
     }
   }
+  return unresolved
+}
+
+const REQUIRED_REVIEWER_ROLES = new Set<ReviewerRole>([
+  'production_owner',
+  'economic_buyer',
+  'technical_evaluator',
+])
+
+function reviewerProgressItem(reviewer: Reviewer, version: number): UnresolvedItem | null {
+  if (reviewer.role === 'signer' || reviewer.status === 'revoked') return null
+  const role = reviewerRoleLabel(reviewer.role).toLowerCase()
+  const required = REQUIRED_REVIEWER_ROLES.has(reviewer.role)
+  const email = reviewer.email.trim()
+
+  if (!email) {
+    return required
+      ? {
+          key: `reviewer-${reviewer.role}-assignment`,
+          label: `Assign the ${role} reviewer`,
+          resolution: `Add an email for the ${role} in the reviewers section.`,
+          href: '#reviewers',
+        }
+      : null
+  }
+  if (reviewer.requestedChanges) {
+    return {
+      key: `reviewer-${reviewer.id}-changes`,
+      label: `${reviewerRoleLabel(reviewer.role)} requested changes`,
+      resolution: 'Revise the shared terms and submit the next revision for review.',
+      href: '#reviewers',
+    }
+  }
+  if (reviewer.status === 'reviewed' && reviewer.versionSeen >= version) return null
+  if (reviewer.status === 'proposed') {
+    return {
+      key: `reviewer-${reviewer.id}-invite`,
+      label: `Invite the ${role} reviewer`,
+      resolution: 'Send the reviewer an invitation to the pilot room.',
+      href: '#reviewers',
+    }
+  }
+  return {
+    key: `reviewer-${reviewer.id}-approval`,
+    label:
+      reviewer.status === 'reviewed'
+        ? `Await renewed confirmation from the ${role}`
+        : `Await confirmation from the ${role}`,
+    resolution: 'The reviewer needs to confirm the current terms revision.',
+    href: '#reviewers',
+  }
+}
+
+function reviewerGroupProgressItem(reviewers: Reviewer[], version: number): UnresolvedItem | null {
+  const reviewRoles = reviewers.filter(
+    (reviewer) => reviewer.role !== 'signer' && reviewer.status !== 'revoked',
+  )
+  if (reviewRoles.length === 0) return null
+  if (reviewRoles.length === 1) return reviewerProgressItem(reviewRoles[0], version)
+
+  const primary = highestPrivilegeReviewer(reviewRoles)
+  if (!primary) return null
+  const name = primary.name || primary.email
+  const roles = reviewRoles.map((reviewer) => reviewerRoleLabel(reviewer.role).toLowerCase()).join(' + ')
+  if (reviewRoles.some((reviewer) => reviewer.requestedChanges)) {
+    return {
+      key: `reviewer-${primary.id}-changes`,
+      label: `${name} (${roles}) requested changes`,
+      resolution: 'Revise the shared terms and submit the next revision for review.',
+      href: '#reviewers',
+    }
+  }
+  if (reviewRoles.every((reviewer) => reviewer.status === 'reviewed' && reviewer.versionSeen >= version)) {
+    return null
+  }
+  if (reviewRoles.every((reviewer) => reviewer.status === 'proposed')) {
+    return {
+      key: `reviewer-${primary.id}-invite`,
+      label: `Invite ${name} (${roles})`,
+      resolution: 'Send the reviewer one secure room invitation for their assigned roles.',
+      href: '#reviewers',
+    }
+  }
+  return {
+    key: `reviewer-${primary.id}-approval`,
+    label: `Await confirmation from ${name} (${roles})`,
+    resolution: 'The reviewer needs to confirm the current terms revision for each assigned role.',
+    href: '#reviewers',
+  }
+}
+
+/** Includes current state gates without persisting transient reviewer or workflow status. */
+export function computePilotProgressUnresolved(input: PilotProgressInput): UnresolvedItem[] {
+  const unresolved = [...input.unresolved]
+  const add = (item: UnresolvedItem) => {
+    if (!unresolved.some((existing) => existing.key === item.key)) unresolved.push(item)
+  }
+  const pendingException = input.exceptions.some((item) => !item.resolvedAt)
+
+  if (pendingException) {
+    add({
+      key: 'portals-review',
+      label:
+        input.state === 'exception_review'
+          ? 'Portals review is in progress'
+          : 'Submit the outstanding terms for Portals review',
+      resolution: 'Resolve the required security, legal, or commercial review before approval.',
+      href: '#exceptions',
+    })
+  }
+
+  if (input.state === 'team_review') {
+    const reviewersByRole = new Map<ReviewerRole, Reviewer[]>()
+    for (const reviewer of input.reviewers) {
+      const rows = reviewersByRole.get(reviewer.role) || []
+      rows.push(reviewer)
+      reviewersByRole.set(reviewer.role, rows)
+    }
+    for (const role of REQUIRED_REVIEWER_ROLES) {
+      const reviewers = reviewersByRole.get(role) || []
+      if (reviewers.length === 0 || reviewers.every((reviewer) => reviewer.status === 'revoked')) {
+        add({
+          key: `reviewer-${role}-assignment`,
+          label: `Assign the ${reviewerRoleLabel(role).toLowerCase()} reviewer`,
+          resolution: `Add an email for the ${reviewerRoleLabel(role).toLowerCase()} in the reviewers section.`,
+          href: '#reviewers',
+        })
+      }
+    }
+    for (const group of groupReviewersByEmail(input.reviewers)) {
+      const item = reviewerGroupProgressItem(group.reviewers, input.version)
+      if (item) add(item)
+    }
+  }
+
+  if (input.state === 'ready_sign') {
+    add({
+      key: 'signature',
+      label: 'Sign the pilot agreement',
+      resolution: 'The authorized signer must confirm the agreement in the signature section.',
+      href: '#signature',
+    })
+  }
+  if (input.state === 'signed') {
+    add({
+      key: 'payment',
+      label: 'Record the pilot fee payment',
+      resolution: 'Pay the pilot fee to schedule kickoff.',
+      href: '#pilot-actions',
+    })
+  }
+  if (input.state === 'paid') {
+    add({
+      key: 'kickoff',
+      label: 'Schedule kickoff',
+      resolution: 'Schedule kickoff before activating the pilot.',
+      href: '#pilot-actions',
+    })
+  }
+  if (input.state === 'kickoff') {
+    add({
+      key: 'activation',
+      label: 'Activate the pilot',
+      resolution: 'Activate the pilot once kickoff is scheduled.',
+      href: '#pilot-actions',
+    })
+  }
+
   return unresolved
 }
 

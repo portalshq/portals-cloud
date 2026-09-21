@@ -8,8 +8,11 @@ The concise operator sequence is in
 ## Rollout status and fail-closed gates
 
 This repository intentionally defaults to containment: Lore and the retired
-control plane are at zero, the private Auth Gateway may run for readiness and
-bootstrap work, public ingress is off, and all release assertions are false.
+control plane are at zero, the Auth Gateway may run for readiness and bootstrap
+work, public ingress is off, and all release assertions are false. The
+public-host implementation is a target configuration until its explicit
+cutover evidence is recorded in the live runbook; it does not authorize an
+apply or change the current production record by itself.
 The repository now contains the private Auth Gateway
 runtime, Cognito authorization-code/PKCE flow, KMS RS256 signer and live JWKS,
 persistent ReBAC/API-key implementation, recovery controls, and compatible Px
@@ -31,8 +34,13 @@ keys, and retire the user before the identity revision is complete.
 
 - Public DNS exposes only `lore.portals.works` and `auth.portals.works` on TLS `443`.
 - `8083`, `41337`, and `41339` are closed externally; there is no NLB.
-- ECS tasks use private subnets, no public IPs, scoped task roles, and no static
-  AWS credentials.
+- One ECS-optimized EC2 host uses `host` network mode in an IGW-routed public
+  subnet. It receives only the lifecycle-managed Elastic IP; task roles remain
+  scoped and no workload has static AWS credentials.
+- The host security group permits ALB-only ingress to `41337`, `8084`, `8085`,
+  and `8088`. `41339`, `8086`, `8087`, and SSH have no public ingress.
+- There is no NAT gateway, Service Connect namespace, Envoy proxy, or task ENI
+  data plane. Flow Logs and the public-subnet NACL are secondary controls.
 - `publicIngressEnabled` stays false until `authGatewayReady`,
   `securityControlsEnabled`, and `releaseGateApproved` are all true.
 - Lore production startup fails closed without complete JWT verification and
@@ -54,10 +62,18 @@ keys, and retire the user before the identity revision is complete.
 | Lore `41337` | Private task network | ALB only | Plaintext h2c gRPC residual-risk hop |
 | Lore `41339` | Task-local | ECS readiness only | Store-aware container readiness |
 | Legacy control plane `8083` | Absent; desired count locked to zero | None | Retired unfinished issuer/API; local migration work only |
-| Auth Gateway `8084`/`8085` | Private task network | ALB only | Plaintext gRPC/HTTP residual-risk hops |
-| Auth Gateway `8086` | Private | Control plane only | Idempotent ReBAC/API-key mutations |
-| Auth Gateway `8087` | Private | Lore SG only | Repository create/delete ReBAC coordination |
-| PostgreSQL/S3/DynamoDB | Private AWS APIs | Scoped task roles | State and data stores |
+| Auth Gateway `8084`/`8085` | ECS host ports; host SG allows ALB only | ALB only | Plaintext gRPC/HTTP residual-risk hops |
+| Auth Gateway `8086` | Loopback only | Host-local callers only | Idempotent ReBAC/API-key mutations |
+| Auth Gateway `8087` | Loopback only | Lore at `127.0.0.1` only | Repository create/delete ReBAC coordination |
+| Neon PostgreSQL | TLS public endpoint; EIP allowlisted | Backend task | Application system of record |
+| RDS PostgreSQL/S3/DynamoDB | VPC/private AWS endpoint | Scoped roles/host SG | Auth/control metadata and Lore stores |
+
+### Presigned representation URLs
+
+Production presign is WIP. Before enabling it, supply a dedicated server-only
+HMAC key, expose the scoped HTTP routes through HTTPS, and prevent signed query
+tokens from reaching logs. Nap already derives the Cloud HTTP origin; clients
+must never receive the signing key.
 
 ## Architecture and the meaning of a network hop
 
@@ -91,23 +107,27 @@ flowchart TB
         DNS --> WAF --> ALB
     end
 
-    subgraph Private["Private, single-purpose VPC"]
-        AuthHop["Hop 2A: private plaintext HTTP/HTTP2<br/>8084 and 8085"]
-        LoreHop["Hop 2B: private plaintext h2c<br/>41337"]
+    subgraph HostVpc["Single-purpose public-host VPC"]
+        AuthHop["Hop 2A: ALB→host plaintext HTTP/HTTP2<br/>8084 and 8085"]
+        LoreHop["Hop 2B: ALB→host plaintext h2c<br/>41337"]
         Gateway["Auth Gateway<br/>OAuth, token exchange, ReBAC, API keys"]
         Lore["Lore server<br/>authoritative JWT checks<br/>AdminService disabled"]
-        RDS["Encrypted RDS<br/>relationships, sessions, API-key hashes"]
+        Backend["Unified Backend<br/>invitations, leads, CRM"]
+        Neon["Neon PostgreSQL over TLS<br/>application system of record"]
+        RDS["Encrypted RDS<br/>Auth/control configuration metadata"]
         Secrets["Secrets Manager<br/>API-key HMAC pepper"]
         S3["Private versioned S3<br/>repository objects"]
         Dynamo["DynamoDB + PITR<br/>metadata, pointers, locks"]
 
         ALB -->|"auth.portals.works"| AuthHop --> Gateway
         ALB -->|"lore.portals.works"| LoreHop --> Lore
+        ALB -->|"api.portals.works :8088"| Backend
         Gateway --> RDS
+        Backend --> Neon
         Gateway --> Secrets
         Lore --> S3
         Lore --> Dynamo
-        Lore -->|"private ReBAC"| Gateway
+        Lore -->|"loopback ReBAC :8087"| Gateway
         Lore -.->|"HTTPS JWKS refresh"| Gateway
     end
 
@@ -153,10 +173,11 @@ unencrypted application payload can include:
 
 The staged resolution is:
 
-1. Near term: keep the VPC single-purpose and unpeered, tasks private, public
-   IP assignment disabled, task ingress sourced only from the ALB security
-   group, token lifetimes bounded, Flow Logs active, and the risk explicitly
-   reviewed every 90 days. This is the accepted initial-production boundary.
+1. Near term: keep the VPC single-purpose and unpeered, disable automatic
+   public IPv4 assignment, use one lifecycle-managed EIP, source host ingress
+   only from the ALB security group, bound token lifetimes, keep Flow Logs
+   active, and explicitly review the risk every 90 days. This is the accepted
+   initial-production boundary.
 2. Re-encryption: add TLS listeners to both Lore and the Auth Gateway and change
    all three ALB target groups to `HTTPS`. Each task can generate a short-lived
    self-signed keypair at startup, so this step needs neither AWS Private CA nor
@@ -452,6 +473,14 @@ be clear before a digest is promoted.
 - [ ] AdminService returns `UNIMPLEMENTED`.
 - [ ] Public probes show only TCP 443; `8083`, `41337`, and `41339` are closed.
 - [ ] Control-plane and ReBAC mutation endpoints are unreachable publicly.
+- [ ] The current ASG instance holds the exported Elastic IP; Neon has that IP
+      allowlisted and the Backend proves a TLS read/write through its one pool.
+- [ ] Host and per-service 80% memory alarms, OOM/exit-137 alerts, a confirmed
+      SNS subscription, and CloudWatch-agent `mem_used_percent` are evidenced.
+- [ ] The RDS endpoint resolves privately, accepts TLS only from the ECS host,
+      and is denied from outside the VPC after its subnet-group move.
+- [ ] Nonproduction host replacement, RDS snapshot/restore, and Neon
+      restore/branch drills have recorded evidence.
 - [ ] Store-aware readiness is healthy on every task.
 - [ ] Px staging passes login, create, clone, push, pull, sync, publish, lock,
       logout, expiry, and CI API-key exchange.

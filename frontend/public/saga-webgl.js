@@ -71,7 +71,7 @@ let DEFAULT_RAMP1 = [
 let DEFAULT_RAMP2 = [
   { stop: 0, color: "#053A68" },
   { stop: 0.3, color: "#3A87CB" },
-  { stop: 0.6, color: "#aab5c3" },
+  { stop: 0.6, color: "#bbc4cf" },
   { stop: 0.8, color: "#4470cc" },
   { stop: 1, color: "#6162cd" },
 ];
@@ -124,7 +124,7 @@ const SECTION_RAMPS = [
     ramp2: [
       { stop: 0, color: "#053A68" },
       { stop: 0.3, color: "#3A87CB" },
-      { stop: 0.6, color: "#aab5c3" },
+      { stop: 0.6, color: "#bbc4cf" },
       { stop: 0.8, color: "#4470cc" },
       { stop: 1, color: "#6162cd" },
     ],
@@ -161,7 +161,7 @@ const SECTION_RAMPS = [
     ramp2: [
       { stop: 0, color: "#053A68" },
       { stop: 0.3, color: "#3A87CB" },
-      { stop: 0.6, color: "#aab5c3" },
+      { stop: 0.6, color: "#bbc4cf" },
       { stop: 0.8, color: "#4470cc" },
       { stop: 1, color: "#6162cd" },
     ],

@@ -35,11 +35,11 @@ export type BuildUrlParams = z.infer<typeof buildUrlParamSchema>
  */
 function normalizeBuildParams(params: BuildUrlParams): Record<string, string> {
   const normalized: Record<string, string> = {}
-  
+
   // Convert all string values to lowercase for consistency (except free text)
   const lowercaseFields = [
     'how_did_you_hear',
-    'what_brought_you', 
+    'what_brought_you',
     'interest',
     'team_type',
     'team_size',
@@ -51,13 +51,13 @@ function normalizeBuildParams(params: BuildUrlParams): Record<string, string> {
     'utm_content',
     'utm_term',
   ]
-  
+
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === '') continue
-    
+
     // Normalize field names from camelCase to snake_case for URL consistency
     const urlKey = key.replace(/([A-Z])/g, '_$1').toLowerCase()
-    
+
     // Apply appropriate normalization
     if (lowercaseFields.includes(key)) {
       normalized[urlKey] = value.toLowerCase().trim()
@@ -70,7 +70,7 @@ function normalizeBuildParams(params: BuildUrlParams): Record<string, string> {
       normalized[urlKey] = value.trim()
     }
   }
-  
+
   return normalized
 }
 
@@ -79,14 +79,14 @@ function normalizeBuildParams(params: BuildUrlParams): Record<string, string> {
  */
 function validateBuildParams(params: BuildUrlParams): { valid: boolean; errors: string[] } {
   const result = buildUrlParamSchema.safeParse(params)
-  
+
   if (!result.success) {
-    const errors = result.error?.issues?.map(err =>
+    const errors = result.error.issues.map(err =>
       `${err.path.join('.')}: ${err.message}`
     ) || ['Validation failed']
     return { valid: false, errors }
   }
-  
+
   return { valid: true, errors: [] }
 }
 
@@ -107,13 +107,13 @@ export function buildFormUrl(baseUrl: string, params: BuildUrlParams): string {
       return queryString ? `${baseUrl}?${queryString}` : baseUrl
     }
   }
-  
+
   // Normalize parameters
   const normalizedParams = normalizeBuildParams(params)
-  
+
   // Build query string
   const queryString = new URLSearchParams(normalizedParams).toString()
-  
+
   // Return URL with query string
   return queryString ? `${baseUrl}?${queryString}` : baseUrl
 }
@@ -158,7 +158,7 @@ export function generateExampleUrls(): Record<string, string> {
       utm_medium: 'email',
       utm_campaign: 'workflow-awareness',
     }),
-    
+
     'LinkedIn Post - Tool Evaluation': buildAssessmentUrl({
       how_did_you_hear: 'linkedin',
       what_brought_you: 'evaluating-tools',
@@ -166,7 +166,7 @@ export function generateExampleUrls(): Record<string, string> {
       utm_medium: 'social',
       utm_campaign: 'tool-evaluation',
     }),
-    
+
     'Partner Program - Scaling': buildAssessmentUrl({
       how_did_you_hear: 'partner-company',
       what_brought_you: 'assess-scaling',
@@ -176,7 +176,7 @@ export function generateExampleUrls(): Record<string, string> {
       utm_medium: 'referral',
       utm_campaign: 'partner-program',
     }),
-    
+
     'Contact Form - Security Review': buildContactUrl({
       how_did_you_hear: 'linkedin',
       interest: 'security-review',
@@ -184,7 +184,7 @@ export function generateExampleUrls(): Record<string, string> {
       utm_medium: 'social',
       utm_campaign: 'security-content',
     }),
-    
+
     'Production Guide - Asset Reproduction': buildResourceUrl(
       'https://portals.ai/production-memory/brief#download',
       {
@@ -195,7 +195,7 @@ export function generateExampleUrls(): Record<string, string> {
         utm_campaign: 'production-guide',
       }
     ),
-    
+
     'Full Assessment Pre-fill': buildAssessmentUrl({
       email: 'sarah@agency.com',
       name: 'Sarah Johnson',
@@ -218,15 +218,15 @@ export function generateExampleUrls(): Record<string, string> {
  */
 export function createQueryString(params: Record<string, string | number | boolean>): string {
   const queryParams: Record<string, string> = {}
-  
+
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === '') continue
-    
+
     // Convert to string and normalize key
     const urlKey = key.replace(/([A-Z])/g, '_$1').toLowerCase()
     queryParams[urlKey] = String(value)
   }
-  
+
   return new URLSearchParams(queryParams).toString()
 }
 
@@ -237,14 +237,14 @@ export function parseUrlString(urlString: string): { baseUrl: string; params: Re
   try {
     const url = new URL(urlString)
     const params: Record<string, string> = {}
-    
+
     for (const [key, value] of url.searchParams.entries()) {
       params[key] = value
     }
-    
+
     // Remove query string from base URL
     const baseUrl = url.origin + url.pathname
-    
+
     return { baseUrl, params }
   } catch (error) {
     console.error('[Build URL] Failed to parse URL string:', error)

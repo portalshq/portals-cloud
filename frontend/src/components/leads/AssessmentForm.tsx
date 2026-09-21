@@ -133,14 +133,14 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
   useEffect(() => {
     const rawUrlParams = parseUrlParams()
     const storedParams = retrieveFormParams()
-    
+
     // Merge URL params with stored params (URL params take priority)
     const mergedParams = { ...storedParams, ...rawUrlParams }
     const normalizedParams = normalizeUrlParams(mergedParams)
     const paramsWithDefaults = applyFallbackDefaults(normalizedParams)
-    
+
     setUrlParams(paramsWithDefaults)
-    
+
     // Determine which fields to hide based on pre-filled values
     const fieldVisibility: Record<string, boolean> = {}
     fieldVisibility.howDidYouHearAboutPortals = !shouldHideField('howDidYouHearAboutPortals', paramsWithDefaults.how_did_you_hear)
@@ -148,9 +148,9 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
     fieldVisibility.teamType = !shouldHideField('teamType', paramsWithDefaults.team_type)
     fieldVisibility.teamSize = !shouldHideField('teamSize', paramsWithDefaults.team_size)
     fieldVisibility.toolsUsed = !shouldHideField('toolsUsed', paramsWithDefaults.tools_used)
-    
+
     setShowField(fieldVisibility)
-    
+
     // Track URL parameter usage for analytics
     if (Object.keys(paramsWithDefaults).length > 0) {
       void trackEvent('form_url_params_used', {
@@ -190,8 +190,8 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
     const formData = new FormData(event.currentTarget)
     const values = Object.fromEntries(formData.entries())
     const selectedActiveWorkflows = productionWorkflows
-      .filter(({id}) => formData.get(`activeWorkflowOption:${id}`) === 'on')
-      .map(({id}) => id)
+      .filter(({ id }) => formData.get(`activeWorkflowOption:${id}`) === 'on')
+      .map(({ id }) => id)
     const activeWorkflows = known.has('activeWorkflows') && Array.isArray(leadContext.answerValues?.activeWorkflows)
       ? leadContext.answerValues.activeWorkflows
       : selectedActiveWorkflows
@@ -203,7 +203,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
     }
     try {
       const behavior = qualificationBehavior()
-      
+
       // Merge URL params with form values and context (priority: form > context > URL params)
       const submittedIdentity: LeadIdentity = Object.fromEntries(
         Object.entries({
@@ -214,7 +214,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           website: String(values.website || leadContext.identity?.website || leadContext.answerValues?.website || urlParams.website || ''),
         }).filter(([, value]) => value),
       ) as LeadIdentity
-      
+
       const submittedAnswers = {
         teamType: String(values.teamType || leadContext.answerValues?.teamType || urlParams.team_type || ''),
         teamSize: String(values.teamSize || leadContext.answerValues?.teamSize || urlParams.team_size || ''),
@@ -242,7 +242,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
         securityDiligence: behavior.securityDiligence,
         message: String(values.message || ''),
       }
-      
+
       // Validate email domain if provided via URL params
       if (urlParams.email && !values.email) {
         const emailValidation = validateUrlParamEmail(urlParams.email)
@@ -252,7 +252,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           return
         }
       }
-      
+
       const response = await submitLead({
         submissionType: 'assessment',
         idempotencyKey,
@@ -354,6 +354,56 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           </h2>
           <p className="max-w-[38em] t-p-sans">{result.message}</p>
         </div>
+        <div className="max-w-[720px] space-y-16">
+          {/* {result.nextAction === 'pilot_scope' && (
+              <p className="t-p-sans">
+                Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
+              </p>
+          )} */}
+          <div className="flex items-center gap-16">
+            {result.downloadUrl ? (
+              <CTAButton appearance="plain" className="hover:underline" href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
+                <ArrowDownToLine aria-hidden="true" size={18} />
+                Download my evaluation
+              </CTAButton>
+            ) : null}
+            {result.nextAction === 'pilot_scope' ? (
+              <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
+                Build my custom pilot plan
+                <ArrowRight aria-hidden="true" size={18} />
+              </CTAButton>
+            ) : (
+              <>
+                <CTAButton
+                  href={`/workflow/ai-production-workflow-risks#${workflow}`}
+                  analyticsLabel="Explore the Relevant Workflow"
+                  analyticsUseCase={workflow}
+                  onClick={() => void trackEvent('education_use_case_clicked', { workflow })}
+                >
+                  Explore use cases
+                  <ArrowRight aria-hidden="true" size={18} />
+                </CTAButton>
+                <div className="border-l border-white/50 pl-20">
+                  <p className="t-p-lg-serif">
+                    Think your workflow could benefit from production memory? You’re invited to build a customized pilot plan for your workflow.
+                  </p>
+                  {/* <p className="mt-8 t-p-sans">
+                    Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
+                  </p> */}
+                  <CTAButton
+                    href="/paid-pilot?from=assessment-override#scope"
+                    analyticsLabel="Build a Customized Pilot Plan"
+                    onClick={() => void trackEvent('assessment_override_started', { workflow })}
+                    className="mt-14"
+                  >
+                    Build a custom pilot plan
+                    <ArrowRight aria-hidden="true" size={18} />
+                  </CTAButton>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
         {typeof result.workflowRiskScore === 'number' ? (
           <div className="space-y-20">
             <p className="t-p-lg-serif text-white">
@@ -386,9 +436,9 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
                   <ArrowUpRight aria-hidden="true" size={18} />
                 </CTAButton>
                 {result.nextAction === 'pilot_scope' && (
-                    <p className="t-p-sans">
-                      Your assessment answers carry over. There is no fee to receive your customized plan. The pilot fee applies only if you approve and conduct the pilot. The pilot fee is credited to the first annual agreement if the agreement is signed within the agreed credit window.
-                    </p>
+                  <p className="t-p-sans">
+                    Your assessment answers carry over. There is no fee to receive your customized plan. The pilot fee applies only if you approve and conduct the pilot. The pilot fee is credited to the first annual agreement if the agreement is signed within the agreed credit window.
+                  </p>
                 )}
               </div>
             ) : (
@@ -453,7 +503,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           onStarted={onStarted}
           urlParams={urlParams}
         />
-        
+
         {/* What brought you here - with URL param support and field hiding */}
         {showField.whatBroughtYouHere ? (
           <LeadField label="What brought you here?" name="whatBroughtYouHere">
@@ -474,16 +524,16 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           <div className="space-y-8 py-12 border-b border-white/10">
             <p className="t-p-sm-sans text-white/60">What brought you here</p>
             <p className="t-p-sans">{urlParams.what_brought_you.replace(/-/g, ' ')}</p>
-            <button 
-              type="button" 
-              onClick={() => setShowField(prev => ({...prev, whatBroughtYouHere: true}))}
+            <button
+              type="button"
+              onClick={() => setShowField(prev => ({ ...prev, whatBroughtYouHere: true }))}
               className="t-p-sm-sans text-white/60 underline hover:text-white"
             >
               Edit
             </button>
           </div>
         ) : null}
-        
+
         {(leadContext.answerValues?.whatBroughtYouHere === 'other' || urlParams.what_brought_you === 'other') ? (
           <LeadField label="Please describe" name="whatBroughtYouHereOther">
             <LeadTextareaField
@@ -494,7 +544,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             />
           </LeadField>
         ) : null}
-        
+
         {/* How did you hear about portals - with URL param support and field hiding */}
         {showField.howDidYouHearAboutPortals ? (
           <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
@@ -519,16 +569,16 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           <div className="space-y-8 py-12 border-b border-white/10">
             <p className="t-p-sm-sans text-white/60">How you heard about us</p>
             <p className="t-p-sans">{urlParams.how_did_you_hear.replace(/-/g, ' ')}</p>
-            <button 
-              type="button" 
-              onClick={() => setShowField(prev => ({...prev, howDidYouHearAboutPortals: true}))}
+            <button
+              type="button"
+              onClick={() => setShowField(prev => ({ ...prev, howDidYouHearAboutPortals: true }))}
               className="t-p-sm-sans text-white/60 underline hover:text-white"
             >
               Edit
             </button>
           </div>
         ) : null}
-        
+
         {/* Team type - with URL param support and field hiding */}
         {!known.has('teamType') ? (
           showField.teamType ? (
@@ -544,9 +594,9 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             <div className="space-y-8 py-12 border-b border-white/10">
               <p className="t-p-sm-sans text-white/60">Team type</p>
               <p className="t-p-sans">{urlParams.team_type.replace(/-/g, ' ')}</p>
-              <button 
-                type="button" 
-                onClick={() => setShowField(prev => ({...prev, teamType: true}))}
+              <button
+                type="button"
+                onClick={() => setShowField(prev => ({ ...prev, teamType: true }))}
                 className="t-p-sm-sans text-white/60 underline hover:text-white"
               >
                 Edit
@@ -562,15 +612,15 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             />
           )
         ) : null}
-        
+
         {/* Team size - with URL param support and field hiding */}
         {!known.has('teamSize') ? (
           showField.teamSize ? (
-            <AssessmentSelect 
-              id="teamSize" 
-              name="teamSize" 
-              label="production team size" 
-              required 
+            <AssessmentSelect
+              id="teamSize"
+              name="teamSize"
+              label="production team size"
+              required
               options={['1', '2-4', '5-9', '10-24', '25-plus']}
               defaultValue={leadContext.answerValues?.teamSize as string || urlParams.team_size}
             />
@@ -578,9 +628,9 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             <div className="space-y-8 py-12 border-b border-white/10">
               <p className="t-p-sm-sans text-white/60">Production team size</p>
               <p className="t-p-sans">{urlParams.team_size.replace('-', '-')}</p>
-              <button 
-                type="button" 
-                onClick={() => setShowField(prev => ({...prev, teamSize: true}))}
+              <button
+                type="button"
+                onClick={() => setShowField(prev => ({ ...prev, teamSize: true }))}
                 className="t-p-sm-sans text-white/60 underline hover:text-white"
               >
                 Edit
@@ -600,7 +650,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
                 id="toolsUsed"
                 name="toolsUsed"
                 required
-                slotProps={{htmlInput: {maxLength: 500}}}
+                slotProps={{ htmlInput: { maxLength: 500 } }}
                 placeholder="e.g. Adobe Firefly, Runway, Midjourney, ChatGPT"
                 onChange={onStarted}
                 defaultValue={leadContext.answerValues?.toolsUsed as string || urlParams.tools_used}
@@ -610,9 +660,9 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             <div className="space-y-8 py-12 border-b border-white/10">
               <p className="t-p-sm-sans text-white/60">Tools used</p>
               <p className="t-p-sans">{urlParams.tools_used}</p>
-              <button 
-                type="button" 
-                onClick={() => setShowField(prev => ({...prev, toolsUsed: true}))}
+              <button
+                type="button"
+                onClick={() => setShowField(prev => ({ ...prev, toolsUsed: true }))}
                 className="t-p-sm-sans text-white/60 underline hover:text-white"
               >
                 Edit
@@ -624,7 +674,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
                 id="toolsUsed"
                 name="toolsUsed"
                 required
-                slotProps={{htmlInput: {maxLength: 500}}}
+                slotProps={{ htmlInput: { maxLength: 500 } }}
                 placeholder="e.g. Adobe Firefly, Runway, Midjourney, ChatGPT"
                 onChange={onStarted}
               />
@@ -759,7 +809,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
                 id="productionOwner"
                 name="productionOwner"
                 required
-                slotProps={{htmlInput: {maxLength: 300}}}
+                slotProps={{ htmlInput: { maxLength: 300 } }}
                 placeholder="Name or role, such as senior producer or creative operations lead"
                 onChange={onStarted}
               />
@@ -801,7 +851,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
                 minRows={4}
                 resizable={false}
                 required
-                slotProps={{htmlInput: {maxLength: 2000}}}
+                slotProps={{ htmlInput: { maxLength: 2000 } }}
                 placeholder="For example: approved prompts and references are spread across drives and chat, so every new version starts with rediscovery."
                 onChange={onStarted}
               />
