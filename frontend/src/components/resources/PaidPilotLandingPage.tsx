@@ -6,6 +6,7 @@ import {
   Check,
 } from 'lucide-react'
 import { CTAButton } from '@/components/CTAButton'
+import { SmoothAnchor } from '@/components/SmoothAnchor'
 import { PortalsHeader } from '@/components/PortalsHeader'
 import { PilotScopeForm } from '@/components/leads/PilotScopeForm'
 import type { KnownLeadContext } from '@/lib/leads/contracts'
@@ -124,7 +125,7 @@ function Hero({ document, offer, offerTerms }: { document: ResourceDocument; off
       data-header-theme="light"
       className="relative flex min-h-screen items-center overflow-hidden"
     >
-      <PortalsHeader breadcrumb={[{href: '/paid-pilot', label: 'paid pilot'}]} />
+      <PortalsHeader breadcrumb={[{href: '/pilot', label: 'paid pilot'}]} />
       <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[96,126] text-white">
         <div className="col-span-full lg:col-span-11">
           <h1 className="t-d2-sans max-w-[11em]">
@@ -136,7 +137,7 @@ function Hero({ document, offer, offerTerms }: { document: ResourceDocument; off
           {offerTerms?.offerCopy ? <p className="mt-20 max-w-[37em] t-p-sans text-white/80">{offerTerms.offerCopy}</p> : null}
           <div className="mt-32 flex gap-20 flex-row">
             <CTAButton
-              href={`/paid-pilot?${new URLSearchParams({ ...(offer ? {offer} : {}), mode: 'assisted' }).toString()}#scope`}
+              href={`/pilot?${new URLSearchParams({ ...(offer ? {offer} : {}), mode: 'assisted' }).toString()}#scope`}
               appearance="plain"
             >
               <span>Talk through a pilot</span>
@@ -146,19 +147,12 @@ function Hero({ document, offer, offerTerms }: { document: ResourceDocument; off
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           </div>
-          <a 
+          <SmoothAnchor 
             className="mt-16 inline-block t-p-sans text-white underline underline-offset-4" 
             href="#success-criteria"
-            onClick={(e) => {
-              e.preventDefault()
-              const element = globalThis.document.querySelector('#success-criteria')
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }
-            }}
           >
             see what the pilot measures
-          </a>
+          </SmoothAnchor>
         </div>
 
         <dl className="col-span-full grid grid-cols-2 gap-x-12 gap-y-28 lg:col-start-15">

@@ -381,7 +381,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
             ) : null}
             {result.nextAction === 'pilot_scope' ? (
               <div>
-                <CTAButton href="/paid-pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
+                <CTAButton href="/pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
                   Build my customized pilot plan
                   <ArrowUpRight aria-hidden="true" size={18} />
                 </CTAButton>
@@ -410,7 +410,7 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
                     Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
                   </p> */}
                   <CTAButton
-                    href="/paid-pilot?from=assessment-override#scope"
+                    href="/pilot?from=assessment-override#scope"
                     analyticsLabel="Build a Customized Pilot Plan"
                     onClick={() => void trackEvent('assessment_override_started', { workflow })}
                     className="mt-14"

@@ -141,7 +141,7 @@ const pilotBody = (
     ? {}
     : {identity: {email, name: opts.name || 'Ava Nguyen', company: 'Studio Example', role: 'producer', website: ''}}),
   ...(opts.pilotId ? {pilotId: opts.pilotId} : {}),
-  attribution: {sourcePage: '/paid-pilot'},
+  attribution: {sourcePage: '/pilot'},
   consent: {disclosureVersion: DISCLOSURE, marketing: false, analytics: false},
   companyFax: '',
   answers: {

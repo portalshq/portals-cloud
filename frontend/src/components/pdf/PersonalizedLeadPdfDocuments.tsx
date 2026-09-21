@@ -971,7 +971,7 @@ function Page5DecisionRecord({ data, document }: { data: PersonalizedQualificati
           ]} />
           <Text style={[styles.profileLabel, { marginTop: 8 }]}>continue</Text>
           <View style={{ flexDirection: 'row' }}>
-            <Link src="https://portals.works/paid-pilot" style={{ fontSize: 9.2, color: colors.blue, textDecoration: 'underline' }}>pilot</Link>
+            <Link src="https://portals.works/pilot" style={{ fontSize: 9.2, color: colors.blue, textDecoration: 'underline' }}>pilot</Link>
             <Text style={{ marginHorizontal: 5, color: colors.muted }}>·</Text>
             <Link src="https://portals.works/contact" style={{ fontSize: 9.2, color: colors.blue, textDecoration: 'underline' }}>contact</Link>
           </View>

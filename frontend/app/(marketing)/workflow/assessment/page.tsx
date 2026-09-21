@@ -3,6 +3,7 @@ import Link from 'next/link'
 import {ArrowUpRight} from 'lucide-react'
 import {AssessmentForm} from '@/components/leads/AssessmentForm'
 import {CTAButton} from '@/components/CTAButton'
+import {SmoothAnchor} from '@/components/SmoothAnchor'
 import {getKnownLeadContext} from '@/lib/leads/profile'
 import {SagaWebGLEngine} from '@/lib/SagaWebGLEngine'
 import Faq from '@/components/FAQ'
@@ -167,20 +168,13 @@ export default async function WorkflowAssessmentPage() {
               <ol className="mt-18 space-y-12 border-t border-white/20 pt-16">
                 {pageLinks.map((link, index) => (
                   <li key={link.href} className="border-b border-white/10 pb-12 last:border-b-0 last:pb-0">
-                    <a
+                    <SmoothAnchor
                       href={link.href}
                       className="grid grid-cols-[2.9em_1fr] gap-x-12 text-white transition-colors hover:text-white/80"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        const element = globalThis.document.querySelector(link.href)
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                        }
-                      }}
                     >
                       <span className="t-m2 text-white/80">{String(index + 1).padStart(2, '0')}</span>
                       <span className="t-p-sm-sans">{link.label}</span>
-                    </a>
+                    </SmoothAnchor>
                   </li>
                 ))}
               </ol>

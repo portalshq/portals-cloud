@@ -28,6 +28,9 @@ const nextConfig: NextConfig = {
       {source: '/production-memory/brief', destination: '/resources/production-memory-brief', permanent: true},
       {source: '/production-memory/brief/:path*', destination: '/resources/production-memory-brief', permanent: true},
       {source: '/ai-production-workflow-risks', destination: '/use-cases', permanent: true},
+      // Canonical IA: /pilot is canonical, /paid-pilot/* are legacy.
+      {source: '/paid-pilot', destination: '/pilot', permanent: true},
+      {source: '/paid-pilot/:path*', destination: '/pilot/:path*', permanent: true},
     ]
   },
   async rewrites() {

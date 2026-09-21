@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'),
   title: 'Production memory for AI-native creative teams | portals',
   description: SITE_DESCRIPTION,
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/favicon-blue.svg' },
   robots: 'index, follow',
   alternates: { canonical: canonical('/') },
   openGraph: {

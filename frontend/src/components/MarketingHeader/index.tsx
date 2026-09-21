@@ -10,7 +10,7 @@ const staticHeaders: Record<string, PortalsHeaderProps> = {
   '/production-memory': {breadcrumb: [{href: '/production-memory', label: 'production memory'}]},
   '/use-cases': {breadcrumb: [{href: '/use-cases', label: 'use cases'}]},
   '/resources/production-memory-brief': {breadcrumb: [{href: '/resources/production-memory-brief', label: 'production memory brief'}]},
-  '/paid-pilot': {breadcrumb: [{href: '/paid-pilot', label: 'paid pilot'}]},
+  '/pilot': {breadcrumb: [{href: '/pilot', label: 'paid pilot'}]},
   '/security-and-architecture': {breadcrumb: [{href: '/security-and-architecture', label: 'security'}]},
 }
 

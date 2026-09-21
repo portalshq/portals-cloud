@@ -86,7 +86,7 @@ export function captureQualificationBehavior(pathname: string) {
   const current = qualificationBehavior()
   const behavior: QualificationBehavior & {expiresAt: number} = {
     pricingOrPilotViewed:
-      current.pricingOrPilotViewed || pathname === '/paid-pilot',
+      current.pricingOrPilotViewed || pathname === '/pilot',
     securityDiligence:
       current.securityDiligence || pathname === '/security-and-architecture',
     expiresAt: Date.now() + BEHAVIOR_TTL_MS,

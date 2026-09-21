@@ -1,13 +1,13 @@
 'use client'
 
-import type {ReactNode} from 'react'
-import {useState} from 'react'
-import type {PxTechnicalContent} from '@/lib/px-content'
+import type { ReactNode } from 'react'
+import { useState } from 'react'
+import type { PxTechnicalContent } from '@/lib/px-content'
 import styles from './PxLandingPage.module.css'
-import {PxSagaBanner} from './PxSagaBanner'
-import {PxCodeBlock} from './PxCodeBlock'
-import {PxWebGLTheme} from './PxWebGLTheme'
-import {Image, Video, Box, Users, ShoppingBag, Edit} from 'lucide-react'
+import { PxSagaBanner } from './PxSagaBanner'
+import { PxCodeBlock } from './PxCodeBlock'
+import { PxWebGLTheme } from './PxWebGLTheme'
+import { Image, Video, Box, Users, ShoppingBag, Edit } from 'lucide-react'
 
 export type PxLandingPageProps = {
   content: PxTechnicalContent
@@ -31,7 +31,7 @@ function smoothScrollTo(hash: string) {
   }
 }
 
-function LinkButton({href, children, quiet = false, className}: {href: string; children: ReactNode; quiet?: boolean; className?: string}) {
+function LinkButton({ href, children, quiet = false, className }: { href: string; children: ReactNode; quiet?: boolean; className?: string }) {
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (href.startsWith('#')) {
       e.preventDefault()
@@ -52,40 +52,40 @@ function LinkButton({href, children, quiet = false, className}: {href: string; c
   )
 }
 
-function SectionMark({number, children}: {number: string; children: ReactNode}) {
+function SectionMark({ number, children }: { number: string; children: ReactNode }) {
   return <p className="flex items-center gap-12 t-p-sm-sans"><span className={styles.node} />{number} / {children}</p>
 }
 
-function AssetSlot({label, className}: {label: string; className: string}) {
+function AssetSlot({ label, className }: { label: string; className: string }) {
   return (
     <div
       role="img"
       aria-label={`Reserved media area: ${label}`}
       className={`w-full rounded-sm border border-black/15 bg-black/4 object-cover ${className}`}
-      style={{objectFit: 'cover'}}
+      style={{ objectFit: 'cover' }}
     />
   )
 }
 
 function OrbitGif() {
   const [isHovered, setIsHovered] = useState(false)
-  
+
   return (
-    <div 
+    <div
       className="m-auto min-h-[250px] aspect-square overflow-hidden rounded-sm"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <img 
+      <img
         src={isHovered ? "/eye-candy/orbit-gif-1.png" : "/eye-candy/orbit-front.png"}
-        alt="Orbit hero image" 
+        alt="Orbit hero image"
         className="w-full h-full aspect-square object-contain transition-opacity duration-300"
       />
     </div>
   )
 }
 
-function ToolIcon({icon}: {icon: ReactNode}) {
+function ToolIcon({ icon }: { icon: ReactNode }) {
   return <span className="inline-flex items-center justify-center w-[50%] h-[50%] lg:w-[25%] lg:h-[25%] shrink-0 text-black/70">{icon}</span>
 }
 
@@ -148,13 +148,13 @@ entity_type: character`;
   return (
     <div className="mt-24">
       <pre className="text-[12px] leading-[1.2] font-mono whitespace-pre-wrap break-all">
-        {yamlManifest.slice(0,520).trimEnd().concat('...')}
+        {yamlManifest.slice(0, 520).trimEnd().concat('...')}
       </pre>
     </div>
   )
 }
 
-export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPageProps) {
+export function PxLandingPage({ content, chrome = 'integrated' }: PxLandingPageProps) {
   const isStandalone = chrome === 'standalone'
 
   return (
@@ -184,9 +184,9 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
             </div>
           </div>
           <div className="lg:pt-38 overflow-visible">
-            <img 
-              src="/eye-candy/dua-hero.png" 
-              alt="Dua base outfit, katana, and Orbit hero image" 
+            <img
+              src="/eye-candy/dua-hero.png"
+              alt="Dua base outfit, katana, and Orbit hero image"
               className="h-full w-full overflow-visible object-cover rounded-sm pointer-events-none"
             />
           </div>
@@ -215,51 +215,51 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
             ].map(([label, title, body, asset], index) => (
               <article key={label} className="rounded-sm bg-black/4 p-18 pt-24 md:pt-30">
                 <p className="t-p-sm-sans">0{index + 1} / {label}</p>
-                  {label === "Objects" && (
+                {label === "Objects" && (
                   <div className="mt-16 max-h-[500px] h-[500px] flex flex-col overflow-hidden">
-                    <img 
+                    <img
                       src={"/eye-candy/orbit-front.png"}
-                      alt="Orbit hero image" 
+                      alt="Orbit hero image"
                       className="w-full h-auto max-h-[280px] aspect-square object-contain transition-opacity duration-300"
                     />
                     <div className="mt-10 grid grid-cols-3 gap-10 flex-1">
-                      <img 
-                        src="/eye-candy/orbit-v1.png" 
-                        alt="Orbit v1" 
+                      <img
+                        src="/eye-candy/orbit-v1.png"
+                        alt="Orbit v1"
                         className="w-full h-full object-contain rounded-sm"
                       />
-                      <img 
-                        src="/eye-candy/orbit-v2.png" 
-                        alt="Orbit v2" 
+                      <img
+                        src="/eye-candy/orbit-v2.png"
+                        alt="Orbit v2"
                         className="w-full h-full object-contain rounded-sm"
                       />
-                      <img 
-                        src="/eye-candy/orbit.png" 
-                        alt="Orbit" 
+                      <img
+                        src="/eye-candy/orbit.png"
+                        alt="Orbit"
                         className="w-full h-full object-contain rounded-sm"
                       />
                     </div>
-                   </div>
-                  ) || label === "Characters" && (
-                    <div className="mt-16 max-h-[500px] h-[500px] grid grid-cols-1 md:grid-cols-[1.2fr_1fr] lg:grid-cols-1 2xl:grid-cols-[1.5fr_1fr] gap-10 overflow-clip rounded-sm">
-                      <img 
-                        src="/eye-candy/dua-wide.png" 
-                        alt="Dua" 
-                        className="h-[500px] opacity-98 overflow-visible object-cover rounded-sm"
-                      />
-                      <img 
-                        src="/eye-candy/dua-back-2.png" 
-                        alt="Dua back" 
-                        className="hidden md:block lg:hidden 2xl:block overflow-clip rounded-sm transform scale-150 origin-[60%_10%] top-0 object-top"
-                      />
-                    </div>
-                  ) || label === "Scenes" && (
-                    <img 
-                      src="/eye-candy/dua-orbit-station.png" 
-                      alt="Dua, Orbit, and Underground Station scene" 
-                      className="mt-16 max-h-[500px] h-[500px] w-full object-cover rounded-sm object-[60%_0%]"
+                  </div>
+                ) || label === "Characters" && (
+                  <div className="mt-16 max-h-[500px] h-[500px] grid grid-cols-1 md:grid-cols-[1.2fr_1fr] lg:grid-cols-1 2xl:grid-cols-[1.5fr_1fr] gap-10 overflow-clip rounded-sm">
+                    <img
+                      src="/eye-candy/dua-wide.png"
+                      alt="Dua"
+                      className="h-[500px] opacity-98 overflow-visible object-cover rounded-sm"
                     />
-                  ) || <AssetSlot label={asset} className="mt-20 h-full" />}
+                    <img
+                      src="/eye-candy/dua-back-2.png"
+                      alt="Dua back"
+                      className="hidden md:block lg:hidden 2xl:block overflow-clip rounded-sm transform scale-150 origin-[60%_10%] top-0 object-top"
+                    />
+                  </div>
+                ) || label === "Scenes" && (
+                  <img
+                    src="/eye-candy/dua-orbit-station.png"
+                    alt="Dua, Orbit, and Underground Station scene"
+                    className="mt-16 max-h-[500px] h-[500px] w-full object-cover rounded-sm object-[60%_0%]"
+                  />
+                ) || <AssetSlot label={asset} className="mt-20 h-full" />}
                 <h2 className="mt-24 max-w-[12em] sm:max-w-[16em] lg:max-w-[12em] t-h3-sans leading-[.95]">{title}</h2>
                 <p className="mt-20 max-w-sm t-p-sm-sans">{body}</p>
               </article>
@@ -283,9 +283,9 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
                 <p className="t-p-sm-sans">01 / Create Dua</p>
                 <p className="mt-10 max-w-lg t-p-sm-sans">Establish a character once, then keep her face, base outfit, and narrative attributes intact.</p>
                 <div className="mt-16 h-full w-full overflow-hidden">
-                  <img 
-                    src="/eye-candy/dua-sheet-2.png" 
-                    alt="Dua character sheet" 
+                  <img
+                    src="/eye-candy/dua-sheet-2.png"
+                    alt="Dua character sheet"
                     className="h-full object-cover object-left rounded-sm"
                   />
                 </div>
@@ -296,25 +296,25 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
                 <p className="mt-10 max-w-lg t-p-sm-sans">Use the same Dua in the base outfit, the technical coat variant, or a katana action pose.</p>
                 <div className="mt-16 grid grid-cols-2 xl:grid-cols-[max-content_max-content_max-content] gap-1">
                   <div className="overflow-visible flex flex-col items-center justify-center">
-                    <img 
-                      src="/eye-candy/dua-front-1-3.png" 
-                      alt="Dua base sport top and pants" 
+                    <img
+                      src="/eye-candy/dua-front-1-3.png"
+                      alt="Dua base sport top and pants"
                       className="h-[45vh] lg:h-auto max-h-[450px] object-cover overflow-visible rounded-sm"
                     />
                     <p className="mt-8 t-p-sm-sans text-center">Base outfit</p>
                   </div>
                   <div className="overflow-visible flex flex-col items-center justify-center">
-                    <img 
-                      src="/eye-candy/dua-coat-1-3.png" 
-                      alt="Dua coat variant" 
+                    <img
+                      src="/eye-candy/dua-coat-1-3.png"
+                      alt="Dua coat variant"
                       className="h-[45vh] lg:h-auto max-h-[450px] object-cover overflow-visible rounded-sm"
                     />
                     <p className="mt-8 t-p-sm-sans text-center">Coat variant</p>
                   </div>
                   <div className="hidden xl:block overflow-visible flex flex-col items-center justify-center">
-                    <img 
-                      src="/eye-candy/dua-coat-detail-1-3.png" 
-                      alt="Dua coat detail" 
+                    <img
+                      src="/eye-candy/dua-coat-detail-1-3.png"
+                      alt="Dua coat detail"
                       className="h-[45vh] lg:h-auto max-h-[450px] object-cover overflow-visible rounded-sm"
                     />
                   </div>
@@ -325,9 +325,9 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
                 <p className="t-p-sm-sans">03 / Revise and reuse</p>
                 <p className="mt-10 max-w-lg t-p-sm-sans">Resolve Dua + Orbit + Underground Station for a new cinematic scene, editorial campaign, or video sequence.</p>
                 <div className="mt-16 h-[450px]">
-                  <img 
-                    src="/eye-candy/dua-orbit-station-coat.png" 
-                    alt="Dua, coat variant, katana, Orbit, and Underground Station campaign scene" 
+                  <img
+                    src="/eye-candy/dua-orbit-station-coat.png"
+                    alt="Dua, coat variant, katana, Orbit, and Underground Station campaign scene"
                     className="h-full w-full object-cover object-[57%_50%] rounded-sm"
                   />
                 </div>
@@ -345,9 +345,9 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
               <h2 className="t-d2-sans leading-[.92]">One character.<br /><span className="t-d2-serif text-[#dffc72]">Many representations.</span></h2>
               <p className="mt-24 max-w-xs sm:max-w-lg t-p-sm-sans leading-[1.3]">Keep the entity. Change the representation. px keeps every usable form connected to Dua’s source identity and relationships.</p>
             </div>
-            <img 
-              src="/eye-candy/dua-pose.png" 
-              alt="Dua representation" 
+            <img
+              src="/eye-candy/dua-pose.png"
+              alt="Dua representation"
               className="z-5 absolute h-[500px] lg:h-[700px] xl:h-[600px] aspect-[1/3] drop-shadow-lg object-cover right-[5vw] md:right-[10vw] xl:left-[36%] -top-[5%] xl:-top-[25%]"
             />
             <div className="rounded-sm bg-[#fbfbfb] p-20 md:p-30 grid gap-28 lg:grid-cols-[.9fr_1.1fr] lg:z-5 xl:z-0">
@@ -365,9 +365,9 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
                   ['Coat', 'Technical coat reference', '/eye-candy/coat-1-1.png'],
                 ].map(([label, asset, imageSrc]) => (
                   <div key={label}>
-                    <img 
-                      src={imageSrc} 
-                      alt={asset} 
+                    <img
+                      src={imageSrc}
+                      alt={asset}
                       className="w-full aspect-square object-cover bg-black/4 rounded-sm"
                     />
                     <p className="mt-6 t-p-sm-sans">{label}</p>
@@ -414,33 +414,33 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
                   <p className="t-p-sm-sans">Approved Versions</p>
                   <div className="mt-12 grid grid-cols-2 gap-10">
                     <div>
-                      <img 
-                        src="/eye-candy/dua.png" 
-                        alt="Approved Dua character" 
+                      <img
+                        src="/eye-candy/dua.png"
+                        alt="Approved Dua character"
                         className="aspect-square object-cover rounded-sm"
                       />
                       <p className="mt-6 t-p-sm-sans">Dua</p>
                     </div>
                     <div>
-                      <img 
-                        src="/eye-candy/katana.png" 
-                        alt="Approved katana" 
+                      <img
+                        src="/eye-candy/katana.png"
+                        alt="Approved katana"
                         className="aspect-square object-cover rounded-sm"
                       />
                       <p className="mt-6 t-p-sm-sans">Katana</p>
                     </div>
                     <div>
-                      <img 
-                        src="/eye-candy/orbit-product.png" 
-                        alt="Approved Orbit product object" 
+                      <img
+                        src="/eye-candy/orbit-product.png"
+                        alt="Approved Orbit product object"
                         className="aspect-square object-cover rounded-sm"
                       />
                       <p className="mt-6 t-p-sm-sans">Orbit</p>
                     </div>
                     <div>
-                      <img 
-                        src="/eye-candy/station-emergency.png" 
-                        alt="Approved Underground Station location" 
+                      <img
+                        src="/eye-candy/station-emergency.png"
+                        alt="Approved Underground Station location"
                         className="aspect-square object-cover rounded-sm"
                       />
                       <p className="mt-6 t-p-sm-sans">Station</p>
@@ -451,33 +451,33 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
                   <p className="t-p-sm-sans">Campaign Ouputs</p>
                   <div className="mt-12 grid grid-cols-2 gap-10">
                     <div>
-                      <img 
-                        src="/eye-candy/dua-ugc.png" 
-                        alt="Dua UGC campaign output" 
+                      <img
+                        src="/eye-candy/dua-ugc.png"
+                        alt="Dua UGC campaign output"
                         className="aspect-square object-cover rounded-sm"
                       />
                       <p className="mt-6 t-p-sm-sans">Dua UGC</p>
                     </div>
                     <div>
-                      <img 
-                        src="/eye-candy/orbit-product.png" 
-                        alt="Orbit product campaign output" 
+                      <img
+                        src="/eye-candy/orbit-product.png"
+                        alt="Orbit product campaign output"
                         className="aspect-square object-cover rounded-sm"
                       />
                       <p className="mt-6 t-p-sm-sans">Orbit Product</p>
                     </div>
                     <div>
-                      <img 
-                        src="/eye-candy/sensei-battle.png" 
-                        alt="Sensei battle campaign output" 
+                      <img
+                        src="/eye-candy/sensei-battle.png"
+                        alt="Sensei battle campaign output"
                         className="aspect-square object-cover rounded-sm"
                       />
                       <p className="mt-6 t-p-sm-sans">Sensei Battle</p>
                     </div>
                     <div>
-                      <img 
-                        src="/eye-candy/sensei-battle.png" 
-                        alt="Sensei battle campaign output" 
+                      <img
+                        src="/eye-candy/sensei-battle.png"
+                        alt="Sensei battle campaign output"
                         className="aspect-square object-cover rounded-sm"
                       />
                       <p className="mt-6 t-p-sm-sans">Sensei Battle</p>
@@ -541,9 +541,13 @@ export function PxLandingPage({content, chrome = 'integrated'}: PxLandingPagePro
 
       <section aria-label="PX and Portals" className="!bg-black mx-auto">
         <div className="mx-auto max-w-[1440px] px-20 pb-80 pt-40 t-p-sm-sans !text-white md:px-40">
-          <p>px is free and open source for creators and developers building locally.</p>
-          <p className="mt-20 inline-block !text-white">Building with a production team? <span>Explore Portals <ArrowDownRight /></span></p>
+<div className="max-w-lg xl:max-w-3xl">
+          <p>px is free and open source. Use it for personal projects, AI experiments, and production workflows. No subscription required.</p>
+          <p className="mt-20 inline-block !text-white">If you're building with a production team, <br />
+            Portals adds team workspaces, shared repositories, production history, and organizational workflows. <span className="underline decoration-2 underline-offset-4">Explore Portals</span><ArrowDownRight />
+          </p>
         </div>
+</div>
       </section>
     </main>
   )

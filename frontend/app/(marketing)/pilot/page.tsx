@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description:
       document.seo?.metaDescription ||
       'Scope a 21-day paid pilot on one active workflow and prove production memory pays for itself.',
-    path: '/paid-pilot',
+    path: '/pilot',
     keywords: document.seo?.keywords ?? [
       'AI production pilot',
       'creative production pilot',

@@ -1,3 +1,15 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <defs>
+    <linearGradient id="portalGradient" x1="0" y1="90" x2="180" y2="90" gradientUnits="userSpaceOnUse" gradientTransform="rotate(-11 90 90)">
+      <stop offset="0%" stop-color="#FF17F3"/>
+      <stop offset="15%" stop-color="#FF18F5"/>
+      <stop offset="30%" stop-color="#F91AF6"/>
+      <stop offset="45%" stop-color="#E71DF8"/>
+      <stop offset="60%" stop-color="#D420FA"/>
+      <stop offset="75%" stop-color="#BF23FC"/>
+      <stop offset="90%" stop-color="#AA26FE"/>
+      <stop offset="100%" stop-color="#9B29FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="36" fill="url(#portalGradient)"/>
 </svg>

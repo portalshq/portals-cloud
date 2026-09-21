@@ -649,8 +649,8 @@ function SolutionSection() {
       <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white min-h-screen">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
           <h2 className="t-d2-sans w-fit mx-auto max-w-[82vw] md:max-w-[12em]">
-            the repository for 
-            <br/>
+            the repository for
+            <br />
             AI{`\u2011`}native production
           </h2>
           <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
@@ -735,17 +735,17 @@ function CapabilitiesSection() {
   );
 }
 
-const pxFoundations: {title: React.ReactNode; text: React.ReactNode }[] = [
+const pxFoundations: { title: React.ReactNode; text: React.ReactNode }[] = [
   {
     title: 'Persistent entities',
-    text: 'Characters, objects, locations, and worlds remain addressable as they evolve.',
+    text: 'Characters, objects, locations, and worlds keep their identity as they evolve.',
   },
   {
     title: 'Across tools and formats',
     text: 'Move between image, video, 3D, agents, and creative applications without rebuilding project context from scratch.',
   },
   {
-    title: 'Built for agents and users',
+    title: 'Built for agents and creators',
     text: (<span>Use <strong>px</strong> from the command line, through AI agents, or inside Python and TypeScript applications.</span>),
   },
 ];
@@ -757,7 +757,7 @@ function PxSection() {
         <div className="col-span-full space-y-24 lg:col-span-14">
           <h2 className="t-d2-sans max-w-[13.8em]">Powered by open data foundations for AI production</h2>
           <p className="t-p-lg-serif max-w-[38em] leading-[1.25]">
-            <strong>px</strong> and portals gives production teams shared control over persistent data objects: characters, locations, scenes, and other entities across tools and formats.
+            portals builds on <strong>px</strong>, giving production teams shared control over persistent data objects: characters, locations, worlds, and their representations across tools and formats.
           </p>
           <p className="t-p-lg-sans max-w-[30em]">Create an asset once. Give it an identity. Build a world from it.</p>
         </div>

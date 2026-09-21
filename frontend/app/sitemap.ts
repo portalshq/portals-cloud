@@ -12,7 +12,7 @@ const STATIC_PATHS: Array<{path: string; changeFrequency: 'weekly' | 'monthly' |
   {path: '/use-cases', changeFrequency: 'weekly', priority: 0.9},
   {path: '/blog', changeFrequency: 'weekly', priority: 0.8},
   {path: '/resources/production-memory-brief', changeFrequency: 'monthly', priority: 0.7},
-  {path: '/paid-pilot', changeFrequency: 'monthly', priority: 0.7},
+  {path: '/pilot', changeFrequency: 'monthly', priority: 0.7},
   {path: '/security-and-architecture', changeFrequency: 'monthly', priority: 0.7},
   {path: '/contact', changeFrequency: 'monthly', priority: 0.7},
   {path: '/workflow/ai-production-workflow-risks', changeFrequency: 'monthly', priority: 0.6},

@@ -21,7 +21,7 @@ export function pilotRoomPathForPilotOrFallback(
   return pilot.customerAccountId ? pilotRoomPath(pilot.customerAccountId, pilot.id) : fallback
 }
 
-const LEGACY_PILOT_RE = /^\/paid-pilot\/room\/([^/]+)(?:\/revise)?\/?$/
+const LEGACY_PILOT_RE = /^\/(?:paid-)?pilot\/room\/([^/]+)(?:\/revise)?\/?$/
 
 export function extractLegacyPilotId(nextPath: string): string | null {
   try {
@@ -39,7 +39,7 @@ export function isLegacyPilotPath(nextPath: string): boolean {
 }
 
 export function legacyPilotPath(pilotId: string, revise = false, search = ''): string {
-  return `/paid-pilot/room/${encodeURIComponent(pilotId)}${revise ? '/revise' : ''}${search}`
+  return `/pilot/room/${encodeURIComponent(pilotId)}${revise ? '/revise' : ''}${search}`
 }
 
 export function safeInternalPath(value: string | null | undefined, fallback = '/account'): string {

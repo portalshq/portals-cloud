@@ -95,7 +95,7 @@ https://portals.ai/workflow/assessment?how_did_you_hear=linkedin&what_brought_yo
 
 https://portals.ai/contact?interest=security-review&email=sarah@agency.com&name=Sarah+Johnson&company=Creative+Agency+X
 
-https://portals.ai/paid-pilot?team_type=agency&team_size=10-24&tools_used=Adobe+Firefly%2C+Runway%2C+Midjourney
+https://portals.ai/pilot?team_type=agency&team_size=10-24&tools_used=Adobe+Firefly%2C+Runway%2C+Midjourney
 ```
 
 Security considerations:
