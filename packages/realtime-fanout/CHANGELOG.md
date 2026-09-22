@@ -1,5 +1,15 @@
 # @portalshq/capability-realtime-fanout
 
+## 0.1.8
+
+### Patch Changes
+
+- a03f1cf: Move reusable live application domains into Portals packages: monotonic tick timing and countdowns, bounded ordered content preparation, isolated realtime fanout, scheduled live delivery and reusable HLS playback, plus Stripe platform and Connect channel billing.
+- 749ad63: Standardize public npm publishing and repository metadata for releases through
+  GitHub Actions trusted publishing. Remove recursive publish lifecycle hooks.
+- Updated dependencies [749ad63]
+  - @portalshq/contracts@0.0.5
+
 ## 0.1.6
 
 ### Patch Changes

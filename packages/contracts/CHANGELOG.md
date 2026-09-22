@@ -1,5 +1,12 @@
 # @portalshq/contracts
 
+## 0.0.5
+
+### Patch Changes
+
+- 749ad63: Standardize public npm publishing and repository metadata for releases through
+  GitHub Actions trusted publishing. Remove recursive publish lifecycle hooks.
+
 ## 0.0.4
 
 ### Patch Changes
