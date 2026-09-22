@@ -6,6 +6,8 @@ import {
   Check,
 } from 'lucide-react'
 import { CTAButton } from '@/components/CTAButton'
+import { SmoothAnchor } from '@/components/SmoothAnchor'
+import { PortalsHeader } from '@/components/PortalsHeader'
 import { PilotScopeForm } from '@/components/leads/PilotScopeForm'
 import type { KnownLeadContext } from '@/lib/leads/contracts'
 import type {
@@ -22,6 +24,14 @@ import {
   packagePriceLabel,
 } from '@/lib/package-specifications'
 import { getFaqsByCategories } from '@/lib/faqs'
+
+type OfferTerms = {
+  pilotPriceLabel: string
+  annualCreditLabel: string
+  pilotDurationDays: number
+  acceptanceDeadlineLabel?: string
+  offerCopy?: string
+}
 
 type SubmitState =
   | { status: 'idle' }
@@ -99,28 +109,13 @@ function StaticPilotBackground() {
   )
 }
 
-function Header() {
-  return (
-    <header className="absolute inset-x-0 top-0 z-(--z-header)">
-      <div className="flex h-Header-h items-center justify-between px-sms">
-        <a href="/" className="t-h3-sans !font-medium text-white">
-          portals
-        </a>
-        {/* <CTAButton href="#scope" className="!min-w-0">
-          <span>Scope a pilot</span>
-          <ArrowRight aria-hidden="true" size={17} strokeWidth={1.8} />
-        </CTAButton> */}
-      </div>
-    </header>
-  )
-}
-
-function Hero({ document }: { document: ResourceDocument }) {
+function Hero({ document, offer, offerTerms }: { document: ResourceDocument; offer?: string; offerTerms?: OfferTerms }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
+
   const metrics = [
-    [packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
-    [packagePriceLabel(specification), specification?.price?.billingNote || 'price'],
+    [offerTerms ? `${offerTerms.pilotDurationDays} days` : packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
+    [offerTerms?.pilotPriceLabel || packagePriceLabel(specification), specification?.price?.billingNote || 'price'],
     [packageMilestoneLabel(specification, 'first value'), 'time to first value'],
     [packageLimitLabel(specification, 'participants'), 'participants'],
   ].filter(([value]) => Boolean(value))
@@ -130,7 +125,7 @@ function Hero({ document }: { document: ResourceDocument }) {
       data-header-theme="light"
       className="relative flex min-h-screen items-center overflow-hidden"
     >
-      <Header />
+      <PortalsHeader breadcrumb={[{href: '/pilot', label: 'paid pilot'}]} />
       <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[96,126] text-white">
         <div className="col-span-full lg:col-span-11">
           <h1 className="t-d2-sans max-w-[11em]">
@@ -139,12 +134,25 @@ function Hero({ document }: { document: ResourceDocument }) {
           <p className="mt-28 max-w-[37em] t-p-lg-serif text-white">
             {landing.description || document.abstract}
           </p>
-          <div className="mt-32 flex flex-col gap-12 sm:flex-row">
+          {offerTerms?.offerCopy ? <p className="mt-20 max-w-[37em] t-p-sans text-white/80">{offerTerms.offerCopy}</p> : null}
+          <div className="mt-32 flex gap-20 flex-row">
+            <CTAButton
+              href={`/pilot?${new URLSearchParams({ ...(offer ? {offer} : {}), mode: 'assisted' }).toString()}#scope`}
+              appearance="plain"
+            >
+              <span>Talk through a pilot</span>
+            </CTAButton>
             <CTAButton href="#scope">
-              <span>Build my pilot plan</span>
+              <span>Start a pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           </div>
+          <SmoothAnchor 
+            className="mt-16 inline-block t-p-sans text-white underline underline-offset-4" 
+            href="#success-criteria"
+          >
+            see what the pilot measures
+          </SmoothAnchor>
         </div>
 
         <dl className="col-span-full grid grid-cols-2 gap-x-12 gap-y-28 lg:col-start-15">
@@ -155,6 +163,7 @@ function Hero({ document }: { document: ResourceDocument }) {
             </div>
           ))}
         </dl>
+
       </div>
     </section>
   )
@@ -247,12 +256,12 @@ function ScopeAndMilestone({ document }: { document: ResourceDocument }) {
   )
 }
 
-function SuccessCriteria({ document }: { document: ResourceDocument }) {
+function SuccessCriteria({ document, offerTerms }: { document: ResourceDocument; offerTerms?: OfferTerms }) {
   const section = sectionByAnchor(document, 'success-criteria')
   if (!section) return null
 
   return (
-    <section data-header-theme="light">
+    <section id="success-criteria" data-header-theme="light">
       <div className="px-sms py-fluid-[76,106]">
       <div className="ui-grid gap-y-40 py-sms !text-black bg-white rounded-[1em] lg:rounded-[2em]">
         <div className="col-span-full lg:col-span-10">
@@ -273,6 +282,19 @@ function SuccessCriteria({ document }: { document: ResourceDocument }) {
             </li>
           ))}
         </ol>
+      </div>
+      <div className="ui-grid mt-24">
+        <div className="col-span-full">
+          {offerTerms?.offerCopy || offerTerms?.acceptanceDeadlineLabel ? (
+            <p className="mb-16 max-w-[42em] t-p-sans !text-white">
+              {offerTerms.offerCopy || `sign by ${offerTerms.acceptanceDeadlineLabel} to lock in ${offerTerms.annualCreditLabel}.`}
+            </p>
+          ) : null}
+          <CTAButton href="#scope">
+            <span>Start a pilot</span>
+            <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
+          </CTAButton>
+        </div>
       </div>
       </div>
     </section>
@@ -356,10 +378,22 @@ function Responsibilities({ document }: { document: ResourceDocument }) {
 function PilotForm({
   specSummary,
   context,
+  offer,
+  offerTerms,
+  pilotMode,
   assessmentOrigin,
 }: {
   specSummary: string
   context: KnownLeadContext
+  offer?: string
+  offerTerms?: {
+    pilotPriceLabel: string
+    annualCreditLabel: string
+    pilotDurationDays: number
+    acceptanceDeadlineLabel?: string
+    offerCopy?: string
+  }
+  pilotMode?: 'standard' | 'assisted'
   assessmentOrigin: 'standard' | 'assessment_override'
 }) {
   return (
@@ -371,11 +405,10 @@ function PilotForm({
             put one production workflow under test
           </h2>
           <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
-            our onboarding moves through five short stages: eligibility, scope, success, approval, and confirmation.
+            our onboarding moves through five short stages: eligibility, scope, success, commercial context, and confirmation.
           </p>
           <p className="mt-24 max-w-[36em] t-p-lg-sans text-white">
-            your pilot plan covers technical contracts, project scope, milestones, success criteria,
-            building your customized pilot plan and security profile is completely free. The $5,000 fee applies only after you approve the finalized plan and formally launch the pilot.
+            your pilot plan covers technical contracts, project scope, milestones, success criteria, and security requirements. Building your customized pilot plan and security profile is free. After you approve the finalized plan, accept the terms, and formally launch the pilot, payment happens in the Pilot Room.
           </p>
           {/* {assessmentOrigin === 'assessment_override' ? (
             <p className="mt-18 max-w-[36em] t-p-sans text-white/80">
@@ -385,7 +418,7 @@ function PilotForm({
         </div>
 
         <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
-          <PilotScopeForm specSummary={specSummary} context={context} assessmentOrigin={assessmentOrigin} />
+          <PilotScopeForm specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
         </div>
       </div>
     </section>
@@ -458,12 +491,13 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
           <p className="mt-28 t-p-lg-serif text-white">{review.summary}</p>
           <div className="mt-28 flex flex-col gap-18 ">
             <CTAButton href="#scope">
-              <span>Scope a paid pilot</span>
+              <span>Start a pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
-            <p className="t-p-sans text-white/80">
-              Not ready to streamline your production workflow? <br/><a className="underline underline-offset-4" href="/workflow/assessment">Assess your creative production workflow first.</a>
+            <p className="items-center gap-2 t-p-sans text-white/80">
+              Not ready to streamline your production workflow?
             </p>
+            <a className="t-p-sans underline decoration-2 underline-offset-4" href="/assessment">Assess your creative production workflow first.</a>
           </div>
         </div>
       </div>
@@ -474,19 +508,25 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
 export function PaidPilotLandingPage({
   document,
   context,
+  offer,
+  offerTerms,
+  pilotMode,
   assessmentOrigin = 'standard',
 }: {
   document: ResourceDocument
   context: KnownLeadContext
+  offer?: string
+  offerTerms?: OfferTerms
+  pilotMode?: 'standard' | 'assisted'
   assessmentOrigin?: 'standard' | 'assessment_override'
 }) {
   const specification = paidPilotSpec(document)
   const formSpecSummary = [
     [
-      packagePriceLabel(specification),
+      offerTerms?.pilotPriceLabel || packagePriceLabel(specification),
       specification?.price?.billingNote,
     ].filter(Boolean).join(' '),
-    packageMilestoneLabel(specification, 'pilot period'),
+    offerTerms ? `${offerTerms.pilotDurationDays} days` : packageMilestoneLabel(specification, 'pilot period'),
   ].filter(Boolean).join(' / ')
 
   return (
@@ -500,7 +540,7 @@ export function PaidPilotLandingPage({
       />
       <StaticPilotBackground />
       <div className="relative z-10">
-        <Hero document={document} />
+        <Hero document={document} offer={offer} offerTerms={offerTerms} />
         <div
           aria-hidden="true"
           className="pointer-events-none h-px w-full"
@@ -509,10 +549,10 @@ export function PaidPilotLandingPage({
         />
         <Objective document={document} />
         <ScopeAndMilestone document={document} />
-        <SuccessCriteria document={document} />
+        <SuccessCriteria document={document} offerTerms={offerTerms} />
         <CommercialTerms document={document} />
         <Responsibilities document={document} />
-        <PilotForm specSummary={formSpecSummary} context={context} assessmentOrigin={assessmentOrigin} />
+        <PilotForm specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
         <PilotFaq document={document} />
         <FinalDecision document={document} />
       </div>

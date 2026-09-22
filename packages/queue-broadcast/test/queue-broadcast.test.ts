@@ -109,10 +109,10 @@ describe("QueueBroadcastClient", () => {
   it("directly uploads an atomic pair as authenticated multipart data and releases a staged pair", async () => {
     const uploadFetch = vi.fn().mockResolvedValueOnce(jsonResponse(queuedPair));
     const requestFetch = vi.fn().mockResolvedValueOnce(jsonResponse({
-        ...queuedPair,
-        image: { ...queuedPair.image, status: "queued" },
-        audio: { ...queuedPair.audio, status: "queued" },
-      }));
+      ...queuedPair,
+      image: { ...queuedPair.image, status: "queued" },
+      audio: { ...queuedPair.audio, status: "queued" },
+    }));
     const client = new QueueBroadcastClient({
       endpoint: "https://stream.example",
       token: "server-secret",

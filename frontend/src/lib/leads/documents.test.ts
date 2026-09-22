@@ -75,7 +75,7 @@ test('personalized assessment and pilot documents render as PDFs', async () => {
   const assessmentPdf = assessment.toString('latin1')
   assert.equal(assessmentPdf.match(/\/Type\s*\/Page\b/g)?.length, 5)
   assert.match(assessmentPdf, /\/Outlines\b/)
-  assert.match(assessmentPdf, /\/URI \(https:\/\/portals\.works\/paid-pilot\)/)
+  assert.match(assessmentPdf, /\/URI \(https:\/\/portals\.works\/pilot\)/)
   assert.match(assessmentPdf, /\/URI \(https:\/\/portals\.works\/contact\)/)
   assert.equal(pilot.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length, 2)
   assert.equal(ASSESSMENT_PDF_FILE_NAME, 'portals-production-workflow-evaluation.pdf')

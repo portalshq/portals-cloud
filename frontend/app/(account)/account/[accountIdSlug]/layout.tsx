@@ -5,9 +5,10 @@ import {
   APP_SESSION_COOKIE,
   currentApplicationUser,
   getCustomerAccountForUser,
+  getCustomerAccountsForUser,
 } from '@/lib/leads/application-auth'
 import {accountPath, pilotRoomPath} from '@/lib/leads/account-paths'
-import {getPilotsForCustomerAccount} from '@/lib/leads/store'
+import {getPilotNavigationForCustomerAccount} from '@/lib/leads/store'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -27,7 +28,11 @@ export default async function AccountLayout({
   const account = await getCustomerAccountForUser(accountIdSlug, user.id)
   if (!account) notFound()
   const accountHref = accountPath(account.id)
-  const pilots = await getPilotsForCustomerAccount(account.id)
+  const [pilots, allAccounts] = await Promise.all([
+    getPilotNavigationForCustomerAccount(account.id),
+    getCustomerAccountsForUser(user.id),
+  ])
+  const otherAccounts = allAccounts.filter((a) => a.id !== account.id)
 
   return (
     <div className="min-h-[100dvh]">
@@ -38,7 +43,18 @@ export default async function AccountLayout({
           pilots={pilots.map((pilot) => ({
             id: pilot.id,
             href: pilotRoomPath(account.id, pilot.id),
+            label: pilot.label,
           }))}
+          accounts={
+            otherAccounts.length > 0
+              ? otherAccounts.map((a) => ({
+                  id: a.id,
+                  href: accountPath(a.id),
+                  name: a.name,
+                  active: false,
+                }))
+              : undefined
+          }
         />
         <div className="min-w-0">{children}</div>
       </div>

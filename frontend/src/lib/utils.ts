@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const scopeAPilotMailto = '/paid-pilot#scope';
+export const scopeAPilotMailto = '/pilot#scope';
 export const contactPortalsHref = '/contact';
 
 export function formatNumber(index: number) {

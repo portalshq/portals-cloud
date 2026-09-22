@@ -87,7 +87,7 @@ function ResourceHero({
           </p>
           <div className="flex flex-col sm:flex-row mx-auto gap-16 items-center justify-center">
             <CTAButton href="#download">
-              {'Download the production memory guide'}
+              {'Download the Production Memory Brief'}
             </CTAButton>
           </div>
         </div>
@@ -216,7 +216,7 @@ function WhatsInside({
           })}
           </div>
           <div className="flex justify-center">
-            <CTAButton href="#download">Download the guide</CTAButton>
+            <CTAButton href="#download">Download the Production Memory Brief</CTAButton>
           </div>
         </div>
       </div>
@@ -232,7 +232,7 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
           <ResourceLeadForm
             context={context}
             submissionType="guide_download"
-            title="Download the production memory guide"
+            title="Download the Production Memory Brief"
             description="Learn how to diagnose and address the production risks behind ai-native creative work."
             interestLabel="which workflow risk is most relevant?"
             options={[
@@ -244,7 +244,7 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
               {value: 'campaign-variant-control', label: 'variant families become hard to control'},
               {value: 'not-sure', label: 'not sure yet'},
             ]}
-            downloadLabel="Download the guide"
+            downloadLabel="Download the Production Memory Brief"
             sourcePage="/workflow/ai-production-workflow-risks"
           />
         </div>
@@ -258,7 +258,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
 
   if (!cta) return null
 
-  const href = '/paid-pilot#scope'
+  const href = '/pilot#scope'
 
   return (
     <section id="pilot" data-header-theme="light">
@@ -281,7 +281,7 @@ function PilotCTASection({document}: {document: ResourceDocument}) {
                 <span className="t-p-sans">{cta.primaryCta.label}</span>
               </a>
               <CTAButton
-                href="/workflow/assessment"
+                href="/assessment"
                 appearance="plain"
                 className="underline underline-offset-4"
                 analyticsLabel="Assess Your AI Creative Production Workflow"
@@ -351,9 +351,9 @@ function FinalCTA() {
             Deliver faster at lower cost with complete asset history and identity from first generation through shipped production.
           </p>
           <div className="flex flex-col sm:flex-row gap-16 items-center justify-center">
-            <CTAButton href="/paid-pilot#scope">Scope a pilot</CTAButton>
+            <CTAButton href="/pilot#scope">Scope a pilot</CTAButton>
             <CTAButton
-              href="/workflow/assessment"
+              href="/assessment"
               appearance="plain"
               className="underline underline-offset-4"
               analyticsLabel="Assess Your AI Creative Production Workflow"

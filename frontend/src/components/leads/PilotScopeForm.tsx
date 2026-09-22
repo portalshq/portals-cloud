@@ -10,6 +10,7 @@ import {
   Check,
 } from 'lucide-react'
 import {CTAButton} from '@/components/CTAButton'
+import {SmoothAnchor} from '@/components/SmoothAnchor'
 import {LeadCheckbox, LeadSelectField, LeadTextField, LeadTextareaField} from '@/components/mui/fields'
 import {ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback} from '@/components/leads/LeadFields'
 import {ProgressiveAssessmentFields} from '@/components/leads/ProgressiveAssessmentFields'
@@ -55,6 +56,7 @@ type SubmitState =
   | {
       status: 'success'
       pilotUrl?: string
+      pilotAuthToken?: string
       calendarUrl?: string
       downloadUrl?: string
       pilotRoute?: string
@@ -63,26 +65,66 @@ type SubmitState =
   | {status: 'error'; message: string}
 
 const SUCCESS_CRITERIA_OPTIONS = [
-  {key: 'approved-retrieval', label: 'Approved asset retrieval'},
-  {key: 'production-context', label: 'Production-context recovery'},
-  {key: 'reproduction', label: 'Reproduction'},
-  {key: 'meaningful-extension', label: 'Meaningful extension'},
-  {key: 'knowledge-transfer', label: 'Knowledge transfer'},
-  {key: 'variant-lineage', label: 'Variant-lineage control'},
-  {key: 'continuity', label: 'Continuity preservation'},
-  {key: 'other', label: 'Other (describe in the target outcome)'},
+  {
+    key: 'approved-retrieval',
+    label: 'Find and retrieve approved work quickly',
+    benefit: 'Reduce time spent searching for the right version.',
+  },
+  {
+    key: 'production-context',
+    label: 'Recover the context behind production work',
+    benefit: 'Make existing decisions, references, and inputs usable again.',
+  },
+  {
+    key: 'reproduction',
+    label: 'Reproduce an existing result reliably',
+    benefit: 'Give the team a repeatable path back to work that already succeeded.',
+  },
+  {
+    key: 'meaningful-extension',
+    label: 'Create useful variations without starting over',
+    benefit: 'Extend existing work while preserving the context behind it.',
+  },
+  {
+    key: 'knowledge-transfer',
+    label: 'Help another team member continue the work',
+    benefit: 'Reduce handoff friction and reliance on whoever made the original.',
+  },
+  {
+    key: 'variant-lineage',
+    label: 'Track where each version came from',
+    benefit: 'Give reviewers confidence in source, history, and approvals.',
+  },
+  {
+    key: 'continuity',
+    label: 'Preserve consistency across future iterations',
+    benefit: 'Keep recurring work aligned across people, tools, and production cycles.',
+  },
+  // {key: 'other', label: 'Other (describe in the target outcome)'},
 ]
 
 export function PilotScopeForm({
   specSummary,
   context,
   pilotId,
+  offer,
+  offerTerms,
+  pilotMode = 'standard',
   initialAnswers,
   assessmentOrigin = 'standard',
 }: {
   specSummary: string
   context: KnownLeadContext
   pilotId?: string
+  offer?: string
+  offerTerms?: {
+    pilotPriceLabel: string
+    annualCreditLabel: string
+    pilotDurationDays: number
+    acceptanceDeadlineLabel?: string
+    offerCopy?: string
+  }
+  pilotMode?: 'standard' | 'assisted'
   initialAnswers?: Record<string, unknown>
   assessmentOrigin?: 'standard' | 'assessment_override'
 }) {
@@ -256,9 +298,7 @@ export function PilotScopeForm({
     // Validate team member email domains on stage 1 progression
     if (stage === 1) {
       const stageValues = valuesFrom(stage)
-      const teamEmails = [
-        stageValues.productionOwnerEmail,
-      ].filter(Boolean)
+      const teamEmails: unknown[] = []
       
       for (const teamEmail of teamEmails) {
         const domain = emailDomain(String(teamEmail))
@@ -272,12 +312,7 @@ export function PilotScopeForm({
     // Validate stakeholder email domains on stage 3 progression
     if (stage === 3) {
       const stageValues = valuesFrom(stage)
-      const stakeholderEmails = [
-        stageValues.economicBuyerEmail,
-        stageValues.technicalEvaluatorEmail,
-        stageValues.approverEmail,
-        stageValues.signerEmail,
-      ].filter(Boolean)
+      const stakeholderEmails: unknown[] = []
       
       for (const stakeholderEmail of stakeholderEmails) {
         const domain = emailDomain(String(stakeholderEmail))
@@ -443,7 +478,6 @@ export function PilotScopeForm({
       annualPriceAcknowledged: checked('annualPriceAcknowledged'),
       signerName: string('signerName'),
       signerEmail: string('signerEmail'),
-      exactReproductionRequired: checked('exactReproductionRequired'),
       pilotBlocker: string('pilotBlocker'),
     }
   }
@@ -460,9 +494,13 @@ export function PilotScopeForm({
     setSubmitState({status: 'submitting'})
     flush()
 
-    const form = event.currentTarget
-    const values = Object.fromEntries(new FormData(form).entries())
-    const answers = pilotAnswersFrom(form)
+      const form = event.currentTarget
+      const values = Object.fromEntries(new FormData(form).entries())
+      const answers = pilotAnswersFrom(form)
+      const applicantEmail = String(values.email || context.identity?.email || carriedAnswers.email || urlParams.email || '').trim()
+      const applicantName = String(values.name || context.identity?.name || carriedAnswers.name || urlParams.name || '').trim()
+      if (applicantEmail) answers.productionOwnerEmail = applicantEmail
+      if (!String(answers.productionOwner || '').trim() && applicantName) answers.productionOwner = applicantName
 
     const whatBroughtYouHere = (values.whatBroughtYouHere || context.answerValues?.whatBroughtYouHere || urlParams.what_brought_you) as 'workflow-problem' | 'assess-scaling' | 'evaluating-tools' | 'other' | undefined
     const whatBroughtYouHereOther = String(values.whatBroughtYouHereOther || context.answerValues?.whatBroughtYouHereOther || urlParams.what_brought_you_other || '')
@@ -485,6 +523,8 @@ export function PilotScopeForm({
         formVersion: isRevision ? 'paid-pilot-revision.v1' : 'paid-pilot.v2',
         provider: 'browser',
         pilotId: pilotId || '',
+        pilotMode,
+        ...(offer ? {offer} : {}),
         identity: Object.fromEntries(
           Object.entries({
             email: String(values.email || context.identity?.email || carriedAnswers.email || urlParams.email || ''),
@@ -495,7 +535,7 @@ export function PilotScopeForm({
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
-          sourcePage: isRevision ? `/paid-pilot/room/${pilotId}/revise` : '/paid-pilot',
+          sourcePage: isRevision ? '/account' : '/pilot',
           ctaLabel: isRevision ? 'Submit Revision' : 'Build my pilot plan',
           intent: isRevision
             ? 'pilot_revision'
@@ -519,7 +559,9 @@ export function PilotScopeForm({
       clear()
       if (!isRevision) {
         writePilotConfirmation({
-          pilotUrl: result.pilotUrl,
+          pilotUrl: result.pilotAuthToken && result.pilotUrl
+            ? `/auth/verify?token=${encodeURIComponent(result.pilotAuthToken)}&next=${encodeURIComponent(result.pilotUrl)}`
+            : result.pilotUrl,
           calendarUrl: result.calendarUrl,
           downloadUrl: result.downloadUrl,
           pilotRoute: result.pilotRoute,
@@ -528,7 +570,9 @@ export function PilotScopeForm({
       }
       setSubmitState({
         status: 'success',
-        pilotUrl: result.pilotUrl,
+        pilotUrl: result.pilotAuthToken && result.pilotUrl
+          ? `/auth/verify?token=${encodeURIComponent(result.pilotAuthToken)}&next=${encodeURIComponent(result.pilotUrl)}`
+          : result.pilotUrl,
         calendarUrl: result.calendarUrl,
         downloadUrl: result.downloadUrl,
         pilotRoute: result.pilotRoute,
@@ -576,7 +620,7 @@ export function PilotScopeForm({
             : submitState.pilotRoute === 'one-call'
               ? 'The plan is assembled and ready for review. A single pilot terms review is required before signing.'
               : 'The plan is assembled — no call required. Review the scope, confirm it as drafted, and sign when ready.'} */}
-          review pilot terms, share, revise, and confirm.
+          review the scope, invite your team, accept terms, pay, and reserve kickoff.
         </p>
         {submitState.preview ? (
           <p className="mt-14 t-p-sans text-white">
@@ -707,7 +751,7 @@ export function PilotScopeForm({
         {/* What brought you here - with URL param support and field hiding */}
         {showField.whatBroughtYouHere ? (
           <div className="sm:col-span-2">
-            <LeadField label="What brought you here?" name="whatBroughtYouHere">
+            <LeadField label="what brought you here?" name="whatBroughtYouHere">
               <LeadSelectField
                 id="whatBroughtYouHere"
                 name="whatBroughtYouHere"
@@ -738,7 +782,7 @@ export function PilotScopeForm({
         {/* How did you hear about portals - with URL param support and field hiding */}
         {showField.howDidYouHearAboutPortals ? (
           <div className="sm:col-span-2">
-            <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
+            <LeadField label="how did you hear about portals?" name="howDidYouHearAboutPortals">
               <LeadSelectField
                 id="howDidYouHearAboutPortals"
                 name="howDidYouHearAboutPortals"
@@ -793,11 +837,9 @@ export function PilotScopeForm({
             <option value="" disabled>select one</option>
             <option value="within-30-days">within 30 days</option>
             <option value="within-60-days">within 60 days</option>
-            <option value="this-quarter">this quarter</option>
-            <option value="later">later</option>
           </LeadSelectField>
         </LeadField>
-        <LeadField label="can your organization approve the $5,000 pilot? *" name="approvalPath">
+        <LeadField label="can your organization approve the pilot fee? *" name="approvalPath">
           <LeadSelectField
             id="approvalPath"
             name="approvalPath"
@@ -828,22 +870,16 @@ export function PilotScopeForm({
             <option value="not-sure">not sure</option>
           </LeadSelectField>
         </LeadField>
-        <label className="flex items-start gap-10 t-p-sm-sans text-white sm:col-span-2">
-          <LeadCheckbox
-            name="exactReproductionRequired"
-            defaultChecked={Boolean(initialAnswers?.exactReproductionRequired)}
-          />
-          <span>
-            Do you require exact reproductions in your workflows? 
-            <br/>
-            (guaranteed reproduction is outside the standard pilot and requires a review)
-          </span>
-        </label>
+        {offerTerms ? (
+          <p className="sm:col-span-2 t-p-sm-sans text-white/70" role="note">
+            This offer applies: {offerTerms.pilotPriceLabel} pilot fee, {offerTerms.pilotDurationDays}-day pilot, and {offerTerms.annualCreditLabel} first-year deployment credit{offerTerms.acceptanceDeadlineLabel ? ` when the agreement is signed by ${offerTerms.acceptanceDeadlineLabel}` : ''}.
+          </p>
+        ) : null}
       </div>
 
       <div data-pilot-stage={1} hidden={stage !== 1} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <p className="t-p-sm-sans text-white/70">who is involved and what does the work touch?</p>
+          <p className="t-p-sm-sans text-white">who is involved and what does the work touch?</p>
         </div>
         {missing('productionOwner') ? (
           <LeadField label="production-team owner *" name="productionOwner">
@@ -853,18 +889,6 @@ export function PilotScopeForm({
               required
               defaultValue={String(carriedAnswers.productionOwner || '')}
               placeholder="name and title"
-            />
-          </LeadField>
-        ) : null}
-        {missing('productionOwnerEmail') ? (
-          <LeadField label="production-team owner email *" name="productionOwnerEmail">
-            <LeadTextField
-              id="productionOwnerEmail"
-              name="productionOwnerEmail"
-              required
-              type="email"
-              defaultValue={String(carriedAnswers.productionOwnerEmail || '')}
-              placeholder="email"
             />
           </LeadField>
         ) : null}
@@ -919,12 +943,21 @@ export function PilotScopeForm({
         </div>
       </div>
 
-      <div data-pilot-stage={2} hidden={stage !== 2} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
+      <div data-pilot-stage={2} hidden={stage !== 2} onChange={refreshLive} className="grid gap-32 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <p className="t-p-sm-sans text-white">what would make the pilot commercially meaningful?</p>
+          <p className="mt-10 max-w-[42em] t-p-sm-sans text-white">
+            we have defined the baseline outcomes below. Select the ones that matter most to your workflow to define pilot targets.
+            {" "}
+            <SmoothAnchor 
+              className="inline-block t-p-sm-sans text-white underline underline-offset-4" 
+              href="#success-criteria"
+            >
+              review pilot success criteria
+            </SmoothAnchor>
+          </p>
         </div>
         <fieldset className="sm:col-span-2">
-          <legend className="t-p-sm-sans text-white">success criteria *</legend>
+          <legend className="t-p-sm-sans text-white">which improvements would matter most to your team? *</legend>
           <div className="mt-12 grid gap-10 sm:grid-cols-2">
             {SUCCESS_CRITERIA_OPTIONS.map((option) => (
               <label
@@ -939,32 +972,36 @@ export function PilotScopeForm({
                     String(initialAnswers.successCriterionKeysJson).includes(option.key)
                   }
                 />
-                <span>{option.label}</span>
+                <span>
+                  {/* <span className="block">{option.label}</span> */}
+                  {option.benefit ? (
+                    <span className="block text-white">{option.benefit}</span>
+                  ) : null}
+                </span>
               </label>
             ))}
           </div>
         </fieldset>
         <div className="sm:col-span-2">
-          <LeadField label="measurable targets for the criteria above *" name="successCriteria">
+          <LeadField label="how will you know this worked? *" name="successCriteria">
             <LeadTextareaField
               id="successCriteria"
               name="successCriteria"
               required
               minRows={5}
               defaultValue={String(initialAnswers?.successCriteria || '')}
-              placeholder="e.g. an approved asset is retrievable in under one minute; a variant can be reproduced or meaningfully extended from its stored context"
+              placeholder="tell us your current baseline and desired improvement, if known. e.g. retrieval currently takes 15 minutes; we want it under 2 minutes"
             />
           </LeadField>
         </div>
         <div className="sm:col-span-2">
-          <LeadField label="security requirements *" name="securityRequirements">
+          <LeadField label="security requirements (optional)" name="securityRequirements">
             <LeadTextareaField
               id="securityRequirements"
               name="securityRequirements"
-              required
               minRows={4}
               defaultValue={String(carriedAnswers.securityRequirements || '')}
-              placeholder="e.g. SSO/SAML, SOC 2 report, data residency, dedicated infrastructure"
+              placeholder="what would your IT, legal, or procurement team need before adoption? e.g. SSO/SAML, SOC 2 report, data residency"
             />
           </LeadField>
         </div>
@@ -972,28 +1009,8 @@ export function PilotScopeForm({
 
       <div data-pilot-stage={3} hidden={stage !== 3} onChange={refreshLive} className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <p className="t-p-sm-sans text-white/70">who is likely to review or approve this pilot? you can confirm and invite them for review after your pilot plan is generated.</p>
+          <p className="t-p-sm-sans text-white">you can invite participants, reviewers, approvers, and the signer after your pilot room is created.</p>
         </div>
-        {missing('economicBuyer') ? (
-          <div className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
-            <LeadField label="economic buyer *" name="economicBuyer">
-              <LeadTextField id="economicBuyer" name="economicBuyer" required defaultValue={String(initialAnswers?.economicBuyer || '')} placeholder="name and title" />
-            </LeadField>
-            <LeadField label="economic buyer email *" name="economicBuyerEmail">
-              <LeadTextField id="economicBuyerEmail" name="economicBuyerEmail" type="email" required defaultValue={String(initialAnswers?.economicBuyerEmail || '')} placeholder="name@company.com" />
-            </LeadField>
-          </div>
-        ) : null}
-        {missing('technicalEvaluator') ? (
-          <div className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
-            <LeadField label="technical evaluator *" name="technicalEvaluator">
-              <LeadTextField id="technicalEvaluator" name="technicalEvaluator" required defaultValue={String(initialAnswers?.technicalEvaluator || '')} placeholder="name and title" />
-            </LeadField>
-            <LeadField label="technical evaluator email *" name="technicalEvaluatorEmail">
-              <LeadTextField id="technicalEvaluatorEmail" name="technicalEvaluatorEmail" type="email" required defaultValue={String(initialAnswers?.technicalEvaluatorEmail || '')} placeholder="name@company.com" />
-            </LeadField>
-          </div>
-        ) : null}
         {missing('budgetOwner') ? (
           <LeadField label="budget-owning function *" name="budgetOwner">
             <LeadSelectField id="budgetOwner" name="budgetOwner" required defaultValue={String(initialAnswers?.budgetOwner || '')}>
@@ -1049,20 +1066,9 @@ export function PilotScopeForm({
             the $2,500 onboarding fee.`: 
             `I acknowledge that the proposed post-pilot deployment is the
             selected annual package at the displayed annual price, and that
-            the $5,000 pilot fee is credited if the annual order form is
-            signed by the decision deadline.`}
+            the ${offerTerms?.pilotPriceLabel || '$5,000'} pilot fee ${offerTerms ? `includes a ${offerTerms.annualCreditLabel} first-year deployment credit under the stated offer terms${offerTerms.acceptanceDeadlineLabel ? ` when the agreement is signed by ${offerTerms.acceptanceDeadlineLabel}` : ''}` : 'is credited under the standard pilot conversion terms'}.`}
           </span>
         </label>
-        {liveAnswers.approvalPath === 'other' || liveAnswers.approvalPath === 'procurement' ? (
-          <div className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
-            <LeadField label="approver name *" name="approverName">
-              <LeadTextField id="approverName" name="approverName" required defaultValue={String(initialAnswers?.approverName || '')} />
-            </LeadField>
-            <LeadField label="approver email *" name="approverEmail">
-              <LeadTextField id="approverEmail" name="approverEmail" type="email" required defaultValue={String(initialAnswers?.approverEmail || '')} />
-            </LeadField>
-          </div>
-        ) : null}
         {liveAnswers.approvalPath === 'procurement' ? (
           <div className="grid gap-20 sm:col-span-2 sm:grid-cols-2">
             <label className="flex items-start gap-10 t-p-sm-sans text-white">
@@ -1070,18 +1076,12 @@ export function PilotScopeForm({
               <span>purchase order required</span>
             </label>
             <LeadField label="expected review time" name="procurementReviewTime">
-              <LeadTextField id="procurementReviewTime" name="procurementReviewTime" defaultValue={String(initialAnswers?.procurementReviewTime || '')} placeholder="e.g. 2-3 weeks" />
+              <LeadTextField id="procurementReviewTime" name="procurementReviewTime" defaultValue={String(initialAnswers?.procurementReviewTime || '')} placeholder="e.g. 2 weeks" />
             </LeadField>
           </div>
         ) : null}
-        <LeadField label="authorized signer *" name="signerName">
-          <LeadTextField id="signerName" name="signerName" required defaultValue={String(initialAnswers?.signerName || '')} placeholder="full legal name" />
-        </LeadField>
-        <LeadField label="signer email *" name="signerEmail">
-          <LeadTextField id="signerEmail" name="signerEmail" type="email" required defaultValue={String(initialAnswers?.signerEmail || '')} placeholder="name@company.com" />
-        </LeadField>
         <div className="sm:col-span-2">
-          <LeadField label="anything that would block the pilot, optional" name="pilotBlocker">
+          <LeadField label="anything that would block the pilot (optional)" name="pilotBlocker">
             <LeadTextareaField
               id="pilotBlocker"
               name="pilotBlocker"
@@ -1104,15 +1104,10 @@ export function PilotScopeForm({
           <SummaryRow label="data classification" value={optionLists.dataClassificationLabel[summaryAnswer('dataClassification') as keyof typeof optionLists.dataClassificationLabel] || '—'} />
           <SummaryRow label="approval path" value={summaryAnswer('approvalPath').replaceAll('-', ' ') || '—'} />
           <SummaryRow label="production owner" value={[summaryAnswer('productionOwner'), summaryAnswer('productionOwnerEmail')].filter(Boolean).join(' · ') || '—'} />
-          <SummaryRow label="economic buyer" value={[summaryAnswer('economicBuyer'), summaryAnswer('economicBuyerEmail')].filter(Boolean).join(' · ') || '—'} />
-          <SummaryRow label="technical evaluator" value={[summaryAnswer('technicalEvaluator'), summaryAnswer('technicalEvaluatorEmail')].filter(Boolean).join(' · ') || '—'} />
-          {summaryAnswer('approverName') ? <SummaryRow label="approver" value={[summaryAnswer('approverName'), summaryAnswer('approverEmail')].filter(Boolean).join(' · ')} /> : null}
           <SummaryRow label="annual option" value={summaryAnswer('annualDeploymentOption').replaceAll('-', ' ') || '—'} />
           <SummaryRow label="budget-owning function" value={summaryAnswer('budgetOwner').replaceAll('-', ' ') || '—'} />
           <SummaryRow label="budget readiness" value={summaryAnswer('budgetReadiness').replaceAll('-', ' ') || '—'} />
           <SummaryRow label="security requirements" value={summaryAnswer('securityRequirements') || '—'} />
-          <SummaryRow label="authorized signer" value={summaryAnswer('signerName') || '—'} />
-          <SummaryRow label="signer email" value={summaryAnswer('signerEmail') || '—'} />
         </dl>
         {classification.route === 'one-call' ? (
           <p className="t-p-sm-sans text-white/80 sm:col-span-2" role="note">
@@ -1120,7 +1115,11 @@ export function PilotScopeForm({
           </p>
         ) : null}
         <div className="sm:col-span-2">
-          <ConsentFields onStarted={onStarted} showMarketing={!context.known} />
+          <ConsentFields
+            onStarted={onStarted}
+            showMarketing={!context.known}
+            marketingDefaultChecked
+          />
           <NoScriptLeadFallback />
         </div>
       </div>
@@ -1145,6 +1144,7 @@ export function PilotScopeForm({
         {stage > 0 ? (
           <CTAButton
             type="button"
+            appearance="plain"
             onClick={onBack}
             className="!min-w-0"
           >
@@ -1153,7 +1153,9 @@ export function PilotScopeForm({
           </CTAButton>
         ) : <span />}
         {stage < STAGES.length - 1 ? (
-          <CTAButton type="button" onClick={onContinue} className="js-lead-submit">
+          <CTAButton type="button"
+            appearance="plain"
+          onClick={onContinue} className="js-lead-submit">
             <span>continue</span>
             <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
           </CTAButton>

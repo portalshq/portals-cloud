@@ -103,6 +103,17 @@ fn user_token(token: String, claims: &Claims) -> UserToken {
         expires_at: claims.exp.saturating_mul(1000),
         user_id: claims.sub.clone(),
         user_name: claims.name.clone(),
+        refresh_token: None,
+    }
+}
+
+fn user_token_with_refresh(token: String, refresh_token: String, claims: &Claims) -> UserToken {
+    UserToken {
+        user_token: token,
+        expires_at: claims.exp.saturating_mul(1000),
+        user_id: claims.sub.clone(),
+        user_name: claims.name.clone(),
+        refresh_token: Some(refresh_token),
     }
 }
 
@@ -166,6 +177,7 @@ impl UrcAuthApi for AuthService {
         else {
             return Ok(Response::new(GetAuthSessionResponse { user_token: None }));
         };
+        // Issue authentication token
         let (token, exp) = self
             .state
             .signer
@@ -179,31 +191,110 @@ impl UrcAuthApi for AuthService {
             .await
             .map_err(internal_error)?;
         let claims = Claims {
-            sub: session.subject_id,
+            sub: session.subject_id.clone(),
             iss: self.state.config.jwt_issuer.clone(),
             iat: Utc::now().timestamp(),
             exp,
             aud: JWT_AUDIENCES.iter().map(|a| (*a).to_string()).collect(),
             env: self.state.config.environment.clone(),
-            name: session.display_name,
-            preferred_username: session.preferred_username,
+            name: session.display_name.clone(),
+            preferred_username: session.preferred_username.clone(),
             is_service_account: false,
             resources: None,
             groups: None,
             idp: "cognito".into(),
         };
+        // Create rotating refresh credential. Failure is internal — the client
+        // needs the refresh token to stay authenticated without browser loops.
+        let (refresh_plain, _) = self
+            .state
+            .store
+            .create_refresh_session(
+                "user",
+                &session.subject_id,
+                &session.display_name,
+                &session.preferred_username,
+                "cognito",
+            )
+            .await
+            .map_err(internal_error)?;
         Ok(Response::new(GetAuthSessionResponse {
-            user_token: Some(user_token(token, &claims)),
+            user_token: Some(user_token_with_refresh(token, refresh_plain, &claims)),
         }))
     }
 
     async fn refresh_auth_session(
         &self,
-        _: Request<RefreshAuthSessionRequest>,
+        request: Request<RefreshAuthSessionRequest>,
     ) -> Result<Response<RefreshAuthSessionResponse>, Status> {
-        Err(Status::unimplemented(
-            "refresh tokens are intentionally not issued; login again after eight hours",
-        ))
+        if !self.state.config.jwt_signing_enabled {
+            return Err(Status::unavailable("JWT signing is not activated"));
+        }
+        let refresh_token = bearer(request.metadata())?;
+        // Never log the raw token — store layer hashes it.
+        let (session, new_refresh) = self
+            .state
+            .store
+            .rotate_refresh_token(refresh_token)
+            .await
+            .map_err(|e| {
+                let msg = e.to_string();
+                if msg.contains("reuse detected") {
+                    // Replay: family already revoked, do not reveal which token.
+                    error!("refresh reuse detected and family revoked");
+                    Status::permission_denied("refresh token reuse detected")
+                } else if msg.contains("expired") {
+                    Status::unauthenticated("refresh token is expired")
+                } else if msg.contains("revoked") || msg.contains("invalid") {
+                    Status::unauthenticated("refresh token is invalid")
+                } else if msg.contains("principal is disabled") {
+                    Status::permission_denied("principal is disabled")
+                } else {
+                    error!(error = %msg, "refresh rotation failed");
+                    Status::unauthenticated("refresh token is invalid")
+                }
+            })?;
+        // Mint a new authentication token for the same principal.
+        let (token, exp) = self
+            .state
+            .signer
+            .authentication_token(
+                &session.subject_id,
+                &session.display_name,
+                &session.preferred_username,
+                false,
+                &session.idp,
+            )
+            .await
+            .map_err(internal_error)?;
+        let claims = Claims {
+            sub: session.subject_id.clone(),
+            iss: self.state.config.jwt_issuer.clone(),
+            iat: Utc::now().timestamp(),
+            exp,
+            aud: JWT_AUDIENCES.iter().map(|a| (*a).to_string()).collect(),
+            env: self.state.config.environment.clone(),
+            name: session.display_name.clone(),
+            preferred_username: session.preferred_username.clone(),
+            is_service_account: false,
+            resources: None,
+            groups: None,
+            idp: session.idp.clone(),
+        };
+        Ok(Response::new(RefreshAuthSessionResponse {
+            user_token: Some(user_token_with_refresh(token, new_refresh, &claims)),
+        }))
+    }
+
+    async fn revoke_auth_session(
+        &self,
+        request: Request<RevokeAuthSessionRequest>,
+    ) -> Result<Response<RevokeAuthSessionResponse>, Status> {
+        // Bearer holds the opaque refresh credential; hash and revoke its family.
+        let refresh_token = bearer(request.metadata())?;
+        // Best-effort revocation — never reveal whether token existed.
+        let _ = self.state.store.revoke_refresh_token(refresh_token).await;
+        Ok(Response::new(RevokeAuthSessionResponse {}))
     }
 
     async fn verify_user(

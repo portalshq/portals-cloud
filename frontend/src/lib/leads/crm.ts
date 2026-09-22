@@ -1,5 +1,5 @@
 import {assessmentScore} from './scoring'
-import {companyScoreContext, getPilotBySubmissionId, leadPool, leadsDryRun, type StoredSubmission} from './store'
+import {companyScoreContext, getPilotById, getPilotBySubmissionId, leadPool, leadsDryRun, type StoredSubmission} from './store'
 import {isPublicEmailDomain, normalizeEmail} from './identity'
 import schemaSource from '../../../config/apollo-lead-operations.json'
 
@@ -15,6 +15,9 @@ type ListKey =
 
 type ApolloRecord = {
   id?: string
+  owner_id?: string
+  object_owner_id?: string
+  user_id?: string
   web_url?: string
   url?: string
   data?: ApolloRecord
@@ -22,6 +25,7 @@ type ApolloRecord = {
   contact?: ApolloRecord
   opportunity?: ApolloRecord
   deal?: ApolloRecord
+  owner?: ApolloRecord
 }
 type RemoteType = 'contact' | 'account' | 'deal'
 type SourceType = 'lead_profile' | 'customer_account' | 'pilot'
@@ -38,6 +42,7 @@ type ApolloField = {id: string; label: string; modality: FieldModality}
 type ApolloStage = {id: string; name?: string; label?: string}
 type ApolloAccount = {id: string; name?: string; domain?: string; primary_domain?: string}
 type ApolloContact = {id: string; email?: string; web_url?: string; url?: string}
+type ApolloUser = {id?: string; status?: string}
 type ApolloMethod = 'GET' | 'POST' | 'PATCH'
 
 const defaultLists: Record<ListKey, string> = {
@@ -608,10 +613,38 @@ async function addToLists(modality: 'contacts' | 'accounts', id: string, names: 
 async function reconcileOperationalList(accountId: string, desired: ListKey | null): Promise<void> {
   if (!desired) return
   const lists = listConfig()
-  const all = [lists.nurture, lists.qualifiedOpportunities, lists.pilotRequests, lists.paidPilots, lists.customers]
-  await apolloRequest('/api/v1/labels/remove_entity_ids_from_label_names', 'POST', {
-    entity_ids: [accountId], label_names: all.filter((item) => item !== lists[desired]), modality: 'accounts',
-  })
+  // Progression hierarchy: nurture -> qualifiedOpportunities -> pilotRequests -> paidPilots -> customers
+  const progression = ['nurture', 'qualifiedOpportunities', 'pilotRequests', 'paidPilots', 'customers'] as const
+  const desiredIndex = progression.indexOf(desired as typeof progression[number])
+  
+  // If desired is not an operational list, just set it directly
+  if (desiredIndex === -1) {
+    await addToLists('accounts', accountId, [lists[desired]])
+    return
+  }
+  
+  // Get current lists to check if already in higher tier
+  const current = await apolloRequest<{labels: Array<{name: string}>}>('/api/v1/accounts/' + accountId, 'GET')
+  const currentLabels = new Set(current?.labels?.map((l) => l.name) || [])
+  
+  // Find highest current tier
+  let currentIndex = -1
+  for (let i = 0; i < progression.length; i++) {
+    if (currentLabels.has(lists[progression[i]])) {
+      currentIndex = i
+    }
+  }
+  
+  // Only upgrade, never downgrade. If already in higher tier, stay there.
+  if (currentIndex >= desiredIndex) return
+  
+  // Remove all operational lists below current tier, add desired
+  const toRemove = progression.slice(0, desiredIndex).map((key) => lists[key])
+  if (toRemove.length > 0) {
+    await apolloRequest('/api/v1/labels/remove_entity_ids_from_label_names', 'POST', {
+      entity_ids: [accountId], label_names: toRemove, modality: 'accounts',
+    })
+  }
   await addToLists('accounts', accountId, [lists[desired]])
 }
 
@@ -740,6 +773,54 @@ export async function advanceApolloPilotDeal(pilotId: string, stage: 'Paid Pilot
   const stageId = (await discoverApolloSchema()).dealStages[stage]
   if (!stageId) throw new Error(`Apollo deal stage is missing: ${stage}. Run provision:apollo after creating it.`)
   await apolloRequest(`/api/v1/opportunities/${encodeURIComponent(remote.id)}`, 'PATCH', {opportunity_stage_id: stageId})
+}
+
+function recordOwnerId(record: ApolloRecord | undefined): string | undefined {
+  if (!record) return undefined
+  return record.owner_id || record.object_owner_id || record.user_id || record.owner?.id
+}
+
+async function apolloTaskOwnerId(contactId: string): Promise<string> {
+  const contact = await apolloRequest<ApolloRecord>(
+    `/api/v1/contacts/${encodeURIComponent(contactId)}`,
+    'GET',
+  )
+  const ownerId = recordOwnerId(contact) || recordOwnerId(contact.contact) || recordOwnerId(contact.data)
+  if (ownerId) return ownerId
+
+  const usersPayload = await apolloRequest<Record<string, unknown>>('/api/v1/users/search?per_page=100', 'GET')
+  const users = collection<ApolloUser>(usersPayload, ['users', 'data'])
+    .filter((user) => user.id)
+    .filter((user) => !['inactive', 'deleted'].includes(String(user.status || '').toLowerCase()))
+  if (users.length === 0) throw new Error('Apollo has no active users available for the exception review task.')
+  return users[Math.floor(Math.random() * users.length)].id!
+}
+
+export async function createApolloExceptionReviewTask(pilotId: string): Promise<void> {
+  if (leadsDryRun()) return
+  const pilot = await getPilotById(pilotId)
+  if (!pilot) throw new Error(`Pilot record is missing for ${pilotId}.`)
+  const contact = await remoteRecord('lead_profile', pilot.profileId, 'contact')
+  if (!contact) throw new Error(`Apollo contact mapping is missing for pilot ${pilotId}.`)
+  const exceptions = pilot.exceptions
+    .filter((item) => !item.resolvedAt)
+    .map((item) => `- ${item.summary}`)
+  const roomUrl = `${(process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works').replace(/\/$/, '')}/paid-pilot/room/${pilot.id}`
+  await apolloRequest('/api/v1/tasks', 'POST', {
+    user_id: await apolloTaskOwnerId(contact.id),
+    contact_id: contact.id,
+    type: 'action_item',
+    priority: 'high',
+    status: 'scheduled',
+    due_at: new Date().toISOString(),
+    title: `Review exception for paid pilot — ${String(pilot.answers.company || 'prospect')}`,
+    note: [
+      'A paid pilot needs Portals review.',
+      ...(exceptions.length ? ['', 'Review items:', ...exceptions] : []),
+      '',
+      `Pilot approval room: ${roomUrl}`,
+    ].join('\n'),
+  })
 }
 
 export async function stopApolloSequences(contactId: string, sequenceIds: string[]): Promise<void> {

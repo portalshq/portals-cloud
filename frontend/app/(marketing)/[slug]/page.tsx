@@ -5,12 +5,13 @@ import {ResourceLandingPage} from '@/components/resources/ResourceLandingPage'
 import {SecurityArchitectureLandingPage} from '@/components/resources/SecurityArchitectureLandingPage'
 import {getKnownLeadContext} from '@/lib/leads/profile'
 import {getResourceDocument, getResourceSlugs} from '@/sanity/lib/resources'
+import {resolveCurrentPilotOffer} from '@/lib/leads/pilot-offers'
 
 type PageProps = {
   params: Promise<{
     slug: string
   }>
-  searchParams: Promise<{from?: string}>
+  searchParams: Promise<{from?: string; offer?: string; mode?: 'standard' | 'assisted'}>
 }
 
 export const dynamic = 'force-dynamic'
@@ -71,10 +72,11 @@ export async function generateMetadata({
 
 export default async function ResourcePage({params, searchParams}: PageProps) {
   const {slug} = await params
-  const {from} = await searchParams
-  const [document, context] = await Promise.all([
+  const {from, offer, mode} = await searchParams
+  const [document, context, offerVariant] = await Promise.all([
     getResourceDocument(slug),
     getKnownLeadContext(),
+    offer ? resolveCurrentPilotOffer(offer).catch(() => null) : Promise.resolve(null),
   ])
 
   if (!document || document.landingPage?.enabled === false) {
@@ -90,6 +92,15 @@ export default async function ResourcePage({params, searchParams}: PageProps) {
       <PaidPilotLandingPage
         document={document}
         context={context}
+        offer={offer}
+        offerTerms={offerVariant ? {
+          pilotPriceLabel: offerVariant.pilotPriceLabel,
+          annualCreditLabel: offerVariant.annualCreditLabel,
+          pilotDurationDays: offerVariant.pilotDurationDays,
+          acceptanceDeadlineLabel: offerVariant.acceptanceDeadlineLabel,
+          offerCopy: offerVariant.offerCopy,
+        } : undefined}
+        pilotMode={mode}
         assessmentOrigin={from === 'assessment-override' ? 'assessment_override' : 'standard'}
       />
     )

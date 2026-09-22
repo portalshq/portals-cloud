@@ -1,9 +1,13 @@
+import {blogDocumentTypes} from './blogTypes'
 import {resourceTypes} from './resourceTypes'
 import {legalDocumentTypes} from './legalDocumentTypes'
-import {packageSpecificationTypes} from './packageSpecificationTypes'
+import {packageSpecificationTypesWithOffers} from './packageSpecificationTypes'
+import {useCaseDocumentTypes} from './useCaseTypes'
 
 export const schemaTypes = [
-  ...packageSpecificationTypes,
+  ...blogDocumentTypes,
+  ...packageSpecificationTypesWithOffers,
   ...resourceTypes,
   ...legalDocumentTypes,
+  ...useCaseDocumentTypes,
 ]

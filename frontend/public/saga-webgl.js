@@ -56,25 +56,60 @@ const { UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloo
 // SECTION 3: COLOR RAMP & BACKGROUND CONFIGURATIONS
 // =============================================================================
 
-const DEFAULT_BG_COLOR1 = "#0E115F";
-const DEFAULT_BG_COLOR2 = "#726DD2";
+let DEFAULT_BG_COLOR1 = "#0E115F";
+let DEFAULT_BG_COLOR2 = "#726DD2";
 
-const DEFAULT_RAMP1 = [
+let DEFAULT_RAMP1 = [
   { stop: 0, color: "#0E115F" },
-  { stop: 0.148, color: "#ffffff" },
+  { stop: 0.148, color: "#0E115F" },
   { stop: 0.381, color: "#0E115F" },
   { stop: 0.673, color: "#726DD2" },
   { stop: 0.891, color: "#726DD2" },
   { stop: 0.992, color: "#DD30C9" },
 ];
 
-const DEFAULT_RAMP2 = [
+let DEFAULT_RAMP2 = [
   { stop: 0, color: "#053A68" },
   { stop: 0.3, color: "#3A87CB" },
-  { stop: 0.6, color: "#aab5c3" },
+  { stop: 0.6, color: "#bbc4cf" },
   { stop: 0.8, color: "#4470cc" },
   { stop: 1, color: "#6162cd" },
 ];
+
+// Snapshots of the global defaults. The PX page theme temporarily reassigns the
+// DEFAULT_* bindings above and restores these on unmount, so other pages are
+// never affected.
+const ORIGINAL_BG_COLOR1 = DEFAULT_BG_COLOR1;
+const ORIGINAL_BG_COLOR2 = DEFAULT_BG_COLOR2;
+const ORIGINAL_RAMP1 = DEFAULT_RAMP1;
+const ORIGINAL_RAMP2 = DEFAULT_RAMP2;
+const ORIGINAL_MESH_COLOR1 = "#B6F2FF";
+const ORIGINAL_MESH_COLOR2 = "#274fff";
+const ORIGINAL_MESH_MIDDLE = "#B6F2FF";
+
+// PX-exclusive palette. Main: black. Secondary: #efdc3d. Third: the same
+// yellow at 42% opacity — written here as rgba(239,220,61,0.42) composited
+// over the black field (#645c1a) wherever the shader needs an opaque stop.
+const PX_BG_COLOR1 = "#000000";
+const PX_BG_COLOR2 = "#efdc3d";
+const PX_RAMP1 = [
+  { stop: 0.008, color: "#efdc3d" },
+  { stop: 0.109, color: "#645c1a" },
+  { stop: 0.327, color: "#efdc3d" },
+  { stop: 0.619, color: "#000000" },
+  { stop: 0.852, color: "#efdc3d" },
+  { stop: 1, color: "#000000" },
+];
+const PX_RAMP2 = [
+  { stop: 0, color: "#000000" },
+  { stop: 0.2, color: "#645c1a" },
+  { stop: 0.4, color: "#efdc3d" },
+  { stop: 0.7, color: "#645c1a" },
+  { stop: 1, color: "#000000" },
+];
+const PX_MESH_COLOR1 = "#efdc3d";
+const PX_MESH_COLOR2 = "#000000";
+const PX_MESH_MIDDLE = "#efdc3d";
 
 const SECTION_RAMPS = [
   {
@@ -89,7 +124,7 @@ const SECTION_RAMPS = [
     ramp2: [
       { stop: 0, color: "#053A68" },
       { stop: 0.3, color: "#3A87CB" },
-      { stop: 0.6, color: "#aab5c3" },
+      { stop: 0.6, color: "#bbc4cf" },
       { stop: 0.8, color: "#4470cc" },
       { stop: 1, color: "#6162cd" },
     ],
@@ -126,7 +161,7 @@ const SECTION_RAMPS = [
     ramp2: [
       { stop: 0, color: "#053A68" },
       { stop: 0.3, color: "#3A87CB" },
-      { stop: 0.6, color: "#aab5c3" },
+      { stop: 0.6, color: "#bbc4cf" },
       { stop: 0.8, color: "#4470cc" },
       { stop: 1, color: "#6162cd" },
     ],
@@ -943,6 +978,53 @@ class SagaEngine {
     this.backgroundUniforms.uBackgroundMix.value = mix;
   }
 
+  // PX-exclusive theme. Swaps the live uniforms immediately and repoints the
+  // module-level DEFAULT_* bindings so scroll-driven transitions also use the
+  // PX palette while active. Restores everything when turned off, so no other
+  // page ever sees these colors.
+  setPxThemeActive(on) {
+    const active = !!on;
+    const bg1 = active ? PX_BG_COLOR1 : ORIGINAL_BG_COLOR1;
+    const bg2 = active ? PX_BG_COLOR2 : ORIGINAL_BG_COLOR2;
+    const ramp1 = active ? PX_RAMP1 : ORIGINAL_RAMP1;
+    const ramp2 = active ? PX_RAMP2 : ORIGINAL_RAMP2;
+    DEFAULT_BG_COLOR1 = bg1;
+    DEFAULT_BG_COLOR2 = bg2;
+    DEFAULT_RAMP1 = ramp1;
+    DEFAULT_RAMP2 = ramp2;
+
+    this._applyRampImmediate(this.colorRamp1, ramp1, {
+      from: "uColorRamp1", to: "uColorRamp1To", mix: "uColorRamp1Mix",
+    });
+    this._applyRampImmediate(this.colorRamp2, ramp2, {
+      from: "uColorRamp2", to: "uColorRamp2To", mix: "uColorRamp2Mix",
+    });
+    this.setBackgroundColors(bg1, bg2);
+    this.meshUniforms.uColor1.value.set(active ? PX_MESH_COLOR1 : ORIGINAL_MESH_COLOR1);
+    this.meshUniforms.uColor2.value.set(active ? PX_MESH_COLOR2 : ORIGINAL_MESH_COLOR2);
+    this.meshUniforms.uMiddleColor.value.set(active ? PX_MESH_MIDDLE : ORIGINAL_MESH_MIDDLE);
+  }
+
+  _applyRampImmediate(slot, stops, uniforms) {
+    if (slot.transition) {
+      slot.transition.pendingTexture.dispose();
+      slot.transition = null;
+    }
+    const seen = new Set();
+    for (const tex of [slot.texture, this.meshUniforms[uniforms.from].value, this.meshUniforms[uniforms.to].value]) {
+      if (tex && !seen.has(tex)) {
+        seen.add(tex);
+        tex.dispose();
+      }
+    }
+    const next = createColorRamp(stops);
+    slot.stops = next.stops;
+    slot.texture = next.texture;
+    this.meshUniforms[uniforms.from].value = next.texture;
+    this.meshUniforms[uniforms.to].value = next.texture;
+    this.meshUniforms[uniforms.mix].value = 0;
+  }
+
   _updateBackgroundColorTransition(elapsed) {
     const t = this.backgroundColors.transition;
     if (!t) return;
@@ -1561,6 +1643,19 @@ class ReactOwnedScrollSystem {
   }
 }
 
+let sagaEngineInstance = null;
+
+if (typeof window !== "undefined") {
+  // Page-scoped theme switch. Only the PX page calls this (via its
+  // data-webgl-theme="px" marker); every other page keeps the defaults.
+  window.__sagaPxTheme = {
+    setActive(on) {
+      window.__sagaPendingPxTheme = !!on;
+      if (sagaEngineInstance) sagaEngineInstance.setPxThemeActive(!!on);
+    },
+  };
+}
+
 function bootstrap() {
   const canvas = document.querySelector(
     ".fixed.inset-0 canvas, .fixed canvas.size-full, [class*='fixed'] canvas"
@@ -1576,12 +1671,16 @@ function bootstrap() {
   }
 
   const engine = new SagaEngine(canvas);
+  sagaEngineInstance = engine;
   engine.init({
     onReady() {
       console.log("SagaEngine: Model loaded, marker scroll system active.");
       new ReactOwnedScrollSystem(engine);
     },
   });
+  if (window.__sagaPendingPxTheme === true || document.querySelector('[data-webgl-theme="px"]')) {
+    engine.setPxThemeActive(true);
+  }
 }
 
 if (document.readyState === "loading") {

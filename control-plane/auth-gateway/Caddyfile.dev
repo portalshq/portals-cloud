@@ -1,0 +1,36 @@
+# Caddyfile for dev HTTPS parity — serves Auth Gateway JWKS and Keycloak
+# Place your generated cert at ./dev-certs/auth.dev.example.com.{crt,key}
+# and CA at ./dev-certs/rootCA.pem (see scripts/setup-dev-auth.sh).
+# Lore strict mode can trust the CA via server.auth.jwk.ca_file.
+
+{
+  auto_https off
+}
+
+https://auth.dev.example.com {
+  tls /certs/auth.dev.example.com.crt /certs/auth.dev.example.com.key
+
+  # Auth Gateway JWKS + OAuth callback + health
+  handle /.well-known/jwks.json* {
+    reverse_proxy auth-gateway:8085
+  }
+  handle /callback* {
+    reverse_proxy auth-gateway:8085
+  }
+  handle /healthz* {
+    reverse_proxy auth-gateway:8085
+  }
+
+  # Keycloak (when OIDC_ISSUER is set)
+  handle /realms/* {
+    reverse_proxy keycloak:8080
+  }
+  handle /admin/* {
+    reverse_proxy keycloak:8080
+  }
+
+  # Fallback — let gateway handle the rest
+  handle {
+    reverse_proxy auth-gateway:8085
+  }
+}

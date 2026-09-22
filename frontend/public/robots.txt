@@ -1,7 +1,10 @@
 User-agent: *
 Allow: /
+Allow: /workflow/ai-production-workflow-risks
 Disallow: /api/
 Disallow: /account/
-Disallow: /paid-pilot/room/
+Disallow: /pilot/room/
+Disallow: /workflow/assessment
+Disallow: /production-memory/brief/
 
 Sitemap: https://portals.works/sitemap.xml

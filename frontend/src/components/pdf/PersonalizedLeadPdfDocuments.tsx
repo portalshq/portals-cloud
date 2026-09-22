@@ -19,7 +19,7 @@ import type {
   QualificationOutcome,
 } from '@/lib/leads/contracts'
 import { pilotControlledOptionLists } from '@/lib/leads/contracts'
-import { pilotRoomPathForPilot } from '@/lib/leads/account-paths'
+import { pilotRoomPathForPilotOrFallback } from '@/lib/leads/account-paths'
 import { stateLabel } from '@/lib/leads/pilot'
 import type { StoredPilot } from '@/lib/leads/store'
 import type { ResourceDocument } from '@/types/resource'
@@ -971,7 +971,7 @@ function Page5DecisionRecord({ data, document }: { data: PersonalizedQualificati
           ]} />
           <Text style={[styles.profileLabel, { marginTop: 8 }]}>continue</Text>
           <View style={{ flexDirection: 'row' }}>
-            <Link src="https://portals.works/paid-pilot" style={{ fontSize: 9.2, color: colors.blue, textDecoration: 'underline' }}>pilot</Link>
+            <Link src="https://portals.works/pilot" style={{ fontSize: 9.2, color: colors.blue, textDecoration: 'underline' }}>pilot</Link>
             <Text style={{ marginHorizontal: 5, color: colors.muted }}>·</Text>
             <Link src="https://portals.works/contact" style={{ fontSize: 9.2, color: colors.blue, textDecoration: 'underline' }}>contact</Link>
           </View>
@@ -1275,7 +1275,7 @@ export function PilotPlanPdfDocument({
                   <Text style={styles.item}><Text style={styles.label}>pilot fee:</Text> {pilot.proposal.priceLabel}, due on signature</Text>
                   <Text style={styles.item}><Text style={styles.label}>term:</Text> {pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? ` · ${pilot.proposal.termStart} to ${pilot.proposal.termEnd}` : ''}</Text>
                   {pilot.proposal.decisionDate ? <Text style={styles.item}><Text style={styles.label}>final decision date:</Text> {pilot.proposal.decisionDate}</Text> : null}
-                  {pilot.proposal.creditDeadline ? <Text style={styles.item}><Text style={styles.label}>annual credit window:</Text> sign the annual order form by {pilot.proposal.creditDeadline}</Text> : null}
+                  {pilot.proposal.offerVariantSlug ? <Text style={styles.item}><Text style={styles.label}>offer acceptance deadline:</Text> sign by {pilot.proposal.offerAcceptanceDeadlineLabel || pilot.proposal.offerEndsAt}</Text> : pilot.proposal.creditDeadline ? <Text style={styles.item}><Text style={styles.label}>annual credit window:</Text> sign the annual order form by {pilot.proposal.creditDeadline}</Text> : null}
                   {pilot.proposal.annualOption ? (
                     <View>
                       <Text style={styles.item}><Text style={styles.label}>proposed annual deployment:</Text> {pilot.proposal.annualOption.name} — {pilot.proposal.annualOption.priceLabel}</Text>
@@ -1296,7 +1296,6 @@ export function PilotPlanPdfDocument({
                 </Text>
                 <Text style={styles.muted}>
                   {pilot.proposal.valueModel.frequency.label} · {pilot.proposal.valueModel.hoursLoss.label} lost · {pilot.proposal.valueModel.people.label} affected
-                  {pilot.proposal.valueModel.confirmed ? ' · estimate confirmed by the customer' : ''}
                 </Text>
                 <Text style={styles.body}>this estimate is based on self-reported ranges and is not a guaranteed savings claim or ROI forecast.</Text>
               </View>
@@ -1336,7 +1335,7 @@ export function PilotPlanPdfDocument({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>decision path</Text>
           <Text>deploy portals, extend the pilot under a defined scope, or conclude that portals is not the right fit at this time. the final decision date is {pilot.proposal?.decisionDate || 'stated in the room'}.</Text>
-          <Text style={styles.muted}>signature and payment are completed in the pilot approval room: portals.works{pilotRoomPathForPilot(pilot)}</Text>
+          <Text style={styles.muted}>signature and payment are completed in the pilot approval room: portals.works{pilotRoomPathForPilotOrFallback(pilot)}</Text>
         </View>
 
         <View style={styles.section}>

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --webpack --port 3000",
+    "dev": "next dev --turbo --port 3000",
     "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -12,6 +12,7 @@
     "generate-pdfs": "export $(grep -v '^#' .env.local | xargs) && tsx scripts/generate-pdfs.ts",
     "migrate:leads": "tsx scripts/migrate-leads.ts",
     "provision:apollo": "tsx scripts/provision-apollo.ts",
+    "check:marketing": "node scripts/check-marketing.mjs",
     "backfill:apollo": "tsx scripts/backfill-apollo-leads.ts",
     "test:leads": "tsx --test src/lib/leads/*.test.ts"
   },
@@ -56,9 +57,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
-    "framer-motion": "^12.42.2",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.24.0",
     "next": "^16.2.12",
@@ -67,7 +66,6 @@
     "react-day-picker": "^9.11.1",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.55.0",
-    "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
     "sonner": "^2.0.7",
@@ -80,18 +78,20 @@
     "zod": "^4.4.3"
   },
   "dependencies": {
-    "@portalshq/billing": "^0.1.0",
+    "@portalshq/billing": "^0.1.2",
     "@automerge/automerge": "^3.4.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^9.3.0",
     "@react-pdf/renderer": "^4.5.1",
-    "@sanity/image-url": "^2.1.1",
     "dotenv": "^17.4.2",
     "fflate": "^0.8.2",
     "next-sanity": "^13.2.2",
     "pg": "^8.22.0",
     "stripe": "^22.4.0",
     "ua-parser-js": "^1.0.39"
+  },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.3.3"
   }
 }

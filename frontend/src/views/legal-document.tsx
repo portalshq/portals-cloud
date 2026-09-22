@@ -1,11 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import {ArrowUpRight} from 'lucide-react'
 import {SagaWebGLEngine} from '@/lib/SagaWebGLEngine'
 import {CTAButton} from '@/components/CTAButton'
 import type {LegalDocument} from '@/types/resource'
 import {ResourceBody} from '@/components/resources/ResourceBody'
+import {PortalsHeader} from '@/components/PortalsHeader'
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -17,24 +17,6 @@ function formatDate(value: string): string {
 
 function formatNumber(value: number): string {
   return String(value).padStart(2, '0')
-}
-
-function Header({document}: {document: LegalDocument}) {
-  return (
-    <header className="absolute inset-x-0 top-0 z-(--z-header)">
-      <div className="flex h-Header-h items-center justify-between px-sms">
-        <Link href="/" className="t-h3-sans !font-medium text-white">
-          portals
-        </Link>
-        <a
-          href="#document-sections"
-          className="hidden t-p-sm-sans text-white transition-colors hover:text-white sm:block"
-        >
-          {document.title.toLowerCase()} / {new Date(document.effectiveDate).getFullYear()}
-        </a>
-      </div>
-    </header>
-  )
 }
 
 function NumberLabel({index}: {index: number}) {
@@ -69,7 +51,10 @@ export function LegalDocumentView({document}: {document: LegalDocument}) {
         data-webgl-marker="scrollTo"
         data-webgl-position="0.96"
       />
-      <Header document={document} />
+      <PortalsHeader
+        breadcrumb={[{href: '#document-sections', label: document.title.toLowerCase()}]}
+        action={{href: '#document-sections', label: `${document.title.toLowerCase()} / ${new Date(document.effectiveDate).getFullYear()}`}}
+      />
 
       <div className="relative z-10">
         <section className="relative flex min-h-screen items-center overflow-hidden">

@@ -1,5 +1,5 @@
-import {randomUUID} from 'node:crypto'
-import pg, {type Pool, type PoolClient} from 'pg'
+import { randomUUID } from 'node:crypto'
+import pg, { type Pool, type PoolClient } from 'pg'
 import type {
   LeadAttribution,
   LeadIdentity,
@@ -10,21 +10,22 @@ import type {
   SecurityDecision,
   SuccessCriterion,
 } from './contracts'
-import {decryptJson, encryptJson, hashValue, randomToken} from './crypto'
-import {companyDomain, normalizeEmail} from './identity'
+import { decryptJson, encryptJson, hashValue, randomToken } from './crypto'
+import { companyDomain, normalizeEmail } from './identity'
 import type {
   CommercialSnapshot,
   ExceptionItem,
   PilotAction,
   PilotHistoryEntry,
+  PilotMode,
   PilotRoute,
   PilotState,
   Reviewer,
   UnresolvedItem,
 } from './pilot'
-import {recommendedReviewers} from './pilot'
-import {createPilotDraft} from './pilot-collaboration'
-import {pilotDirectAnswersFrom} from './pilot-room-fields'
+import { recommendedReviewers } from './pilot'
+import { createPilotDraft } from './pilot-collaboration'
+import { pilotDirectAnswersFrom } from './pilot-room-fields'
 import type {
   PilotCollaborativeDraft,
   PilotCommittedRevision,
@@ -107,6 +108,12 @@ type MemoryOutboxRow = OutboxRow & {
   due_at: number
 }
 
+type MemoryEmailDelivery = {
+  status: 'sending' | 'sent'
+  claimToken?: string
+  claimExpiresAt?: number
+}
+
 const globalForLeads = globalThis as typeof globalThis & {
   portalsLeadPool?: Pool
   portalsLeadMemory?: {
@@ -116,6 +123,8 @@ const globalForLeads = globalThis as typeof globalThis & {
     pilots: Map<string, StoredPilot>
     submissionPilots: Map<string, string>
     outbox: Map<string, MemoryOutboxRow>
+    termsAcceptances: Map<string, Record<string, unknown>>
+    emailDeduplication: Map<string, MemoryEmailDelivery>
   }
 }
 
@@ -153,6 +162,8 @@ function memory() {
     pilots: new Map(),
     submissionPilots: new Map(),
     outbox: new Map(),
+    termsAcceptances: new Map(),
+    emailDeduplication: new Map(),
   }
   return globalForLeads.portalsLeadMemory
 }
@@ -160,9 +171,10 @@ function memory() {
 export type StoredPilot = {
   id: string
   profileId: string
-  customerAccountId?: string
+  customerAccountId?: string | null
   initialSubmissionId: string
   state: PilotState
+  mode: PilotMode
   route: PilotRoute
   answers: Record<string, unknown>
   exceptions: ExceptionItem[]
@@ -177,7 +189,7 @@ export type StoredPilot = {
   history: PilotHistoryEntry[]
   signing: Record<string, unknown>
   payment: Record<string, unknown>
-  kickoff: Record<string, unknown>
+  launch: Record<string, unknown>
   resolvedStartDate: string | null
   createdAt: string
   updatedAt: string
@@ -189,14 +201,17 @@ export type CreatePilotInput = {
   answers: Record<string, unknown>
   route: PilotRoute
   state: PilotState
+  mode?: PilotMode
   exceptions: ExceptionItem[]
   unresolved: UnresolvedItem[]
   successCriteria: SuccessCriterion[]
   securityDecisions: SecurityDecision[]
+  customerAccountId?: string | null
 }
 
 export type PilotPatch = {
   state?: PilotState
+  mode?: PilotMode
   action?: PilotAction
   route?: PilotRoute
   answers?: Record<string, unknown>
@@ -211,7 +226,7 @@ export type PilotPatch = {
   revisions?: PilotCommittedRevision[]
   signing?: Record<string, unknown>
   payment?: Record<string, unknown>
-  kickoff?: Record<string, unknown>
+  launch?: Record<string, unknown>
   resolvedStartDate?: string | null
   historyNote?: string
   by?: string
@@ -223,6 +238,7 @@ type PilotRow = {
   customer_account_id: string | null
   initial_submission_id: string | null
   state: PilotState
+  mode?: PilotMode
   route: PilotRoute
   answers_ciphertext: string
   exceptions: ExceptionItem[]
@@ -238,7 +254,7 @@ type PilotRow = {
   history: PilotHistoryEntry[]
   signing: Record<string, unknown>
   payment: Record<string, unknown>
-  kickoff: Record<string, unknown>
+  launch: Record<string, unknown>
   resolved_start_date: string | null
   created_at: Date | string
   updated_at: Date | string
@@ -269,7 +285,6 @@ function pilotFromRow(row: PilotRow): StoredPilot {
   const answers = decryptJson<Record<string, unknown>>(row.answers_ciphertext)
   const currentTerms: PilotMutableTerms = {
     startDate: row.resolved_start_date,
-    valueConfirmed: Boolean(row.proposal?.valueModel?.confirmed),
     criteria: row.success_criteria,
     answers: pilotDirectAnswersFrom(answers),
   }
@@ -279,6 +294,7 @@ function pilotFromRow(row: PilotRow): StoredPilot {
     customerAccountId: row.customer_account_id || undefined,
     initialSubmissionId: row.initial_submission_id || '',
     state: row.state,
+    mode: row.mode || 'standard',
     route: row.route,
     answers,
     exceptions: row.exceptions,
@@ -305,7 +321,7 @@ function pilotFromRow(row: PilotRow): StoredPilot {
     history: row.history,
     signing: row.signing,
     payment: row.payment,
-    kickoff: row.kickoff,
+    launch: row.launch,
     resolvedStartDate: row.resolved_start_date,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -314,9 +330,17 @@ function pilotFromRow(row: PilotRow): StoredPilot {
 
 export async function createPilotRecord(input: CreatePilotInput): Promise<StoredPilot> {
   const now = new Date().toISOString()
+  // Invites are in-room only: create owner reviewer here, rest via invitePilotMember.
+  // Fall back to submitter email when productionOwnerEmail is not set (direct store usage).
+  const answersWithOwner = {
+    ...(input.answers as Record<string, unknown>),
+    ...(!String((input.answers as Record<string, unknown>).productionOwnerEmail || '').trim() && String((input.answers as Record<string, unknown>).email || '').trim()
+      ? { productionOwnerEmail: String((input.answers as Record<string, unknown>).email) }
+      : {}),
+  }
   const reviewers: Reviewer[] = recommendedReviewers(
-    input.answers as Parameters<typeof recommendedReviewers>[0],
-  ).map((row) => ({
+    answersWithOwner as Parameters<typeof recommendedReviewers>[0],
+  ).filter((row) => row.role === 'production_owner' && Boolean(row.email)).map((row) => ({
     id: randomUUID(),
     role: row.role,
     name: row.name,
@@ -330,6 +354,7 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     profileId: input.profileId,
     initialSubmissionId: input.initialSubmissionId,
     state: input.state,
+    mode: input.mode || 'standard',
     route: input.route,
     answers: input.answers,
     exceptions: input.exceptions,
@@ -339,10 +364,10 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     securityDecisions: input.securityDecisions,
     reviewers,
     version: 1,
+    customerAccountId: input.customerAccountId || undefined,
     draft: createPilotDraft({
       terms: {
         startDate: null,
-        valueConfirmed: false,
         criteria: input.successCriteria,
         answers: pilotDirectAnswersFrom(input.answers),
       },
@@ -356,17 +381,16 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
         committedAt: now,
         terms: {
           startDate: null,
-          valueConfirmed: false,
           criteria: input.successCriteria,
           answers: pilotDirectAnswersFrom(input.answers),
         },
         changes: [],
       },
     ],
-    history: [{at: now, action: 'created', state: input.state}],
+    history: [{ at: now, action: 'created', state: input.state }],
     signing: {},
     payment: {},
-    kickoff: {},
+    launch: {},
     resolvedStartDate: null,
     createdAt: now,
     updatedAt: now,
@@ -384,8 +408,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
     `INSERT INTO lead_pilots(
       id, profile_id, initial_submission_id, state, route, answers_ciphertext,
       exceptions, unresolved, success_criteria, security_decisions, reviewers,
-      version, draft, draft_ciphertext, revisions, history
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+      version, draft, draft_ciphertext, revisions, history, customer_account_id, mode
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
     [
       pilot.id,
       pilot.profileId,
@@ -403,6 +427,8 @@ export async function createPilotRecord(input: CreatePilotInput): Promise<Stored
       encryptJson(pilot.draft),
       JSON.stringify(pilot.revisions),
       JSON.stringify(pilot.history),
+      pilot.customerAccountId || null,
+      pilot.mode,
     ],
   )
   return pilot
@@ -445,6 +471,42 @@ export async function getPilotsForCustomerAccount(
   return result.rows.map(pilotFromRow)
 }
 
+export type PilotNavigationItem = {
+  id: string
+  createdAt: string
+  label: string
+}
+
+function pilotNavigationLabel(createdAt: string, pilotId: string): string {
+  const date = new Date(createdAt)
+  const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  // Include short id suffix to keep multiple pilots distinct even if created same day
+  return `Pilot room • ${formatted} • ${pilotId.slice(0, 4)}`
+}
+
+export async function getPilotNavigationForCustomerAccount(
+  customerAccountId: string,
+): Promise<PilotNavigationItem[]> {
+  if (leadsDryRun()) {
+    return [...memory().pilots.values()]
+      .filter((pilot) => pilot.customerAccountId === customerAccountId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((pilot) => ({
+        id: pilot.id,
+        createdAt: pilot.createdAt,
+        label: pilotNavigationLabel(pilot.createdAt, pilot.id),
+      }))
+  }
+  const result = await pool().query<{ id: string; created_at: Date | string }>(
+    `SELECT id, created_at FROM lead_pilots WHERE customer_account_id = $1 ORDER BY created_at DESC`,
+    [customerAccountId],
+  )
+  return result.rows.map((row) => {
+    const createdAt = new Date(row.created_at).toISOString()
+    return { id: row.id, createdAt, label: pilotNavigationLabel(createdAt, row.id) }
+  })
+}
+
 /** Keeps the in-memory preview model aligned with the account created for a new pilot. */
 export async function setPilotCustomerAccountId(
   pilotId: string,
@@ -473,7 +535,7 @@ export async function getPilotBySubmissionId(
     const pilotId = memory().submissionPilots.get(submissionId)
     return pilotId ? memory().pilots.get(pilotId) || null : null
   }
-  const result = await pool().query<{pilot_id: string | null}>(
+  const result = await pool().query<{ pilot_id: string | null }>(
     'SELECT pilot_id FROM lead_submissions WHERE id = $1',
     [submissionId],
   )
@@ -510,6 +572,63 @@ export async function getPilotByPaymentSession(
   return result.rows[0] ? pilotFromRow(result.rows[0]) : null
 }
 
+export async function getTermsAcceptanceByPilotAndEmail(
+  pilotId: string,
+  actorEmail: string,
+  termsHash: string,
+  scopeHash: string,
+): Promise<Record<string, unknown> | null> {
+  if (leadsDryRun()) {
+    return (
+      Array.from(memory().termsAcceptances.values()).find(
+        (a) =>
+          String(a.pilotId) === pilotId &&
+          String(a.actorEmail) === actorEmail &&
+          String(a.termsHash) === termsHash &&
+          String(a.pilotScopeHash) === scopeHash,
+      ) || null
+    )
+  }
+  const result = await pool().query(
+    `SELECT * FROM pilot_terms_acceptances
+     WHERE pilot_id = $1 AND actor_email = $2 AND terms_hash = $3 AND pilot_scope_hash = $4
+     LIMIT 1`,
+    [pilotId, actorEmail, termsHash, scopeHash],
+  )
+  return result.rows[0] || null
+}
+
+export async function createTermsAcceptance(input: Record<string, unknown>): Promise<void> {
+  const id = String(input.id || '')
+  if (!id) throw new Error('terms acceptance id is required')
+  if (leadsDryRun()) {
+    memory().termsAcceptances.set(id, input)
+    return
+  }
+  await pool().query(
+    `INSERT INTO pilot_terms_acceptances(
+       id, pilot_id, actor_user_id, actor_email, actor_name, customer_account_id,
+       company_legal_name, authority_represented, terms_document_id, terms_version,
+       terms_effective_date, terms_hash, terms_snapshot, acceptance_text_version,
+       acceptance_text_hash, acceptance_method, affirmative_action, accepted_at,
+       ip_address, user_agent, session_id, pilot_scope_version, pilot_scope_hash,
+       amount, currency, payment_method, annual_credit_terms_version,
+       material_exceptions_pending
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
+     ON CONFLICT (pilot_id, terms_hash, pilot_scope_hash) DO NOTHING`,
+    [
+      id, input.pilotId, input.actorUserId || null, input.actorEmail, input.actorName || null,
+      input.customerAccountId || null, input.companyLegalName || null, Boolean(input.authorityRepresented),
+      input.termsDocumentId, input.termsVersion, input.termsEffectiveDate || null, input.termsHash,
+      JSON.stringify(input.termsSnapshot || {}), input.acceptanceTextVersion, input.acceptanceTextHash,
+      input.acceptanceMethod, input.affirmativeAction, input.acceptedAt, input.ipAddress || null,
+      input.userAgent || null, input.sessionId || null, input.pilotScopeVersion, input.pilotScopeHash,
+      input.amount, input.currency, input.paymentMethod, input.annualCreditTermsVersion || null,
+      Boolean(input.materialExceptionsPending),
+    ],
+  )
+}
+
 function applyPilotPatch(existing: StoredPilot, patch: PilotPatch): StoredPilot {
   const state = patch.state || existing.state
   const history = [...existing.history]
@@ -525,6 +644,7 @@ function applyPilotPatch(existing: StoredPilot, patch: PilotPatch): StoredPilot 
   const updated: StoredPilot = {
     ...existing,
     state,
+    mode: patch.mode || existing.mode,
     route: patch.route || existing.route,
     answers: patch.answers || existing.answers,
     exceptions: patch.exceptions || existing.exceptions,
@@ -538,7 +658,7 @@ function applyPilotPatch(existing: StoredPilot, patch: PilotPatch): StoredPilot 
     revisions: patch.revisions || existing.revisions,
     signing: patch.signing || existing.signing,
     payment: patch.payment || existing.payment,
-    kickoff: patch.kickoff || existing.kickoff,
+    launch: patch.launch || existing.launch,
     resolvedStartDate:
       patch.resolvedStartDate !== undefined
         ? patch.resolvedStartDate
@@ -555,16 +675,17 @@ async function persistPilot(
 ): Promise<void> {
   await database.query(
     `UPDATE lead_pilots
-        SET state = $2, route = $3, answers_ciphertext = $4, exceptions = $5,
-            unresolved = $6, proposal = $7, success_criteria = $8,
-            security_decisions = $9, reviewers = $10, version = $11,
-            draft = $12, draft_ciphertext = $13, revisions = $14, signing = $15, payment = $16,
-            kickoff = $17, resolved_start_date = $18, history = $19,
+        SET state = $2, mode = $3, route = $4, answers_ciphertext = $5, exceptions = $6,
+            unresolved = $7, proposal = $8, success_criteria = $9,
+            security_decisions = $10, reviewers = $11, version = $12,
+            draft = $13, draft_ciphertext = $14, revisions = $15, signing = $16, payment = $17,
+            launch = $18, resolved_start_date = $19, history = $20,
             updated_at = now()
       WHERE id = $1`,
     [
       updated.id,
       updated.state,
+      updated.mode,
       updated.route,
       encryptJson(updated.answers),
       JSON.stringify(updated.exceptions),
@@ -579,7 +700,7 @@ async function persistPilot(
       JSON.stringify(updated.revisions),
       JSON.stringify(updated.signing),
       JSON.stringify(updated.payment),
-      JSON.stringify(updated.kickoff),
+      JSON.stringify(updated.launch),
       updated.resolvedStartDate,
       JSON.stringify(updated.history),
     ],
@@ -598,14 +719,14 @@ export type PilotMutation<T> = {
 export async function mutatePilot<T>(
   id: string,
   mutator: (pilot: StoredPilot) => PilotMutation<T>,
-): Promise<{pilot: StoredPilot; result: T}> {
+): Promise<{ pilot: StoredPilot; result: T }> {
   if (leadsDryRun()) {
     const existing = memory().pilots.get(id)
     if (!existing) throw new Error('Pilot record not found.')
     const mutation = mutator(existing)
     const pilot = mutation.patch ? applyPilotPatch(existing, mutation.patch) : existing
     if (mutation.patch) memory().pilots.set(id, pilot)
-    return {pilot, result: mutation.result}
+    return { pilot, result: mutation.result }
   }
 
   const client = await pool().connect()
@@ -621,7 +742,7 @@ export async function mutatePilot<T>(
     const pilot = mutation.patch ? applyPilotPatch(existing, mutation.patch) : existing
     if (mutation.patch) await persistPilot(client, pilot)
     await client.query('COMMIT')
-    return {pilot, result: mutation.result}
+    return { pilot, result: mutation.result }
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -631,7 +752,7 @@ export async function mutatePilot<T>(
 }
 
 export async function updatePilot(id: string, patch: PilotPatch): Promise<StoredPilot> {
-  const {pilot} = await mutatePilot(id, () => ({patch, result: undefined}))
+  const { pilot } = await mutatePilot(id, () => ({ patch, result: undefined }))
   return pilot
 }
 
@@ -642,7 +763,7 @@ export async function latestSubmissionIdForPilot(pilotId: string): Promise<strin
     )
     return entries.length ? entries[entries.length - 1][0] : null
   }
-  const result = await pool().query<{id: string}>(
+  const result = await pool().query<{ id: string }>(
     `SELECT id FROM lead_submissions WHERE pilot_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [pilotId],
   )
@@ -677,6 +798,121 @@ export async function enqueuePilotEmail(
     `INSERT INTO lead_outbox(submission_id, action_type, action_key)
      VALUES ($1,'pilot_email',$2) ON CONFLICT(action_key) DO NOTHING`,
     [submissionId, actionKey],
+  )
+}
+
+function pilotEmailDeduplicationKey(
+  pilotId: string,
+  recipientKey: string,
+  eventType: string,
+  eventKey: string,
+) {
+  return `${pilotId}:${recipientKey}:${eventType}:${eventKey}`
+}
+
+/**
+ * Atomically reserves delivery for an email event. A reservation expires so a
+ * crashed worker cannot suppress a durable outbox retry forever.
+ */
+export async function claimPilotEmailDeduplication(input: {
+  pilotId: string
+  recipientKey: string
+  eventType: string
+  eventKey: string
+}): Promise<string | null> {
+  const key = pilotEmailDeduplicationKey(
+    input.pilotId,
+    input.recipientKey,
+    input.eventType,
+    input.eventKey,
+  )
+  const claimToken = randomUUID()
+  if (leadsDryRun()) {
+    const existing = memory().emailDeduplication.get(key)
+    if (
+      existing?.status === 'sent' ||
+      (existing?.status === 'sending' && (existing.claimExpiresAt || 0) > Date.now())
+    ) {
+      return null
+    }
+    memory().emailDeduplication.set(key, {
+      status: 'sending',
+      claimToken,
+      claimExpiresAt: Date.now() + 5 * 60_000,
+    })
+    return claimToken
+  }
+  const result = await pool().query<{ claim_token: string }>(
+    `INSERT INTO email_deduplication(
+       pilot_id, recipient_key, event_type, event_key, delivery_status, claim_token, claim_expires_at
+     ) VALUES ($1,$2,$3,$4,'sending',$5,now() + interval '5 minutes')
+     ON CONFLICT(pilot_id, recipient_key, event_type, event_key) DO UPDATE
+       SET delivery_status = 'sending',
+           claim_token = EXCLUDED.claim_token,
+           claim_expires_at = EXCLUDED.claim_expires_at
+       WHERE email_deduplication.delivery_status = 'sending'
+         AND email_deduplication.claim_expires_at <= now()
+     RETURNING claim_token`,
+    [input.pilotId, input.recipientKey, input.eventType, input.eventKey, claimToken],
+  )
+  return result.rows[0]?.claim_token || null
+}
+
+/** Completes the claim after the provider acknowledges delivery. */
+export async function completePilotEmailDeduplication(input: {
+  pilotId: string
+  recipientKey: string
+  eventType: string
+  eventKey: string
+  claimToken: string
+}): Promise<void> {
+  const key = pilotEmailDeduplicationKey(
+    input.pilotId,
+    input.recipientKey,
+    input.eventType,
+    input.eventKey,
+  )
+  if (leadsDryRun()) {
+    const existing = memory().emailDeduplication.get(key)
+    if (existing?.claimToken === input.claimToken) {
+      memory().emailDeduplication.set(key, { status: 'sent' })
+    }
+    return
+  }
+  await pool().query(
+    `UPDATE email_deduplication
+        SET delivery_status = 'sent', claim_token = NULL, claim_expires_at = NULL, sent_at = now()
+      WHERE pilot_id = $1 AND recipient_key = $2 AND event_type = $3 AND event_key = $4
+        AND delivery_status = 'sending' AND claim_token = $5`,
+    [input.pilotId, input.recipientKey, input.eventType, input.eventKey, input.claimToken],
+  )
+}
+
+/** Releases an unsuccessful claim so the outbox can retry the event. */
+export async function releasePilotEmailDeduplication(input: {
+  pilotId: string
+  recipientKey: string
+  eventType: string
+  eventKey: string
+  claimToken: string
+}): Promise<void> {
+  const key = pilotEmailDeduplicationKey(
+    input.pilotId,
+    input.recipientKey,
+    input.eventType,
+    input.eventKey,
+  )
+  if (leadsDryRun()) {
+    if (memory().emailDeduplication.get(key)?.claimToken === input.claimToken) {
+      memory().emailDeduplication.delete(key)
+    }
+    return
+  }
+  await pool().query(
+    `DELETE FROM email_deduplication
+      WHERE pilot_id = $1 AND recipient_key = $2 AND event_type = $3 AND event_key = $4
+        AND delivery_status = 'sending' AND claim_token = $5`,
+    [input.pilotId, input.recipientKey, input.eventType, input.eventKey, input.claimToken],
   )
 }
 
@@ -817,7 +1053,7 @@ export async function getProfileByEmail(
       ) || null
     )
   }
-  const result = await pool().query<{id: string}>(
+  const result = await pool().query<{ id: string }>(
     'SELECT id FROM lead_profiles WHERE email_hash = $1',
     [hashValue(normalizeEmail(email))],
   )
@@ -848,7 +1084,7 @@ async function findProfileByEmail(
   client: PoolClient,
 ): Promise<StoredProfile | null> {
   if (!identity?.email) return null
-  const result = await client.query<{id: string}>(
+  const result = await client.query<{ id: string }>(
     'SELECT id FROM lead_profiles WHERE email_hash = $1',
     [hashValue(normalizeEmail(identity.email))],
   )
@@ -893,7 +1129,7 @@ async function findProfileByEmail(
 async function upsertProfile(
   input: PersistInput,
   client?: PoolClient,
-): Promise<{profile: StoredProfile; token?: string}> {
+): Promise<{ profile: StoredProfile; token?: string }> {
   if (leadsDryRun()) {
     const tokenProfile = input.currentProfileToken
       ? await profileFromToken(input.currentProfileToken)
@@ -1118,7 +1354,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
         created: false,
       }
     }
-    const {profile, token} = await upsertProfile(input)
+    const { profile, token } = await upsertProfile(input)
     await persistQualification(profile, input)
     const submission: StoredSubmission = {
       id: randomUUID(),
@@ -1131,7 +1367,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
       verified: input.verified,
     }
     memory().submissions.set(input.request.idempotencyKey, submission)
-    return {submission, profileToken: token, created: true}
+    return { submission, profileToken: token, created: true }
   }
 
   const client = await pool().connect()
@@ -1152,7 +1388,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
 
     if (existing.rows[0]) {
       const row = existing.rows[0]
-      const stored = decryptJson<{request: LeadRequest; identity: LeadIdentity}>(
+      const stored = decryptJson<{ request: LeadRequest; identity: LeadIdentity }>(
         row.payload_ciphertext,
       )
       const profile = await getProfileById(row.profile_id)
@@ -1172,7 +1408,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
       }
     }
 
-    const {profile, token} = await upsertProfile(input, client)
+    const { profile, token } = await upsertProfile(input, client)
     await persistQualification(profile, input, client)
     const id = randomUUID()
     await client.query(
@@ -1193,7 +1429,7 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
         input.request.formVersion,
         profile.id,
         profile.companyDomain || null,
-        encryptJson({request: input.request, identity: profile.identity}),
+        encryptJson({ request: input.request, identity: profile.identity }),
         input.scores ? JSON.stringify(input.scores) : null,
         input.tier || null,
         input.response.recommendedWorkflow || null,
@@ -1212,9 +1448,9 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
       for (const action of actions) {
         const actionKey =
           action === 'founder_notification' &&
-          ['assessment', 'commercial_readiness'].includes(input.request.submissionType) &&
-          input.tier &&
-          input.scores
+            ['assessment', 'commercial_readiness'].includes(input.request.submissionType) &&
+            input.tier &&
+            input.scores
             ? `${profile.id}:${input.scores.version}:${input.tier}:${action}`
             : `${input.request.idempotencyKey}:${action}`
         await client.query(
@@ -1304,7 +1540,7 @@ export async function latestQualificationAnswers(
           ),
       )
       .reduce((answers, submission) => {
-        const merged = {...answers, ...submission.request.answers} as Record<string, unknown>
+        const merged = { ...answers, ...submission.request.answers } as Record<string, unknown>
         if (submission.request.whatBroughtYouHere) {
           merged.whatBroughtYouHere = submission.request.whatBroughtYouHere
         }
@@ -1332,8 +1568,8 @@ export async function latestQualificationAnswers(
     [profileId],
   )
   return result.rows.reduce<Record<string, unknown>>((answers, row) => {
-    const payload = decryptJson<{request: LeadRequest}>(row.payload_ciphertext)
-    const merged = {...answers, ...payload.request.answers} as Record<string, unknown>
+    const payload = decryptJson<{ request: LeadRequest }>(row.payload_ciphertext)
+    const merged = { ...answers, ...payload.request.answers } as Record<string, unknown>
     if (row.what_brought_you_here) {
       merged.whatBroughtYouHere = row.what_brought_you_here
     }
@@ -1364,7 +1600,7 @@ export async function takeDueOutbox(limit = 20): Promise<OutboxRow[]> {
           (row.status === 'retry' && row.due_at <= now),
       )
       .slice(0, limit)
-      .map(({id, submission_id, action_type, action_key, attempts}) => ({
+      .map(({ id, submission_id, action_type, action_key, attempts }) => ({
         id,
         submission_id,
         action_type,
@@ -1409,7 +1645,7 @@ export async function getSubmission(id: string): Promise<StoredSubmission> {
   }>('SELECT * FROM lead_submissions WHERE id = $1', [id])
   const row = result.rows[0]
   if (!row) throw new Error('Submission not found.')
-  const payload = decryptJson<{request: LeadRequest; identity: LeadIdentity}>(
+  const payload = decryptJson<{ request: LeadRequest; identity: LeadIdentity }>(
     row.payload_ciphertext,
   )
   return {
@@ -1448,7 +1684,7 @@ export async function companyScoreContext(domain: string): Promise<{
           const value = submission.scores?.[dimension].normalized
           return value === undefined ? current : Math.max(current ?? 0, value)
         }, undefined)
-    return {fit: maximum('fit', 365), pain: maximum('pain', 180), intent: maximum('intent', 90)}
+    return { fit: maximum('fit', 365), pain: maximum('pain', 180), intent: maximum('intent', 90) }
   }
 
   const result = await pool().query<{
@@ -1477,7 +1713,7 @@ export async function companyScoreContext(domain: string): Promise<{
 
 export async function markSubmissionSynced(id: string): Promise<void> {
   if (leadsDryRun()) return
-  const pending = await pool().query<{count: string}>(
+  const pending = await pool().query<{ count: string }>(
     `SELECT count(*)::text AS count FROM lead_outbox
       WHERE submission_id = $1 AND status <> 'complete'`,
     [id],
@@ -1546,7 +1782,7 @@ export async function cleanupLeadStore(): Promise<void> {
         SET payload_ciphertext = $1
       WHERE payload_delete_after < now() AND synced_at IS NOT NULL
         AND payload_ciphertext <> $1`,
-    [encryptJson({redacted: true})],
+    [encryptJson({ redacted: true })],
   )
   await pool().query('DELETE FROM lead_profile_tokens WHERE expires_at < now()')
   await pool().query('DELETE FROM lead_rate_limits WHERE expires_at < now()')
@@ -1560,7 +1796,7 @@ export async function consumeRateLimit(key: string, limit = 12): Promise<boolean
   if (leadsDryRun()) return true
   const now = Date.now()
   const windowStart = new Date(Math.floor(now / 60_000) * 60_000)
-  const result = await pool().query<{request_count: number}>(
+  const result = await pool().query<{ request_count: number }>(
     `INSERT INTO lead_rate_limits(rate_key, window_start, expires_at)
      VALUES ($1,$2,$3)
      ON CONFLICT(rate_key, window_start)

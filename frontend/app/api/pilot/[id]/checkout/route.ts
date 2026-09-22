@@ -2,13 +2,14 @@ import {NextResponse} from 'next/server'
 import {cookies} from 'next/headers'
 import type Stripe from 'stripe'
 import {createStripePlatformBilling} from '@portalshq/billing'
-import {pilotRoomPathForPilot} from '@/lib/leads/account-paths'
-import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipRole} from '@/lib/leads/application-auth'
-import {applyTransition} from '@/lib/leads/pilot'
+import {pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
+import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipWithAccountRole} from '@/lib/leads/application-auth'
+import {applyTransition, hasPendingMaterialException} from '@/lib/leads/pilot'
 import {siteUrl} from '@/lib/leads/email'
 import {
   getPilotById,
   leadsDryRun,
+  mutatePilot,
   updatePilot,
 } from '@/lib/leads/store'
 import {notifyPilotRoomEvent} from '@/lib/leads/pilot-room-notifications'
@@ -26,9 +27,19 @@ export async function POST(
     return NextResponse.json({ok: false, message: 'pilot record not found'}, {status: 404})
   }
   const user = await currentApplicationUser((await cookies()).get(APP_SESSION_COOKIE)?.value)
-  const accessRole = user ? await pilotMembershipRole(pilot.id, user.id) : null
-  if (!accessRole || !['owner', 'signer'].includes(accessRole)) {
+  const {pilotRole, accountRole, customerAccountId} = user ? await pilotMembershipWithAccountRole(pilot.id, user.id) : {pilotRole: null, accountRole: null, customerAccountId: null}
+  if (!pilotRole || !['owner', 'signer'].includes(pilotRole) || accountRole !== 'owner') {
     return NextResponse.json({ok: false, message: 'only the account owner or signer can start payment'}, {status: 403})
+  }
+  // Already paid -> idempotent success (no new session)
+  if (pilot.state === 'paid' || (pilot.state === 'launch' && pilot.payment?.paidAt)) {
+    return NextResponse.json({ok: true, url: null, pilot})
+  }
+  if (hasPendingMaterialException(pilot.exceptions)) {
+    return NextResponse.json(
+      {ok: false, code: 'material_exception', message: 'standard payment is unavailable until the flagged pilot exception is resolved in this room'},
+      {status: 422},
+    )
   }
   if (!applyTransition(pilot.state, 'pay').allowed) {
     return NextResponse.json(
@@ -37,29 +48,42 @@ export async function POST(
     )
   }
 
-  const roomUrl = `${siteUrl()}${pilotRoomPathForPilot(pilot)}`
+  const roomPath = pilotRoomPathForPilotOrFallback(pilot)
+  const roomUrl = `${siteUrl()}${roomPath}`
   const secretKey = process.env.STRIPE_SECRET_KEY
 
   if (leadsDryRun() || !secretKey) {
-    const updated = await updatePilot(id, {
-      state: 'paid',
-      payment: {
-        ...(pilot.payment || {}),
-        sessionId: `sim_${id}`,
-        simulated: true,
-        paidAt: new Date().toISOString(),
-      },
-      historyNote: `payment recorded (simulated)`,
+    const {pilot: final} = await mutatePilot(id, (existing) => {
+      if (existing.state === 'paid') return {result: existing}
+      if (!applyTransition(existing.state, 'pay').allowed) throw new Error('payment cannot be recorded in the current state')
+      return {
+        patch: {
+          state: existing.state === 'launch' ? 'launch' as const : 'paid' as const,
+          payment: {
+            ...(existing.payment || {}),
+            sessionId: `sim_${id}`,
+            simulated: true,
+            paymentMethod: 'card',
+            paymentStatus: 'paid',
+            paidAt: new Date().toISOString(),
+          },
+          historyNote: `payment recorded (simulated)`,
+        },
+        result: existing,
+      }
     })
-    await notifyPilotRoomEvent({
-      pilot: updated,
-      event: 'paid',
-      eventKey: `paid:${updated.version}:simulated:${Date.now()}`,
-    })
-    return NextResponse.json({ok: true, url: null, pilot: updated})
+    if (final.state === 'paid' || final.state === 'launch') {
+      await notifyPilotRoomEvent({
+        pilot: final,
+        event: 'paid',
+        eventKey: `paid:${final.version}:simulated:${Date.now()}`,
+      })
+    }
+    return NextResponse.json({ok: true, url: null, pilot: final})
   }
 
   const billing = createStripePlatformBilling(secretKey)
+
   // Production pilot uses a custom price_data approach, not a pre-configured product
   const amount = pilot.proposal?.priceAmount || Number(process.env.PILOT_PRICE_AMOUNT) || 5000
   const currency = pilot.proposal?.currency || 'USD'
@@ -82,12 +106,12 @@ export async function POST(
               unit_amount: Math.round(amount * 100),
               product_data: {
                 name: `portals paid production pilot — ${String(pilot.answers.company || '')}`,
-                description: `${pilot.proposal?.termDays || 21}-day production pilot; fee credited toward the annual deployment if the order form is signed by ${pilot.proposal?.creditDeadline || 'the stated deadline'}.`,
+                description: `${pilot.proposal?.termDays || 21}-day production pilot; ${pilot.proposal?.annualCreditLabel || 'the pilot fee'} applies under the persisted annual conversion terms.`,
               },
             },
           },
         ],
-        success_url: `${roomUrl}&session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${siteUrl()}/checkout/success?session_id={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(roomPath)}`,
         cancel_url: roomUrl,
       },
       {idempotencyKey: `pilot-checkout-${id}-${pilot.signing?.signedAt || 'unsigned'}`},
@@ -99,12 +123,11 @@ export async function POST(
     )
   }
 
-  await updatePilot(id, {
-    payment: {
-      ...(pilot.payment || {}),
-      sessionId: session.id,
-    },
-  })
+  // Atomically persist sessionId without clobbering concurrent webhook paidAt
+  await mutatePilot(id, (existing) => ({
+    patch: {payment: {...existing.payment, sessionId: session.id, paymentMethod: 'card', paymentStatus: 'processing'}},
+    result: undefined as unknown as typeof pilot,
+  }))
 
   return NextResponse.json({ok: true, url: session.url})
 }

@@ -1,3 +1,4 @@
 npx turbo lint build '--filter=[HEAD]'
+cargo fmt --manifest-path control-plane/Cargo.toml --all -- --check
 cd frontend && npm run generate-pdfs && cd ..
 git add generated-assets/

@@ -735,7 +735,7 @@ export const seoSettings = defineType({
       name: 'canonicalPath',
       title: 'Canonical path',
       type: 'string',
-      description: 'Example: /resources/production-memory-field-guide',
+      description: 'Example: /resources/production-memory-brief',
     }),
     defineField({
       name: 'noIndex',
@@ -817,7 +817,7 @@ export const pdfSettings = defineType({
       name: 'fileName',
       title: 'Download filename',
       type: 'string',
-      description: 'Example: production-memory-field-guide.pdf',
+      description: 'Example: production-memory-brief.pdf',
     }),
     defineField({
       name: 'titleOverride',

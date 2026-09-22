@@ -9,7 +9,7 @@ import { emailDomain, allowsPersonalEmailForDevelopment, requiresCompanyEmailDom
 // Enum options from contracts.ts
 const HOW_DID_YOU_HEAR_OPTIONS = [
   'google-search',
-  'linkedin', 
+  'linkedin',
   'email',
   'someone-company',
   'friend-colleague',
@@ -92,7 +92,7 @@ export type UrlParams = z.infer<typeof urlParamSchema>
  */
 function normalizeTextValue(value: string, fieldType: 'enum' | 'email' | 'role' | 'company' | 'name' | 'text'): string {
   const trimmed = value.trim()
-  
+
   switch (fieldType) {
     case 'enum':
       return trimmed.toLowerCase()
@@ -128,12 +128,12 @@ function toTitleCase(str: string): string {
 function normalizeWebsite(value: string): string {
   const trimmed = value.trim()
   if (!trimmed) return ''
-  
+
   // Add protocol if missing
   if (!trimmed.match(/^https?:\/\//i)) {
     return `https://${trimmed}`
   }
-  
+
   return trimmed
 }
 
@@ -144,20 +144,20 @@ function normalizeWebsite(value: string): string {
 function validateEmailDomain(email: string): { valid: boolean; error?: string } {
   try {
     const domain = emailDomain(email)
-    
+
     // In development mode with opt-in, allow specific personal domains
     if (allowsPersonalEmailForDevelopment(domain)) {
       return { valid: true }
     }
-    
+
     // Normal validation
     if (requiresCompanyEmailDomain(domain)) {
-      return { 
-        valid: false, 
-        error: 'a company email domain is required (personal email domains like gmail.com are not accepted)' 
+      return {
+        valid: false,
+        error: 'a company email domain is required (personal email domains like gmail.com are not accepted)'
       }
     }
-    
+
     return { valid: true }
   } catch {
     return { valid: false, error: 'invalid email format' }
@@ -175,23 +175,23 @@ export function parseUrlParams(): UrlParams {
   try {
     const params = new URLSearchParams(window.location.search)
     const rawParams: Record<string, string> = {}
-    
+
     // Extract all potential parameters
     for (const [key, value] of params.entries()) {
       rawParams[key] = value
     }
-    
+
     // Validate against schema
     const validated = urlParamSchema.safeParse(rawParams)
-    
+
     if (!validated.success) {
       // Log validation errors in development only
       if (process.env.NODE_ENV === 'development') {
         console.warn('[URL Params] Validation errors:', validated.error.issues)
       }
-      
+
       // Return partial valid params
-      const partialParams: Partial<UrlParams> = {}
+      const partialParams: Record<string, string | undefined> = {}
       for (const [key, value] of Object.entries(rawParams)) {
         try {
           // Try to validate each field individually
@@ -199,7 +199,7 @@ export function parseUrlParams(): UrlParams {
           if (fieldSchema) {
             const result = fieldSchema.safeParse(value)
             if (result.success) {
-              ;(partialParams as Record<string, unknown>)[key] = result.data
+              partialParams[key] = result.data
             }
           }
         } catch {
@@ -208,7 +208,7 @@ export function parseUrlParams(): UrlParams {
       }
       return partialParams as UrlParams
     }
-    
+
     return validated.data
   } catch (error) {
     console.error('[URL Params] Error parsing URL parameters:', error)
@@ -221,7 +221,7 @@ export function parseUrlParams(): UrlParams {
  */
 export function normalizeUrlParams(params: UrlParams): UrlParams {
   const normalized: UrlParams = {}
-  
+
   // Normalize enum values (lowercase)
   if (params.how_did_you_hear) {
     normalized.how_did_you_hear = normalizeTextValue(params.how_did_you_hear, 'enum') as any
@@ -238,7 +238,7 @@ export function normalizeUrlParams(params: UrlParams): UrlParams {
   if (params.team_size) {
     normalized.team_size = normalizeTextValue(params.team_size, 'enum') as any
   }
-  
+
   // Normalize text fields
   if (params.what_brought_you_other) {
     normalized.what_brought_you_other = normalizeTextValue(params.what_brought_you_other, 'text')
@@ -246,7 +246,7 @@ export function normalizeUrlParams(params: UrlParams): UrlParams {
   if (params.tools_used) {
     normalized.tools_used = normalizeTextValue(params.tools_used, 'text')
   }
-  
+
   // Normalize identity fields
   if (params.email) {
     normalized.email = normalizeTextValue(params.email, 'email')
@@ -263,7 +263,7 @@ export function normalizeUrlParams(params: UrlParams): UrlParams {
   if (params.website) {
     normalized.website = normalizeWebsite(params.website)
   }
-  
+
   return normalized
 }
 
@@ -272,15 +272,15 @@ export function normalizeUrlParams(params: UrlParams): UrlParams {
  */
 export function applyFallbackDefaults(params: UrlParams): UrlParams {
   const withDefaults = { ...params }
-  
+
   // Apply fallback for how_did_you_hear
   if (!withDefaults.how_did_you_hear) {
     withDefaults.how_did_you_hear = 'google-search'
   }
-  
+
   // Other fields intentionally fall back to empty/undefined
   // to ensure user provides required information
-  
+
   return withDefaults
 }
 
@@ -290,12 +290,12 @@ export function applyFallbackDefaults(params: UrlParams): UrlParams {
  */
 export function validateUrlParamEmail(email: string): { valid: boolean; error?: string } {
   if (!email) return { valid: true } // Empty is valid (user will provide)
-  
+
   const emailValidation = z.string().email().max(254).safeParse(email)
   if (!emailValidation.success) {
     return { valid: false, error: 'invalid email format' }
   }
-  
+
   return validateEmailDomain(email)
 }
 
@@ -305,10 +305,10 @@ export function validateUrlParamEmail(email: string): { valid: boolean; error?: 
  */
 export function shouldHideField(fieldName: string, value: string | null | undefined): boolean {
   if (!value) return false // Show if empty
-  
+
   const criticalFields = ['email', 'company', 'role']
   if (criticalFields.includes(fieldName)) return false
-  
+
   // Hide non-critical fields if pre-filled
   return true
 }

@@ -120,7 +120,7 @@ test('buildAssessmentUrl returns assessment URL', () => {
   const result = buildAssessmentUrl({
     how_did_you_hear: 'linkedin',
   })
-  assert.equal(result, 'https://portals.ai/workflow/assessment?how_did_you_hear=linkedin')
+  assert.equal(result, 'https://portals.ai/assessment?how_did_you_hear=linkedin')
 })
 
 test('buildContactUrl returns contact URL', () => {
@@ -134,7 +134,7 @@ test('buildPilotUrl returns pilot URL', () => {
   const result = buildPilotUrl({
     how_did_you_hear: 'linkedin',
   })
-  assert.equal(result, 'https://portals.ai/paid-pilot?how_did_you_hear=linkedin')
+  assert.equal(result, 'https://portals.ai/pilot?how_did_you_hear=linkedin')
 })
 
 test('buildResourceUrl returns resource URL with custom base', () => {
@@ -272,7 +272,7 @@ test('parseUrlString handles URL with hash', () => {
 })
 
 test('full URL building workflow with multiple parameters', () => {
-  const result = buildFormUrl('https://portals.ai/workflow/assessment', {
+  const result = buildFormUrl('https://portals.ai/assessment', {
     email: 'sarah@agency.com',
     name: 'Sarah Johnson',
     company: 'Creative Agency X',
@@ -287,7 +287,7 @@ test('full URL building workflow with multiple parameters', () => {
     utm_campaign: 'agency-targeting',
   })
   
-  assert.equal(result.startsWith('https://portals.ai/workflow/assessment?'), true)
+  assert.equal(result.startsWith('https://portals.ai/assessment?'), true)
   assert.equal(result.includes('email=sarah%40agency.com'), true)
   assert.equal(result.includes('name=Sarah+Johnson'), true)
   // Company is not lowercased in build-url (it's only lowercased in url-params parser)

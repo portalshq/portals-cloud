@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useId, useState } from "react";
+import {SmoothAnchor} from "@/components/SmoothAnchor";
 
 type CapabilityStatus = "strong" | "partial" | "limited" | "absent";
 
@@ -776,7 +777,7 @@ export default function PortalsComparisonMatrix() {
               preserves the cross-tool history connecting them.
             </p>
 
-            <a
+            <SmoothAnchor
               href="#detailed-comparisons"
               className={[
                 "mt-7 inline-flex items-center gap-2 text-sm font-medium text-white",
@@ -787,7 +788,7 @@ export default function PortalsComparisonMatrix() {
             >
               Explore detailed comparisons
               <ArrowIcon />
-            </a>
+            </SmoothAnchor>
           </div>
         </header>
 

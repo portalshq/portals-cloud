@@ -7,6 +7,9 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 const API_KEY_ATTEMPTS_PER_MINUTE: i32 = 30;
+const REFRESH_TOKEN_BYTES: usize = 32;
+const REFRESH_SESSION_TTL_DAYS: i64 = 30;
+const REFRESH_REPLAY_FAMILY_REVOCATION_MSG: &str = "refresh token reuse detected; family revoked";
 type HmacSha256 = Hmac<Sha256>;
 
 struct StoredApiKey {
@@ -40,6 +43,17 @@ pub struct Principal {
     pub preferred_username: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct RefreshSession {
+    pub family_id: Uuid,
+    pub subject_type: String,
+    pub subject_id: String,
+    pub display_name: String,
+    pub preferred_username: String,
+    pub idp: String,
+    pub expires_at: DateTime<Utc>,
+}
+
 #[derive(Clone)]
 pub struct SecurityStore {
     pool: PgPool,
@@ -58,6 +72,11 @@ impl SecurityStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../persistence/migrations/004_auth_gateway_runtime.sql"
+        ))
+        .execute(&self.pool)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../persistence/migrations/005_auth_refresh_sessions.sql"
         ))
         .execute(&self.pool)
         .await?;
@@ -167,6 +186,19 @@ impl SecurityStore {
         sqlx::query("UPDATE auth_principals SET disabled_at=NOW(),updated_at=NOW() WHERE subject_type='service_account' AND subject_id=$1")
             .bind(subject_id).execute(&mut *tx).await?;
         sqlx::query("UPDATE service_account_api_keys SET revoked_at=COALESCE(revoked_at,NOW()) WHERE service_account_id=$1")
+            .bind(subject_id).execute(&mut *tx).await?;
+        sqlx::query("UPDATE auth_refresh_sessions SET revoked_at=NOW() WHERE subject_type='service_account' AND subject_id=$1 AND revoked_at IS NULL")
+            .bind(subject_id).execute(&mut *tx).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn disable_user(&self, subject_id: &str) -> anyhow::Result<()> {
+        validate_subject(subject_id)?;
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("UPDATE auth_principals SET disabled_at=NOW(),updated_at=NOW() WHERE subject_type='user' AND subject_id=$1")
+            .bind(subject_id).execute(&mut *tx).await?;
+        sqlx::query("UPDATE auth_refresh_sessions SET revoked_at=NOW() WHERE subject_type='user' AND subject_id=$1 AND revoked_at IS NULL")
             .bind(subject_id).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(())
@@ -514,6 +546,186 @@ impl SecurityStore {
             .map(|r| (r.get("resource_id"), r.get("relation")))
             .collect())
     }
+
+    // ── Refresh sessions (opaque rotating credentials) ───────────────────
+
+    pub async fn create_refresh_session(
+        &self,
+        subject_type: &str,
+        subject_id: &str,
+        display_name: &str,
+        preferred_username: &str,
+        idp: &str,
+    ) -> anyhow::Result<(String, Uuid)> {
+        validate_subject(subject_id)?;
+        let family_id = Uuid::new_v4();
+        let (plain, hash) = generate_refresh_token()?;
+        let expires_at = Utc::now() + Duration::days(REFRESH_SESSION_TTL_DAYS);
+        sqlx::query(
+            "INSERT INTO auth_refresh_sessions (token_hash, family_id, subject_type, subject_id, display_name, preferred_username, idp, expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
+        )
+        .bind(&hash)
+        .bind(family_id)
+        .bind(subject_type)
+        .bind(subject_id)
+        .bind(display_name)
+        .bind(preferred_username)
+        .bind(idp)
+        .bind(expires_at)
+        .execute(&self.pool)
+        .await?;
+        Ok((plain, family_id))
+    }
+
+    pub async fn rotate_refresh_token(
+        &self,
+        presented_token: &str,
+    ) -> anyhow::Result<(RefreshSession, String)> {
+        if presented_token.trim().is_empty() {
+            anyhow::bail!("refresh token is required");
+        }
+        let presented_hash = refresh_token_hash(presented_token)?;
+        let mut tx = self.pool.begin().await?;
+        // Lock the presented row first; if missing, no retry.
+        let row = sqlx::query(
+            "SELECT token_hash, family_id, subject_type, subject_id, display_name, preferred_username, idp, expires_at, rotated_at, revoked_at, replaced_by FROM auth_refresh_sessions WHERE token_hash=$1 FOR UPDATE"
+        )
+        .bind(&presented_hash)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("refresh token is invalid"))?;
+
+        let family_id: Uuid = row.get("family_id");
+        let subject_type: String = row.get("subject_type");
+        let subject_id: String = row.get("subject_id");
+        let display_name: String = row.get("display_name");
+        let preferred_username: String = row.get("preferred_username");
+        let idp: String = row.get("idp");
+        let expires_at: DateTime<Utc> = row.get("expires_at");
+        let rotated_at: Option<DateTime<Utc>> = row.get("rotated_at");
+        let revoked_at: Option<DateTime<Utc>> = row.get("revoked_at");
+
+        // Already revoked family or token?
+        if revoked_at.is_some() {
+            anyhow::bail!("refresh token is revoked");
+        }
+        // Check family-level revocation (any revoked member)
+        let family_revoked = sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+            "SELECT revoked_at FROM auth_refresh_sessions WHERE family_id=$1 AND revoked_at IS NOT NULL LIMIT 1",
+        )
+        .bind(family_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .flatten();
+        if family_revoked.is_some() {
+            anyhow::bail!("refresh family is revoked");
+        }
+        if Utc::now() >= expires_at {
+            // Expired: revoke family to prevent reuse of sibling tokens
+            sqlx::query("UPDATE auth_refresh_sessions SET revoked_at=NOW() WHERE family_id=$1 AND revoked_at IS NULL")
+                .bind(family_id)
+                .execute(&mut *tx)
+                .await?;
+            tx.commit().await?;
+            anyhow::bail!("refresh token is expired");
+        }
+        if rotated_at.is_some() {
+            // Replay detection: reuse of a consumed rotating token.
+            // Revoke entire family immediately.
+            sqlx::query("UPDATE auth_refresh_sessions SET revoked_at=NOW() WHERE family_id=$1 AND revoked_at IS NULL")
+                .bind(family_id)
+                .execute(&mut *tx)
+                .await?;
+            tx.commit().await?;
+            anyhow::bail!(REFRESH_REPLAY_FAMILY_REVOCATION_MSG);
+        }
+        // Ensure principal still active (revocation via disable_service_account etc.)
+        let active = sqlx::query_scalar::<_, Option<i32>>(
+            "SELECT 1 FROM auth_principals WHERE subject_type=$1 AND subject_id=$2 AND disabled_at IS NULL",
+        )
+        .bind(&subject_type)
+        .bind(&subject_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .is_some();
+        if !active {
+            sqlx::query("UPDATE auth_refresh_sessions SET revoked_at=NOW() WHERE family_id=$1 AND revoked_at IS NULL")
+                .bind(family_id)
+                .execute(&mut *tx)
+                .await?;
+            tx.commit().await?;
+            anyhow::bail!("principal is disabled");
+        }
+
+        // Generate successor
+        let (new_plain, new_hash) = generate_refresh_token()?;
+        let new_expires_at = Utc::now() + Duration::days(REFRESH_SESSION_TTL_DAYS);
+        sqlx::query(
+            "INSERT INTO auth_refresh_sessions (token_hash, family_id, subject_type, subject_id, display_name, preferred_username, idp, expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
+        )
+        .bind(&new_hash)
+        .bind(family_id)
+        .bind(&subject_type)
+        .bind(&subject_id)
+        .bind(&display_name)
+        .bind(&preferred_username)
+        .bind(&idp)
+        .bind(new_expires_at)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE auth_refresh_sessions SET rotated_at=NOW(), replaced_by=$1 WHERE token_hash=$2",
+        )
+        .bind(&new_hash)
+        .bind(&presented_hash)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        let session = RefreshSession {
+            family_id,
+            subject_type,
+            subject_id,
+            display_name,
+            preferred_username,
+            idp,
+            expires_at: new_expires_at,
+        };
+        Ok((session, new_plain))
+    }
+
+    pub async fn revoke_refresh_family(&self, family_id: Uuid) -> anyhow::Result<()> {
+        sqlx::query("UPDATE auth_refresh_sessions SET revoked_at=NOW() WHERE family_id=$1 AND revoked_at IS NULL")
+            .bind(family_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn revoke_all_refresh_for_subject(
+        &self,
+        subject_type: &str,
+        subject_id: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query("UPDATE auth_refresh_sessions SET revoked_at=NOW() WHERE subject_type=$1 AND subject_id=$2 AND revoked_at IS NULL")
+            .bind(subject_type)
+            .bind(subject_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn revoke_refresh_token(&self, presented_token: &str) -> anyhow::Result<()> {
+        let hash = refresh_token_hash(presented_token)?;
+        let row = sqlx::query("SELECT family_id FROM auth_refresh_sessions WHERE token_hash=$1")
+            .bind(&hash)
+            .fetch_optional(&self.pool)
+            .await?;
+        if let Some(r) = row {
+            let family_id: Uuid = r.get("family_id");
+            self.revoke_refresh_family(family_id).await?;
+        }
+        Ok(())
+    }
 }
 
 pub fn validate_resource(resource_id: &str) -> anyhow::Result<()> {
@@ -600,6 +812,21 @@ fn api_key_digest(pepper: &[u8], key_id: Uuid, secret: &[u8]) -> [u8; 32] {
     mac.update(key_id.as_bytes());
     mac.update(secret);
     mac.finalize().into_bytes().into()
+}
+
+fn generate_refresh_token() -> anyhow::Result<(String, Vec<u8>)> {
+    let mut bytes = [0u8; REFRESH_TOKEN_BYTES];
+    OsRng.fill_bytes(&mut bytes);
+    let plain = URL_SAFE_NO_PAD.encode(bytes);
+    let hash = refresh_token_hash(&plain)?;
+    Ok((plain, hash))
+}
+
+fn refresh_token_hash(plain: &str) -> anyhow::Result<Vec<u8>> {
+    use sha2::Digest;
+    let mut hasher = Sha256::new();
+    hasher.update(plain.as_bytes());
+    Ok(hasher.finalize().to_vec())
 }
 
 #[cfg(test)]
@@ -748,5 +975,74 @@ mod tests {
             .await
             .expect("disable service account");
         assert!(store.authenticate_api_key(&key, &pepper).await.is_err());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires AUTH_GATEWAY_TEST_DATABASE_URL pointing at disposable PostgreSQL"]
+    async fn postgres_refresh_rotation_replay_and_expiry() {
+        let database_url = std::env::var("AUTH_GATEWAY_TEST_DATABASE_URL")
+            .expect("AUTH_GATEWAY_TEST_DATABASE_URL is required");
+        let pool = PgPoolOptions::new()
+            .max_connections(2)
+            .connect(&database_url)
+            .await
+            .expect("connect to disposable PostgreSQL");
+        let store = SecurityStore::new(pool);
+        store.run_migration().await.expect("apply migrations");
+
+        // Create a refresh family via login simulation
+        let (initial_plain, _) = store
+            .create_refresh_session("user", "alice", "Alice", "alice@example.test", "cognito")
+            .await
+            .expect("create refresh session");
+
+        // First rotation succeeds and returns a new token
+        let (session1, rotated1) = store
+            .rotate_refresh_token(&initial_plain)
+            .await
+            .expect("first rotation");
+        assert_eq!(session1.subject_id, "alice");
+        assert_ne!(initial_plain, rotated1);
+
+        // Reuse of the consumed token triggers replay detection and family revocation
+        let replay = store.rotate_refresh_token(&initial_plain).await;
+        assert!(replay.is_err());
+        assert!(replay.unwrap_err().to_string().contains("reuse detected"));
+
+        // The rotated successor is also revoked after replay
+        let successor_after_replay = store.rotate_refresh_token(&rotated1).await;
+        assert!(successor_after_replay.is_err());
+
+        // New family stays independent
+        let (fresh_plain, _) = store
+            .create_refresh_session("user", "bob", "Bob", "bob@example.test", "cognito")
+            .await
+            .expect("create fresh session");
+        let (_, fresh_rotated) = store
+            .rotate_refresh_token(&fresh_plain)
+            .await
+            .expect("fresh rotation");
+        assert_ne!(fresh_plain, fresh_rotated);
+
+        // Disabled principal revokes خانواده and blocks refresh
+        store.disable_user("bob").await.expect("disable user");
+        let disabled = store.rotate_refresh_token(&fresh_rotated).await;
+        assert!(disabled.is_err());
+        assert!(disabled.unwrap_err().to_string().contains("disabled"));
+
+        // Explicit family revocation via refresh token
+        let (carol_plain, _) = store
+            .create_refresh_session("user", "carol", "Carol", "carol@example.test", "cognito")
+            .await
+            .expect("create carol");
+        let (_, carol_rotated) = store
+            .rotate_refresh_token(&carol_plain)
+            .await
+            .expect("carol rotation");
+        store
+            .revoke_refresh_token(&carol_rotated)
+            .await
+            .expect("revoke via token");
+        assert!(store.rotate_refresh_token(&carol_rotated).await.is_err());
     }
 }

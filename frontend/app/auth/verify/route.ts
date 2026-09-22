@@ -4,12 +4,10 @@ import {
   APP_SESSION_MAX_AGE_SECONDS,
   consumeMagicLink,
 } from '@/lib/leads/application-auth'
+import {extractLegacyPilotId, pilotRoomPath, safeInternalPath} from '@/lib/leads/account-paths'
+import {getPilotById} from '@/lib/leads/store'
 
 export const runtime = 'nodejs'
-
-function safeNext(value: string | null): string {
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/account'
-}
 
 export async function GET(request: Request): Promise<NextResponse> {
   const url = new URL(request.url)
@@ -21,9 +19,20 @@ export async function GET(request: Request): Promise<NextResponse> {
       new URL(`/auth/recover?token=${encodeURIComponent(token)}`, url),
     )
   }
-  const response = NextResponse.redirect(
-    new URL(safeNext(url.searchParams.get('next') || result.nextPath || null), url),
-  )
+  let next = safeInternalPath(url.searchParams.get('next') || result.nextPath)
+  const legacyPilotId = extractLegacyPilotId(next)
+  if (legacyPilotId) {
+    try {
+      const pilot = await getPilotById(legacyPilotId)
+      if (pilot?.customerAccountId) {
+        const legacyUrl = new URL(next, 'https://example.com')
+        next = pilotRoomPath(pilot.customerAccountId, pilot.id) + legacyUrl.search
+      } else if (pilot) {
+        next = '/account'
+      }
+    } catch {}
+  }
+  const response = NextResponse.redirect(new URL(next, url))
   response.cookies.set(APP_SESSION_COOKIE, result.sessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

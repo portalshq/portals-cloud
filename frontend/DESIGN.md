@@ -66,7 +66,7 @@ The current design language is:
 
 The default HTML fallback is deep navy `#010528`. In the full experience, a fixed WebGL layer sits behind the page and supplies the visual atmosphere. Its ramps move through indigo, violet, cobalt, pale blue-gray, magenta, dusty pink, and muted green.
 
-Do not replace this experience with a single near-black surface. Color progression is a core part of the identity and gives each scroll chapter a distinct mood while preserving continuity.
+Color progression is a core part of the identity and gives each scroll chapter a distinct mood while preserving continuity.
 
 ### Foreground
 
@@ -83,8 +83,8 @@ The system does not use a separate brand accent for calls to action. Hierarchy c
 Translucent white surfaces are intentionally used over the animated canvas:
 
 - CTA fill: `white / 12%`
-- CTA border: `white / 10%`
-- CTA hover: `white / 30%`
+- CTA border: `white / 30%`
+- CTA hover: `white / 80%`
 - Overview list items: `white / 10%` with `20px` backdrop blur
 - Capability group: `20%` white separators with `12px` backdrop blur
 - CTA control: `50px` backdrop blur
@@ -135,7 +135,7 @@ Used for supporting copy, headings, branding, controls, tables, and lists.
 
 `t-m2` is a fluid `13.74–22.11px`, uppercase, 100% line-height utility style. It is used for:
 
-- Three-digit overview indices
+- Two-digit overview indices
 - Problem-card numbers
 - Comparison labels
 - Pricing periods
@@ -338,11 +338,10 @@ Use these patterns when extending the page:
 
 ### Do not
 
-- Do not restore the previous near-black and amber “archive” palette.
 - Do not use Geist or JetBrains Mono; they are not the page’s typefaces.
 - Do not describe the system as brutalist, achromatic, or zero-radius.
 - Do not prohibit backdrop blur; it is part of the implemented component language.
-- Do not place all content on opaque dark cards.
+- Do not place content on opaque dark cards.
 - Do not add shadows or elevation to create hierarchy.
 - Do not turn every repeated item into a bordered card.
 - Do not add gradients as isolated CSS decoration; color belongs to the shared WebGL environment.
@@ -354,3 +353,20 @@ Use these patterns when extending the page:
 ## 9. Source-of-truth rule
 
 `src/views/vcs-current/a.tsx`, together with `src/saga-repro.css`, `src/saga.css`, and `public/saga-webgl.js`, defines the current design language. This document should follow those implementations. If the page and this document diverge, update this document to describe the page rather than preserving obsolete guidance.
+
+## 10. Marketing subpages (everything under `app/(marketing)/` except `/`)
+
+Subpages reuse homepage tokens without depending on the WebGL canvas. The canvas may
+tint the background where present; the flat fallback is `#010528` and must hold
+contrast on its own.
+
+- Type: pillar H1s use `t-d2-sans`. `t-d1-sans` is reserved for `/` and the
+  `/use-cases` hub. Eyebrow labels (`t-p-sans`, uppercase, `tracking-[.16em]`,
+  `text-white/45`) mark page position, not every section.
+- Surfaces: hairlines `white/15–20`, fills `white/5–12`, hover `white/10–15`.
+  One primary glass CTA + one quiet `plain` secondary per viewport.
+- Banned on subpages (do not reintroduce): solid `#343434`, `#101010`, amber/beige
+  `#d4a15c`, `bg-white/8`, forced `!lowercase` on containers, per-page bespoke
+  headers. Use `src/components/marketing/MarketingPageShell.tsx`.
+- Page shell: `ui-grid`, section padding `py-fluid-[76,106]`, hero `min-h-[70vh]`,
+  H1 `max-w-5xl`, lede `max-w-3xl`, shared `MarketingHeader` breadcrumbs.

@@ -1,3 +1,5 @@
+import type {SuccessCriterion} from './contracts'
+
 export const PILOT_DIRECT_ANSWER_FIELDS = [
   'pilotWorkflow',
   'historicalProject',
@@ -14,6 +16,14 @@ export const PILOT_DIRECT_ANSWER_FIELDS = [
   'successCriterionKeysJson',
   'successCriteria',
   'pilotBlocker',
+  'approvalPath',
+  'dataClassification',
+  'annualCreditOption',
+  'annualCreditRedemptionPolicy',
+  'signerName',
+  'signerEmail',
+  'budgetRange',
+  'budgetSource',
 ] as const
 
 export type PilotDirectAnswerField = (typeof PILOT_DIRECT_ANSWER_FIELDS)[number]
@@ -40,6 +50,14 @@ export const PILOT_DIRECT_ANSWER_LABELS: Record<PilotDirectAnswerField, string> 
   successCriterionKeysJson: 'Success criteria selection',
   successCriteria: 'Success criteria',
   pilotBlocker: 'Pilot blocker',
+  approvalPath: 'Approval path',
+  dataClassification: 'Data classification',
+  annualCreditOption: 'Annual credit option',
+  annualCreditRedemptionPolicy: 'Annual credit redemption policy',
+  signerName: 'Signer name',
+  signerEmail: 'Signer email',
+  budgetRange: 'Budget range',
+  budgetSource: 'Budget source',
 }
 
 export function pilotDirectAnswersFrom(
@@ -52,7 +70,6 @@ export function pilotDirectAnswersFrom(
 
 export type PilotRoomComparableTerms = {
   startDate: string | null
-  valueConfirmed: boolean
   criteria: SuccessCriterion[]
   answers: PilotDirectAnswers
 }
@@ -67,7 +84,6 @@ export function changedPilotTermPaths(
 ): string[] {
   const paths: string[] = []
   if ((base.startDate || null) !== (next.startDate || null)) paths.push('startDate')
-  if (Boolean(base.valueConfirmed) !== Boolean(next.valueConfirmed)) paths.push('valueConfirmed')
 
   for (const field of PILOT_DIRECT_ANSWER_FIELDS) {
     if ((base.answers?.[field] || '') !== (next.answers?.[field] || '')) {
@@ -92,4 +108,3 @@ export function changedPilotTermPaths(
   }
   return paths
 }
-import type {SuccessCriterion} from './contracts'

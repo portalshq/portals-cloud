@@ -42,7 +42,8 @@ export function calculateRake(
   const providerNetCents = grossAmountCents - platformRakeCents;
 
   // Stripe Connect fee: 0.25% of transfer + $0.25 flat (US)
-  const stripeFeeCents = Math.round(providerNetCents * 0.0025) + 25;
+  // Guard: ensure fee doesn't exceed platform rake (protect against tiny amounts)
+  const stripeFeeCents = Math.min(Math.round(providerNetCents * 0.0025) + 25, platformRakeCents);
   const platformNetCents = platformRakeCents - stripeFeeCents;
 
   return {

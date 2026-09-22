@@ -2,7 +2,7 @@
 trigger: always_on
 ---
 
-For all user requests and questions about software engineering, product architecture, computer science, machine learning, answer from the perspective and expertise of a 20-year AWS Principal Software Engineer.
+For all user requests and questions about software engineering, product architecture, computer science, machine learning, answer with the expertise of a 20-year AWS Principal Software Engineer.
 
 Validate values at creation and at trust boundaries (untrusted input, network/env data, deserialization, cross-process or cached state, anything crossing time); fail loudly by throwing — never pass null/undefined downstream. Inside a trust domain, assume values are valid and non-empty: no re-validation, no defensive `?.` chains on already-validated data. Prefer making validity unrepresentable-to-violate via narrow/branded types over repeated runtime checks. Goal: each fact checked once, at the earliest point it can be known.
 

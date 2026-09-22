@@ -8,7 +8,10 @@ import {
   buildSuccessCriteria,
   buildValueModel,
   classifyPilot,
+  computePilotProgressUnresolved,
   computeUnresolved,
+  groupReviewersByEmail,
+  highestPrivilegeReviewer,
   recommendedReviewers,
   reviewerTokenRole,
   STANDARD_SUCCESS_KEYS,
@@ -96,16 +99,18 @@ test('no production owner disqualifies', () => {
   assert.equal(result.route, 'disqualified')
 })
 
-test('no approval path disqualifies', () => {
+test('no approval path routes to assisted review', () => {
   const result = classifyPilot({...eligible, approvalPath: 'no'})
 
-  assert.equal(result.route, 'disqualified')
+  assert.equal(result.route, 'one-call')
+  assert.ok(result.exceptions.some((item) => item.kind === 'approval-path'))
 })
 
-test('exact reproduction guarantee disqualifies', () => {
+test('exact reproduction guarantee routes to assisted review', () => {
   const result = classifyPilot({...eligible, exactReproductionRequired: true})
 
-  assert.equal(result.route, 'disqualified')
+  assert.equal(result.route, 'one-call')
+  assert.ok(result.exceptions.some((item) => item.kind === 'exact-reproduction'))
 })
 
 test('procurement approval routes one-call', () => {
@@ -184,6 +189,102 @@ test('a resolved configuration has no unresolved items', () => {
   )
 
   assert.equal(unresolved.length, 0)
+})
+
+test('pilot progress includes pending reviewer approvals and lifecycle actions', () => {
+  const reviewers = recommendedReviewers({
+    ...eligible,
+    productionOwnerEmail: 'ava@studio.example',
+  }).map((reviewer, index) => ({
+    id: `reviewer-${index}`,
+    ...reviewer,
+    status: reviewer.role === 'economic_buyer' ? 'reviewed' as const : 'invited' as const,
+    requestedChanges: reviewer.role === 'technical_evaluator',
+    versionSeen: reviewer.role === 'economic_buyer' ? 1 : 2,
+    notes: [],
+  }))
+  const teamReview = computePilotProgressUnresolved({
+    state: 'team_review',
+    version: 2,
+    unresolved: [],
+    exceptions: [],
+    reviewers,
+  })
+
+  assert.ok(teamReview.some((item) => item.key === 'reviewer-reviewer-0-approval'))
+  assert.ok(teamReview.some((item) => item.key === 'reviewer-reviewer-1-approval'))
+  assert.ok(teamReview.some((item) => item.key === 'reviewer-reviewer-2-changes'))
+  assert.equal(
+    computePilotProgressUnresolved({
+      state: 'signed',
+      version: 2,
+      unresolved: [],
+      exceptions: [],
+      reviewers: [],
+    })[0]?.key,
+    'payment',
+  )
+})
+
+test('dual-role reviewers have one consolidated pending item and satisfy every assigned role together', () => {
+  const reviewers = [
+    {
+      id: 'production-owner',
+      role: 'production_owner' as const,
+      name: 'Ava Nguyen',
+      email: 'ava@studio.example',
+      status: 'invited' as const,
+      versionSeen: 1,
+      notes: [],
+    },
+    {
+      id: 'economic-buyer',
+      role: 'economic_buyer' as const,
+      name: 'Ava Nguyen',
+      email: 'ava@studio.example',
+      status: 'invited' as const,
+      versionSeen: 1,
+      notes: [],
+    },
+    {
+      id: 'technical-evaluator',
+      role: 'technical_evaluator' as const,
+      name: 'Sam Rivera',
+      email: 'sam@studio.example',
+      status: 'reviewed' as const,
+      versionSeen: 2,
+      notes: [],
+    },
+  ]
+  const grouped = groupReviewersByEmail(reviewers)
+  assert.equal(grouped.length, 2)
+  assert.equal(highestPrivilegeReviewer(grouped[0].reviewers)?.role, 'economic_buyer')
+
+  const pending = computePilotProgressUnresolved({
+    state: 'team_review',
+    version: 2,
+    unresolved: [],
+    exceptions: [],
+    reviewers,
+  })
+  assert.equal(pending.filter((item) => item.label.includes('Ava Nguyen')).length, 1)
+  assert.match(pending.find((item) => item.label.includes('Ava Nguyen'))?.label || '', /production owner \+ economic buyer/)
+
+  const confirmed = reviewers.map((reviewer) =>
+    reviewer.email === 'ava@studio.example'
+      ? {...reviewer, status: 'reviewed' as const, versionSeen: 2}
+      : reviewer,
+  )
+  assert.equal(
+    computePilotProgressUnresolved({
+      state: 'team_review',
+      version: 2,
+      unresolved: [],
+      exceptions: [],
+      reviewers: confirmed,
+    }).length,
+    0,
+  )
 })
 
 test('state machine allows only valid transitions', () => {
@@ -309,7 +410,7 @@ test('commercial snapshot synthesizes the studio annual option without specs', (
   assert.equal(snapshot.termStart, '2026-08-10')
   assert.equal(snapshot.termEnd, '2026-08-30')
   assert.equal(snapshot.decisionDate, '2026-08-31')
-  assert.equal(snapshot.creditDeadline, '2026-09-06')
+  assert.equal(snapshot.creditDeadline, '2026-09-14')
   assert.equal(snapshot.annualOption?.slug, 'studio')
   assert.equal(snapshot.annualOption?.annualTotal, 30000)
   assert.match(String(snapshot.annualOption?.creditNote), /credited if the annual order form/)

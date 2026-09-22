@@ -1,0 +1,116 @@
+# Development Auth Gateway with OIDC (Keycloak) + Postgres + TLS
+# Provides production-parity refresh rotation, replay detection, and JWKS
+# over HTTPS. Run the complete dev stack on your workstation/Andres.
+#
+# Usage:
+#   1. Generate a private CA + TLS cert for auth.dev.example.com (see scripts/setup-dev-auth.sh)
+#   2. Add 127.0.0.1 auth.dev.example.com to /etc/hosts
+#   3. docker compose -f docker-compose.dev.yml up -d
+#   4. Configure Lore strict mode to trust the JWKS endpoint:
+#        [server.auth]
+#        jwt_issuer = "https://auth.dev.example.com"
+#        jwt_audience = ["lore", "portals.works"]
+#        [server.auth.jwk]
+#        endpoint = "https://auth.dev.example.com/.well-known/jwks.json"
+#        ca_file = "/Users/vibrantceo/Library/Application Support/Portals/Lore/auth/dev-root-ca.pem"
+#        # Omit ca_file when JWKS is served through a publicly trusted cert.
+#
+#   5. px configure remote --remote-url lore://127.0.0.1:41337
+#      px auth login   # browser → Keycloak (or Cognito when OIDC_ISSUER unset)
+#
+# Keycloak vs Cognito: set OIDC_ISSUER to use Keycloak (local dev);
+# leave it unset to use the existing Cognito User Pool (non-production tenant).
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: dev-password-change-me
+      POSTGRES_DB: auth_gateway
+    ports:
+      - "55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth"]
+      interval: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_URL: https://auth.dev.example.com
+      KC_HOSTNAME_ADMIN_URL: https://auth.dev.example.com
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"   # web UI
+      - "1025:1025"   # smtp
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      # Mount your generated TLS cert/key (see scripts/setup-dev-auth.sh)
+      - ./dev-certs:/certs:ro
+    depends_on:
+      - keycloak
+
+  auth-gateway:
+    build:
+      context: ../..
+      dockerfile: control-plane/auth-gateway/Dockerfile
+    environment:
+      DATABASE_URL: postgres://auth:dev-password-change-me@postgres:5432/auth_gateway
+      PUBLIC_BASE_URL: https://auth.dev.example.com
+      # Cognito (non-prod tenant) — used when OIDC_ISSUER is unset
+      COGNITO_DOMAIN: https://your-dev-pool.auth.us-east-1.amazoncognito.com
+      COGNITO_CLIENT_ID: your-dev-client-id
+      COGNITO_ISSUER: https://cognito-idp.us-east-1.amazonaws.com/your-dev-pool
+      COGNITO_REDIRECT_URI: https://auth.dev.example.com/callback
+      # Uncomment to use Keycloak instead of Cognito for local parity:
+      # OIDC_ISSUER: https://auth.dev.example.com/realms/portals
+      # OIDC_CLIENT_ID: portals-dev
+      # OIDC_DOMAIN: https://auth.dev.example.com
+      JWT_ISSUER: https://auth.dev.example.com
+      JWT_KID: dev-kid-1
+      JWT_LOCAL_PRIVATE_KEY_PATH: /run/secrets/jwt.key
+      JWT_SIGNING_ENABLED: "true"
+      LORE_ENV: dev
+      INTERNAL_ADMIN_TOKEN: dev-internal-token-change-me-32-bytes-min
+      API_KEY_PEPPER_BASE64: ZGV2LXBlcHBlci0zMi1ieXRlcy0tLWNvb2stZm9v
+      GRPC_LISTEN_ADDR: 0.0.0.0:8084
+      HTTP_LISTEN_ADDR: 0.0.0.0:8085
+    ports:
+      - "8084:8084"
+      - "8085:8085"
+      - "8086:8086"
+      - "8087:8087"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./dev-jwt.key:/run/secrets/jwt.key:ro
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

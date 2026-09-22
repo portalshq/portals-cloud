@@ -12,7 +12,7 @@ const PDF_RESOURCE_PRESETS: Record<
   string,
   { pdf: Record<string, unknown>; coverBackgroundImagePath?: string }
 > = {
-  'production-memory-field-guide': {
+  'production-memory-brief': {
     pdf: { coverStyle: 'fullPageArtwork', includeDocumentCoverImage: false },
     coverBackgroundImagePath: FIELD_GUIDE_COVER_IMAGE,
   },

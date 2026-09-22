@@ -5,8 +5,15 @@ import type {
   ButtonHTMLAttributes,
   ReactNode,
 } from 'react'
-import {trackEvent} from '@/lib/leads/analytics-client'
+import { trackEvent } from '@/lib/leads/analytics-client'
 import { cn } from '@/lib/utils'
+
+function smoothScrollTo(hash: string) {
+  const element = globalThis.document.querySelector(hash)
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
 
 type SharedProps = {
   children: ReactNode
@@ -20,9 +27,9 @@ type SharedProps = {
 type LinkProps = SharedProps & {
   href: string
 } & Omit<
-    AnchorHTMLAttributes<HTMLAnchorElement>,
-    'children' | 'className' | 'href'
-  >
+  AnchorHTMLAttributes<HTMLAnchorElement>,
+  'children' | 'className' | 'href'
+>
 
 type ButtonProps = SharedProps & {
   href?: never
@@ -31,11 +38,11 @@ type ButtonProps = SharedProps & {
 type CTAButtonProps = LinkProps | ButtonProps
 
 const defaultClasses =
-  't-button inline-flex justify-center items-center rounded h-48 gap-x-9 px-12 text-white transition-backdrop duration-100 cursor-pointer'
+  't-button inline-flex justify-center items-center rounded h-48 gap-x-9 px-12 text-inherit transition-backdrop duration-240 cursor-pointer'
 
 const appearanceClasses = {
-  default: `md:min-w-220 w-fit border border-white/10 bg-white/8 backdrop-blur-[32px] hover:bg-white/16 hover:border-white/80`,
-  plain: `gap-x-9 w-fit`
+  default: `md:min-w-220 w-fit border border-white/50 bg-white/8 backdrop-blur-[32px] hover:bg-white/16 hover:border-white/80`,
+  plain: `gap-x-9 w-fit underline decoration-2 underline-offset-4`
 }
 
 export function CTAButton(props: CTAButtonProps) {
@@ -56,7 +63,9 @@ export function CTAButton(props: CTAButtonProps) {
   )
 
   if ('href' in elementProps && typeof elementProps.href === 'string') {
-    const {onClick, ...anchorProps} = elementProps
+    const { onClick, ...anchorProps } = elementProps
+    const isSamePageAnchor = elementProps.href.startsWith('#')
+
     return (
       <a
         {...anchorProps}
@@ -69,6 +78,14 @@ export function CTAButton(props: CTAButtonProps) {
             use_case: analyticsUseCase,
             destination: elementProps.href,
           })
+
+          // Only handle smooth scroll for same-page anchors (href starts with #)
+          // Cross-page links with hashes should navigate normally
+          if (isSamePageAnchor) {
+            event.preventDefault()
+            smoothScrollTo(elementProps.href)
+          }
+
           onClick?.(event)
         }}
       >
@@ -77,7 +94,7 @@ export function CTAButton(props: CTAButtonProps) {
     )
   }
 
-  const {onClick, ...buttonProps} = elementProps
+  const { onClick, ...buttonProps } = elementProps
   return (
     <button
       {...buttonProps}

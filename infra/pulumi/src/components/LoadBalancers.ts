@@ -166,6 +166,7 @@ export class LoadBalancers extends pulumi.ComponentResource {
         }],
       }, { parent: this });
 
+      // TODO(PORTALS-CLOUD-PRESIGN): Add scoped HTTPS routes and redact signed query tokens before enabling presign.
       if (args.publicIngressEnabled) {
         new aws.lb.ListenerRule(`${resourcePrefix}-lore-grpc-rule`, {
           listenerArn: listener.arn,

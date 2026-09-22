@@ -200,7 +200,7 @@ export function ProgressiveAssessmentFields({
             </LeadField>
           ) : null}
           {missing('annualAffectedValue') ? (
-            <LeadField label="annual value of affected work, optional" name="annualAffectedValue">
+            <LeadField label="annual value of affected work (optional)" name="annualAffectedValue">
               <SelectField id="annualAffectedValue" name="annualAffectedValue" defaultValue="" onChange={onStarted}>
                 <option value="">prefer not to say</option>
                 <option value="under-100k">under $100k</option>

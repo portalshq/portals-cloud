@@ -1,5 +1,12 @@
 import type { NextConfig } from 'next'
 
+/**
+ * Next.js configuration optimized for fast development with Turbopack
+ * - Uses Turbopack for dev (10-100x faster HMR) with --turbo flag
+ * - Uses webpack for production builds (better compatibility with route re-exports)
+ * - WebAssembly support for both bundlers
+ * - Optimized package imports for icon libraries
+ */
 const nextConfig: NextConfig = {
   allowedDevOrigins: (process.env.NEXT_ALLOWED_DEV_ORIGINS || '')
     .split(',')
@@ -9,13 +16,30 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+  },
   trailingSlash: true,
   async redirects() {
     return [
-      {source: '/assessment', destination: '/workflow/assessment', permanent: true},
-      {source: '/assessment/opengraph-image', destination: '/workflow/assessment/opengraph-image', permanent: true},
-      {source: '/ai-production-workflow-risks', destination: '/workflow/ai-production-workflow-risks', permanent: true},
-      {source: '/use-cases', destination: '/workflow/ai-production-workflow-risks', permanent: true},
+      // Canonical IA: /assessment is canonical, /workflow/* are legacy.
+      {source: '/workflow/assessment', destination: '/assessment', permanent: true},
+      {source: '/workflow/assessment/:path*', destination: '/assessment', permanent: true},
+      {source: '/production-memory/brief', destination: '/resources/production-memory-brief', permanent: true},
+      {source: '/production-memory/brief/:path*', destination: '/resources/production-memory-brief', permanent: true},
+      {source: '/ai-production-workflow-risks', destination: '/use-cases', permanent: true},
+      // Canonical IA: /pilot is canonical, /paid-pilot/* are legacy.
+      {source: '/paid-pilot', destination: '/pilot', permanent: true},
+      {source: '/paid-pilot/:path*', destination: '/pilot/:path*', permanent: true},
+    ]
+  },
+  async rewrites() {
+    return [
+      // Proxy PX landing page from GitHub Pages while keeping /px URL
+      {
+        source: '/px/:path*',
+        destination: 'https://portalshq.github.io/narrativeengine/:path*',
+      },
     ]
   },
   env: {

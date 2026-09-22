@@ -8,9 +8,11 @@ import type {
 import {
   pilotControlledOptionLists as optionLists,
 } from './contracts'
-import { packagePriceLabel, packageTermDays } from '../package-specifications'
+import { packageLimitLabel, packageMilestoneLabel, packagePriceLabel, packageTermDays } from '../package-specifications'
+import type {PilotOffer} from './pilot-offers'
 
 export type PilotRoute = 'zero-call' | 'one-call' | 'disqualified'
+export type PilotMode = 'standard' | 'assisted'
 
 export type PilotState =
   | 'reviewing'
@@ -21,7 +23,7 @@ export type PilotState =
   | 'ready_sign'
   | 'signed'
   | 'paid'
-  | 'kickoff'
+  | 'launch'
   | 'active'
   | 'not_eligible'
 
@@ -36,7 +38,7 @@ export type PilotAction =
   | 'finalize'
   | 'sign'
   | 'pay'
-  | 'kickoff'
+  | 'launch'
   | 'activate'
   | 'share'
 
@@ -55,11 +57,45 @@ export type UnresolvedItem = {
   href: string
 }
 
+export type PilotProgressInput = {
+  state: PilotState
+  version: number
+  unresolved: UnresolvedItem[]
+  exceptions: ExceptionItem[]
+  reviewers: Reviewer[]
+}
+
 export type ExceptionItem = {
   kind: string
   summary: string
   amendment: string
   resolvedAt?: string
+}
+
+const MATERIAL_EXCEPTION_KINDS = new Set([
+  'custom-integration',
+  'extra-projects',
+  'extra-participants',
+  'regulated-data',
+  'data-classification',
+  'procurement',
+  'sso',
+  'sla',
+  'soc2',
+  'residency',
+  'dedicated',
+  'regulated-security',
+  'assessment-qualification',
+  'exact-reproduction',
+  'approval-path',
+])
+
+export function isMaterialPilotException(item: ExceptionItem): boolean {
+  return MATERIAL_EXCEPTION_KINDS.has(item.kind)
+}
+
+export function hasPendingMaterialException(exceptions: ExceptionItem[]): boolean {
+  return exceptions.some((item) => !item.resolvedAt && isMaterialPilotException(item))
 }
 
 export type ValueModel = {
@@ -70,7 +106,6 @@ export type ValueModel = {
   high: number
   midpoint: number
   formula: string
-  confirmed: boolean
 }
 
 export type CommercialSnapshot = {
@@ -83,6 +118,20 @@ export type CommercialSnapshot = {
   termEnd?: string
   decisionDate?: string
   creditDeadline?: string
+  annualCreditAmount?: number
+  annualCreditLabel?: string
+  annualCreditRedemptionPolicy?: string
+  offerVariantSlug?: string
+  offerVariantRevision?: string
+  offerTermsVersion?: string
+  offerStartsAt?: string
+  offerEndsAt?: string
+  offerAcceptanceDeadlineLabel?: string
+  offerCopy?: string
+  basePackageSlug?: string
+  offerResolvedAt?: string
+  offerSnapshotHash?: string
+  participantLimit?: number
   participantsLabel: string
   annualOption?: {
     slug: string
@@ -108,6 +157,20 @@ export type ReviewerRole =
   | 'procurement_reviewer'
   | 'approver'
   | 'signer'
+
+export const REVIEWER_ROLES = [
+  'production_owner',
+  'economic_buyer',
+  'technical_evaluator',
+  'security_reviewer',
+  'procurement_reviewer',
+  'approver',
+  'signer',
+] as const satisfies readonly ReviewerRole[]
+
+export function isReviewerRole(value: unknown): value is ReviewerRole {
+  return typeof value === 'string' && (REVIEWER_ROLES as readonly string[]).includes(value)
+}
 
 export type ReviewerStatus =
   | 'proposed'
@@ -135,6 +198,61 @@ export type RecommendedReviewer = {
   name: string
   email: string
   required: boolean
+}
+
+const REVIEWER_ROLE_PRIVILEGE: Record<ReviewerRole, number> = {
+  signer: 3,
+  economic_buyer: 2,
+  approver: 2,
+  procurement_reviewer: 2,
+  security_reviewer: 2,
+  production_owner: 1,
+  technical_evaluator: 1,
+}
+
+export function reviewerRolePrivilege(role: ReviewerRole): number {
+  return REVIEWER_ROLE_PRIVILEGE[role]
+}
+
+export function highestPrivilegeReviewer(reviewers: Reviewer[]): Reviewer | null {
+  return reviewers.reduce<Reviewer | null>(
+    (highest, reviewer) =>
+      !highest || reviewerRolePrivilege(reviewer.role) > reviewerRolePrivilege(highest.role)
+        ? reviewer
+        : highest,
+    null,
+  )
+}
+
+export type ReviewerGroup = {
+  email: string
+  reviewers: Reviewer[]
+  primary: Reviewer
+  additional: Reviewer[]
+}
+
+/** Groups role entries by person while preserving separate role records. */
+export function groupReviewersByEmail(reviewers: Reviewer[]): ReviewerGroup[] {
+  const grouped = new Map<string, Reviewer[]>()
+  for (const reviewer of reviewers) {
+    const email = reviewer.email.trim().toLowerCase()
+    // Empty addresses are unassigned roles, not a shared person.
+    const key = email || `unassigned:${reviewer.id}`
+    const entries = grouped.get(key) || []
+    entries.push(reviewer)
+    grouped.set(key, entries)
+  }
+  return [...grouped.entries()].map(([key, entries]) => {
+    const active = entries.filter((reviewer) => reviewer.status !== 'revoked')
+    const primary = highestPrivilegeReviewer(active.length ? active : entries)
+    if (!primary) throw new Error('Reviewer groups must contain a reviewer.')
+    return {
+      email: key.startsWith('unassigned:') ? '' : key,
+      reviewers: entries,
+      primary,
+      additional: (active.length ? active : entries).filter((reviewer) => reviewer.id !== primary.id),
+    }
+  })
 }
 
 export function recommendedReviewers(
@@ -233,9 +351,9 @@ const STATE_LABELS: Record<PilotState, string> = {
   exception_review: 'Exception review',
   scope_confirmed: 'Scope confirmed',
   ready_sign: 'Ready for signature',
-  signed: 'Signed - waiting for payment',
+  signed: 'Purchased - payment due',
   paid: 'Paid',
-  kickoff: 'Scheduled',
+  launch: 'Launch scheduled',
   active: 'Active',
   not_eligible: 'Not eligible',
 }
@@ -257,8 +375,8 @@ const TRANSITIONS: Record<PilotState, Partial<Record<PilotAction, PilotState>>> 
   scope_confirmed: { finalize: 'ready_sign', request_exception: 'exception_review', revise: 'revision' },
   ready_sign: { sign: 'signed', revise: 'revision' },
   signed: { pay: 'paid' },
-  paid: { kickoff: 'kickoff' },
-  kickoff: { activate: 'active' },
+  paid: { launch: 'launch' },
+  launch: { activate: 'active' },
   active: {},
   not_eligible: {},
 }
@@ -312,12 +430,18 @@ export function classifyPilot(
     return { route: 'disqualified', reasons, exceptions }
   }
   if (answers.approvalPath === 'no' || answers.approvalPath === 'not-established') {
-    reasons.push('No credible $5,000 approval path')
-    return { route: 'disqualified', reasons, exceptions }
+    exceptions.push({
+      kind: 'approval-path',
+      summary: 'The approval path is not established for the pilot purchase.',
+      amendment: 'Confirm the authorized buyer, procurement path, or exception terms before funding.',
+    })
   }
   if (answers.exactReproductionRequired) {
-    reasons.push('Guaranteed exact reproduction is outside the standard pilot')
-    return { route: 'disqualified', reasons, exceptions }
+    exceptions.push({
+      kind: 'exact-reproduction',
+      summary: 'A guaranteed exact reproduction outcome is outside the standard pilot.',
+      amendment: 'Align on a measurable reproduction objective and permitted variance before funding.',
+    })
   }
 
   if (customIntegration) {
@@ -425,13 +549,17 @@ export const STANDARD_SUCCESS_KEYS = [
 export function buildSuccessCriteria(
   answers: PilotAnswers,
 ): SuccessCriterion[] {
-  const selected = new Set(parseSuccessKeys(answers.successCriterionKeysJson))
+  const raw = answers.successCriterionKeysJson
+  const hasExplicitSelection = typeof raw === 'string' && raw.trim() !== ''
+  const selected = new Set(parseSuccessKeys(raw))
   const label = (key: string) =>
     optionLists.successCriterionLabel[key as keyof typeof optionLists.successCriterionLabel] || key
-  return [...new Set([...STANDARD_SUCCESS_KEYS, ...selected])].map((key) => ({
+  // If no explicit selection, use standard keys as defaults. Otherwise, use only selected keys.
+  const keysToUse = hasExplicitSelection ? selected : new Set(STANDARD_SUCCESS_KEYS)
+  return [...keysToUse].map((key) => ({
     key,
     label: label(key),
-    status: selected.has(key) || STANDARD_SUCCESS_KEYS.includes(key) ? 'accepted' : 'not-applicable',
+    status: hasExplicitSelection ? (selected.has(key) ? 'accepted' : 'not-applicable') : 'accepted',
   }))
 }
 
@@ -577,7 +705,6 @@ export function buildValueModel(
     high,
     midpoint: Math.round((low + high) / 2),
     formula: `Annualized recreation frequency \u00d7 hours lost per incident \u00d7 affected contributors`,
-    confirmed: false,
   }
 }
 
@@ -591,23 +718,29 @@ function annualTotalFrom(spec: PackageSpecification | undefined): number | null 
 export function buildCommercialSnapshot(
   answers: PilotAnswers,
   specs: PackageSpecification[],
-  opts: { startDate?: string; termDays?: number; currency?: string },
+  opts: { startDate?: string; termDays?: number; currency?: string; offer?: PilotOffer | null },
 ): CommercialSnapshot {
   const pilotSpec = specs.find((spec) => spec.packageKind === 'paidPilot')
   const priceAmount =
+    opts.offer?.pilotPriceAmount ||
     Number(process.env.PILOT_PRICE_AMOUNT) ||
     pilotSpec?.price?.amount ||
     5000
-  const priceLabel = packagePriceLabel(pilotSpec) || `$${priceAmount.toLocaleString()}`
+  const priceLabel = opts.offer?.pilotPriceLabel || packagePriceLabel(pilotSpec) || `$${priceAmount.toLocaleString()}`
   const currency = opts.currency || pilotSpec?.price?.currency || 'USD'
-  const termDays = opts.termDays || packageTermDays(pilotSpec)
+  const termDays = opts.termDays || opts.offer?.pilotDurationDays || packageTermDays(pilotSpec)
   const start = opts.startDate
   const end = start ? new Date(new Date(start).getTime() + (termDays - 1) * 86_400_000) : undefined
   const decisionDate = start
     ? new Date(new Date(start).getTime() + termDays * 86_400_000)
     : undefined
+  // Offer policy decides the credit window; Sanity milestone is the fallback.
+  // No hard-coded day counts here.
+  const windowLabel = packageMilestoneLabel(pilotSpec, 'annual-credit decision window')
+  const windowDays = Number.parseInt(String(windowLabel), 10)
+  const creditWindowDays = Number.isFinite(windowDays) && windowDays > 0 ? windowDays : 14
   const creditDeadline = decisionDate
-    ? new Date(decisionDate.getTime() + 6 * 86_400_000)
+    ? new Date(decisionDate.getTime() + creditWindowDays * 86_400_000)
     : undefined
   const iso = (date?: Date) => date?.toISOString().slice(0, 10)
 
@@ -617,7 +750,9 @@ export function buildCommercialSnapshot(
       ? undefined
       : specs.find((spec) => spec.slug === annualSlug)
   const annualTotal = annualTotalFrom(annualSpec)
-  const annualCredit = `The $${priceAmount.toLocaleString()} pilot fee will be credited if the annual order form is signed by ${iso(creditDeadline) || 'the stated deadline'}.`
+  const annualCredit = opts.offer
+    ? `${opts.offer.annualCreditLabel} annual deployment credit under the ${opts.offer.annualCreditRedemptionPolicy}.`
+    : `The $${priceAmount.toLocaleString()} pilot fee will be credited if the annual order form is signed by ${iso(creditDeadline) || 'the stated deadline'}.`
   const annualOption =
     annualSlug === 'studio' && !annualSpec
       ? {
@@ -647,7 +782,20 @@ export function buildCommercialSnapshot(
     termEnd: end ? iso(end) : undefined,
     decisionDate: iso(decisionDate),
     creditDeadline: iso(creditDeadline),
+    ...(opts.offer ? {
+      annualCreditAmount: opts.offer.annualCreditAmount,
+      annualCreditLabel: opts.offer.annualCreditLabel,
+      annualCreditRedemptionPolicy: opts.offer.annualCreditRedemptionPolicy,
+      offerVariantSlug: opts.offer.slug,
+      offerVariantRevision: opts.offer._rev,
+      offerTermsVersion: opts.offer.termsVersion,
+      offerStartsAt: opts.offer.startsAt,
+      offerEndsAt: opts.offer.endsAt,
+      offerAcceptanceDeadlineLabel: opts.offer.acceptanceDeadlineLabel,
+      offerCopy: opts.offer.offerCopy,
+    } : {}),
     participantsLabel: answers.participantsRange || 'up to five',
+    participantLimit: Number(packageLimitLabel(pilotSpec, 'participants').match(/\d+/)?.[0] || 5),
     annualOption,
     valueModel: buildValueModel(
       answers.recreationFrequency || '',
@@ -745,6 +893,174 @@ export function computeUnresolved(
       }
     }
   }
+  return unresolved
+}
+
+const REQUIRED_REVIEWER_ROLES = new Set<ReviewerRole>([
+  'production_owner',
+  'economic_buyer',
+  'technical_evaluator',
+])
+
+function reviewerProgressItem(reviewer: Reviewer, version: number): UnresolvedItem | null {
+  if (reviewer.role === 'signer' || reviewer.status === 'revoked') return null
+  const role = reviewerRoleLabel(reviewer.role).toLowerCase()
+  const required = REQUIRED_REVIEWER_ROLES.has(reviewer.role)
+  const email = reviewer.email.trim()
+
+  if (!email) {
+    return required
+      ? {
+          key: `reviewer-${reviewer.role}-assignment`,
+          label: `Assign the ${role} reviewer`,
+          resolution: `Add an email for the ${role} in the reviewers section.`,
+          href: '#reviewers',
+        }
+      : null
+  }
+  if (reviewer.requestedChanges) {
+    return {
+      key: `reviewer-${reviewer.id}-changes`,
+      label: `${reviewerRoleLabel(reviewer.role)} requested changes`,
+      resolution: 'Revise the shared terms and submit the next revision for review.',
+      href: '#reviewers',
+    }
+  }
+  if (reviewer.status === 'reviewed' && reviewer.versionSeen >= version) return null
+  if (reviewer.status === 'proposed') {
+    return {
+      key: `reviewer-${reviewer.id}-invite`,
+      label: `Invite the ${role} reviewer`,
+      resolution: 'Send the reviewer an invitation to the pilot room.',
+      href: '#reviewers',
+    }
+  }
+  return {
+    key: `reviewer-${reviewer.id}-approval`,
+    label:
+      reviewer.status === 'reviewed'
+        ? `Await renewed confirmation from the ${role}`
+        : `Await confirmation from the ${role}`,
+    resolution: 'The reviewer needs to confirm the current terms revision.',
+    href: '#reviewers',
+  }
+}
+
+function reviewerGroupProgressItem(reviewers: Reviewer[], version: number): UnresolvedItem | null {
+  const reviewRoles = reviewers.filter(
+    (reviewer) => reviewer.role !== 'signer' && reviewer.status !== 'revoked',
+  )
+  if (reviewRoles.length === 0) return null
+  if (reviewRoles.length === 1) return reviewerProgressItem(reviewRoles[0], version)
+
+  const primary = highestPrivilegeReviewer(reviewRoles)
+  if (!primary) return null
+  const name = primary.name || primary.email
+  const roles = reviewRoles.map((reviewer) => reviewerRoleLabel(reviewer.role).toLowerCase()).join(' + ')
+  if (reviewRoles.some((reviewer) => reviewer.requestedChanges)) {
+    return {
+      key: `reviewer-${primary.id}-changes`,
+      label: `${name} (${roles}) requested changes`,
+      resolution: 'Revise the shared terms and submit the next revision for review.',
+      href: '#reviewers',
+    }
+  }
+  if (reviewRoles.every((reviewer) => reviewer.status === 'reviewed' && reviewer.versionSeen >= version)) {
+    return null
+  }
+  if (reviewRoles.every((reviewer) => reviewer.status === 'proposed')) {
+    return {
+      key: `reviewer-${primary.id}-invite`,
+      label: `Invite ${name} (${roles})`,
+      resolution: 'Send the reviewer one secure room invitation for their assigned roles.',
+      href: '#reviewers',
+    }
+  }
+  return {
+    key: `reviewer-${primary.id}-approval`,
+    label: `Await confirmation from ${name} (${roles})`,
+    resolution: 'The reviewer needs to confirm the current terms revision for each assigned role.',
+    href: '#reviewers',
+  }
+}
+
+/** Includes current state gates without persisting transient reviewer or workflow status. */
+export function computePilotProgressUnresolved(input: PilotProgressInput): UnresolvedItem[] {
+  const unresolved = [...input.unresolved]
+  const add = (item: UnresolvedItem) => {
+    if (!unresolved.some((existing) => existing.key === item.key)) unresolved.push(item)
+  }
+  const pendingException = input.exceptions.some((item) => !item.resolvedAt)
+
+  if (pendingException) {
+    add({
+      key: 'portals-review',
+      label:
+        input.state === 'exception_review'
+          ? 'Portals review is in progress'
+          : 'Submit the outstanding terms for Portals review',
+      resolution: 'Resolve the required security, legal, or commercial review before approval.',
+      href: '#exceptions',
+    })
+  }
+
+  if (input.state === 'team_review') {
+    const reviewersByRole = new Map<ReviewerRole, Reviewer[]>()
+    for (const reviewer of input.reviewers) {
+      const rows = reviewersByRole.get(reviewer.role) || []
+      rows.push(reviewer)
+      reviewersByRole.set(reviewer.role, rows)
+    }
+    for (const role of REQUIRED_REVIEWER_ROLES) {
+      const reviewers = reviewersByRole.get(role) || []
+      if (reviewers.length === 0 || reviewers.every((reviewer) => reviewer.status === 'revoked')) {
+        add({
+          key: `reviewer-${role}-assignment`,
+          label: `Assign the ${reviewerRoleLabel(role).toLowerCase()} reviewer`,
+          resolution: `Add an email for the ${reviewerRoleLabel(role).toLowerCase()} in the reviewers section.`,
+          href: '#reviewers',
+        })
+      }
+    }
+    for (const group of groupReviewersByEmail(input.reviewers)) {
+      const item = reviewerGroupProgressItem(group.reviewers, input.version)
+      if (item) add(item)
+    }
+  }
+
+  if (input.state === 'ready_sign') {
+    add({
+      key: 'signature',
+      label: 'Sign the pilot agreement',
+      resolution: 'The authorized signer must confirm the agreement in the signature section.',
+      href: '#signature',
+    })
+  }
+  if (input.state === 'signed') {
+    add({
+      key: 'payment',
+      label: 'Record the pilot fee payment',
+      resolution: 'Pay the pilot fee to schedule kickoff.',
+      href: '#pilot-actions',
+    })
+  }
+  if (input.state === 'paid') {
+    add({
+      key: 'kickoff',
+      label: 'Schedule launch',
+      resolution: 'Schedule launch before activating the pilot.',
+      href: '#pilot-actions',
+    })
+  }
+  if (input.state === 'launch') {
+    add({
+      key: 'activation',
+      label: 'Activate the pilot',
+      resolution: 'Activate the pilot once launch is scheduled.',
+      href: '#pilot-actions',
+    })
+  }
+
   return unresolved
 }
 

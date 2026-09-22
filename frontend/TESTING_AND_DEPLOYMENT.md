@@ -102,7 +102,7 @@ http://localhost:3000/workflow/assessment?how_did_you_hear=linkedin&what_brought
    ```
    Copy the printed `whsec_…` value into `STRIPE_WEBHOOK_SECRET`.
 4. Walk the funnel once per route:
-   - zero-call: submit `/paid-pilot` → room → confirm scope → finalize → sign → pay → `stripe trigger checkout.session.completed` (or complete the hosted Checkout page with card `4242 4242 4242 4242`) → room flips to `paid` → kickoff → activate.
+   - zero-call: submit `/pilot` → room → confirm scope → finalize → sign → pay → `stripe trigger checkout.session.completed` (or complete the hosted Checkout page with card `4242 4242 4242 4242`) → room flips to `paid` → kickoff → activate.
    - one-call: answers that raise an exception (custom integration, SSO, regulated data, >5 participants, …) → `request exception review` → `mark exceptions resolved` → confirm scope → finalize → sign → pay.
    - disqualified: no workflow / no owner / no approval path → `not_eligible` room with the revise CTA.
 5. Open the room link from the confirmation email in a different browser or device; it must request a one-time magic-link sign-in and then grant only the invited account and pilot membership. Use personal aliases such as `you+owner@gmail.com` and `you+buyer@gmail.com` for distinct reviewers, or the same exact address for two reviewer roles to confirm only one invitation is delivered. Confirm the packet download works after that session is established.

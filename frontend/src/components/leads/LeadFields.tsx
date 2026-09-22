@@ -151,9 +151,11 @@ export function IdentityFields({
 export function ConsentFields({
   onStarted,
   showMarketing = true,
+  marketingDefaultChecked = false,
 }: {
   onStarted: () => void
   showMarketing?: boolean
+  marketingDefaultChecked?: boolean
 }) {
   return (
     <div className="space-y-12">
@@ -168,6 +170,7 @@ export function ConsentFields({
         <label className="flex items-start gap-10 t-p-sm-sans text-white">
           <LeadCheckbox
             name="marketingConsent"
+            defaultChecked={marketingDefaultChecked}
             onChange={onStarted}
           />
           <span>Send me resources and product updates from portals. Unsubscribe anytime.</span>
@@ -191,7 +194,7 @@ export function NoScriptLeadFallback() {
       <style>{'.js-lead-submit{display:none!important}'}</style>
       <p className="t-p-sm-sans text-white">
         This request form needs javascript to deliver and record the next step. you can still{' '}
-        <a className="underline underline-offset-4" href="/workflow/ai-production-workflow-risks">
+        <a className="underline underline-offset-4" href="/use-cases">
           Explore use cases
         </a>.
       </p>

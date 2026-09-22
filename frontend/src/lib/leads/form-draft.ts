@@ -115,6 +115,12 @@ export function collectDraftValues(form: HTMLFormElement): FormDraft {
       if (value) values[control.name] = value
       continue
     }
+    if (control instanceof HTMLInputElement && control.type === 'radio') {
+      if (!control.checked) continue
+      const trimmed = value.trim()
+      if (trimmed) values[control.name] = trimmed
+      continue
+    }
     const trimmed = value.trim()
     if (trimmed) values[control.name] = trimmed
   }

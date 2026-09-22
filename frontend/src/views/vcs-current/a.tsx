@@ -4,6 +4,8 @@ import { CTAButton } from '@/components/CTAButton';
 import {
   PACKAGE_SPEC_SLUGS,
   findPackageSpecification,
+  packageOriginalPriceLabel,
+  packagePriceLabel,
   packagePricingFeatures,
 } from '@/lib/package-specifications';
 import { formatNumber, scopeAPilotMailto } from '@/lib/utils';
@@ -33,23 +35,23 @@ const overviewItems: OverviewItem[] = [
   {
     heading: 'Repository',
     iconPath: iconPaths[0],
-    textA: ['A canonical home for every production asset.'],
-    textB: ['Every image, video, character, model, prompt, and dataset your team creates lives inside one governed repository, not scattered across tools and desktops.'],
-    textC: ['portals doesn\'t replace the tools your team uses — it becomes the place that work lives.'],
+    textA: ['Sources, references, character models, prompts, and datasets live inside one governed repository, not scattered across tools and desktops.'],
+    textB: ['portals doesn\'t replace the tools your team uses — it becomes the place that work lives.'],
+    textC: ['A canonical home for every production asset.'],
   },
   {
     heading: 'Identity',
     iconPath: iconPaths[1],
     textA: [
-      'Every asset gets a permanent, stable address.',
-      'A character is not just a folder of PNGs. A campaign is not just a stack of final files.',
+      'A character is not just a folder of PNGs — a campaign is not just a stack of final files.',
+      'Every asset gets a stable addressable identity linked to a historical, contextual manifest.',
     ],
     list: [
       'stable identity independent of filename, location, or export format',
       'characters, props, styles, and locations become addressable entities',
       'search, automation, and integrations can reference assets with certainty',
     ],
-    textC: ['Without identity, the approved version is a claim. With identity, it is a verifiable fact.'],
+    textC: ['With identity, approved versions are verifiable facts.'],
   },
   {
     heading: 'History',
@@ -57,24 +59,24 @@ const overviewItems: OverviewItem[] = [
     textA: [
       'Every edit and approval is a new version.',
     ],
-    textB: ['Preserve the history of an asset from first generation to shipped output, so any prior state can be restored, compared, or branched from in seconds.'],
+    textB: ['Preserve the complete history of an asset from first generation to current — any prior state can be restored, compared, or branched from in seconds.'],
     textC: ['Move from guesswork to institutional memory.'],
   },
   {
     heading: 'Provenance',
     iconPath: iconPaths[3],
-    textA: [
-      'Existing tools answer where the file is. portals answers what it is, where it came from, and how to create it again.',
+    textA: ['Automically capture and attach the production chain to the asset itself.'],
+    textB: [
+      'Existing tools answer where the file is. portals answers what it is, where it came from, and how to produce it again.',
     ],
-    textB: ['Capture the production chain, automatically attached to the asset itself.'],
-    textC: ['Your team\'s work becomes reproducible, explainable, and reusable.'],
+    textC: ['Your work becomes explainable and reusable.'],
   },
   {
     heading: 'Collaboration',
     iconPath: iconPaths[0],
-    textA: ['One shared source of truth.'],
-    textB: ['Teams collaborate on shared assets with history and identity in one governed repository, not in offline folders.'],
-    textC: ['Everyone sees the same version, the same history, and the same provenance.'],
+    textA: ['Teams collaborate on shared assets with history and identity in one governed repository, not in offline folders.'],
+    textB: ['Everyone accesses the same assets, the same history, and the same provenance.'],
+    textC: ['One shared source of truth.'],
   },
 ];
 
@@ -184,6 +186,8 @@ type PricingTier = {
   slug: string;
   name: string;
   price: string;
+  originalPrice?: string;
+  discountPercentage?: number | null;
   period: string;
   subtitle?: string;
   features: string[];
@@ -195,7 +199,9 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
   return {
     slug: specification.slug,
     name: specification.name,
-    price: specification.price?.displayValue || '',
+    price: packagePriceLabel(specification),
+    originalPrice: packageOriginalPriceLabel(specification),
+    discountPercentage: specification.price?.discount?.percentage,
     period: specification.price?.periodLabel || '',
     subtitle: specification.subtitle,
     features: packagePricingFeatures(specification),
@@ -206,7 +212,7 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
 
 function pricingTierHref(tier: PricingTier): string {
   return tier.slug === PACKAGE_SPEC_SLUGS.productionTeam
-    ? '/workflow/assessment'
+    ? '/assessment'
     : scopeAPilotMailto;
 }
 
@@ -618,13 +624,13 @@ function ProblemSection() {
         <div className="col-span-full grid grid-cols-1 lg:grid-cols-3">
           {problemCards.map((card, index) => (
             <div key={card.title}>
-              <article className="min-h-194 lg:pr-24 text-white">
+              <article className={`min-h-194 p-24 rounded-sm text-white ${index % 2 === 0 ? 'bg-white/10' : ''}`}>
                 <div className="mb-20 flex items-center gap-x-8">
                   <span className="size-8 bg-white" />
                   <span className="t-m2">{card.label}</span>
                 </div>
                 <h3 className="t-h3-sans mb-[0.4em]">{card.title}</h3>
-                <blockquote className={`mt-12 col-span-full border-l-2 pl-18 t-p-sans leading-[1.25] italic text-white ${index === problemCards.length - 1 ? 'border-r-2' : ''}`}>
+                <blockquote className="mt-12 col-span-full t-p-sans leading-[1.25] italic text-white">
                   {card.quote}
                   <cite>{' '}{card.cite}</cite>
                 </blockquote>
@@ -642,20 +648,21 @@ function SolutionSection() {
     <section data-header-theme="light">
       <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white min-h-screen">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
-          <h2 className="t-d2-sans mx-auto max-w-[83vw] md:max-w-[13em]">
-            The production repository for AI{`\u2011`}native creative organizations
+          <h2 className="t-d2-sans w-fit mx-auto max-w-[82vw] md:max-w-[12em]">
+            the repository for
+            <br />
+            AI{`\u2011`}native production
           </h2>
-
-          <p className="t-p-lg-sans max-w-[30em] mx-auto leading-[1.25] text-white">
+          <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
             Preserve every version and creative decision behind your production, so your teams can build on previous work, deliver faster, and scale production without losing quality.
             {/* portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it. */}
           </p>
-          <p className="t-p-lg-sans max-w-[30em] mx-auto leading-[1.25] text-white">
+          <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
             Built for creative studios, game teams, and ad agencies producing high-volume AI media.
           </p>
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
-            <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+            <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
               Assess production workflow
             </CTAButton>
           </div>
@@ -719,8 +726,53 @@ function CapabilitiesSection() {
           ))}
         </div>
         <div className='col-span-full'>
-          <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+          <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
             Assess production workflow
+          </CTAButton>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const pxFoundations: { title: React.ReactNode; text: React.ReactNode }[] = [
+  {
+    title: 'Persistent entities',
+    text: 'Characters, objects, locations, and worlds keep their identity as they evolve.',
+  },
+  {
+    title: 'Across tools and formats',
+    text: 'Move between image, video, 3D, agents, and creative applications without rebuilding project context from scratch.',
+  },
+  {
+    title: 'Built for agents and creators',
+    text: (<span>Use <strong>px</strong> from the command line, through AI agents, or inside Python and TypeScript applications.</span>),
+  },
+];
+
+function PxSection() {
+  return (
+    <section data-header-theme="light">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+        <div className="col-span-full space-y-24 lg:col-span-14">
+          <h2 className="t-d2-sans max-w-[13.8em]">Powered by open data foundations for AI production</h2>
+          <p className="t-p-lg-serif max-w-[38em] leading-[1.25]">
+            portals builds on <strong>px</strong>, giving production teams shared control over persistent data objects: characters, locations, worlds, and their representations across tools and formats.
+          </p>
+          <p className="t-p-lg-sans max-w-[30em]">Create an asset once. Give it an identity. Build a world from it.</p>
+        </div>
+        <div className="col-span-full grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-3">
+          {pxFoundations.map((item) => (
+            <article key={item.title?.toString()} className="p-24">
+              <h3 className="t-h3-sans mb-16">{item.title}</h3>
+              <p className="t-p-sans text-white">{item.text}</p>
+            </article>
+          ))}
+        </div>
+        <div className="col-span-full flex flex-col gap-16">
+          <p className="t-p-sans text-white"><strong>px</strong> is free and open source for creators and developers building locally.</p>
+          <CTAButton href="/px" analyticsLabel="Explore px" analyticsIntent="education">
+            Explore px
           </CTAButton>
         </div>
       </div>
@@ -805,32 +857,31 @@ function PricingSection({
         <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] lg:mx-auto rounded">
           {pilotTier ? [pilotTier].map((tier) => (
             <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
-              <h3 className="t-h3-sans">{tier.name}</h3>
+              <h3 className="t-h3-sans mb-20">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
-                <span className="t-d2-sans">{tier.price}</span>
+                <span className="t-h3-sans">{tier.price}</span>
                 <span className="t-m2 !lowercase">{tier.period}</span>
               </div>
               <p className="t-p-sans">{tier.subtitle}</p>
               <ul className="my-24 flex flex-1 flex-col gap-y-8">
                 {tier.features.map((feature) => (
-                  <li key={feature} className="flex gap-x-8 t-p-sans text-white">
-                    <span className="text-white">+</span>
+                  <li key={feature} className="flex gap-x-8 t-p-sans">
+                    <span>+</span>
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
               <CTAButton href={pricingTierHref(tier)}>{tier.cta}</CTAButton>
-              {tier.micro && <p className="mt-24 t-p-sans text-white">{tier.micro}</p>}
+              {tier.micro && <p className="mt-24 t-p-sans">{tier.micro}</p>}
             </article>
           )) : null}
         </div>
-
-        <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
+        <div className="mt-40 col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
           {pricingTiers.map((tier) => (
             <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
-              <h3 className="t-h3-sans">{tier.name}</h3>
+              <h3 className="t-h3-sans mb-20">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
-                <span className="t-d2-sans">{tier.price}</span>
+                <span className="t-h3-sans">{tier.price}</span>
                 <span className="t-m2 !lowercase">{tier.period}</span>
               </div>
               <p className="t-p-sans">{tier.subtitle}</p>
@@ -924,16 +975,16 @@ export function VCS({
               build from your best{' '}
               <strong className="t-d2-serif">creative work</strong>
             </h1>
-            <p className="t-h3-sans max-w-[24ch]">reduce production costs, organize and extend successful work, and scale projects across teams and tools.</p>
+            <p className="t-h3-sans max-w-[24.5ch]">reduce production costs, organize and extend successful work, and scale projects across teams and tools.</p>
             <div className="saga-hero-assess flex flex-col gap-12 pt-12 sm:flex-row">
               <CTAButton
-                href="/workflow/assessment"
+                href="/assessment"
                 analyticsLabel="Assess Your Workflow"
                 analyticsIntent="assessment"
               >
                 Assess production workflow
               </CTAButton>
-              <CTAButton className="!hidden" href="/workflow/ai-production-workflow-risks" analyticsLabel="Explore Use Cases" analyticsIntent="education">
+              <CTAButton className="!hidden" href="/use-cases" analyticsLabel="Explore Use Cases" analyticsIntent="education">
                 Explore use cases
               </CTAButton>
             </div>
@@ -964,6 +1015,7 @@ export function VCS({
       <ComparisonSection />
       <WorkflowSection />
       <CapabilitiesSection />
+      <PxSection />
       <AudienceSection />
       <PricingSection packageSpecifications={packageSpecifications} />
 
@@ -973,11 +1025,11 @@ export function VCS({
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
               <h4 className="t-global-cta_heading max-w-[13em]">Stop losing the history of your best work. <br /> Start building on it.</h4>
               <p className="t-p-lg-serif max-w-[25em] md:w-auto text-white text-left">
-                Deliver faster at lower cost with  complete asset history and identity from first generation through shipped production.
+                Deliver campaigns faster and at lower cost with a complete and programmable production lifecycle.
               </p>
               <div className="flex items-center gap-16">
-                <CTAButton href={"/workflow/ai-production-workflow-risks"}>Explore use cases</CTAButton>
-                <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
+                <CTAButton href={"/use-cases"} appearance="plain">Explore use cases</CTAButton>
+                <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
                   Assess production workflow
                 </CTAButton>
               </div>

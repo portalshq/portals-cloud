@@ -5,7 +5,7 @@ const client = getCliClient({apiVersion: '2026-07-01'})
 const resourcePackageReferences = {
   'paid-pilot': ['paid-pilot'],
   'ai-production-workflow-risks': ['paid-pilot', 'production-team', 'studio', 'enterprise'],
-  'production-memory-field-guide': ['paid-pilot', 'production-team', 'studio', 'enterprise'],
+  'production-memory-brief': ['paid-pilot', 'production-team', 'studio', 'enterprise'],
 }
 
 async function packageRefs(slugs) {

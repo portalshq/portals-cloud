@@ -18,7 +18,6 @@ export function pilotMutableTermsFromState(input: {
 }): PilotMutableTerms {
   return {
     startDate: input.resolvedStartDate || null,
-    valueConfirmed: Boolean(input.proposal?.valueModel?.confirmed),
     criteria: input.successCriteria.map((criterion) => ({...criterion})),
     answers: pilotDirectAnswersFrom(input.answers),
   }
