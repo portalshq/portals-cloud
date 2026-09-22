@@ -2,6 +2,9 @@
   "name": "portals-platform",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": "22.x"
+  },
   "description": "Capability-first infrastructure platform for composable entertainment channels. ",
   "workspaces": [
     "channels",
@@ -15,7 +18,7 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "prepare": "test -d .git && husky || echo 'Skipping Husky (Not a local Git repo)'",
+    "prepare": "test -d .git && test -x node_modules/.bin/husky && husky || echo 'Skipping Husky (Not a local Git repo)'",
     "changeset": "changeset",
     "release:version": "changeset version && npm install --package-lock-only --ignore-scripts",
     "release:build": "turbo run build --filter='./packages/*' --filter='./packages/stubs/*'",
