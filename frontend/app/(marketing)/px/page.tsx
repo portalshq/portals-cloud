@@ -8,7 +8,7 @@ export const metadata: Metadata = marketingMetadata({
   description: 'px gives creators and AI agents persistent worlds, characters, scenes, and representations they can keep building on.',
   path: '/px',
   keywords: ['px protocol', 'AI film', 'AI creative', 'AI production tools', 'AI series', 'AI characters', 'create AI tv', '', 'AI creative tools', 'persistent characters', 'autonomous characters', 'AI creative agents'],
-  image: '/px/opengraph-image',
+  image: '/og-image-px.png',
 })
 
 export default async function PxPage() {
