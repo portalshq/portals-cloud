@@ -4,6 +4,7 @@ import {PaidPilotLandingPage} from '@/components/resources/PaidPilotLandingPage'
 import {ResourceLandingPage} from '@/components/resources/ResourceLandingPage'
 import {SecurityArchitectureLandingPage} from '@/components/resources/SecurityArchitectureLandingPage'
 import {getKnownLeadContext} from '@/lib/leads/profile'
+import {DEFAULT_OG_IMAGE} from '@/lib/seo'
 import {getResourceDocument, getResourceSlugs} from '@/sanity/lib/resources'
 import {resolveCurrentPilotOffer} from '@/lib/leads/pilot-offers'
 
@@ -36,9 +37,7 @@ export async function generateMetadata({
   const canonicalPath =
     document.seo?.canonicalPath || `/${document.slug}`
 
-  const shareImage = document.seo?.shareImageUrl
-    ? [{url: document.seo.shareImageUrl}]
-    : undefined
+  const shareImage = [{url: document.seo?.shareImageUrl || DEFAULT_OG_IMAGE}]
 
   return {
     title: document.seo?.metaTitle || document.title,
