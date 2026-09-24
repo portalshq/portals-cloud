@@ -20,6 +20,9 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   trailingSlash: true,
+  // Keep /px exactly as requested; the Pages rewrite serves the trailing
+  // slash internally without exposing a 308 to crawlers or visitors.
+  skipTrailingSlashRedirect: true,
   async redirects() {
     return [
       // Canonical IA: /assessment is canonical, /workflow/* are legacy.
