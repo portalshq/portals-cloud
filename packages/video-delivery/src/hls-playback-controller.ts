@@ -123,7 +123,13 @@ export class HlsPlaybackController {
     };
     media.onplaying = guard(() => { this.attempts = 0; this.observe("playing"); });
     media.onwaiting = guard(() => this.observe("buffering"));
-    media.onstalled = guard(() => this.reconnect(new Error("media stalled")));
+    /* `onstalled` is deliberately left unbound. Chrome fires it every few
+       seconds on a perfectly healthy MSE-backed HLS stream — readyState
+       intact, no error, currentTime still climbing. Treating it as a failure
+       tore the stream down and restarted it from zero on a loop; reporting it
+       as buffering just flickers the status bar over playing video. A real
+       outage surfaces as `waiting` (underrun) or a fatal hls.js NETWORK_ERROR,
+       and both are already handled. */
     media.onerror = guard(() => this.reconnect(media.error ?? new Error("media playback failed")));
   }
 

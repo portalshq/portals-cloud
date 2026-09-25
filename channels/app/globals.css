@@ -1,8 +1,84 @@
+/* Design tokens for the feed-first home experience.
+   Aesthetic: "nocturnal soft-object" — a warm green-black ground, one jade
+   accent, elevation expressed as light rather than as hairlines. There are no
+   border lines anywhere in the feed; see DESIGN.md. */
+
 :root {
+  /* Legacy faces still used by the browse experience at /channels. */
   --font-die-grotesk-b: 'Helvetica Neue', Arial, sans-serif;
   --font-die-grotesk-c: 'Helvetica Neue', Arial, sans-serif;
   --font-aeonik-fono: ui-monospace, monospace;
   --font-stk-bureau: Georgia, serif;
+
+  /* Feed type. Provided by next/font on <html>; fallbacks are last-resort. */
+  --font-display: var(--font-display-face, 'Bricolage Grotesque', Georgia, serif);
+  --font-body: var(--font-body-face, 'Hanken Grotesk', system-ui, sans-serif);
+
+  /* Modular scale, ratio 1.333 (perfect fourth) off a 16px base. */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-md: 1.333rem;
+  --text-lg: 1.78rem;
+  --text-xl: 2.37rem;
+  --text-2xl: 3.16rem;
+
+  /* 4px base. Tight within groups, generous between sections. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-10: 4rem;
+  --space-14: 5.5rem;
+
+  /* Two radii. The media surface sits at the 16px ceiling; pills for controls. */
+  --radius: 16px;
+  --radius-pill: 999px;
+
+  --rail-collapsed: 76px;
+  --rail-expanded: 264px;
+
+  /* Neutrals share the accent's family (hue 150 vs 143) but carry almost no
+     chroma, so the accent separates by saturation rather than by hue. */
+  --color-bg: oklch(0.16 0.012 150);
+  --color-surface: oklch(0.215 0.014 150);
+  --color-surface-2: oklch(0.265 0.016 150);
+  --color-fg: oklch(0.96 0.012 140);
+  --color-muted: oklch(0.7 0.016 148);
+  /* Forest-leaning green, nudged off the yellow of the old slime value:
+     L 0.82 -> 0.70, hue 143 -> 150. Chroma necessarily drops to 0.185
+     because darkening inside a narrow sRGB hue costs saturation.
+     Renders #1ebd5b. Text on it 7.3:1; ring against the ground 7.8:1. */
+  --color-accent: oklch(0.7 0.185 150);
+  --color-accent-hover: oklch(0.76 0.175 150);
+  --color-accent-fg: oklch(0.2 0.045 149);
+
+  /* Functional signals only. Never decoration. */
+  --color-success: var(--color-accent);
+  --color-warning: oklch(0.8 0.15 78);
+  --color-error: oklch(0.68 0.19 22);
+
+  /* GREEN IS RESERVED FOR INTERACTION. It appears only on things you can act
+     on or that are currently selected or focused: primary buttons, pressed
+     toggles, the active filter, hover states, link hovers, and the focus ring.
+     Status dots, live pills, monograms, numerals, the brand mark, the progress
+     readout, and the scrollbar are all neutral. */
+
+  /* The one shadow approach: light spilling off a lit object. Neutral, because
+     the glow is material, not an interaction. One hero object per view. */
+  --glow-card: 0 14px 34px -20px oklch(0.96 0.01 140 / 0.1);
+
+  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+
+  --scrollbar-size: 14px;
+  /* Neutral on purpose: the scrollbar is a surface affordance, not an
+     interaction point, and green here would spend the accent for nothing. */
+  --scrollbar-thumb: oklch(0.7 0.01 150 / 0.35);
+  --scrollbar-thumb-hover: oklch(0.8 0.01 150 / 0.5);
 }
 
 * {
@@ -13,5 +89,56 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: #11100f;
+  background: var(--color-bg);
+}
+
+body {
+  color: var(--color-fg);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Scrollbars: a transparent gutter is always reserved, so laying out on a
+   page that does scroll never shifts content sideways. The thumb floats in
+   that reserved track. */
+* {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  /* 2px of the 14px track reads as the transparent gutter, leaving a 10px
+     grabbable thumb. A thicker inset would leave too little of it. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--radius-pill);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 1ms;
+  }
 }

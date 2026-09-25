@@ -1,0 +1,71 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding-inline: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-2);
+  color: var(--color-fg);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease-out),
+    transform var(--duration) var(--ease-out);
+}
+
+.button:hover {
+  background: oklch(0.32 0.018 150);
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+/* Fixed widths, sized to the longest label each button ever shows. */
+.follow {
+  width: 142px;
+}
+
+.share {
+  width: 150px;
+}
+
+.chip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: -6px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-muted);
+  transition: background var(--duration) var(--ease-out),
+    color var(--duration) var(--ease-out);
+}
+
+/* Only the chip takes the accent. The label stays in normal ink outside it,
+   and its weight never changes, so nothing reflows. */
+.follow[aria-pressed='true'] {
+  color: var(--color-fg);
+}
+
+.follow[aria-pressed='true'] .chip {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .chip {
+    transition: none;
+  }
+
+  .button:active {
+    transform: none;
+  }
+}

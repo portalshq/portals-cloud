@@ -1,10 +1,10 @@
-import { ChannelsExperience } from '@/components/channels/ChannelsExperience'
+import { ChannelFeed } from '@/components/feed/ChannelFeed'
 
 export const metadata = {
-  title: 'Channels | portals',
-  description: 'Living, interactive experiences built on Portals.',
+  title: 'channels',
+  description: 'Rooms to gather, play, watch, and leave a mark.',
 }
 
-export default function ChannelsPage() {
-  return <ChannelsExperience />
+export default function HomePage() {
+  return <ChannelFeed />
 }
