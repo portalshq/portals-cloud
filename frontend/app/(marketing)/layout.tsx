@@ -1,27 +1,8 @@
-import type { Metadata } from 'next'
 import { MarketingHeader } from '@/components/MarketingHeader'
 import { MarketingFooter } from '@/components/marketing/MarketingFooter'
-import { canonical, SITE_DESCRIPTION } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'),
-  title: 'Production memory for AI-native creative teams | portals',
-  description: SITE_DESCRIPTION,
-  icons: { icon: '/favicon.svg' },
-  robots: 'index, follow',
-  alternates: { canonical: canonical('/') },
-  openGraph: {
-    title: 'Production memory for AI-native creative teams | portals',
-    description: SITE_DESCRIPTION,
-    type: 'website',
-    siteName: 'portals',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Production memory for AI-native creative teams | portals',
-    description: SITE_DESCRIPTION,
-  },
-}
+// Metadata is inherited from app/layout.tsx via baseSiteMetadata() —
+// single source in src/lib/seo.ts. Do not duplicate it here.
 
 export default function MarketingLayout({
   children,

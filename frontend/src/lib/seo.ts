@@ -9,6 +9,9 @@ export const SITE_TAGLINE =
 export const SITE_DESCRIPTION =
   'portals preserves every version and creative decision behind your best assets, so your teams can build on previous work, deliver faster, and scale production.'
 
+// Default share image for all marketing pages. File lives in public/.
+export const DEFAULT_OG_IMAGE = '/og-image.jpg'
+
 export function siteUrl() {
   return SITE_URL
 }
@@ -36,7 +39,7 @@ export function marketingMetadata({
   path,
   keywords,
   type = 'website',
-  image,
+  image = DEFAULT_OG_IMAGE,
   noIndex,
   publishedTime,
   modifiedTime,
@@ -66,6 +69,18 @@ export function marketingMetadata({
       description,
       ...(image ? {images: [image]} : undefined),
     },
+  }
+}
+
+/** Single source for root + marketing layout defaults. Keeps them unified. */
+export function baseSiteMetadata(): Metadata {
+  return {
+    ...marketingMetadata({
+      title: 'Production memory for AI-native creative teams | portals',
+      description: SITE_DESCRIPTION,
+      path: '/',
+    }),
+    icons: {icon: '/favicon.svg'},
   }
 }
 

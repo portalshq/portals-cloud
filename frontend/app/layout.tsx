@@ -1,27 +1,9 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Providers } from './providers'
-import { canonical, orgWebSiteJsonLd, SITE_DESCRIPTION } from '@/lib/seo'
+import { baseSiteMetadata, orgWebSiteJsonLd } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'),
-  title: 'Production memory for AI-native creative teams | portals',
-  description: SITE_DESCRIPTION,
-  icons: { icon: '/favicon.svg' },
-  robots: 'index, follow',
-  alternates: { canonical: canonical('/') },
-  openGraph: {
-    title: 'Production memory for AI-native creative teams | portals',
-    description: SITE_DESCRIPTION,
-    type: 'website',
-    siteName: 'portals',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Production memory for AI-native creative teams | portals',
-    description: SITE_DESCRIPTION,
-  },
-}
+export const metadata: Metadata = baseSiteMetadata()
 
 export default function RootLayout({
   children,

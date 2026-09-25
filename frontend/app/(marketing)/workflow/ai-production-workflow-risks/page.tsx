@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { DEFAULT_OG_IMAGE } from '@/lib/seo'
 import { getResourceDocument } from '@/sanity/lib/resources'
 import {getKnownLeadContext} from '@/lib/leads/profile'
 import { ResourceBriefClient } from './client'
@@ -25,6 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: 'article',
       title: document.seo?.shareTitle || document.seo?.metaTitle || document.title,
       description: document.seo?.shareDescription || document.seo?.metaDescription || document.abstract,
+      images: [{url: document.seo?.shareImageUrl || DEFAULT_OG_IMAGE}],
     },
   }
 }
