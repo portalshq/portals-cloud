@@ -1,0 +1,252 @@
+.feed {
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-gutter: stable;
+}
+
+/* --- Feed position indicator --- */
+
+.progress {
+  position: fixed;
+  inset-block: 0;
+  right: 0;
+  z-index: 30;
+  width: 3px;
+  background: var(--color-surface);
+}
+
+.progressFill {
+  position: absolute;
+  inset: 0;
+  background: var(--color-muted);
+  transform-origin: top;
+  transition: transform 90ms linear;
+}
+
+/* --- Panels --- */
+
+.panel {
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: grid;
+  place-items: center;
+  padding: var(--space-10) var(--space-6);
+  padding-inline-start: calc(var(--rail-collapsed) + var(--space-6));
+  padding-inline-end: calc(var(--space-6) + var(--scrollbar-size));
+}
+
+.stack {
+  width: 100%;
+  /* Bounds the group so the centred column does not strand the video in a
+     very wide void on large displays. */
+  max-width: 1100px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+/* The frame takes whatever height the text leaves over, so the player can
+   grow into it. It is a grid so the video's height: 100% resolves against a
+   definite grid area, which is what lets the aspect ratio derive its width. */
+.videoFrame {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* The stack is align-items: flex-start so the text keeps its left edge, which
+     would otherwise shrink this frame to min-content. */
+  width: 100%;
+  display: grid;
+}
+
+/* The signature move: the stream is a lit object, its edge defined by a
+   lightness step off the ground plus a tight jade bloom. No hairline. */
+.video {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--glow-card);
+  overflow: hidden;
+}
+
+/* Below the mobile breakpoint the frame is the whole player, so the video
+   fills it and the 16:9 ratio is dropped; object-fit: cover crops instead of
+   letterboxing. */
+.video video,
+.video img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.videoNote {
+  position: absolute;
+  inset: auto 0 0 0;
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  /* Opaque, so status text over arbitrary video content keeps its contrast. */
+  background: var(--color-bg);
+  font-size: var(--text-sm);
+  color: var(--color-fg);
+}
+
+.video[data-state='error'] .videoNote {
+  color: var(--color-error);
+}
+
+/* --- Type --- */
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-muted);
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 5.4vw, var(--text-2xl));
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--color-fg);
+}
+
+.byline {
+  margin: var(--space-2) 0 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--text-base);
+  color: var(--color-fg);
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.source svg {
+  color: var(--color-muted);
+}
+
+.description {
+  margin: 0;
+  max-width: 62ch;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+
+/* --- Actions, ranked by importance --- */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.primary,
+.save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding-inline: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease-out),
+    transform var(--duration) var(--ease-out);
+}
+
+.primary {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  font-weight: 600;
+  padding-inline: var(--space-6);
+}
+
+.primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.save {
+  background: var(--color-surface-2);
+  color: var(--color-fg);
+  font-weight: 500;
+}
+
+.save:hover {
+  background: oklch(0.32 0.018 150);
+}
+
+.primary:active,
+.save:active {
+  transform: scale(0.97);
+}
+
+@media (min-width: 641px) {
+  /* Fill the leftover height and keep 16:9. The frame stretches the video, so
+     the ratio derives the width from that height. max-width keeps it inside
+     the column on narrow desktop windows, where the slight crop is the
+     cheaper trade than overflow. */
+  .video {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    /* Share the text's left edge rather than floating in the middle of it. */
+    justify-self: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    padding: var(--space-6) var(--space-5);
+    padding-bottom: calc(60px + var(--space-8));
+  }
+
+  .name {
+    font-size: clamp(1.9rem, 8vw, 2.4rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressFill,
+  .primary,
+  .save {
+    transition: none;
+  }
+
+  .primary:active,
+  .save:active {
+    transform: none;
+  }
+}
