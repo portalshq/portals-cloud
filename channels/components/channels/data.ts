@@ -12,10 +12,21 @@ export type Channel = {
   source: string
   stream: string
 }
+/* Placeholder HLS test assets so the player is genuinely live out of the box.
+   Prefer sources that serve segments as a real media type, like `video/MP2T`
+   here: the `test-streams.mux.dev` assets answer `application/octet-stream`,
+   which Chrome treats as an opaque response and blocks once a session is torn
+   down and rebuilt. The new session then loads a fragment and never advances
+   past 0:00, and no amount of play() or retry brings it back. That is fine on a
+   channel page, where the stream is created once, but in the feed every panel
+   change is a teardown, so a channel on the bunny asset will hold on first
+   arrival and freeze if you scroll away and come back. Swap `stream` per
+   channel when real manifests exist. */
+export const PLACEHOLDER_STREAM =
+  'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8'
 
-/* Placeholder HLS test asset so the player is genuinely live out of the box.
-   Swap `stream` per channel when real manifests exist. */
-export const PLACEHOLDER_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
+/** Big Buck Bunny, the long-standing Mux test asset. */
+export const BUNNY_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
 
 export const channels: Channel[] = [
   {
@@ -38,7 +49,7 @@ export const channels: Channel[] = [
     live: true,
     viewers: '887 listening',
     source: 'Live radio',
-    stream: PLACEHOLDER_STREAM,
+    stream: BUNNY_STREAM,
   },
   {
     slug: 'signal-syndicate',
@@ -48,7 +59,7 @@ export const channels: Channel[] = [
     category: 'Play',
     viewers: '614 playing',
     source: 'Co-op play',
-    stream: PLACEHOLDER_STREAM,
+    stream: BUNNY_STREAM,
   },
   {
     slug: 'unfolding',
@@ -68,7 +79,7 @@ export const channels: Channel[] = [
     category: 'Stories',
     viewers: 'New episode Friday',
     source: 'Live video',
-    stream: PLACEHOLDER_STREAM,
+    stream: BUNNY_STREAM,
   },
   {
     slug: 'little-planet',

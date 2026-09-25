@@ -1,64 +1,45 @@
 'use client'
 
-import { VideoDeliveryPlayer } from '@portalshq/capability-video-delivery/react'
 import { ArrowUpRight, Heart, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FollowButton, ShareButton } from '@/components/channels/actions'
+import { ChannelStream } from '@/components/channels/ChannelStream'
 import { channels, type Channel } from '@/components/channels/data'
+import { useOnScreen } from '@/components/channels/use-on-screen'
 import { Rail } from '@/components/shell/Rail'
 import styles from './ChannelFeed.module.css'
 
-/* Structural type only: PlaybackObservation is not re-exported from /react. */
-type Observation = { state: string; attempt: number }
-
-function ChannelVideo({ channel }: { channel: Channel }) {
-  const [observation, setObservation] = useState<Observation>({ state: 'loading', attempt: 0 })
-  const playback = useMemo(
-    () => ({ sessionId: `channel-${channel.slug}`, playbackManifestUrl: channel.stream }),
-    [channel.slug, channel.stream],
-  )
-
-  const { state, attempt } = observation
-  const settled = state === 'playing'
-  const message =
-    state === 'error'
-      ? 'This stream is resting. It will come back on its own.'
-      : state === 'reconnecting'
-        ? `Reconnecting, attempt ${attempt + 1}`
-        : 'Tuning in'
-
-  return (
-    <div className={styles.video} data-state={state}>
-      <VideoDeliveryPlayer
-        playback={playback}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-label={`${channel.title} channel preview`}
-        onPlaybackObservation={setObservation}
-      />
-      {!settled && (
-        <p className={styles.videoNote} role="status">
-          {message}
-        </p>
-      )}
-    </div>
-  )
-}
-
-function ChannelPanel({ channel, active }: { channel: Channel; active: boolean }) {
+function ChannelPanel({
+  channel,
+  live,
+  onVisible,
+}: {
+  channel: Channel
+  live: boolean
+  onVisible: (slug: string) => void
+}) {
   const headingId = `channel-${channel.slug}`
+  const [ref, { visible }] = useOnScreen<HTMLElement>()
+
+  useEffect(() => {
+    if (visible) onVisible(channel.slug)
+  }, [visible, channel.slug, onVisible])
 
   return (
-    <section className={styles.panel} aria-labelledby={headingId}>
+    <section className={styles.panel} aria-labelledby={headingId} ref={ref}>
       <div className={styles.stack}>
-        {/* Only the panel in view holds a live stream. */}
         <div className={styles.videoFrame}>
-          {active ? (
-            <ChannelVideo channel={channel} />
+          {/* Exactly one panel in the feed holds a stream. The inert box holds
+              the frame's size before it does, so nothing shifts on mount. */}
+          {live ? (
+            <div className={styles.video}>
+              <ChannelStream
+                channel={channel}
+                noteClassName={styles.videoNote}
+                paused={!visible}
+              />
+            </div>
           ) : (
             <div className={styles.video} aria-hidden="true" />
           )}
@@ -107,29 +88,64 @@ function ChannelPanel({ channel, active }: { channel: Channel; active: boolean }
 
 export function ChannelFeed() {
   const scroller = useRef<HTMLElement | null>(null)
+  const scrollable = useRef(0)
+  const viewport = useRef(0)
+  const frame = useRef(0)
   const [activeIndex, setActiveIndex] = useState(0)
   const [progress, setProgress] = useState(0)
+  const [live, setLive] = useState<string | null>(null)
 
+  /* The feed holds one stream at a time. Which panel that is comes from that
+     panel's own visibility, not from scroll arithmetic, so a stream is never
+     started for a panel that is not on screen and never dropped for one that
+     is. */
+  const takeOver = useCallback((slug: string) => {
+    setLive(slug)
+  }, [])
+
+  /* Only the progress rail and the rail counter read scroll position now.
+     Which stream is live is decided by each panel's own visibility, so this
+     never gates playback. */
   const measure = useCallback(() => {
     const element = scroller.current
     if (!element) return
-    const scrollable = element.scrollHeight - element.clientHeight
-    setProgress(scrollable > 0 ? element.scrollTop / scrollable : 0)
-    const index = Math.round(element.scrollTop / element.clientHeight)
-    setActiveIndex(Math.min(channels.length - 1, Math.max(0, index)))
+    setProgress(scrollable.current > 0 ? element.scrollTop / scrollable.current : 0)
+    setActiveIndex(
+      Math.min(channels.length - 1, Math.max(0, Math.round(element.scrollTop / viewport.current))),
+    )
   }, [])
+
+  /* Panel height and total scroll distance are stable between resizes, so they
+     are cached instead of read per event, and scroll events collapse into one
+     frame of work rather than one render each. */
+  const resize = useCallback(() => {
+    const element = scroller.current
+    if (!element) return
+    scrollable.current = element.scrollHeight - element.clientHeight
+    viewport.current = element.clientHeight
+    measure()
+  }, [measure])
+
+  const onScroll = useCallback(() => {
+    if (frame.current) return
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0
+      measure()
+    })
+  }, [measure])
 
   useEffect(() => {
     const element = scroller.current
     if (!element) return
-    measure()
-    element.addEventListener('scroll', measure, { passive: true })
-    window.addEventListener('resize', measure)
+    resize()
+    element.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', resize)
     return () => {
-      element.removeEventListener('scroll', measure)
-      window.removeEventListener('resize', measure)
+      element.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', resize)
+      if (frame.current) cancelAnimationFrame(frame.current)
     }
-  }, [measure])
+  }, [onScroll, resize])
 
   return (
     <>
@@ -140,11 +156,12 @@ export function ChannelFeed() {
       </div>
 
       <main className={styles.feed} ref={scroller}>
-        {channels.map((channel, index) => (
+        {channels.map((channel) => (
           <ChannelPanel
             key={channel.slug}
             channel={channel}
-            active={index === activeIndex}
+            live={live === channel.slug}
+            onVisible={takeOver}
           />
         ))}
       </main>
