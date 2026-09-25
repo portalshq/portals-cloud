@@ -58,4 +58,26 @@ describe("HlsPlaybackController", () => {
     controller.destroy();
     expect(destroy).toHaveBeenCalledOnce();
   });
+
+  it("ignores a stalled element rather than treating it as a lost stream", async () => {
+    vi.useFakeTimers();
+    const element = media(true);
+    const observations: PlaybackObservation[] = [];
+    const controller = new HlsPlaybackController({
+      media: element,
+      session: { playbackManifestUrl: "https://media.example/live.m3u8" },
+      onObservation: (observation) => observations.push(observation),
+    });
+
+    await controller.attach();
+    element.onplaying?.(new Event("playing"));
+    /* Chrome fires this on a healthy MSE stream; it must not tear playback down. */
+    element.onstalled?.(new Event("stalled"));
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(element.onstalled).toBeNull();
+    expect(observations.map(({ state }) => state)).toEqual(["loading", "playing"]);
+    controller.destroy();
+    vi.useRealTimers();
+  });
 });
