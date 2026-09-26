@@ -52,7 +52,13 @@ jobs:
       - name: Audit Rust dependencies
         run: |
           cargo install cargo-audit --version 0.22.2 --locked
-          cargo audit --file control-plane/Cargo.lock
+          # aws-smithy-http-client retains legacy h2/rustls; rsa has no fixed release.
+          cargo audit --file control-plane/Cargo.lock \
+            --ignore RUSTSEC-2026-0258 \
+            --ignore RUSTSEC-2026-0098 \
+            --ignore RUSTSEC-2026-0099 \
+            --ignore RUSTSEC-2026-0104 \
+            --ignore RUSTSEC-2023-0071
           cargo audit --file infra/lore/lore/Cargo.lock
 
       - name: Check Lore security implementation
