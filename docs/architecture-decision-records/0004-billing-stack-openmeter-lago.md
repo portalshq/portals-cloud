@@ -16,9 +16,12 @@ engineering that doesn't differentiate the platform.
 Two open-source tools, each owning a distinct layer:
 
 **OpenMeter** (Apache 2.0, Go, Kafka + ClickHouse): raw usage metering.
-- Receives CloudEvents from `@px/billing-metering` in `runtime-core`
-- Aggregates into 5 billable meters (capability-invocations, session-minutes,
-  peak-concurrent-viewers, storage-written-bytes, marketplace-gmv-cents)
+- Receives CloudEvents from whichever application emits them. This is *not*
+  limited to `runtime-core`; see "Instrumentation boundary" below.
+- Aggregates into 5 meters: 4 tenant-billable (capability-invocations,
+  session-minutes, peak-concurrent-viewers, storage-written-bytes) plus
+  marketplace-gmv-cents, which is the platform's rake basis and is never
+  invoiced to a tenant.
 - Exposes usage query API consumed by `BillingSync`
 - Chosen over building a custom metering pipeline: handles deduplication,
   tumbling-window aggregation, and backfill out of the box. Founded by ex-Netflix
@@ -26,7 +29,7 @@ Two open-source tools, each owning a distinct layer:
 
 **Lago** (AGPL v3, Ruby API): billing engine + invoicing.
 - Consumes OpenMeter aggregates via `BillingSync` CronJob (hourly)
-- Applies pricing plans (`@px/billing-engine/src/plans.ts`) against usage
+- Applies pricing plans (`@portalshq/platform-billing/src/plans.ts`) against usage
 - Generates invoices per tenant per billing cycle
 - Pushes to Stripe for payment collection
 - Chosen over Kill Bill: Lago is developer-first and usage-based-first;
@@ -41,7 +44,7 @@ thousands of tenants each having their own pricing catalogs.
 **Stripe + Stripe Connect**: payment rail only. Lago drives billing logic
 and pushes payment intents to Stripe. Stripe Connect handles marketplace
 provider payouts at 0.25% + $0.25/transfer, which is absorbed by the
-platform rake in `@px/billing-marketplace`.
+platform rake in `@portalshq/policy`.
 
 ## NATS → Kafka gap
 OpenMeter natively consumes Kafka. The existing platform infra uses NATS
@@ -52,11 +55,21 @@ joined/left at audience scale) go through a Redpanda Connect bridge
 (see `infra/k8s/base/benthos-bridge.yaml`).
 
 ## Instrumentation boundary
-`@px/billing-metering` is imported ONLY by `@px/runtime-core`. Capability
-packages do not emit metering events. Capabilities report outputs through
-their contracts; the runtime cross-cuts billing. This boundary must be
-maintained in review — if a capability package ever imports billing-metering,
-something went wrong with the abstraction.
+`MeteringClient` is the single emission surface, exported from
+`@portalshq/platform-billing`. Capability packages do not emit metering events;
+they report outputs through their contracts, and the runtime or the application
+emits the billable event.
+
+**Correction (2026-09).** This section previously claimed that
+`billing-metering` was imported *only* by `runtime-core`, and instructed
+reviewers to reject any other importer. That was never true: `runtime-core`
+declared no dependencies and emitted nothing, while application code (for
+example `massively-social-ebook`'s monetization settlement) imported the client
+directly. The rule is restated rather than enforced against a false premise.
+
+The boundary that does hold, and is worth keeping, is the narrower one: capability
+packages must not import it. If a capability package starts emitting metering
+events, the abstraction is wrong.
 
 ## AGPL note on Lago
 Lago's self-hosted version is AGPL v3. AGPL requires that if you distribute

@@ -1,0 +1,39 @@
+{
+  "name": "@portalshq/platform-billing",
+  "version": "0.0.5",
+  "description": "Usage metering and infrastructure invoicing for Portals tenants. Emits billable events to OpenMeter and prices them through Lago.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud.git",
+    "directory": "packages/platform-billing"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@portalshq/policy": "*",
+    "stripe": "^22.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

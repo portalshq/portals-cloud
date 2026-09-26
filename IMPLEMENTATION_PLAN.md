@@ -146,7 +146,7 @@ The merged files (realtime-engine.ts, state-cache.ts) were copied but may need t
    - Add OpenMeter instrumentation hooks in SessionOrchestrator
    - Meter session start/end events
    - Meter capability invocations
-   - Connect to @portalshq/billing-metering package
+   - Connect to @portalshq/platform-billing package
 
 4. **Update session lifecycle**
    - Ensure lazy-start is honored (no compute until first viewer)

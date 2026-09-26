@@ -1,9 +1,10 @@
 'use client'
 
-import { ArrowUpRight, Heart, Sparkles } from 'lucide-react'
+import { ArrowUpRight, Heart } from 'lucide-react'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FollowButton, ShareButton } from '@/components/channels/actions'
+import { ChannelMeta } from '@/components/channels/ChannelMeta'
 import { ChannelStream } from '@/components/channels/ChannelStream'
 import { channels, type Channel } from '@/components/channels/data'
 import { useOnScreen } from '@/components/channels/use-on-screen'
@@ -45,24 +46,11 @@ function ChannelPanel({
           )}
         </div>
 
-        <div className={styles.status}>
-          <span className={styles.statusDot} aria-hidden="true" />
-          <span>{channel.live ? 'Live now' : channel.viewers}</span>
-          <span aria-hidden="true">·</span>
-          <span>{channel.category}</span>
-        </div>
-
         <div>
           <h2 className={styles.name} id={headingId}>
             {channel.title}
           </h2>
-          <p className={styles.byline}>
-            {channel.by}
-            <span className={styles.source}>
-              <Sparkles size={13} strokeWidth={1.75} aria-hidden="true" />
-              {channel.source}
-            </span>
-          </p>
+          <ChannelMeta channel={channel} />
         </div>
 
         <p className={styles.description}>{channel.description}</p>
@@ -89,9 +77,7 @@ function ChannelPanel({
 export function ChannelFeed() {
   const scroller = useRef<HTMLElement | null>(null)
   const scrollable = useRef(0)
-  const viewport = useRef(0)
   const frame = useRef(0)
-  const [activeIndex, setActiveIndex] = useState(0)
   const [progress, setProgress] = useState(0)
   const [live, setLive] = useState<string | null>(null)
 
@@ -103,26 +89,21 @@ export function ChannelFeed() {
     setLive(slug)
   }, [])
 
-  /* Only the progress rail and the rail counter read scroll position now.
-     Which stream is live is decided by each panel's own visibility, so this
-     never gates playback. */
+  /* Only the progress rail reads scroll position now. Which stream is live is
+     decided by each panel's own visibility, so this never gates playback. */
   const measure = useCallback(() => {
     const element = scroller.current
     if (!element) return
     setProgress(scrollable.current > 0 ? element.scrollTop / scrollable.current : 0)
-    setActiveIndex(
-      Math.min(channels.length - 1, Math.max(0, Math.round(element.scrollTop / viewport.current))),
-    )
   }, [])
 
-  /* Panel height and total scroll distance are stable between resizes, so they
-     are cached instead of read per event, and scroll events collapse into one
-     frame of work rather than one render each. */
+  /* Total scroll distance is stable between resizes, so it is cached instead of
+     read per event, and scroll events collapse into one frame of work rather
+     than one render each. */
   const resize = useCallback(() => {
     const element = scroller.current
     if (!element) return
     scrollable.current = element.scrollHeight - element.clientHeight
-    viewport.current = element.clientHeight
     measure()
   }, [measure])
 
@@ -149,7 +130,7 @@ export function ChannelFeed() {
 
   return (
     <>
-      <Rail position={{ current: activeIndex + 1, total: channels.length }} />
+      <Rail />
 
       <div className={styles.progress} aria-hidden="true">
         <span className={styles.progressFill} style={{ transform: `scaleY(${progress})` }} />

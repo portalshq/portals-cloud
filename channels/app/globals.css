@@ -33,7 +33,6 @@
   --space-6: 2rem;
   --space-8: 3rem;
   --space-10: 4rem;
-  --space-14: 5.5rem;
 
   /* Two radii. The media surface sits at the 16px ceiling; pills for controls. */
   --radius: 16px;
@@ -135,6 +134,30 @@ body {
 
 *::-webkit-scrollbar-thumb:hover {
   background-color: var(--scrollbar-thumb-hover);
+}
+
+/* Every icon shares one ink so the set reads as one family rather than a mix
+   of greys. Outline is the default — a glyph opts into being filled with
+   `.filled`, so an icon added later comes in outlined rather than accidentally
+   solid. */
+.lucide {
+  color: var(--color-fg);
+}
+
+.lucide.filled {
+  fill: currentColor;
+}
+
+/* A channel room's only scroll is past the player, and the scrollbar sat
+   against the video where it read as part of the player. The gutter stays
+   reserved so nothing shifts; only the thumb is hidden. The browse index keeps
+   its scrollbar, since there the scroll is the page. */
+html:has([data-channel-room]) {
+  scrollbar-width: none;
+}
+
+html:has([data-channel-room])::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
