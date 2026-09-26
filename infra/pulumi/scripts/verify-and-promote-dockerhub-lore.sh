@@ -31,7 +31,13 @@ jq -e --arg commit "${PACKAGING_COMMIT}" '.. | strings | select(. == $commit)' >
 jq -e --arg build_id "${BUILD_ID}" '.. | strings | select(. == $build_id)' >/dev/null <<<"${PROVENANCE}" || { echo "provenance does not bind build ID" >&2; exit 1; }
 jq -e --arg base_image "${BASE_IMAGE}" '.. | strings | select(. == $base_image)' >/dev/null <<<"${PROVENANCE}" || { echo "provenance does not bind base image" >&2; exit 1; }
 
-cosign verify --certificate-identity "${COSIGN_CERTIFICATE_IDENTITY}" --certificate-oidc-issuer https://token.actions.githubusercontent.com "${IMAGE}" >/dev/null
+for attempt in {1..6}; do
+  if cosign verify --certificate-identity "${COSIGN_CERTIFICATE_IDENTITY}" --certificate-oidc-issuer https://token.actions.githubusercontent.com "${IMAGE}" >/dev/null; then
+    break
+  fi
+  [[ "${attempt}" -lt 6 ]] || { echo "signature was not available from the registry" >&2; exit 1; }
+  sleep "$((attempt * 5))"
+done
 if command -v trivy >/dev/null; then
   TRIVY_BIN=trivy
 else
