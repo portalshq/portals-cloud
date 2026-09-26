@@ -14,8 +14,6 @@ const links = [
 type RailProps = {
   /** Page-specific links rendered under the primary navigation. */
   children?: ReactNode
-  /** Position in a sequence, shown above the profile chip. */
-  position?: { current: number; total: number }
 }
 
 /**
@@ -23,7 +21,7 @@ type RailProps = {
  * clip-path, so the reveal never animates a layout property. Labels live in
  * the clipped region at opacity 0 and fade in on open.
  */
-export function Rail({ children, position }: RailProps) {
+export function Rail({ children }: RailProps) {
   const pathname = usePathname()
 
   return (
@@ -50,22 +48,8 @@ export function Rail({ children, position }: RailProps) {
       {children}
 
       <div className={styles.foot}>
-        {position && (
-          <p className={styles.counter}>
-            {position.current} of {position.total}
-          </p>
-        )}
         <button className={styles.profile} type="button">
           VC
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true">
-            <path
-              d="m9 6 6 6-6 6"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
         </button>
         <span className={styles.wordmark}>channels</span>
       </div>

@@ -43,6 +43,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Install Rollup Linux native binary
+        run: |
+          ROLLUP_VERSION="$(node -p "require('./node_modules/rollup/package.json').version")"
+          npm install --ignore-scripts --no-save --package-lock=false "@rollup/rollup-linux-x64-gnu@${ROLLUP_VERSION}"
+
       # The Changesets Action automates the PR creation, tagging, and execution
       - name: Run Changeset Engine
         id: changesets

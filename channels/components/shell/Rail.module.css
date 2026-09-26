@@ -79,9 +79,6 @@
   background: var(--color-surface-2);
 }
 
-.link[aria-current] svg {
-  color: var(--color-accent);
-}
 
 .foot {
   margin-top: auto;
@@ -92,12 +89,6 @@
   padding-inline: var(--space-2);
 }
 
-.counter {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-}
 
 .profile {
   display: inline-flex;
@@ -116,25 +107,13 @@
   transition: background var(--duration) var(--ease-out);
 }
 
-.profile svg {
-  color: var(--color-muted);
-  opacity: 0;
-  transition: opacity var(--duration) var(--ease-out);
-}
 
-.rail:hover .profile svg,
-.rail:focus-within .profile svg {
-  opacity: 1;
-}
 
 .profile:hover {
   background: var(--color-accent);
   color: var(--color-accent-fg);
 }
 
-.profile:hover svg {
-  color: currentColor;
-}
 
 /* --- Narrow viewports: a bottom bar, so the rail stops eating the screen --- */
 
