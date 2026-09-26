@@ -16,13 +16,17 @@ export class BillingSync {
   ) {}
 
   async syncTenant(tenantId: string, fromIso: string, toIso: string): Promise<void> {
-    // 1. Query OpenMeter for each billable meter for this tenant
+    // 1. Query OpenMeter for each *tenant-billable* meter for this tenant.
+    //
+    // `marketplace-gmv-cents` is deliberately absent. It is the basis on which
+    // the platform computes its own rake, so billing it to a tenant would charge
+    // the tenant for the platform's revenue. Rake is settled on the payout side
+    // in `@portalshq/monetization`, using the rates in `@portalshq/policy`.
     const meters = [
       "capability-invocations",
       "session-minutes",
       "storage-written-bytes",
       "peak-concurrent-viewers",
-      "marketplace-gmv-cents",
     ];
 
     const records: LagoUsageRecord[] = [];

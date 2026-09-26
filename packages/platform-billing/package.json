@@ -1,11 +1,11 @@
 {
-  "name": "@portalshq/billing",
-  "version": "0.1.2",
-  "description": "Stripe platform billing and Connect payouts for Portals channels.",
+  "name": "@portalshq/platform-billing",
+  "version": "0.0.5",
+  "description": "Usage metering and infrastructure invoicing for Portals tenants. Emits billable events to OpenMeter and prices them through Lago.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/portalshq/portals-cloud.git",
-    "directory": "packages/billing"
+    "directory": "packages/platform-billing"
   },
   "type": "module",
   "main": "dist/index.js",
@@ -18,23 +18,19 @@
   },
   "files": [
     "dist",
-    "sql",
     "README.md"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "pg": "^8.16.3",
+    "@portalshq/policy": "*",
     "stripe": "^22.4.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@types/pg": "^8.15.5",
-    "typescript": "^5.5.0",
-    "vitest": "^3.2.7"
+    "typescript": "^5.5.0"
   },
   "publishConfig": {
     "access": "public",

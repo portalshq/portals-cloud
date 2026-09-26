@@ -29,9 +29,16 @@ export class LagoClient {
   private baseUrl: string;
   private apiKey: string;
 
-  constructor(config?: { baseUrl?: string; apiKey?: string }) {
-    this.baseUrl = config?.baseUrl ?? process.env.LAGO_API_URL ?? "http://lago-api.portals-platform.svc.cluster.local:3000";
-    this.apiKey = config?.apiKey ?? process.env.LAGO_API_KEY ?? "";
+  /**
+   * The API key is required by injection; this package never reads the
+   * environment. The non-secret endpoint may fall back to the in-cluster
+   * default so a cluster deployment needs no configuration for it.
+   */
+  constructor(config: { apiKey: string; baseUrl?: string }) {
+    const apiKey = config.apiKey.trim();
+    if (!apiKey) throw new TypeError("Lago API key is required");
+    this.apiKey = apiKey;
+    this.baseUrl = config.baseUrl ?? process.env.LAGO_API_URL ?? "http://lago-api.portals-platform.svc.cluster.local:3000";
   }
 
   private async request(path: string, method: string, body?: unknown): Promise<unknown> {

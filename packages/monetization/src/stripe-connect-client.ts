@@ -5,8 +5,10 @@
  * That distinction matters: Transfers happen instantly within Stripe;
  * Payouts (connected account → bank) happen on the provider's schedule.
  *
- * STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are K8s secrets injected
- * as env vars. Never hardcode them.
+ * STRIPE_SECRET_KEY is resolved at the application boundary and injected via
+ * the constructor. The platform's own Stripe account holds the credential; each
+ * *tenant's* destination account is a Connect account id held in
+ * `monetization_tenant_profiles`, not a separate secret. Never hardcode either.
  */
 
 export interface ConnectTransfer {
@@ -20,9 +22,16 @@ export interface ConnectTransfer {
 export class StripeConnectClient {
   private secretKey: string;
 
-  constructor(secretKey?: string) {
-    this.secretKey = secretKey ?? process.env.STRIPE_SECRET_KEY ?? "";
-    if (!this.secretKey) throw new Error("STRIPE_SECRET_KEY is required");
+  /**
+   * The secret key is required by injection. This package never reads the
+   * environment: the application boundary resolves the credential and hands it
+   * over, so a library can never quietly pick up an ambient key, and tests
+   * cannot be influenced by one.
+   */
+  constructor(secretKey: string) {
+    const normalized = secretKey.trim();
+    if (!normalized) throw new TypeError("Stripe secret key is required");
+    this.secretKey = normalized;
   }
 
   /**

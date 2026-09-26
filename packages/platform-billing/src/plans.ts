@@ -6,8 +6,15 @@
  * mirror the monetization models from the ranking document.
  *
  * Lago plans are created via the Lago API or UI; this file is the
- * source-of-truth configuration that should be applied on first deployment
- * via the bootstrap script (see ../billing-engine/src/bootstrap.ts).
+ * source-of-truth configuration, applied on first deployment by
+ * `infra/compose/lago/seed.sh` (compose) or the equivalent Lago API call in a
+ * cluster. Do not edit plans directly in the Lago UI without updating this
+ * file, or the two diverge.
+ *
+ * `marketplace-gmv-cents` is intentionally not priced here. It is the basis for
+ * the platform's own rake, which is settled on the payout side in
+ * `@portalshq/monetization` using the rates in `@portalshq/policy`. Charging a
+ * tenant for it would bill them for the platform's revenue.
  *
  * All amounts in the currency's minor unit (cents for USD).
  */

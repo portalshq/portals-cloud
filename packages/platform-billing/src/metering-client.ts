@@ -51,7 +51,7 @@ export class MeteringClient {
       clearTimeout(timeout);
     } catch (err) {
       // Fire-and-forget — log, never throw
-      console.error("[billing-metering] Failed to emit event", { type: event.type, id: event.id, err });
+      console.error("[platform-billing] Failed to emit event", { type: event.type, id: event.id, err });
     }
   }
 

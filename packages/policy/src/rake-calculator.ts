@@ -18,6 +18,13 @@ const RAKE_RATES: Record<TransactionType, number> = {
   "creator-purchase":      0.10,  // 10% on one-time purchases/unlocks
 };
 
+/**
+ * Single source of truth for rake rates. Exported so the tenant-invoicing side
+ * (`@portalshq/platform-billing`) can report a tenant's rake liability against
+ * the same numbers the payout side charges, instead of duplicating the table.
+ */
+export const PLATFORM_RAKE_RATES = RAKE_RATES;
+
 export interface RakeResult {
   grossAmountCents: number;
   platformRakeCents: number;
