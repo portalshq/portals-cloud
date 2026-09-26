@@ -36,6 +36,9 @@ jobs:
       - name: Verify no deployable private keys or AWS access keys
         run: ./infra/pulumi/scripts/scan-repository-secrets.sh
 
+      - name: Install Protocol Buffers compiler
+        run: sudo apt-get update && sudo apt-get install --yes protobuf-compiler
+
       - name: Check and test Auth Gateway and control plane
         working-directory: control-plane
         env:
