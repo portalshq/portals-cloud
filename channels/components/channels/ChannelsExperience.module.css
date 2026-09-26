@@ -6,32 +6,25 @@
    overlay it without ever covering anything. */
 .page,
 .detail {
-  margin-inline-start: var(--rail-expanded);
-  max-width: calc(var(--rail-expanded) + 1180px);
-  padding: var(--space-14) var(--space-10);
-  padding-inline-end: calc(var(--space-10) + var(--scrollbar-size));
+  /* Same padding as the feed. Centred, and on its own measure: the feed's
+     700px is a feed measure and would squeeze the player, so this is its own
+     cap. */
+  width: 100%;
+  max-width: 1000px;
+  margin-inline: auto;
+  padding: var(--space-10) var(--space-6);
+  padding-inline-start: calc(var(--rail-collapsed) + var(--space-6));
+  padding-inline-end: calc(var(--space-6) + var(--scrollbar-size));
   display: flex;
   flex-direction: column;
-  gap: var(--space-14);
+  /* The player belongs to the header block — status, title, byline and player
+     read as one thing — so it sits a step under the byline. */
+  gap: var(--space-4);
 }
 
 /* --- Shared atoms --- */
 
-.status {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--color-muted);
-}
 
-.statusDot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-muted);
-}
 
 .pill {
   display: inline-flex;
@@ -45,17 +38,7 @@
   font-weight: 600;
 }
 
-.source {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-  color: var(--color-muted);
-}
 
-.source svg {
-  color: var(--color-muted);
-}
 
 .description {
   margin: 0;
@@ -230,7 +213,6 @@
   flex: none;
   width: 20px;
   height: 20px;
-  color: var(--color-accent);
   transition: transform var(--duration) var(--ease-out);
 }
 
@@ -561,13 +543,6 @@
   color: var(--color-fg);
 }
 
-.detail {
-  gap: var(--space-10);
-  /* A tighter measure than the index: this view is a single column of
-     reading plus one stage, so it should not stretch the full page width. */
-  max-width: calc(var(--rail-expanded) + 760px);
-}
-
 .detailHead {
   display: flex;
   flex-direction: column;
@@ -586,14 +561,6 @@
   color: var(--color-fg);
 }
 
-.detailByline {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  font-size: var(--text-base);
-  color: var(--color-fg);
-}
 
 .stageMedia {
   position: relative;
@@ -604,6 +571,10 @@
   background: var(--color-surface);
   box-shadow: var(--glow-card);
   overflow: hidden;
+  /* Same as the feed frame: `overflow: hidden` makes this a scroll container,
+     so the app-wide stable gutter reserved a strip inside the player and the
+     video came up 11px narrower than its box. */
+  scrollbar-gutter: auto;
 }
 
 /* The stage holds a live stream the same way the feed frame does, so the video
@@ -640,25 +611,6 @@
 
 .stageNote[data-state='error'] {
   color: var(--color-error);
-}
-
-.session {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  align-items: flex-start;
-  padding: var(--space-8);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-}
-
-.sessionHeading {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--color-fg);
 }
 
 /* --- Responsive --- */

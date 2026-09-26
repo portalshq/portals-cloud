@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Rail } from '@/components/shell/Rail'
 import { FollowButton, ShareButton } from './actions'
+import { ChannelMeta } from './ChannelMeta'
 import { ChannelStream } from './ChannelStream'
 import {
   browseCopy,
@@ -18,17 +19,6 @@ import { useOnScreen } from './use-on-screen'
 import styles from './ChannelsExperience.module.css'
 
 const initial = (title: string) => title.charAt(0)
-
-function StatusLine({ channel }: { channel: Channel }) {
-  return (
-    <p className={styles.status}>
-      <span className={styles.statusDot} aria-hidden="true" />
-      <span>{channel.live ? 'Live now' : channel.viewers}</span>
-      <span aria-hidden="true">·</span>
-      <span>{channel.category}</span>
-    </p>
-  )
-}
 
 function Actions({ channel }: { channel: Channel }) {
   return (
@@ -316,12 +306,7 @@ function Stage({ channel }: { channel: Channel }) {
         </span>
       )}
       {seen && (
-        <ChannelStream
-          channel={channel}
-          noteClassName={styles.stageNote}
-          settledMessage={channel.live ? 'Broadcasting right now' : channel.viewers}
-          paused={!visible}
-        />
+        <ChannelStream channel={channel} noteClassName={styles.stageNote} paused={!visible} />
       )}
     </div>
   )
@@ -330,41 +315,22 @@ function Stage({ channel }: { channel: Channel }) {
 function ChannelDetail({ channel }: { channel: Channel }) {
   return (
     <>
-      <Rail
-        position={{ current: channels.indexOf(channel) + 1, total: channels.length }}
-      >
+      <Rail>
         <Link className={styles.railBack} href="/channels">
           <ChevronLeft size={17} strokeWidth={1.75} aria-hidden="true" />
           <span data-rail-label>All channels</span>
         </Link>
       </Rail>
 
-      <main className={styles.detail}>
+      <main className={styles.detail} data-channel-room>
         <div className={styles.detailHead}>
-          <StatusLine channel={channel} />
           <h1 className={styles.detailTitle}>{channel.title}</h1>
-          <p className={styles.detailByline}>
-            {channel.by}
-            <span className={styles.source}>
-              <Sparkles size={13} strokeWidth={1.75} aria-hidden="true" />
-              {channel.source}
-            </span>
-          </p>
+          <ChannelMeta channel={channel} />
           <p className={styles.description}>{channel.description}</p>
           <Actions channel={channel} />
         </div>
 
         <Stage channel={channel} />
-
-        <section className={styles.session} aria-labelledby="session-heading">
-          <h2 className={styles.sessionHeading} id="session-heading">
-            Everyone is welcome mid-story
-          </h2>
-          <p className={styles.description}>
-            {browseCopy.detailLede} Come and go as you like; nothing resets while
-            you are away.
-          </p>
-        </section>
       </main>
     </>
   )

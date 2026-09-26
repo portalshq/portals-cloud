@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Share } from 'lucide-react'
+import { Bell, CornerUpRight } from 'lucide-react'
 import { useState } from 'react'
 import styles from './actions.module.css'
 
@@ -21,7 +21,7 @@ export function FollowButton() {
           the change; swapping the glyph too would be a second signal saying
           the same thing. */}
       <span className={styles.chip} aria-hidden="true">
-        <Bell size={16} strokeWidth={1.75} />
+        <Bell className="filled" size={16} strokeWidth={1.75} />
       </span>
       {following ? 'Following' : 'Follow'}
     </button>
@@ -46,7 +46,9 @@ export function ShareButton({ url }: { url: string }) {
           .catch(() => setShared(false))
       }}
     >
-      <Share size={16} strokeWidth={1.75} aria-hidden="true" />
+      {/* The curved arrow. Left outlined: the fill on Share2's nodes read as a
+          graph, and a solid arrow is heavier than the label beside it. */}
+      <CornerUpRight size={16} strokeWidth={1.75} aria-hidden="true" />
       {shared ? 'Link copied' : 'Share'}
     </button>
   )
