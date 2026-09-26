@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Rail } from '@/components/shell/Rail'
 import { FollowButton, ShareButton } from './actions'
+import { ChannelStream } from './ChannelStream'
 import {
   browseCopy,
   channels,
@@ -13,6 +14,7 @@ import {
   type Channel,
   type Filter,
 } from './data'
+import { useOnScreen } from './use-on-screen'
 import styles from './ChannelsExperience.module.css'
 
 const initial = (title: string) => title.charAt(0)
@@ -297,16 +299,30 @@ function BrowseIndex() {
 }
 
 /* The page is the channel. There is no gate to open, so the stage is a
-   presence surface rather than an entry point. */
+   presence surface rather than an entry point. The stream starts when the
+   stage first comes on screen and is never torn down afterwards: the copy
+   promises nothing resets while you are away, and remounting would drop the
+   stream back to the top. The monogram holds the frame until then, so the box
+   is already the right size when the player arrives and the layout never
+   shifts on mount. */
 function Stage({ channel }: { channel: Channel }) {
+  const [ref, { visible, seen }] = useOnScreen<HTMLDivElement>()
+
   return (
-    <div className={styles.stageMedia}>
-      <span className={styles.stageMonogram} aria-hidden="true">
-        {initial(channel.title)}
-      </span>
-      <p className={styles.stageNote} role="status">
-        {channel.live ? 'Broadcasting right now' : channel.viewers}
-      </p>
+    <div className={styles.stageMedia} ref={ref}>
+      {!seen && (
+        <span className={styles.stageMonogram} aria-hidden="true">
+          {initial(channel.title)}
+        </span>
+      )}
+      {seen && (
+        <ChannelStream
+          channel={channel}
+          noteClassName={styles.stageNote}
+          settledMessage={channel.live ? 'Broadcasting right now' : channel.viewers}
+          paused={!visible}
+        />
+      )}
     </div>
   )
 }
