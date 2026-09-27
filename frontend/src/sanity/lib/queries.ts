@@ -238,6 +238,7 @@ export const BLOG_CARD_FIELDS = /* groq */ `
   definition,
   excerpt,
   publishedAt,
+  updatedAt,
   cluster,
   priority,
   tags,

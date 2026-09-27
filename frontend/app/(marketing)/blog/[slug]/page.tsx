@@ -29,7 +29,7 @@ export async function generateMetadata({
     image: post.seo?.shareImageUrl || post.coverImageUrl,
     noIndex: post.seo?.noIndex,
     publishedTime: post.publishedAt,
-    modifiedTime: post._updatedAt,
+    modifiedTime: post.updatedAt || post.publishedAt,
   })
 }
 
@@ -62,7 +62,7 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
       description: post.excerpt,
       url: canonical(`/blog/${slug}`),
       datePublished: post.publishedAt,
-      dateModified: post._updatedAt,
+      dateModified: post.updatedAt || post.publishedAt,
       ...(authorNames?.length ? {author: authorNames.map((name) => ({'@type': 'Person', name}))} : {}),
       ...(post.coverImageUrl ? {image: [post.coverImageUrl]} : {}),
       isPartOf: {'@type': 'Blog', name: 'Portals blog', url: canonical('/blog')},
@@ -89,6 +89,7 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
       : []),
   ]
   const published = formatDate(post.publishedAt)
+  const updated = post.updatedAt && post.updatedAt !== post.publishedAt ? formatDate(post.updatedAt) : null
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(structuredData)}} />
@@ -108,7 +109,11 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
           <h1 className="t-d2-sans mt-24">{post.title}</h1>
           <p className="t-p-lg-serif mt-32 text-white/80">{post.definition}</p>
           <p className="t-p-sans mt-24 text-white/45">
-            {[published, authorNames?.join(', ')].filter(Boolean).join(' · ')}
+            {[
+              published,
+              updated ? `Updated ${updated}` : null,
+              authorNames?.join(', '),
+            ].filter(Boolean).join(' · ')}
           </p>
           <div className="mt-40 flex flex-wrap gap-16">
             <CTAButton href="/assessment">Assess production workflow</CTAButton>

@@ -10,6 +10,7 @@ export type BlogPostCard = {
   definition: string
   excerpt: string
   publishedAt: string
+  updatedAt?: string
   cluster?: string
   priority?: number
   tags?: string[]
