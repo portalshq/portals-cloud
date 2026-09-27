@@ -1,5 +1,5 @@
 import {NextResponse} from 'next/server'
-import {createStripePlatformBilling} from '@portalshq/billing'
+import {createStripePlatformBilling} from '@portalshq/platform-billing'
 import {getBillingCustomer} from '@/lib/leads/store'
 
 export const runtime = 'nodejs'

@@ -284,7 +284,7 @@ services:
       - lago-storage:/app/storage
 
   lago-seed:
-    # One-shot: creates billing plans defined in @px/billing-engine/src/plans.ts.
+    # One-shot: creates billing plans defined in @portalshq/platform-billing/src/plans.ts.
     # Idempotent — safe to re-run. Plans already existing return 422 (treated as ok).
     image: alpine:3.20
     depends_on:

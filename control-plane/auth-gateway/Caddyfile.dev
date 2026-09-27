@@ -1,4 +1,5 @@
-# Caddyfile for dev HTTPS parity — serves Auth Gateway JWKS and Keycloak
+# Caddyfile for development HTTPS parity. Caddy terminates TLS while the
+# gateway's public HTTP and gRPC listeners remain loopback/container-local.
 # Place your generated cert at ./dev-certs/auth.dev.example.com.{crt,key}
 # and CA at ./dev-certs/rootCA.pem (see scripts/setup-dev-auth.sh).
 # Lore strict mode can trust the CA via server.auth.jwk.ca_file.
@@ -10,7 +11,14 @@
 https://auth.dev.example.com {
   tls /certs/auth.dev.example.com.crt /certs/auth.dev.example.com.key
 
-  # Auth Gateway JWKS + OAuth callback + health
+  # gRPC is HTTP/2 end-to-end. The gateway intentionally receives h2c only
+  # from this local proxy; it must never be exposed directly to the network.
+  @grpc protocol grpc
+  handle @grpc {
+    reverse_proxy h2c://auth-gateway:8084
+  }
+
+  # Auth Gateway JWKS + OAuth callback + health.
   handle /.well-known/jwks.json* {
     reverse_proxy auth-gateway:8085
   }

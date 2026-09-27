@@ -1,11 +1,23 @@
 # @portalshq/resolver
 
-Thin adapter over the existing PX v0 client. The whole point of this
-package is to NOT contain protocol logic — that already exists and is
-proven in production (studio-app, 25thChapter). This package exists so
-every *new* capability in this repo can depend on a stable
-`PxResolver` interface instead of reaching into PX v0 internals.
+**Reusable agent module:** [integration guide](../../docs/package-agents/resolver.md)
 
-Next step for whoever owns PX: extract the v0 client out of studio-app
-into its own publishable package so this adapter has something concrete
-to wrap. Until then, this defines the target shape.
+Target interface for resolving PX addresses without coupling a capability to PX v0 internals.
+
+```ts
+import type { PxResolver } from "@portalshq/resolver";
+
+async function loadWorld(resolver: PxResolver, address: string) {
+  return resolver.resolve(address);
+}
+```
+
+## Exported shape
+
+- `NarrativeObject`: PX address, kind (`narrative`, `world`, `asset`, or `identity`), optional lineage, and payload.
+- `PxResolver`: `resolve(pxAddress)` and `exists(pxAddress)`.
+- `PxResolverAdapter`: intended implementation boundary.
+
+## Status: stub
+
+`PxResolverAdapter` has no PX v0 client and both methods always throw. Depend on the `PxResolver` interface and inject your own implementation until the v0 client is extracted and wired here.

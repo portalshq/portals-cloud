@@ -80,7 +80,35 @@ impl SecurityStore {
         ))
         .execute(&self.pool)
         .await?;
+        sqlx::raw_sql(include_str!(
+            "../../persistence/migrations/006_auth_audit_events.sql"
+        ))
+        .execute(&self.pool)
+        .await?;
         Ok(())
+    }
+
+    pub async fn record_audit(
+        &self,
+        event_type: &str,
+        subject_id: Option<&str>,
+        idp: Option<&str>,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
+        if let Err(error) = sqlx::query(
+            "INSERT INTO auth_audit_events(event_type, subject_id, idp, outcome, detail) VALUES ($1,$2,$3,$4,$5)",
+        )
+        .bind(event_type)
+        .bind(subject_id)
+        .bind(idp)
+        .bind(outcome)
+        .bind(detail)
+        .execute(&self.pool)
+        .await
+        {
+            tracing::error!(%error, event_type, "failed to persist auth audit event");
+        }
     }
 
     pub async fn is_healthy(&self) -> bool {

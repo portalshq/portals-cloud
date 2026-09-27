@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server'
 import {cookies} from 'next/headers'
 import type Stripe from 'stripe'
-import {createStripePlatformBilling} from '@portalshq/billing'
+import {createStripePlatformBilling} from '@portalshq/platform-billing'
 import {pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
 import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipWithAccountRole} from '@/lib/leads/application-auth'
 import {applyTransition, hasPendingMaterialException} from '@/lib/leads/pilot'

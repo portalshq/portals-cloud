@@ -1,4 +1,4 @@
-import {createStripePlatformClient} from '@portalshq/billing'
+import {createStripePlatformClient} from '@portalshq/platform-billing'
 import dotenv from 'dotenv'
 
 // Load environment variables from .env.local

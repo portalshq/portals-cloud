@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.portals.pinggy</string>
+  <key>ProgramArguments</key><array><string>/Users/portals-svc/portals/infra/mac-bootstrap/scripts/run-pinggy.sh</string></array>
+  <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>30</integer>
+  <key>StandardOutPath</key><string>/Users/portals-svc/Library/Logs/portals-pinggy.log</string>
+  <key>StandardErrorPath</key><string>/Users/portals-svc/Library/Logs/portals-pinggy.err.log</string>
+</dict></plist>

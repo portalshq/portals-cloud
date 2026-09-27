@@ -1,14 +1,32 @@
 # @portalshq/runtime-core
 
-The control plane (`SessionOrchestrator`) and data plane (`DataPlaneGateway`)
-are deliberately separate classes that should eventually be separate
-deployments — see `docs/architecture-decision-records/0001-*.md`. Don't
-merge them back into one service even though it'd be less code right now;
-the whole reason for the split is independent failure isolation and
-independent scaling at audience-scale traffic.
+**Reusable agent module:** [integration guide](../../docs/package-agents/runtime-core.md)
 
-`RealtimeEngine` supplies each application tick with a `TickContext` from a
-per-activation `TimeCounter`: a monotonic sequence, elapsed and delta time,
-wall-clock observation, and deadline countdown snapshots. Applications keep
-their session rules and deadlines; runtime-core owns timer lifecycle,
-reactivation reset, clock injection, and cancellation.
+Lazy-start timer lifecycle for live channels plus monotonic tick context. It does not include an HTTP control plane, data-plane gateway, persistence, billing, or capability invocation.
+
+```ts
+import { RealtimeEngine } from "@portalshq/runtime-core";
+
+const engine = new RealtimeEngine({
+  async onActivate(channelId) { return hasLiveSession(channelId); },
+  async onTick(channelId, tick) {
+    broadcast(channelId, { remaining: tick.countdown(endsAt).remainingSeconds });
+    return { continue: !tick.countdown(endsAt).expired };
+  },
+});
+
+await engine.addViewer(channelId, connectionId);
+// Always pair connection cleanup with removeViewer(channelId, connectionId).
+```
+
+## Lifecycle
+
+- The first viewer calls `onActivate`. Return `true` to begin ticks, `false` when nothing is due, or `{ scheduleRecheckAt }` to schedule one recheck.
+- A running session continues after viewers leave. Call `stop()` or return `{ continue: false }` to end it.
+- Use `ensureActive()` for scheduled work that must not require a viewer, then `shutdown()` during process termination.
+
+## API notes
+
+- `TimeCounter` / `countdownAt` supply monotonic elapsed and delta time plus wall-clock countdown snapshots.
+- `onTick` exceptions are logged and retried on the next tick; make callbacks idempotent and durable work retry-safe.
+- `tickIntervalMs` defaults to 1 second. This is a scheduler, not a precise clock.

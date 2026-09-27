@@ -28,7 +28,7 @@ use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use sqlx::postgres::PgPoolOptions;
-use std::{sync::Arc, time::Duration};
+use std::{fs, sync::Arc, time::Duration};
 use subtle::ConstantTimeEq;
 use tonic::{metadata::MetadataMap, transport::Server, Request, Response, Status};
 use tracing::{error, info};
@@ -186,7 +186,7 @@ impl UrcAuthApi for AuthService {
                 &session.display_name,
                 &session.preferred_username,
                 false,
-                "cognito",
+                self.state.config.effective_issuer(),
             )
             .await
             .map_err(internal_error)?;
@@ -202,7 +202,7 @@ impl UrcAuthApi for AuthService {
             is_service_account: false,
             resources: None,
             groups: None,
-            idp: "cognito".into(),
+            idp: self.state.config.effective_issuer().to_string(),
         };
         // Create rotating refresh credential. Failure is internal — the client
         // needs the refresh token to stay authenticated without browser loops.
@@ -214,10 +214,20 @@ impl UrcAuthApi for AuthService {
                 &session.subject_id,
                 &session.display_name,
                 &session.preferred_username,
-                "cognito",
+                self.state.config.effective_issuer(),
             )
             .await
             .map_err(internal_error)?;
+        self.state
+            .store
+            .record_audit(
+                "token_issued",
+                Some(&session.subject_id),
+                Some(self.state.config.effective_issuer()),
+                "success",
+                serde_json::json!({"flow": "oidc_callback"}),
+            )
+            .await;
         Ok(Response::new(GetAuthSessionResponse {
             user_token: Some(user_token_with_refresh(token, refresh_plain, &claims)),
         }))
@@ -281,6 +291,16 @@ impl UrcAuthApi for AuthService {
             groups: None,
             idp: session.idp.clone(),
         };
+        self.state
+            .store
+            .record_audit(
+                "refresh_rotated",
+                Some(&session.subject_id),
+                Some(&session.idp),
+                "success",
+                serde_json::json!({}),
+            )
+            .await;
         Ok(Response::new(RefreshAuthSessionResponse {
             user_token: Some(user_token_with_refresh(token, new_refresh, &claims)),
         }))
@@ -294,6 +314,10 @@ impl UrcAuthApi for AuthService {
         let refresh_token = bearer(request.metadata())?;
         // Best-effort revocation — never reveal whether token existed.
         let _ = self.state.store.revoke_refresh_token(refresh_token).await;
+        self.state
+            .store
+            .record_audit("logout", None, None, "accepted", serde_json::json!({}))
+            .await;
         Ok(Response::new(RevokeAuthSessionResponse {}))
     }
 
@@ -919,10 +943,22 @@ pub async fn run(config: GatewayConfig) -> anyhow::Result<()> {
     let store = SecurityStore::new(pool);
     store.run_migration().await?;
     let aws = aws_config::defaults(BehaviorVersion::latest()).load().await;
-    let (pepper, pepper_version) = if let Some(local) = &config.api_key_pepper_base64 {
+    let (pepper, pepper_version) = if config.api_key_pepper_provider == "sealed-file" {
+        let local = match (
+            &config.api_key_pepper_file_path,
+            &config.api_key_pepper_base64,
+        ) {
+            (Some(path), _) => fs::read_to_string(path)?,
+            (None, Some(value)) => value.clone(),
+            (None, None) => anyhow::bail!("sealed-file pepper is missing"),
+        };
         (
-            base64::engine::general_purpose::STANDARD.decode(local)?,
-            "local-development".to_string(),
+            base64::engine::general_purpose::STANDARD.decode(local.trim())?,
+            config
+                .api_key_pepper_file_path
+                .as_deref()
+                .unwrap_or("sealed-file")
+                .to_string(),
         )
     } else {
         let secret = aws_sdk_secretsmanager::Client::new(&aws)
@@ -943,7 +979,11 @@ pub async fn run(config: GatewayConfig) -> anyhow::Result<()> {
         pepper.len() == 32,
         "API key pepper must decode to exactly 32 bytes"
     );
-    let signer = if let Some(path) = &config.jwt_local_private_key_path {
+    let signer = if config.jwt_signing_provider == "sealed-file" {
+        let path = config
+            .jwt_local_private_key_path
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("sealed-file signing key is missing"))?;
         KmsJwtSigner::load_local(
             &std::fs::read(path)?,
             config.jwt_kid.clone(),

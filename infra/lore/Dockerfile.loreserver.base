@@ -5,15 +5,15 @@
 # Builds a custom loreserver binary with the AWS plugin (S3 + DynamoDB)
 # compiled in, excluding unused plugins (hashicorp/consul).
 #
-# Produces an ECR multi-architecture manifest. The publishing script resolves
-# and records its immutable digest before building the runtime image.
+# Produces a multi-architecture manifest. Each publisher resolves and records
+# its immutable digest before building the runtime image.
 #
 # This image is reusable across environments. No Portals-specific
 # configuration is baked in. Configuration belongs in the derived image
 # (Dockerfile.loreserver) and is mounted at runtime.
 #
-# Production publishing is centralized in
-# infra/lore/scripts/docker-buildx-lore.sh and requires ECR_REGISTRY.
+# Production publishers live in infra/lore/scripts and always use immutable
+# digests for their derived runtime images.
 #
 # =============================================================================
 
@@ -28,21 +28,25 @@ FROM --platform=$BUILDPLATFORM rust:slim-trixie@sha256:3b2879047d42784ca9403ad20
 # Prevent apt from prompting for configuration
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies plus the arm64 cross-compilation toolchain.
+# Install the common build dependencies. The arm64 toolchain is installed only
+# for arm64 builds so the Intel release path does not carry unused toolchains.
+ARG TARGETPLATFORM
 RUN apt-get update && apt-get install -y \
     build-essential \
     protobuf-compiler \
     cmake \
     pkg-config \
-    gcc-aarch64-linux-gnu \
-    libc6-dev-arm64-cross \
-    binutils-aarch64-linux-gnu \
+    && case "$TARGETPLATFORM" in \
+      linux/arm64) apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross binutils-aarch64-linux-gnu ;; \
+      linux/amd64) : ;; \
+      *) echo "unsupported TARGETPLATFORM: $TARGETPLATFORM" >&2; exit 1 ;; \
+    esac \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-# Add the non-native target used when producing arm64 from an amd64 builder.
-RUN rustup target add aarch64-unknown-linux-gnu
+# Add the non-native target only when producing arm64 from an amd64 builder.
+RUN if [ "$TARGETPLATFORM" = linux/arm64 ]; then rustup target add aarch64-unknown-linux-gnu; fi
 
 # Copy the entire workspace including vendor (patched quinn-proto)
 COPY . .
@@ -58,7 +62,6 @@ RUN rm -f lore-server/src/plugins/hashicorp.rs \
 # Select the appropriate compilation path. The source configuration contains
 # a Graviton-specific arm64 tuning flag, so remove it for the portable arm64
 # container build. amd64 uses Cargo's native Linux target.
-ARG TARGETPLATFORM
 ARG LORE_BUILD_VERSION_NAME
 RUN case "$TARGETPLATFORM" in \
       linux/arm64) sed -i '/target-cpu=neoverse-512tvb/d' .cargo/config.toml ;; \

@@ -41,7 +41,7 @@ const nextConfig: NextConfig = {
       // Proxy PX landing page from GitHub Pages while keeping /px URL
       {
         source: '/px/:path*',
-        destination: 'https://portalshq.github.io/narrativeengine/:path*',
+        destination: 'https://portalshq.github.io/px/:path*',
       },
     ]
   },

@@ -11,7 +11,7 @@ tags.
 
 ## 0. Execution status — live snapshot
 
-_Updated 2026-08-25 19:46 UTC. This section is rewritten as the cycle progresses; the
+_Updated 2026-09-27 14:49 UTC. This section is rewritten as the cycle progresses; the
 issues log below is append-only._
 
 | Workstream | State |
@@ -26,6 +26,8 @@ issues log below is append-only._
 | Alarm contacts | SNS topic + `eng@portals.works` sub **CONFIRMED** 2026-08-23 |
 | Pulumi config | Both stacks: cert ARN, `.works` hostnames, JWKS `https://auth.portals.works/.well-known/jwks.json`, issuer `https://auth.portals.works`; `authDomainPrefix` `portals-prod-auth-907199504810`, `egressEndpointsEnabled=true`, `publicIngressEnabled=true`, `lore:8` `72bc9186` `HEALTHY` `c60b9ca368cf…` |
 | Builds | Lore `v0.8.4-portals.8` (`47333fc`) **RELEASED** + image `72bc9186` promoted & deployed (`lore:8`, `c60b9ca368cf…` `HEALTHY`, `RUST_LOG=debug`); Px `v0.5.15` released + promoted |
+| Mac Lore Docker Hub `.10` | **PROMOTED, NOT DURABLY DEPLOYED** — `portalshq/lore@sha256:1c7e86d5…` for `linux/amd64`, source `f717f97c`, receipt commit `5cbe2919`; keyless Cosign, SBOM, provenance, and Trivy `0 critical / 0 high` verified at 2026-09-27T14:49:42Z. |
+| Mac Lore validation | Native release checks passed (`lore-credential` 16 tests, `lore-server` 750 tests, 26 doctests; 72 smoke batches). The promoted container was smoke-tested on `andresb`; durable Mac deployment remains blocked on `infra/mac-bootstrap` persistent storage and restart-policy configuration. |
 | Next gates | Full E2E matrix **passed** (`create 0.8 s` `01a03a7…`, `clone 1.06 s` `43 B` file, `push 0.77 s` `e881f13…`), `verify-external-surface.sh` `443 open / 8083,41337,41339 closed` → §12 sign-off |
 | Blocker | **None** — `RepositoryGet` now `https://auth.portals.works:443` (`UrcAuthApi` → `:8084` via ALB) + `VIP:8087` (`RebacApi` via Service Connect) verified `<1 s`; SG tightened |
 | Presigned representation URLs | **WIP — NOT EXPOSED.** Lore HTTP `41339` remains host-local and is used for readiness only. No production HMAC key, HTTP/1 target group, ECS/SG registration, or public presign/redeem listener rules exist. Enable only as a separate reviewed and tested release gate. |
@@ -366,6 +368,9 @@ Live log — append rows during execution; never delete entries.
 
 | Date/time (UTC) | Phase | Issue / deviation | Owner | Resolution / link |
 |---|---|---|---|---|
+| 2026-09-27 14:49 | 4a/5b (Mac Lore) | Docker Hub release receipt was committed to `origin/release/lore-dockerhub-0.8.4-portals.10`, not the active feature branch; the local ledger therefore remains intentionally empty. | Release automation | `5cbe2919` records `portalshq/lore@sha256:1c7e86d5…`, AMD64 platform digest, source/packaging commits, keyless signature, SBOM/provenance, and Trivy `0 critical / 0 high`. Do not copy its digest into another branch manually. |
+| 2026-09-27 | 8 (Mac validation) | The promoted container validated single-server behavior, but 10 topology/multi-server smoke scenarios require pytest-managed isolated server instances. | Release operator | Canonical native-binary smoke suite passed all 72 batches. Full container topology coverage is deferred; this does not authorize a durable Mac production deployment. |
+| 2026-09-27 | 7 (Mac deployment) | `portals-lore-promoted` is an ephemeral test deployment with `/tmp/lore-server`, no restart policy, and no `infra/mac-bootstrap` management. | Mac operator | Replace it through `infra/mac-bootstrap` using the promoted immutable digest, persistent storage, and `restart: unless-stopped` before treating the Mac path as production. |
 
 ## 11b. Deferred future tasks (post-cycle)
 

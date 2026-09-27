@@ -35,23 +35,23 @@ const overviewItems: OverviewItem[] = [
   {
     heading: 'Repository',
     iconPath: iconPaths[0],
-    textA: ['Sources, references, character models, prompts, and datasets live inside one governed repository, not scattered across tools and desktops.'],
+    textA: ['Approved work, prompts, references, and datasets live in one governed place — so the next brief starts from what already shipped, not from scratch.'],
     textB: ['portals doesn\'t replace the tools your team uses — it becomes the place that work lives.'],
-    textC: ['A canonical home for every production asset.'],
+    textC: ['Deliver repeat work in days, not weeks.'],
   },
   {
     heading: 'Identity',
     iconPath: iconPaths[1],
     textA: [
       'A character is not just a folder of PNGs — a campaign is not just a stack of final files.',
-      'Every asset gets a stable addressable identity linked to a historical, contextual manifest.',
+      'Every approved asset keeps a stable, addressable identity, so teams reuse the right version with certainty.',
     ],
     list: [
-      'stable identity independent of filename, location, or export format',
-      'characters, props, styles, and locations become addressable entities',
-      'search, automation, and integrations can reference assets with certainty',
+      'one stable identity that survives renames, moves, and re-exports',
+      'characters, props, styles, and locations stay addressable and reusable',
+      'search, automation, and integrations reference approved work — never a guess',
     ],
-    textC: ['With identity, approved versions are verifiable facts.'],
+    textC: ['Approved means approved — verifiable every time.'],
   },
   {
     heading: 'History',
@@ -59,24 +59,24 @@ const overviewItems: OverviewItem[] = [
     textA: [
       'Every edit and approval is a new version.',
     ],
-    textB: ['Preserve the complete history of an asset from first generation to current — any prior state can be restored, compared, or branched from in seconds.'],
-    textC: ['Move from guesswork to institutional memory.'],
+    textB: ['Reuse what worked, restore any prior approved state, and branch from it in seconds — instead of paying to rebuild it.'],
+    textC: ['Stop paying for the same work twice.'],
   },
   {
     heading: 'Provenance',
     iconPath: iconPaths[3],
-    textA: ['Automically capture and attach the production chain to the asset itself.'],
+    textA: ['Automatically capture and attach the production chain to the asset itself.'],
     textB: [
-      'Existing tools answer where the file is. portals answers what it is, where it came from, and how to produce it again.',
+      'Not just where the file is — what was approved, what produced it, and how to extend it without losing brand or continuity.',
     ],
-    textC: ['Your work becomes explainable and reusable.'],
+    textC: ['Every shipped asset stays explainable and reusable.'],
   },
   {
     heading: 'Collaboration',
     iconPath: iconPaths[0],
-    textA: ['Teams collaborate on shared assets with history and identity in one governed repository, not in offline folders.'],
-    textB: ['Everyone accesses the same assets, the same history, and the same provenance.'],
-    textC: ['One shared source of truth.'],
+    textA: ['Teams build on the same approved assets, history, and provenance — in one governed place, not offline folders.'],
+    textB: ['When someone leaves, the production memory stays with the team.'],
+    textC: ['Scale output without adding rework.'],
   },
 ];
 
@@ -108,51 +108,51 @@ const comparisonRows = [
   {
     metric: 'Find the approved version',
     without: 'Guessed from filenames and Slack history',
-    withPortals: 'with certainty, in seconds',
+    withPortals: 'in seconds, with sign-off intact',
   },
   {
     metric: 'Recreate a shipped asset',
     without: 'Rebuilt from scratch, often imperfectly',
-    withPortals: 'Reproduced exactly from its full recipe',
+    withPortals: 'reused directly — no rebuild',
   },
   {
     metric: 'Client asks for twelve more like this',
     without: 'Hours to days of rediscovery work',
-    withPortals: 'Extended directly from the original lineage',
+    withPortals: 'delivered from approved work, in days',
   },
   {
     metric: 'Knowledge when someone leaves',
     without: 'Walks out the door with them',
-    withPortals: 'Stays in the repository, permanently',
+    withPortals: 'stays with the team, permanently',
   },
   {
     metric: 'Review what changed',
     without: 'Screenshots and memory',
-    withPortals: 'Full diff across every version',
+    withPortals: 'auditable in one place',
   },
   {
     metric: 'confidence in final',
     without: 'Constant double-checking',
-    withPortals: 'Trusted by default',
+    withPortals: 'approved means approved',
   },
 ];
 
 const capabilities = [
   {
     title: 'Support for all assets',
-    text: 'Images, video, characters, 3D assets, models, prompts, and datasets are first-class citizens.',
+    text: 'Reuse images, video, characters, 3D, prompts, and datasets from one approved source instead of rebuilding them.',
   },
   {
     title: 'Model-agnostic',
-    text: 'Generate with OpenAI, Runway, Midjourney, or ComfyUI and preserve the generated assets and context.',
+    text: 'Keep working in OpenAI, Runway, Midjourney, or ComfyUI — approved work stays reusable no matter which tool made it.',
   },
   {
     title: 'API-first',
-    text: 'Every capability from registry to versioning is available through the API.',
+    text: 'Put approved versions and history inside your existing pipeline, without changing how your team works day to day.',
   },
   {
     title: 'Automatic',
-    text: 'Context capture, version creation, and identity assignment happen at generation time, automatically.',
+    text: 'Versions, identity, and production context are captured at creation, so reuse never depends on manual filing.',
   },
 ];
 
@@ -166,19 +166,19 @@ const workflow = [
 const audiences = [
   {
     title: 'AI creative agencies',
-    text: 'Manage thousands of campaign variations while keeping a clear line to the approved client version, its full source history, and the production context behind it.',
+    text: 'Deliver client variations in days from approved work — with a clear line to the signed-off version, its source history, and how to reproduce it.',
   },
   {
     title: 'Film, video, and animation studios',
-    text: 'Preserve characters, scenes, props, and visual continuity across production cycles that span months.',
+    text: 'Hold characters, scenes, and visual continuity across months of production, even as artists and vendors change.',
   },
   {
     title: 'Game studios',
-    text: 'Version characters, environments, and generated worlds as they evolve from early concept through shipped asset.',
+    text: 'Carry characters, environments, and generated worlds from concept to shipped asset without losing what was approved.',
   },
   {
     title: 'AI-native marketing and brand teams',
-    text: 'Keep brand assets, campaign creative, and style guides under one canonical version so teams stop shipping conflicting versions of the same thing.',
+    text: 'Ship on-brand campaigns faster from one canonical version — stop re-clearing, rebuilding, and reconciling the same asset.',
   },
 ];
 
@@ -250,6 +250,16 @@ function overviewMotionStyle(visibleIndex: number, index: number, stage: Overvie
   };
 }
 
+function overviewColumnMotionStyle(visible: boolean, scrollDirection: 'up' | 'down', delayMs = 0): CSSProperties {
+  return {
+    opacity: visible ? 1 : 0,
+    filter: visible ? 'blur(0px)' : 'blur(10px)',
+    transform: visible ? 'translateX(0px)' : `translateX(${scrollDirection === 'up' ? '-1px' : '1px'})`,
+    pointerEvents: visible ? 'auto' : 'none',
+    transition: `opacity ${visible ? blurEnterDurationMs : blurExitDurationMs}ms ${visible ? blurEnterEasing : blurExitEasing} ${visible ? delayMs : 0}ms, filter ${visible ? blurEnterDurationMs : blurExitDurationMs}ms ${visible ? blurEnterEasing : blurExitEasing} ${visible ? delayMs : 0}ms, transform ${visible ? blurEnterDurationMs : blurExitDurationMs}ms ${visible ? blurEnterEasing : blurExitEasing} ${visible ? delayMs : 0}ms`,
+  };
+}
+
 function NumberLabel({ index, className = "" }: { index: number; className?: string }) {
   return (
     <div className={`flex items-center gap-x-8 ${className}`}>
@@ -308,7 +318,7 @@ function OverviewContent({ item, index, visibleIndex, transitionStage, scrollDir
       style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, staggerIndex)}
     >
       <div className="ui-grid px-0">
-        <div className="col-span-3 row-start-1 flex items-start justify-end">
+        <div className="col-span-3 row-start-1 flex items-start justify-end md:justify-center lg:justify-end">
           <Icon item={item} />
         </div>
         <div className="col-span-21">
@@ -372,6 +382,7 @@ function OverviewSection() {
   const [transitionStage, setTransitionStage] = useState<OverviewTransitionStage>('hidden');
   const [scrollPhase, setScrollPhase] = useState<OverviewScrollPhase>('before');
   const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('down');
+  const [visibleColumn, setVisibleColumn] = useState(0);
   const lastProgressRef = useRef(0);
   const renderedProgressRef = useRef(-1);
   const itemCount = overviewItems.length;
@@ -390,6 +401,8 @@ function OverviewSection() {
       const rawProgress = Math.min(1, Math.max(0, unclampedProgress));
       const renderedProgress = Math.round(rawProgress * 1000) / 1000;
       const nextIndex = Math.min(itemCount - 1, Math.floor(rawProgress * itemCount));
+      const stageProgress = rawProgress * itemCount - nextIndex;
+      setVisibleColumn(stageProgress >= 2 / 3 ? 2 : stageProgress >= 1 / 3 ? 1 : 0);
       const nextScrollPhase: OverviewScrollPhase = unclampedProgress < 0 ? 'before' : unclampedProgress > 1 ? 'after' : 'viewing';
 
       if (progressLineRef.current && renderedProgress !== renderedProgressRef.current) {
@@ -492,28 +505,41 @@ function OverviewSection() {
     <section ref={sectionRef} data-header-theme="light" data-slice-type="overview" data-slice-variation="default">
       <div className="relative">
         <div className="saga-overview-desktop">
-          <div className="saga-overview-pin z-10">
-            <div className="ui-grid relative min-h-screen items-center py-Header-h text-white">
-              <div className="col-span-full grid grid-cols-subgrid gap-y-fluid-[30,52]">
+          <div className="saga-overview-pin relative z-10">
+            <div className="ui-grid relative z-10 min-h-screen items-center py-Header-h text-white">
+              <div className="col-span-full grid grid-cols-subgrid gap-y-0">
                 <div className="col-span-full grid">
                   {overviewItems.map((item, index) => (
                     <OverviewContent key={item.heading} item={item} index={index} visibleIndex={visibleIndex} transitionStage={transitionStage} scrollDirection={scrollDirection} staggerIndex={1} />
                   ))}
                 </div>
 
-                <div className="col-span-full space-y-18">
+                <div className="pointer-events-none col-span-full col-start-4 top-0 right-0 hidden items-center overflow-hidden lg:flex">
+                  <ProductionLineage
+                    stage={transitionStage === 'hidden' ? -1 : visibleIndex}
+                    transitionStage={transitionStage}
+                    scrollDirection={scrollDirection}
+                    labels
+                  />
+                </div>
+                <div className="col-span-full mt-30 space-y-18 lg:mt-0">
                   <NumberLabel index={scrollIndex} />
                   <div className="relative -mx-sms h-px bg-white/20">
                     <div ref={progressLineRef} data-progress-line className="saga-overview-progress-line absolute top-0 left-0 h-px w-full origin-left bg-white" />
                   </div>
                 </div>
 
-                <div className="saga-overview-subsections col-span-21 col-start-4 grid grid-cols-subgrid">
+                <div
+                  className="saga-overview-subsections col-span-21 col-start-4 grid grid-cols-subgrid"
+                  style={{ marginTop: 'var(--tw-fluid-clamp-min_28_85-clamp-max_65_68)' }}
+                >
+
+
                   <div className="saga-overview-desktop-subsections contents">
                     <div className="saga-overview-subsection col-span-7">
                       <div className="saga-overview-subsection-stack grid">
                         {overviewItems.map((item, index) => (
-                          <div key={`${item.heading}-a`} data-content-index={index} data-overview-visible={visibleIndex === index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 2)}>
+                          <div key={`${item.heading}-a`} data-content-index={index} data-overview-visible={visibleIndex === index && transitionStage !== 'hidden' && transitionStage !== 'exiting'} className="saga-overview-content col-start-1 row-start-1" style={{ ...overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection), ...overviewColumnMotionStyle(visibleIndex === index && transitionStage !== 'hidden' && transitionStage !== 'exiting', scrollDirection) }}>
                             <Paragraphs lines={item.textA} className="t-p-lg-serif" />
                           </div>
                         ))}
@@ -522,7 +548,7 @@ function OverviewSection() {
                     <div className="saga-overview-subsection col-span-7">
                       <div className="saga-overview-subsection-stack grid">
                         {overviewItems.map((item, index) => (
-                          <div key={`${item.heading}-b`} data-content-index={index} data-overview-visible={visibleIndex === index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 3)}>
+                          <div key={`${item.heading}-b`} data-content-index={index} data-overview-visible={visibleIndex === index && transitionStage !== 'hidden' && transitionStage !== 'exiting' && visibleColumn >= 1} className="saga-overview-content col-start-1 row-start-1" style={{ ...overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection), ...overviewColumnMotionStyle(visibleIndex === index && transitionStage !== 'hidden' && transitionStage !== 'exiting' && visibleColumn >= 1, scrollDirection) }}>
                             <ListColumn item={item} />
                           </div>
                         ))}
@@ -531,7 +557,7 @@ function OverviewSection() {
                     <div className="saga-overview-subsection col-span-7">
                       <div className="saga-overview-subsection-stack grid">
                         {overviewItems.map((item, index) => (
-                          <div key={`${item.heading}-c`} data-content-index={index} data-overview-visible={visibleIndex === index} className="saga-overview-content col-start-1 row-start-1" style={overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, 4)}>
+                          <div key={`${item.heading}-c`} data-content-index={index} data-overview-visible={visibleIndex === index && transitionStage !== 'hidden' && transitionStage !== 'exiting' && visibleColumn >= 2} className="saga-overview-content col-start-1 row-start-1" style={{ ...overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection), ...overviewColumnMotionStyle(visibleIndex === index && transitionStage !== 'hidden' && transitionStage !== 'exiting' && visibleColumn >= 2, scrollDirection) }}>
                             <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={false} />
                           </div>
                         ))}
@@ -600,25 +626,235 @@ function ArrowIcon() {
   );
 }
 
-
 function SectionKicker({ children }: { children: string }) {
   return <p className="t-m2 text-white">{children}</p>;
 }
 
+function ProductionImage({ src, alt, className = '' }: { src: string; alt: string; className?: string }) {
+  return (
+    <div className={`relative overflow-hidden rounded-[2px] border border-white/20 bg-[#07121d] ${className}`}>
+      <img src={src} alt={alt} className="size-full object-cover" />
+      <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/10" aria-hidden="true" />
+    </div>
+  );
+}
+
+const lineageOutputs = [
+  { src: '/images/vcs/components/preserve-portrait-01.png', label: 'portrait crop' },
+  { src: '/images/vcs/components/preserve-portrait-02.png', label: 'studio look' },
+  { src: '/images/vcs/components/preserve-portrait-03.png', label: 'detail frame' },
+  { src: '/images/vcs/components/creative-production-hero-woman-portrait-4k.png', label: 'campaign still' },
+  { src: '/images/vcs/components/creative-production-hero-woman-portrait-4k-alt.png', label: 'alternate pose' },
+  { src: '/images/vcs/components/creative-production-hero-woman-portrait-4k-alt-2.png', label: 'final delivery' },
+];
+const lineageDots = [
+  { x: 184, y: 250, stage: 0 }, { x: 236, y: 250, stage: 1 },
+  { x: 400, y: 242, stage: 1 }, { x: 450, y: 242, stage: 2 },
+  { x: 585, y: 218, stage: 2 }, { x: 625, y: 218, stage: 3 },
+  { x: 625, y: 66, stage: 2 }, { x: 625, y: 204, stage: 2 }, { x: 625, y: 290, stage: 2 },
+  { x: 653, y: 66, stage: 3 },
+  { x: 690, y: 66, stage: 3 }, { x: 790, y: 66, stage: 3 }, { x: 890, y: 66, stage: 3 },
+  { x: 690, y: 204, stage: 3 }, { x: 790, y: 204, stage: 3 }, { x: 890, y: 204, stage: 3 },
+  { x: 515, y: 292, stage: 3 }, { x: 450, y: 340, stage: 4 },
+];
+const lineageSegments = [
+  { d: 'M184 250H236', stage: 1 },
+  { d: 'M400 242H450', stage: 2 },
+  { d: 'M585 218H625V66H653', stage: 3 },
+  { d: 'M625 66V290', stage: 3 },
+  { d: 'M625 66H690', stage: 3 }, { d: 'M625 66H790', stage: 3 }, { d: 'M625 66H890', stage: 3 },
+  { d: 'M625 204H690', stage: 3 }, { d: 'M625 204H790', stage: 3 }, { d: 'M625 204H890', stage: 3 },
+  { d: 'M515 292V340H450', stage: 4 },
+];
+
+function ProductionLineage({ stage, transitionStage, scrollDirection, labels = true }: {
+  stage: number;
+  transitionStage: OverviewTransitionStage;
+  scrollDirection: 'up' | 'down';
+  labels?: boolean;
+}) {
+  const connectorVisible = (step: number) => step === stage && transitionStage !== 'hidden' && transitionStage !== 'exiting';
+  const stageTranslateX = stage <= 1 ? 0 : stage === 2 ? -19.5 : -49;
+  const trackStyle: CSSProperties = {
+    transform: `translateX(${stageTranslateX}%)`,
+    transition: `transform ${blurEnterDurationMs}ms ${blurEnterEasing} ${transitionStage === 'entering' ? overviewBlurStaggerMs * 2 : 0}ms`,
+  };
+  const motionStyle = (step: number): CSSProperties => {
+    if (step === stage && transitionStage !== 'hidden' && transitionStage !== 'exiting') {
+      return overviewMotionStyle(stage, step, transitionStage, scrollDirection, 2);
+    }
+    if (step === stage - 1 || (step === stage && transitionStage === 'exiting')) {
+      return {
+        ...overviewMotionStyle(stage, stage, 'idle', scrollDirection, 2),
+        transitionDelay: '0ms',
+        pointerEvents: 'none',
+      };
+    }
+    return overviewMotionStyle(
+      stage,
+      step,
+      step === stage ? transitionStage : 'idle',
+      scrollDirection,
+      2,
+    );
+  };
+  const connectorMotionStyle = (step: number): CSSProperties => connectorVisible(step)
+    ? overviewMotionStyle(stage, step, transitionStage, scrollDirection, 2)
+    : {
+      opacity: 0,
+      filter: 'blur(10px)',
+      transform: 'translateX(1px)',
+      pointerEvents: 'none',
+      transitionProperty: 'opacity, filter, transform, stroke-dashoffset',
+      transitionDuration: `${blurExitDurationMs}ms`,
+      transitionTimingFunction: blurExitEasing,
+      transitionDelay: '0ms',
+    };
+
+  return (
+    <div className="production-lineage" data-labels={labels ? 'on' : 'off'} data-stage={stage} role="group" aria-label="Creative production path from approved source through version history to campaign outputs">
+      <div className="production-lineage-track" style={trackStyle}>
+        <svg viewBox="0 0 1000 440" className="production-lineage-lines" preserveAspectRatio="none" aria-hidden="true">
+          {lineageSegments.map((segment, index) => (
+            <path
+              key={index}
+              className={segment.stage < stage ? 'is-past' : undefined}
+              d={segment.d}
+              pathLength="1"
+              strokeDasharray="1"
+              style={{
+                ...connectorMotionStyle(segment.stage),
+                transitionProperty: 'opacity, filter, transform, stroke-dashoffset',
+                strokeDashoffset: connectorVisible(segment.stage) ? 0 : 1,
+              }}
+            />
+          ))}
+          {lineageDots.map((dot) => (
+            <circle
+              key={`${dot.x}-${dot.y}`}
+              cx={dot.x}
+              cy={dot.y}
+              r="4"
+              className={dot.stage < stage ? 'is-past' : undefined}
+              style={connectorMotionStyle(dot.stage)}
+            />
+          ))}
+        </svg>
+
+        <div className={`lineage-node lineage-source ${0 < stage ? 'is-past' : ''}`} data-node="source" style={motionStyle(0)}>
+          <img src="/images/vcs/components/front-photo-print.png" alt="Approved campaign portrait on a bordered photo print" />
+          {labels && <span className="lineage-node-label">approved source</span>}
+        </div>
+        <div className={`lineage-node lineage-stack ${1 < stage ? 'is-past' : ''}`} data-node="versions" style={motionStyle(1)}>
+          <img src="/images/vcs/components/version-stack.png" alt="Stack of campaign photo versions" />
+          {labels && <span className="lineage-node-label">version history</span>}
+        </div>
+        <div className={`lineage-node lineage-selected ${2 < stage ? 'is-past' : ''}`} data-node="selected" style={motionStyle(2)}>
+          <img src="/images/vcs/components/selected-version-sleeve.png" alt="Selected campaign portrait held in a clear archival sleeve" />
+          {labels && <span className="lineage-node-label">selected version</span>}
+        </div>
+
+        {labels && (
+          <>
+            <span className={`lineage-edge-label lineage-edge-source ${1 < stage ? 'is-past' : ''}`} style={connectorMotionStyle(1)}>new version</span>
+            <span className={`lineage-edge-label lineage-edge-select ${2 < stage ? 'is-past' : ''}`} style={connectorMotionStyle(2)}>select approved</span>
+            <span className={`lineage-edge-label lineage-edge-branch ${3 < stage ? 'is-past' : ''}`} style={connectorMotionStyle(3)}>branch from source</span>
+          </>
+        )}
+
+        <div className={`lineage-output-grid ${3 < stage ? 'is-past' : ''}`} data-node="outputs" style={motionStyle(3)}>
+          {lineageOutputs.map((output) => (
+            <div className="lineage-output" key={output.label}>
+              <img src={output.src} alt={`${output.label} from the same campaign model`} className="max-h-[380px] object-contain" />
+              {labels && <span className="lineage-output-label">{output.label}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style jsx>{`
+        .production-lineage {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1891 / 831;
+          min-height: 300px;
+          color: white;
+          overflow: hidden;
+        }
+        .production-lineage-track { position: absolute; inset: 0; width: 100%; height: 100%; }
+        @media (min-width: 80rem) {
+          .production-lineage-track { transform: translateX(0) !important; transition: none !important; }
+          .production-lineage .is-past {
+            opacity: 1 !important; filter: blur(0) !important;
+            transform: translateX(0) !important; translate: 0 0 !important;
+          }
+          .production-lineage-lines path.is-past { stroke-dashoffset: 0 !important; }
+        }
+        .production-lineage-lines {
+          position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+          fill: none; stroke: rgba(255,255,255,.68); stroke-width: 1.4;
+          vector-effect: non-scaling-stroke;
+        }
+        .production-lineage-lines path { stroke-dashoffset: 1; }
+        .production-lineage-lines circle { fill: white; stroke: none; }
+        .lineage-node {
+          position: absolute; display: flex; align-items: center; justify-content: center;
+        }
+        .lineage-node img { width: 100%; height: 100%; object-fit: contain; }
+        .lineage-source { left: 1%; top: 14%; width: 19%; height: 72%; }
+        .lineage-source img { transform: rotate(-7deg); }
+        .lineage-stack { left: 22.5%; top: 19%; width: 18%; height: 62%; }
+        .lineage-selected { left: 43%; top: 17%; width: 16%; height: 61%; }
+        .lineage-node-label, .lineage-edge-label, .lineage-output-label {
+          position: absolute; z-index: 2; white-space: nowrap;
+          border: 0; border-radius: 10px; background: rgba(255,255,255,.1);
+          padding: 8px 12px; color: white; backdrop-filter: blur(20px);
+          font-family: var(--font-die-grotesk-b); font-size: 10px; font-weight: 400; line-height: 1.05;
+        }
+        .lineage-node-label { top: -3.5%; left: 50%; transform: translateX(-50%); }
+        .lineage-edge-label { margin-left: -50%; }
+        .lineage-edge-source { left: 21.5%; top: 32%; }
+        .lineage-edge-select { left: 42%; top: 30%; }
+        .lineage-edge-branch { left: 68%; top: 4%; }
+        .lineage-output-grid {
+          position: absolute; left: 64%; top: 7%; width: 33%; height: 65%;
+          display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 8%;
+        }
+        .lineage-output { position: relative; min-width: 0; min-height: 0; }
+        .lineage-output img {
+          width: 100%; height: 100%; object-fit: cover;
+          border: 2px solid rgba(245,239,222,.92); box-shadow: 0 3px 10px rgba(0,0,0,.3);
+        }
+        .lineage-output-label { left: 50%; bottom: -11.5px; transform: translateX(-50%); font-size: 8px; }
+        .production-lineage[data-labels='off'] .lineage-node-label,
+        .production-lineage[data-labels='off'] .lineage-edge-label,
+        .production-lineage[data-labels='off'] .lineage-output-label { display: none; }
+        @media (max-width: 767px) {
+          .production-lineage { min-height: 245px; }
+          .lineage-node-label, .lineage-edge-label { font-size: 6px; padding: 4px 6px; }
+          .lineage-output-label { display: none; }
+          .lineage-output-grid { gap: 5%; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function ProblemSection() {
   return (
-    <section className="saga-problem-section" data-header-theme="light">
+    <section className="saga-problem-section relative z-10" data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] pb-fluid-[76,106] md:py-fluid-[76,106] md:mt-140 md:mb-80 text-white lg:min-h-screen lg:content-center">
         {/* <div className="col-span-full lg:col-span-6">
           <SectionKicker>the problem</SectionKicker>
         </div> */}
-        <div className="col-span-full space-y-34 lg:col-span-16">
+        <div className="relative z-10 col-span-full space-y-34 lg:col-span-16">
           <h2 className="t-d2-sans max-w-[13.8em]">
             When a client asks for twelve more assets, does your team build from history, or start from scratch?
           </h2>
-          <p className="t-p-lg-serif max-w-[38em] leading-[1.25] text-white">
-            Your creative teams generate thousands of images, videos, and iterations daily.
-            When a project ships, everyone moves on, but your department pays a hidden AI production tax on each project:
+          <p className="t-p-lg-serif max-w-[38em] leading-[1.25]">
+            Your teams generate thousands of images, videos, and iterations daily.
+            When a project ships, the history walks out the door — so the next brief pays for the same discovery, rebuilds, and re-approvals again:
           </p>
         </div>
         <div className="col-span-full grid grid-cols-1 lg:grid-cols-3">
@@ -634,6 +870,32 @@ function ProblemSection() {
                   {card.quote}
                   <cite>{' '}{card.cite}</cite>
                 </blockquote>
+                {card.title === 'Reproduce' && (
+                  <img
+                    src="/images/vcs/components/version-stack.png"
+                    alt="A stack of related campaign photo versions"
+                    className="mx-auto mt-20 max-h-[400px] w-full object-contain"
+                  />
+                )}
+                {card.title === 'Identify' && (
+                  <img
+                    src="/images/vcs/components/front-photo-print.png"
+                    alt="A single portrait print of the campaign model"
+                    className="mx-auto mt-20 max-h-[400px] w-full -rotate-[7deg] object-contain"
+                  />
+                )}
+                {card.title === 'Preserve' && (
+                  <div className="mx-auto mt-20 grid w-fit max-h-[400px] grid-cols-[repeat(2,max-content)] gap-1">
+                    {[
+                      ['/images/vcs/components/front-photo-print.png', 'A single bordered portrait print'],
+                      ['/images/vcs/components/model-variation-04.png', 'The model in a cobalt knit with a side braid'],
+                      ['/images/vcs/components/preserve-portrait-03.png', 'The model in a flowing cobalt blouse'],
+                      ['/images/vcs/components/preserve-portrait-02.png', 'The model in a cobalt blazer'],
+                    ].map(([src, alt], index) => (
+                      <img key={src} src={src} alt={alt} className={`h-[190px] w-auto object-contain ${index === 0 ? '-rotate-[8.5deg] scale-[129%] overflow-visible p-0 m-0' : 'border-[8px] border-[#f5ebe0] rounded-[1px]'}`} />
+                    ))}
+                  </div>
+                )}
               </article>
             </div>
           ))}
@@ -654,11 +916,11 @@ function SolutionSection() {
             AI{`\u2011`}native production
           </h2>
           <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
-            Preserve every version and creative decision behind your production, so your teams can build on previous work, deliver faster, and scale production without losing quality.
+            Production memory for AI-native creative teams — preserve every approved version and reuse it. Extend what already shipped instead of rebuilding it, shorten delivery cycles, and scale volume without adding headcount.
             {/* portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it. */}
           </p>
           <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
-            Built for creative studios, game teams, and ad agencies producing high-volume AI media.
+            Built for teams already producing high-volume AI media with the tools they use today.
           </p>
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
@@ -754,14 +1016,25 @@ function PxSection() {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full space-y-24 lg:col-span-14">
-          <h2 className="t-d2-sans max-w-[13.8em]">Powered by open data foundations for AI production</h2>
-          <p className="t-p-lg-serif max-w-[38em] leading-[1.25]">
+        <h2 className="t-d2-sans max-w-[13.8em] col-span-full">Powered by open data foundations for AI production</h2>
+        <div className="col-span-full space-y-24 lg:col-span-11">
+          <p className="t-p-lg-serif max-w-[38em] text-justify leading-[1.25]">
             portals builds on <strong>px</strong>, giving production teams shared control over persistent data objects: characters, locations, worlds, and their representations across tools and formats.
           </p>
-          <p className="t-p-lg-sans max-w-[30em]">Create an asset once. Give it an identity. Build a world from it.</p>
+          <p className="t-p-lg-sans max-w-[30em] text-justify">Create an asset once. Give it an identity. Build a world from it.</p>
         </div>
-        <div className="col-span-full grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px] lg:grid-cols-3">
+        <div className="hidden lg:block lg:col-span-9 lg:col-start-13 xl:col-start-13 lg:row-span-3">
+          <img
+            src="/images/vcs/components/campaign-contact-sheet-woman.png"
+            alt="Character reference image from the px creative foundation"
+            className="object-cover object-top"
+          />
+          <div className="lineage-node-label flex justify-between px-12">
+            <span>px://models/character/eliza</span>
+            <span>revision 8</span>
+          </div>
+        </div>
+        <div className="col-span-full lg:col-span-12 grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px]">
           {pxFoundations.map((item) => (
             <article key={item.title?.toString()} className="p-24">
               <h3 className="t-h3-sans mb-16">{item.title}</h3>
@@ -769,7 +1042,7 @@ function PxSection() {
             </article>
           ))}
         </div>
-        <div className="col-span-full flex flex-col gap-16">
+        <div className="col-span-full lg:col-span-12 flex flex-col gap-16">
           <p className="t-p-sans text-white"><strong>px</strong> is free and open source for creators and developers building locally.</p>
           <CTAButton href="/px" analyticsLabel="Explore px" analyticsIntent="education">
             Explore px
@@ -968,14 +1241,23 @@ export function VCS({
           </div>
         </div>
       </header>
-      <section className="saga-front-hero" data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
-        <div className="relative ui-grid min-h-screen gap-y-[max(var(--spacing-sgs),12.5svh)] pt-[max(var(--spacing-Header-h),29.5svh)] pb-sms text-white">
+      <section className="saga-front-hero relative isolate min-h-screen flex items-center" data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
+        <div className="pointer-events-none z-[-10]" aria-hidden="true">
+          <img src="/images/vcs/components/creative-production-hero-woman-portrait-4k-alt.png" alt=""
+            className="hidden lg:block absolute h-full right-[calc(18%-12rem)] xl:right-[calc(18%-6rem)] top-[50%] scale-[200%] object-cover" />
+        </div>
+        {/* <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,8,13,.96)_0%,rgba(3,8,13,.82)_32%,rgba(3,8,13,.22)_68%,rgba(3,8,13,.10)_100%)]" />
+          <div className="absolute inset-x-sms bottom-[36svh] hidden items-center gap-12 border-t border-white/50 pt-10 t-m2 text-white md:flex">
+            <span className="size-8 bg-white" />
+            <span>APPROVED VERSION</span>
+            <span className="ml-auto">REFERENCE → HISTORY → DELIVERY</span>
+          </div> */}
+        <div className="relative z-10 ui-grid w-full my-auto gap-y-[max(var(--spacing-sgs),12.5svh)] pt-[max(var(--spacing-Header-h))] pb-sms text-white">
           <div className="col-span-full space-y-20">
-            <h1 ref={heroHeadingRef} className="max-w-[8.725em] t-d2-sans">
-              build from your best{' '}
-              <strong className="t-d2-serif">creative work</strong>
+            <h1 ref={heroHeadingRef} className="max-w-[12.725em] text-balance t-d2-sans">scale{' '}
+              <strong className="t-d2-serif">creative media production</strong>{' '}without the overhead
             </h1>
-            <p className="t-h3-sans max-w-[24.5ch]">reduce production costs, organize and extend successful work, and scale projects across teams and tools.</p>
+            <p className="t-h3-sans max-w-[24.5ch]">ship campaigns faster, reduce production costs, and keep every shipped asset provable.</p>
             <div className="saga-hero-assess flex flex-col gap-12 pt-12 sm:flex-row">
               <CTAButton
                 href="/assessment"
@@ -989,13 +1271,13 @@ export function VCS({
               </CTAButton>
             </div>
           </div>
-          <div className="saga-hero-repository saga-hero-repository--desktop col-span-full grid grid-cols-subgrid">
-            <div className="md:col-span-8 md:col-start-5 flex justify-center md:justify-end items-end col-span-full">
-              <div className="saga-hero-repository-anchor">
-                <div className="saga-hero-repository-copy t-p-sans lowercase!">
-                  <p>THE REPOSITORY FOR
-                    <br />AI{`\u2011`}NATIVE PRODUCTION</p>
-                </div>
+        </div>
+        <div className="saga-hero-repository saga-hero-repository--desktop col-span-full grid grid-cols-subgrid">
+          <div className="md:col-span-8 md:col-start-5 flex justify-center md:justify-end items-end col-span-full">
+            <div className="saga-hero-repository-anchor">
+              <div className="saga-hero-repository-copy t-p-sans lowercase!">
+                <p>THE REPOSITORY FOR
+                  <br />AI{`\u2011`}NATIVE PRODUCTION</p>
               </div>
             </div>
           </div>
@@ -1023,9 +1305,9 @@ export function VCS({
         <div className="relative flex min-h-screen items-center text-white">
           <div className="ui-grid flex-1 gap-y-sms py-sms">
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
-              <h4 className="t-global-cta_heading max-w-[13em]">Stop losing the history of your best work. <br /> Start building on it.</h4>
+              <h4 className="t-global-cta_heading max-w-[13em]">Stop losing the history of your best work.<br /> Start building on it.</h4>
               <p className="t-p-lg-serif max-w-[25em] md:w-auto text-white text-left">
-                Deliver campaigns faster and at lower cost with a complete and programmable production lifecycle.
+                Ship repeat campaigns faster, cut rebuild and re-approval costs, and keep every asset provable from prompt to final with a complete lifecycle that works with your existing tools.
               </p>
               <div className="flex items-center gap-16">
                 <CTAButton href={"/use-cases"} appearance="plain">Explore use cases</CTAButton>

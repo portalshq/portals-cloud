@@ -1,6 +1,6 @@
 import {after, NextResponse} from 'next/server'
 import type Stripe from 'stripe'
-import {createStripePlatformBilling, createStripePlatformClient} from '@portalshq/billing'
+import {createStripePlatformBilling, createStripePlatformClient} from '@portalshq/platform-billing'
 import {applyTransition} from '@/lib/leads/pilot'
 import {
   createBillingCustomer,

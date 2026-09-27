@@ -1,4 +1,4 @@
-# K8s CronJob that runs BillingSync from @px/billing-engine.
+# K8s CronJob that runs BillingSync from @portalshq/platform-billing.
 # Pulls OpenMeter aggregates per tenant and reports to Lago hourly.
 # Hourly is fine — Lago's billing cycle is monthly; sub-hourly granularity
 # on usage reporting buys nothing except more API calls.
