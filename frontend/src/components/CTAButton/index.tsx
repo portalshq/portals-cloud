@@ -38,10 +38,10 @@ type ButtonProps = SharedProps & {
 type CTAButtonProps = LinkProps | ButtonProps
 
 const defaultClasses =
-  't-button inline-flex justify-center items-center rounded h-48 gap-x-9 px-12 text-inherit transition-backdrop duration-240 cursor-pointer'
+  'inline-flex t-p-sm-sans justify-center items-center rounded h-48 gap-x-9 px-12 transition-backdrop duration-240 cursor-pointer'
 
 const appearanceClasses = {
-  default: `md:min-w-220 w-fit border border-white/50 bg-white/8 backdrop-blur-[32px] hover:bg-white/16 hover:border-white/80`,
+  default: `md:min-w-180 w-fit border border-white/50 bg-white/8 backdrop-blur-[32px] hover:bg-white/16 hover:border-white/80`,
   plain: `gap-x-9 w-fit underline decoration-2 underline-offset-4`
 }
 
@@ -57,7 +57,7 @@ export function CTAButton(props: CTAButtonProps) {
   } = props
   const classes = [defaultClasses, appearance === 'plain' ? appearanceClasses[appearance] : appearanceClasses['default'], className].join(' ')
   const content = (
-    <span className="t-p-sans inline-flex items-center gap-x-9">
+    <span className="inline-flex text-inherit items-center gap-x-9">
       {children}
     </span>
   )

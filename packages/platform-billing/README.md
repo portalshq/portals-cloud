@@ -1,94 +1,33 @@
 # @portalshq/platform-billing
 
-Usage metering and infrastructure invoicing for Portals **tenants**. Emits
-billable events to OpenMeter and prices them through Lago.
+**Reusable agent module:** [integration guide](../../docs/package-agents/platform-billing.md)
 
-This is the direction where the platform bills the tenant who built an
-application. Audience-to-creator payments — where money flows from a viewer's
-card to a creator's connected account — are `@portalshq/monetization`. The two
-are siblings and share only `@portalshq/policy`.
-
-## Credentials
-
-Secrets are injected, never read from the environment by this package:
+Tenant infrastructure billing: emit usage to OpenMeter, report aggregated usage to Lago, and support the platform's own Stripe B2B flows. It is not the audience-to-creator payout package; use `@portalshq/monetization` for that.
 
 ```ts
-// application boundary
-const apiKey = process.env.LAGO_API_KEY?.trim();
-if (!apiKey) throw new Error("LAGO_API_KEY is not configured");
+import { LagoClient, MeteringClient, MeteringEvents } from "@portalshq/platform-billing";
 
-const lago = new LagoClient({ apiKey });
-const sync = new BillingSync(lago, openMeterEndpoint);
-const billing = createStripePlatformBilling(process.env.STRIPE_SECRET_KEY!.trim());
+const metering = new MeteringClient({ endpoint: openMeterEndpoint });
+await metering.emit(MeteringEvents.capabilityInvoked({ subject: tenantId, capabilityId, sessionId, channelId }));
+
+const lago = new LagoClient({ apiKey: lagoApiKey, baseUrl: lagoUrl });
+await new BillingSync(lago, openMeterEndpoint).syncTenant(tenantId, fromIso, toIso);
 ```
 
-`LAGO_API_URL` and `OPENMETER_ENDPOINT` are non-secret and may be omitted in a
-cluster, where the in-cluster defaults apply.
+## Components
 
-## What is here
+- `MeteringEvents`: CloudEvent builders for runtime usage.
+- `MeteringClient`: best-effort HTTP emission. It logs and swallows errors so it never blocks a session.
+- `LagoClient`: customer, subscription, usage, invoice, and current-usage HTTP client.
+- `BillingSync`: scheduled OpenMeter-to-Lago reporter for tenant-billable meters.
+- `BillingPlans`: declarative Lago plan definitions.
+- `StripePlatformBilling` / `createStripePlatformBilling`: platform-account B2B Stripe helpers.
+- `reportTenantRake`: reports policy-calculated marketplace rake; rates come from `@portalshq/policy`.
 
-| Module | Role |
-|---|---|
-| `MeteringClient` / `MeteringEvents` | The single instrumentation surface. Emits CloudEvents to OpenMeter. Never throws — metering must not block a session. |
-| `BillingPlans` | Declarative Lago plan definitions. The source of truth for pricing. |
-| `LagoClient` | Thin Lago HTTP client: customers, plans, usage, invoices. |
-| `BillingSync` | CronJob seam. Queries OpenMeter per tenant per period and reports usage to Lago. Not on the hot path. |
-| `StripePlatformBilling` | Stripe customer, Checkout, and portal helpers for the platform's own B2B sales flows. |
-| `reportTenantRake` | Reports what the platform earned from a tenant's marketplace volume. |
+## Operations and limits
 
-## Meters you need to define in OpenMeter (one-time setup)
-
-Create these in the OpenMeter UI or via API before first use:
-
-| Meter ID | Event type | Aggregation | Tenant-billable |
-|---|---|---|---|
-| capability-invocations | capability.invoked | COUNT | yes |
-| session-minutes | session.ended | SUM(durationSeconds/60) | yes |
-| peak-concurrent-viewers | session.ended | MAX(peakConcurrentViewers) | yes |
-| storage-written-bytes | storage.written | SUM(bytes) | yes |
-| marketplace-gmv-cents | marketplace.transaction | SUM(grossAmountCents) | **no** |
-
-`marketplace-gmv-cents` is the basis for the platform's own rake, not a cost to
-the tenant, so `BillingSync` deliberately does not report it for tenant
-invoicing. Rake is settled on the payout side in `@portalshq/monetization`.
-
-## Why this depends on `@portalshq/policy`
-
-Rake rates have exactly one table, and it lives in `@portalshq/policy` because
-both sides of the money need it: the payout side charges it, and this package
-reports it. `reportTenantRake` reads the same numbers the payout path settles
-with, so the two cannot disagree about a rate.
-
-## Bootstrapping Lago
-
-`infra/compose/lago/seed.sh` creates the plans defined in `src/plans.ts` against a
-Lago API. It is idempotent — Lago returns 422 on duplicate codes, treated as
-success. Run it after Lago starts. In a cluster the equivalent is a one-shot job
-calling the same API.
-
-`BillingSync` expects a K8s CronJob (`infra/k8s/base/billing-sync-cronjob.yaml`)
-or the compose `billing-sync` service.
-
-## Instrumentation boundary
-
-`MeteringClient` is the only emission surface. Capability packages must not emit
-metering events — they report outputs through their contracts and the runtime or
-application emits the billable event. See
-[ADR 0004](../../docs/architecture-decision-records/0004-billing-stack-openmeter-lago.md).
-
-## AGPL note on Lago
-
-Lago self-hosted is AGPL v3. Self-hosting it as an internal service does not
-require releasing the platform, but legal should review any scenario where Lago
-is bundled into something distributed to customers. Lago Cloud avoids the
-question.
-
-## Breaking changes in 0.0.5
-
-Renamed from `@portalshq/billing-metering` and `@portalshq/billing-engine`, which
-are now a single package. `MeteringClient`, `MeteringEvents`, `BillingPlans`,
-`LagoClient`, and `BillingSync` keep their names.
-
-`StripePlatformBilling` moved here from `@portalshq/billing` (now
-`@portalshq/monetization`): it serves the platform's own B2B flows, not audience
-monetization.
+- Inject `LagoClient`'s API key; `MeteringClient` and `LagoClient` may fall back to documented in-cluster endpoint environment variables.
+- Create matching OpenMeter meters and Lago customer/subscription records before syncing. `BillingSync` assumes `${tenantId}__px-developer-base` and four fixed meter codes.
+- `BillingSync` is a scheduled job, not a hot-path operation. Its OpenMeter queries are unauthenticated and skip failed meter responses; secure the network and monitor sync failures externally.
+- `MeteringClient.emitBatch()` currently serializes individual requests. Use a broker pipeline for high-volume events.
+- This package has no test coverage. Validate API contracts against your OpenMeter and Lago versions before a production rollout.

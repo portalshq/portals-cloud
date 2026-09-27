@@ -1,0 +1,13 @@
+{
+  "name": "@portals/mac-bootstrap",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/check-release.mjs",
+    "test:architecture": "sh scripts/test-amd64-contract.sh",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.0.0"
+  }
+}

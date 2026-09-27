@@ -10,12 +10,12 @@ consumable by third-party channel developers too, without destabilizing
 the two products already depending on them.
 
 ## Decision
-- `@px/resolver` and `@px/capability-narrative-engine-adapter` are
+- `@portalshq/resolver` and `@portalshq/capability-narrative-engine-adapter` are
   **adapters, not reimplementations**. They wrap the existing v0 clients
   and conform to those clients' current API surface — the adapter bends
   to fit the proven v0 code, not the reverse.
 - Extraction of the v0 clients out of studio-app's codebase into their own
-  publishable packages (`@px/protocol-v0`, `@px/narrative-engine-v0`) is
+  publishable packages (`@portalshq/protocol-v0`, `@portalshq/narrative-engine-v0`) is
   a **separate, explicit migration step**, tracked but not done as part of
   this scaffold — both adapter packages currently contain `TODO`-marked
   placeholder imports for exactly this reason.

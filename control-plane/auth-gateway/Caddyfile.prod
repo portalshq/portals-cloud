@@ -1,0 +1,46 @@
+# Production Auth Gateway edge for the Mac-hosted Portals bootstrap.
+#
+# Pinggy connects only to this TLS listener.  The service listeners at 8084,
+# 8085, 8086, and 8087 bind to loopback; neither ReBAC nor the administrative
+# API is published through Caddy.
+#
+# Required environment values:
+#   AUTH_PUBLIC_HOST       e.g. auth.portals.works
+#   AUTH_TLS_CERT_FILE     PEM certificate for AUTH_PUBLIC_HOST
+#   AUTH_TLS_KEY_FILE      PEM private key for AUTH_PUBLIC_HOST
+
+{
+  auto_https off
+  admin off
+}
+
+https://{$AUTH_PUBLIC_HOST} {
+  tls {$AUTH_TLS_CERT_FILE} {$AUTH_TLS_KEY_FILE}
+
+  # Preserve HTTP/2 for Lore's UrcAuth gRPC client, but terminate it only at
+  # the local edge.  h2c is safe here because this hop is loopback-only.
+  @grpc protocol grpc
+  handle @grpc {
+    reverse_proxy h2c://127.0.0.1:8084
+  }
+
+  # Browser callback, JWKS, and health only.  The gateway owns its own route
+  # allowlist; /v1/* and ReBAC are intentionally absent from this listener.
+  handle {
+    reverse_proxy 127.0.0.1:8085 {
+      header_up Host {host}
+      header_up X-Forwarded-Proto https
+    }
+  }
+
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy no-referrer
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  }
+
+  log {
+    output file /Users/Shared/Portals/logs/caddy-auth.json
+    format json
+  }
+}

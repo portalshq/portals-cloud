@@ -1,0 +1,57 @@
+services:
+  auth-gateway:
+    image: ${AUTH_GATEWAY_IMAGE_DIGEST:?AUTH_GATEWAY_IMAGE_DIGEST is required}
+    restart: unless-stopped
+    env_file: ${AUTH_ENV_FILE:?AUTH_ENV_FILE is required}
+    ports:
+      - "127.0.0.1:8084:8084"
+      - "127.0.0.1:8085:8085"
+      - "127.0.0.1:8086:8086"
+      - "127.0.0.1:8087:8087"
+    read_only: true
+    security_opt: [no-new-privileges:true]
+
+  lore:
+    image: ${LORE_IMAGE_DIGEST:?LORE_IMAGE_DIGEST is required}
+    restart: unless-stopped
+    env_file: ${LORE_ENV_FILE:?LORE_ENV_FILE is required}
+    ports:
+      - "127.0.0.1:41337:41337/tcp"
+      - "127.0.0.1:41337:41337/udp"
+      - "127.0.0.1:41339:41339"
+    volumes:
+      - lore-cache:/data
+      - ${LORE_QUIC_CERT_DIR:?LORE_QUIC_CERT_DIR is required}:/run/secrets/lore-quic:ro
+    read_only: true
+    security_opt: [no-new-privileges:true]
+
+  delivery-worker:
+    image: ${DELIVERY_WORKER_IMAGE_DIGEST:?DELIVERY_WORKER_IMAGE_DIGEST is required}
+    restart: unless-stopped
+    env_file: ${WORKER_ENV_FILE:?WORKER_ENV_FILE is required}
+    ports:
+      - "127.0.0.1:8090:8090"
+    read_only: true
+    tmpfs:
+      - /tmp:size=4g,noexec
+    security_opt: [no-new-privileges:true]
+
+  caddy:
+    image: ${CADDY_IMAGE_DIGEST:?CADDY_IMAGE_DIGEST is required}
+    restart: unless-stopped
+    env_file: ${CADDY_ENV_FILE:?CADDY_ENV_FILE is required}
+    ports:
+      - "127.0.0.1:8443:443"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${CADDY_CERT_DIR:?CADDY_CERT_DIR is required}:/run/secrets/caddy:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    read_only: true
+    security_opt: [no-new-privileges:true]
+
+volumes:
+  lore-cache:
+  caddy-data:
+  caddy-config:

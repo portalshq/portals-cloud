@@ -1,0 +1,3 @@
+name: portals-mac-bootstrap
+runtime: nodejs
+description: Non-secret manifest for the Portals Mac bootstrap runtime

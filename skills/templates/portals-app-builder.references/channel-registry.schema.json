@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/portalshq/portals-cloud/blob/main/skills/portals-app-builder/references/channel-registry.schema.json",
+  "title": "Portals channel registry",
+  "type": "object",
+  "required": ["channels"],
+  "properties": {
+    "channels": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z0-9._-]+$" },
+      "additionalProperties": { "$ref": "#/$defs/channel" }
+    },
+    "entities": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/entity" },
+      "default": {}
+    },
+    "entitiesFetchedAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "environmentVariable": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+    "pxUri": { "type": "string", "pattern": "^px://.+" },
+    "youtube": {
+      "type": "object",
+      "required": ["liveChatId", "clientIdEnv", "clientSecretEnv", "refreshTokenEnv"],
+      "properties": {
+        "liveChatId": { "type": "string", "minLength": 1 },
+        "clientIdEnv": { "$ref": "#/$defs/environmentVariable" },
+        "clientSecretEnv": { "$ref": "#/$defs/environmentVariable" },
+        "refreshTokenEnv": { "$ref": "#/$defs/environmentVariable" }
+      },
+      "additionalProperties": false
+    },
+    "twitch": {
+      "type": "object",
+      "required": ["broadcasterUserId", "userId", "clientIdEnv", "clientSecretEnv", "refreshTokenEnv"],
+      "properties": {
+        "broadcasterUserId": { "type": "string", "minLength": 1 },
+        "userId": { "type": "string", "minLength": 1 },
+        "clientIdEnv": { "$ref": "#/$defs/environmentVariable" },
+        "clientSecretEnv": { "$ref": "#/$defs/environmentVariable" },
+        "refreshTokenEnv": { "$ref": "#/$defs/environmentVariable" }
+      },
+      "additionalProperties": false
+    },
+    "channel": {
+      "type": "object",
+      "required": ["queueTokenEnv", "requiredEntities"],
+      "anyOf": [{ "required": ["controlEndpoint"] }, { "required": ["endpoint"] }],
+      "properties": {
+        "controlEndpoint": { "type": "string", "format": "uri" },
+        "endpoint": { "type": "string", "format": "uri", "deprecated": true },
+        "queueTokenEnv": { "$ref": "#/$defs/environmentVariable" },
+        "youtube": { "$ref": "#/$defs/youtube" },
+        "twitch": { "$ref": "#/$defs/twitch" },
+        "requiredEntities": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/pxUri" } }
+      },
+      "additionalProperties": false
+    },
+    "entity": {
+      "type": "object",
+      "required": ["id", "name", "entity_type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/pxUri" },
+        "name": { "type": "string", "minLength": 1 },
+        "entity_type": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  }
+}

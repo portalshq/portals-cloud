@@ -1,0 +1,3 @@
+# Lore QUIC is direct UDP and must not pass through Caddy.
+# Confirm the plan's persistent UDP allocation before production use.
+pinggy udp 127.0.0.1:41337 --remote-port "${PINGGY_UDP_PORT:?set persistent UDP port}"

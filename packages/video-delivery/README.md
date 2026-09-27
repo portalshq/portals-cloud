@@ -1,110 +1,27 @@
 # @portalshq/capability-video-delivery
 
-`LiveDelivery` connects one configured HLS playback stream per instance. It
-does not create an origin or define whether content is "live" or "VOD"; those
-are application decisions. It verifies the configured manifest on start,
-retries connection failures, monitors health, and can run the package-owned
-release scheduler from an injected application programming policy.
+**Reusable agent module:** [integration guide](../../docs/package-agents/video-delivery.md)
 
-`HlsPlaybackSession` is the common, token-free descriptor for an HLS-capable
-application player. Queue Broadcast returns this descriptor after its trusted
-backend has talked to the queue control plane; the player receives only the
-public/unlisted manifest URL.
-
-## Sidecar captions
-
-Captions are a `video-delivery` feature: it validates supplied WebVTT URLs or
-timed cues, returns them with the playback descriptor, and mounts native HTML
-`<track>` elements in the viewer. They are never pixels burned into the stream.
-For supplied cues, the package creates and later revokes a browser-local WebVTT
-source. A cross-origin caption host must permit the player origin with the
-appropriate CORS headers.
+HLS playback health checks, browser playback helpers, sidecar captions, and optional application-policy programming. It does not provision an origin, sign manifests, or decide live/VOD product rules.
 
 ```ts
-const playback = await client.getPlayback({
-  captionTracks: [{
-    id: "en",
-    label: "English",
-    language: "en",
-    cues: [
-      { startTimeSeconds: 0, endTimeSeconds: 2.5, text: "Welcome." },
-    ],
-    default: true,
-  }],
-});
+import { LiveDelivery } from "@portalshq/capability-video-delivery";
+
+const delivery = new LiveDelivery({ sessionId, playbackManifestUrl });
+const playback = await delivery.start(); // fetches and validates the manifest
+// Hand only playback.playbackManifestUrl to the viewer.
+await delivery.stop();
 ```
 
-```ts
-import { mountPlaybackCaptions } from "@portalshq/capability-video-delivery/browser";
+## Exports
 
-const video = document.querySelector("video")!;
-video.src = playback.playbackManifestUrl;
-const mountedCaptions = mountPlaybackCaptions(video, playback);
+- Root: `LiveDelivery`, `HlsPlaybackSession`, caption types/helpers, and programming pipeline types.
+- `@portalshq/capability-video-delivery/browser`: `HlsPlaybackController`, `mountPlaybackCaptions`, and `createLiveCaptionController`.
+- `@portalshq/capability-video-delivery/react`: `VideoDeliveryPlayer`.
 
-// Remove these package-managed tracks when this playback session is replaced.
-mountedCaptions.remove();
-```
+## Usage notes
 
-Use `src` instead of `cues` when the consuming app already hosts a `.vtt` file.
-`createWebVtt(cues)` is also available when it needs VTT content for a custom
-storage flow.
-
-## Realtime live captions
-
-For a live HLS timeline, use `createLiveCaptionController` rather than a fixed
-VTT cue list. It creates a native browser text track, forces it visible, and
-timestamps each supplied event at the player's current media time.
-
-```ts
-import { createLiveCaptionController } from "@portalshq/capability-video-delivery/browser";
-
-const captions = createLiveCaptionController(video, {
-  id: "en-live",
-  label: "English",
-  language: "en",
-});
-
-captionEvents.subscribe(({ text, durationSeconds }) => {
-  captions.publish({ text, durationSeconds });
-});
-
-// Call when replacing the player/session.
-captions.dispose();
-```
-
-## Scheduled and dual-format programming
-
-Create separate delivery objects for independent stream windows. For example,
-an application can start a `morning` instance for a 9am–12pm manifest and an
-`afternoon` instance for a 1pm–5pm manifest. The application owns that clock,
-its routing, and any VOD-versus-live presentation rules; each `LiveDelivery`
-object only observes and returns its one configured HLS stream.
-
-```ts
-const morning = new LiveDelivery({
-  sessionId: "morning-stream",
-  playbackManifestUrl: "https://media.example/morning/index.m3u8",
-});
-const afternoon = new LiveDelivery({
-  sessionId: "afternoon-stream",
-  playbackManifestUrl: "https://media.example/afternoon/index.m3u8",
-});
-
-await morning.start();
-// Application routing later calls morning.stop() and afternoon.start().
-```
-
-For queue-backed programming, pass `programming` to `LiveDelivery`, or use
-`BufferedProgrammingPipeline` directly. The application provides candidates,
-generation/staging callbacks, release policy, limits, and configuration.
-Video Delivery owns single-flight scheduling, FIFO commit/release, safe
-canonical boundaries, shared-visual buffer accounting, monitoring, and stop.
-
-## Browser playback
-
-`HlsPlaybackController` in the `/browser` export owns native HLS selection,
-optional hls.js attachment, media recovery, bounded reconnects, replacement,
-and cleanup. `VideoDeliveryPlayer` in the `/react` export combines that
-controller with captions and a held frame. Pass `externalPlayer` when an app
-needs its own video element component; return the element through `mediaRef`
-and the package retains the HLS/reconnect state machine.
+- `LiveDelivery.start()` retries manifest access (three attempts by default), then performs periodic health checks. Inspect `getStatus()` for health and the last failure.
+- Call browser-caption `remove()` or live-caption `dispose()` when replacing a player/session.
+- Native HLS is used where available; `hls.js` is an optional peer dependency for other browsers. React is required only for the `/react` entry point.
+- The manifest URL must be public/unlisted or otherwise playable by the browser. Do not expose origin/control-plane credentials.

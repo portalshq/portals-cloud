@@ -104,7 +104,7 @@ impl CognitoOauth {
                 "{}?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&state={}&nonce={}&code_challenge={}&code_challenge_method=S256",
                 discovery.authorization_endpoint,
                 urlencoding::encode(self.config.effective_client_id()),
-                urlencoding::encode(&self.config.cognito_redirect_uri),
+                urlencoding::encode(self.config.effective_redirect_uri()),
                 session.oauth_state,
                 session.oidc_nonce,
                 urlencoding::encode(&challenge),
@@ -113,9 +113,9 @@ impl CognitoOauth {
         }
         let login_url = format!(
             "{}/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&state={}&nonce={}&code_challenge={}&code_challenge_method=S256",
-            self.config.cognito_domain.trim_end_matches('/'),
-            urlencoding::encode(&self.config.cognito_client_id),
-            urlencoding::encode(&self.config.cognito_redirect_uri),
+            self.config.effective_domain().trim_end_matches('/'),
+            urlencoding::encode(self.config.effective_client_id()),
+            urlencoding::encode(self.config.effective_redirect_uri()),
             session.oauth_state,
             session.oidc_nonce,
             urlencoding::encode(&challenge),
@@ -131,7 +131,7 @@ impl CognitoOauth {
         } else {
             format!(
                 "{}/oauth2/token",
-                self.config.cognito_domain.trim_end_matches('/')
+                self.config.effective_domain().trim_end_matches('/')
             )
         };
         let response = self
@@ -145,7 +145,7 @@ impl CognitoOauth {
                 ("grant_type", "authorization_code"),
                 ("client_id", self.config.effective_client_id()),
                 ("code", code),
-                ("redirect_uri", self.config.cognito_redirect_uri.as_str()),
+                ("redirect_uri", self.config.effective_redirect_uri()),
                 ("code_verifier", session.pkce_verifier.as_str()),
             ])
             .send()
@@ -196,7 +196,7 @@ impl CognitoOauth {
         } else {
             format!(
                 "{}/.well-known/jwks.json",
-                self.config.cognito_issuer.trim_end_matches('/')
+                self.config.effective_issuer().trim_end_matches('/')
             )
         };
         let jwks = self

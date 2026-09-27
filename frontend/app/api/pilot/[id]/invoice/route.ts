@@ -1,6 +1,6 @@
 import {cookies} from 'next/headers'
 import {NextResponse} from 'next/server'
-import {createStripePlatformBilling, createStripePlatformClient} from '@portalshq/billing'
+import {createStripePlatformBilling, createStripePlatformClient} from '@portalshq/platform-billing'
 import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipWithAccountRole, linkPilotStripeCustomer} from '@/lib/leads/application-auth'
 import {hasPendingMaterialException} from '@/lib/leads/pilot'
 import {createBillingCustomer, getPilotById, leadsDryRun, mutatePilot} from '@/lib/leads/store'

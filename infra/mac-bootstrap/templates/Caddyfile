@@ -1,0 +1,29 @@
+{
+  admin off
+}
+
+{$AUTH_DOMAIN} {
+  tls /run/secrets/caddy/fullchain.pem /run/secrets/caddy/privkey.pem
+  @grpc protocol grpc
+  handle @grpc {
+    reverse_proxy h2c://auth-gateway:8084
+  }
+  reverse_proxy auth-gateway:8085
+}
+
+{$LORE_DOMAIN} {
+  tls /run/secrets/caddy/fullchain.pem /run/secrets/caddy/privkey.pem
+  @grpc protocol grpc
+  handle @grpc {
+    reverse_proxy h2c://lore:41337
+  }
+}
+
+{$WORKER_DOMAIN} {
+  tls /run/secrets/caddy/fullchain.pem /run/secrets/caddy/privkey.pem
+  @wake path /internal/wake
+  handle @wake {
+    reverse_proxy delivery-worker:8090
+  }
+  respond 404
+}

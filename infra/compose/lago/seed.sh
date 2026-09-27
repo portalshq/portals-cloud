@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lago bootstrap — creates billing plans defined in @px/billing-engine/src/plans.ts
+# Lago bootstrap — creates billing plans defined in @portalshq/platform-billing/src/plans.ts
 # via the Lago REST API. Runs once after Lago starts up.
 # Idempotent: Lago returns 422 on duplicate codes, which we treat as success.
 

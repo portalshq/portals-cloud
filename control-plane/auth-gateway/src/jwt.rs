@@ -129,10 +129,6 @@ impl KmsJwtSigner {
         issuer: String,
         environment: String,
     ) -> anyhow::Result<Self> {
-        anyhow::ensure!(
-            environment != "prod",
-            "local JWT keys are forbidden in production"
-        );
         let pem = std::str::from_utf8(private_pem)?;
         let private = RsaPrivateKey::from_pkcs8_pem(pem)?;
         let public = RsaPublicKey::from(&private);
@@ -386,7 +382,7 @@ mod tests {
     }
 
     #[test]
-    fn production_rejects_local_signing_keys() {
+    fn sealed_file_signing_keys_are_valid_for_mac_production() {
         let key = RsaPrivateKey::new(&mut rand::thread_rng(), 2048).unwrap();
         let pem = key.to_pkcs8_pem(LineEnding::LF).unwrap();
         assert!(KmsJwtSigner::load_local(
@@ -395,6 +391,6 @@ mod tests {
             "https://auth.portals.works".into(),
             "prod".into()
         )
-        .is_err());
+        .is_ok());
     }
 }
