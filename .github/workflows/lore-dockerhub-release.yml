@@ -39,6 +39,8 @@ jobs:
         env:
           IMAGE: ${{ steps.build.outputs.image }}
         run: cosign sign --yes "$IMAGE"
+      - name: Install receipt writer dependencies
+        run: npm ci --prefix infra/pulumi --omit=dev --ignore-scripts
       - name: Verify and promote Docker Hub receipt
         env:
           IMAGE: ${{ steps.build.outputs.image }}
