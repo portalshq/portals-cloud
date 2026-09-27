@@ -10,8 +10,6 @@
     "channels",
     "frontend",
     "packages/*",
-    "!packages/platform-billing",
-    "!packages/policy",
     "packages/stubs/*",
     "lib/*"
   ],
