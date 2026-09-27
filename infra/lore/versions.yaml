@@ -62,12 +62,12 @@ mac-lore:
   version: "0.8.4-portals.10"
   source_repository: "https://github.com/portalshq/lore"
   source_commit: "f717f97c7efffb53674d6c10cae94bd994b0c7e9"
-  packaging_commit: ""
+  packaging_commit: "034fc2cb9b45113f5171c482957f7dec7045c752"
   security_contract: "lore-auth-v1"
   platform: "linux/amd64"
-  base_image: ""
-  image: ""
-  receipt_key: ""
+  base_image: "portalshq/lore@sha256:1f4aee42cfe023c6b865f7e5ce62800e95bfb42392728e3113a3b26fc75a1c78"
+  image: "portalshq/lore@sha256:1c7e86d5e30c28905891783bc190a79e92ed5a42693dfa1bc1cc4c577fd45380"
+  receipt_key: "portalshq/lore@sha256:1c7e86d5e30c28905891783bc190a79e92ed5a42693dfa1bc1cc4c577fd45380"
 
 # The active control-plane runtime is the private Auth Gateway. The old
 # caller-selected-claims issuer is separately and permanently retired below.
