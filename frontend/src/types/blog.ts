@@ -6,6 +6,8 @@ export type BlogPostCard = {
   _id: string
   _updatedAt: string
   title: string
+  /** Condensed title (seo.metaTitle) — falls back to `title` in UI. */
+  metaTitle?: string
   slug: string
   definition: string
   excerpt: string

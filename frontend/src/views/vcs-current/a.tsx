@@ -820,8 +820,8 @@ function ComparisonSection() {
             {/* <div className="p-16 lowercase">without portals</div> */}
             <div className="p-16 text-white lowercase">with portals</div>
           </div>
-          {comparisonRows.map((row) => (
-            <div key={row.metric} className="grid grid-cols-1 border-t border-white/50 grid-cols-3 lowercase">
+          {comparisonRows.map((row, index) => (
+            <div key={row.metric} className={`grid grid-cols-1 border-t border-white/50 grid-cols-3 lowercase ${index === comparisonRows.length - 1 ? 'border-b' : ''}`}>
               <div className="p-16 t-p-sans col-span-2 text-white w-[26ch] bg-transparent">{row.metric}</div>
               {/* <div className="border-white/50 p-16 t-p-sans text-white/80 border-t-0 border-l">
                 <span className="mb-8 block t-m2 lg:hidden !lowercase">without portals</span>
@@ -832,6 +832,7 @@ function ComparisonSection() {
               </div>
             </div>
           ))}
+          <div className='grid grid-cols-3 pt-20'><CTAButton href="/production-memory" className="lg:col-start-3">Explore production memory</CTAButton></div>
         </div>
         <div className="md:hidden col-span-full">
           {comparisonRows.map((row) => (
@@ -839,6 +840,7 @@ function ComparisonSection() {
               <div className="inline-flex p-16 t-p-sans col-span-full text-white">{row.metric} {row.withPortals}</div>
             </div>
           ))}
+          <div className='pt-16'><CTAButton href="/production-memory">Explore production memory</CTAButton></div>
         </div>
       </div>
     </section>
@@ -891,10 +893,10 @@ function PxSection() {
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <h2 className="t-d2-sans max-w-[13.8em] col-span-full lg:row-start-1">Powered by open data foundations for AI production</h2>
         <div className="col-span-full space-y-24 lg:row-start-2 lg:col-span-11">
-          <p className="t-p-lg-serif max-w-[38em] text-justify leading-[1.25]">
+          <p className="t-p-lg-serif max-w-[38em] md:text-justify leading-[1.25]">
             portals builds on <span className="t-p-lg-sans font-bold">px</span>, giving production teams shared control over persistent data objects: characters, locations, worlds, and their representations across tools and formats.
           </p>
-          <p className="t-p-lg-sans max-w-[30em] text-justify">Create an asset once. Give it an identity. Build a world from it.</p>
+          <p className="t-p-lg-sans max-w-[30em] md:text-justify">Create an asset once. Give it an identity. Build a world from it.</p>
         </div>
 
         <div className="col-span-full lg:row-start-3 lg:col-span-12 grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px]">
@@ -908,12 +910,22 @@ function PxSection() {
         <div className="hidden lg:block col-span-12 lg:col-span-11 xl:col-span-6 lg:col-start-13 xl:col-start-13 lg:row-span-3">
           <div className='grid grid-cols-2 gap-px'>
             <img
-              src="/images/vcs/components/campaign-contact-sheet-woman.png"
+              src="/images/vcs/components/campaign-contact-sheet-woman-6.png"
+              alt="Character reference image from the px creative foundation"
+              className="aspect-[7/8] w-full object-cover object-top rounded-sm"
+            />
+            <img
+              src="/images/vcs/components/campaign-contact-sheet-woman-5.png"
               alt="Character reference image from the px creative foundation"
               className="aspect-[7/8] w-full object-cover object-top rounded-sm"
             />
             <img
               src="/images/vcs/components/campaign-contact-sheet-woman-2.png"
+              alt="Character reference image from the px creative foundation"
+              className="aspect-[7/8] w-full object-cover object-top rounded-sm"
+            />
+            <img
+              src="/images/vcs/components/campaign-contact-sheet-woman.png"
               alt="Character reference image from the px creative foundation"
               className="aspect-[7/8] w-full object-cover object-top rounded-sm"
             />
@@ -924,16 +936,6 @@ function PxSection() {
             />
             <img
               src="/images/vcs/components/campaign-contact-sheet-woman-4.png"
-              alt="Character reference image from the px creative foundation"
-              className="aspect-[7/8] w-full object-cover object-top rounded-sm"
-            />
-            <img
-              src="/images/vcs/components/campaign-contact-sheet-woman-5.png"
-              alt="Character reference image from the px creative foundation"
-              className="aspect-[7/8] w-full object-cover object-top rounded-sm"
-            />
-            <img
-              src="/images/vcs/components/campaign-contact-sheet-woman-6.png"
               alt="Character reference image from the px creative foundation"
               className="aspect-[7/8] w-full object-cover object-top rounded-sm"
             />
@@ -1130,7 +1132,7 @@ export function VCS({
       <header
         className="saga-front-header pointer-events-none w-full absolute md:!fixed inset-x-0 top-0 z-(--z-header)"
       >
-        <div className="flex h-Header-h items-center px-sms !pr-16">
+        <div className="flex h-Header-h items-center px-sms">
           <div className="pointer-events-auto flex flex-1 items-center justify-between gap-x-sgs">
             <a ref={headerBrandRef} className="saga-front-header-brand" href="/">
               <span className="t-h3-sans !font-medium">
@@ -1138,7 +1140,9 @@ export function VCS({
               </span>
             </a>
 
-            <CTAButton href={scopeAPilotMailto} analyticsLabel="Scope a Pilot" analyticsIntent="pilot_scope">Scope a pilot</CTAButton>
+            <nav aria-label="Page" className="hidden shrink-0 items-center gap-x-16 text-white sm:flex">
+              <CTAButton href={scopeAPilotMailto} analyticsLabel="Scope a Pilot" analyticsIntent="pilot_scope">Scope a pilot</CTAButton>
+            </nav>
           </div>
         </div>
       </header>
@@ -1155,7 +1159,8 @@ export function VCS({
           </div> */}
         <div className="relative z-10 ui-grid w-full my-auto gap-y-[max(var(--spacing-sgs),12.5svh)] pt-[max(var(--spacing-Header-h))] pb-sms text-white">
           <div className="col-span-full space-y-20">
-            <h1 ref={heroHeadingRef} className="max-w-[12.725em] text-balance t-d2-sans">scale{' '}
+            <h1 ref={heroHeadingRef} className="max-w-[12.725em] text-balance t-d2-sans">
+              scale{' '}
               <strong className="t-d2-serif">creative media production</strong>{' '}without the overhead
             </h1>
             <p className="t-h3-sans max-w-[24.5ch]">ship campaigns faster, reduce production costs, and keep every shipped asset provable.</p>
@@ -1165,7 +1170,7 @@ export function VCS({
                 analyticsLabel="Assess Your Workflow"
                 analyticsIntent="assessment"
               >
-                Assess production workflow
+                Assess your production workflow
               </CTAButton>
               <CTAButton className="!hidden" href="/use-cases" analyticsLabel="Explore Use Cases" analyticsIntent="education">
                 Explore use cases

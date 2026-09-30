@@ -13,7 +13,6 @@ import type {KnownLeadContext} from '@/lib/leads/contracts'
 import type {ResourceDocument} from '@/types/resource'
 import {getFaqsByCategories} from '@/lib/faqs'
 import {ResourceBody} from './ResourceBody'
-import {PortalsHeader} from '@/components/PortalsHeader'
 
 const CURRENT_CERTIFICATIONS_ANCHOR = 'current-certifications'
 const PLANNED_CERTIFICATIONS_ANCHOR = 'planned-certifications'
@@ -63,7 +62,6 @@ function Hero({document}: {document: ResourceDocument}) {
       data-header-theme="light"
       className="relative flex min-h-screen items-center overflow-hidden"
     >
-      <PortalsHeader breadcrumb={[{href: '/security-and-architecture', label: 'security'}]} action={{href: '#controls', label: 'security brief / 2026'}} />
       <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-16">
           {landing.eyebrow ? (

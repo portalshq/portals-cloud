@@ -12,18 +12,22 @@ export async function generateMetadata(): Promise<Metadata> {
   const document = await getResourceDocument('paid-pilot')
   if (!document) return {}
   return marketingMetadata({
-    title: document.seo?.metaTitle || 'Paid pilot | portals',
+    title: document.seo?.metaTitle || '21-Day AI Creative Production Pilot | portals',
     description:
       document.seo?.metaDescription ||
-      'Scope a 21-day paid pilot on one active workflow and prove production memory pays for itself.',
-    path: '/pilot',
+      'Scope a 21-day paid pilot on one active AI creative workflow. Measure asset retrieval, context recovery, reproducibility, handoffs, and rework.',
+    path: document.seo?.canonicalPath || '/pilot',
     keywords: document.seo?.keywords ?? [
       'AI production pilot',
-      'creative production pilot',
+      'AI creative production pilot',
+      'AI workflow evaluation',
+      'AI asset management pilot',
       'production memory pilot',
     ],
     type: 'article',
     image: document.seo?.shareImageUrl,
+    shareTitle: document.seo?.shareTitle,
+    shareDescription: document.seo?.shareDescription,
     publishedTime: document.publishedAt,
     modifiedTime: document._updatedAt,
   })

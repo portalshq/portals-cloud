@@ -218,3 +218,37 @@
     animation: none;
   }
 }
+
+@media (max-width: 767px) {
+  html.mobile-snap-page,
+  html:has([data-page="production-memory"]) {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+  }
+
+  html.mobile-snap-page body,
+  html:has([data-page="production-memory"]) body {
+    overflow-x: clip;
+    scroll-snap-type: y mandatory;
+  }
+
+  .pm-snap-section {
+    min-height: 100dvh;
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+    align-content: center;
+  }
+
+  html.mobile-snap-page footer,
+  html:has([data-page="production-memory"]) footer {
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+  }
+}
+
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  html.mobile-snap-page,
+  html:has([data-page="production-memory"]) {
+    scroll-behavior: auto;
+  }
+}

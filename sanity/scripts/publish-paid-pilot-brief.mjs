@@ -122,27 +122,28 @@ const document = {
   edition: 'version 1.0',
   seo: {
     _type: 'seoSettings',
-    metaTitle: 'paid production pilot | portals',
+    metaTitle: '21-Day AI Creative Production Pilot | portals',
     metaDescription:
-      'scope a portals pilot to preserve and recover one real ai production workflow.',
+      'Scope a 21-day paid pilot on one active AI creative workflow. Measure asset retrieval, context recovery, reproducibility, handoffs, and rework.',
     keywords: [
-      'portals paid pilot',
-      'ai production workflow',
+      'AI production pilot',
+      'AI creative production pilot',
+      'AI workflow evaluation',
+      'AI asset management pilot',
       'production memory pilot',
-      'creative operations',
     ],
-    shareTitle: 'portals paid production pilot',
+    shareTitle: '21-Day AI Creative Production Pilot | portals',
     shareDescription:
-      'a defined commercial evaluation with a first-value milestone.',
-    canonicalPath: '/paid-pilot',
+      'Scope a 21-day paid pilot on one active AI creative workflow. Measure asset retrieval, context recovery, reproducibility, handoffs, and rework.',
+    canonicalPath: '/pilot',
     noIndex: false,
   },
   landingPage: {
     _type: 'landingPageSettings',
     enabled: true,
-    headline: 'prove production memory on real work.',
+    headline: 'AI Creative Production Pilot',
     description:
-      'prove that a historic production record makes your team faster, cheaper, and infinitely more collaborative.',
+      'Evaluate production memory on real work. Measure whether your team can recover approved assets, restore context, reproduce work, and improve handoffs with less rework.',
     primaryCta: {
       _type: 'cta',
       label: 'scope a paid pilot',

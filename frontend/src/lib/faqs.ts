@@ -39,9 +39,15 @@ export const faqs: FaqItem[] = [
     categories: ['assessment'],
   },
   {
-    question: 'Who is the Production Memory Brief for?',
+    question: 'What is production memory?',
     answer:
-      'It is for creative organizations producing high volumes of AI-assisted work across multiple people, tools, clients, projects, or production cycles.',
+      'Production memory is the complete, recoverable organizational record of how valuable creative work was made.',
+    categories: ['general'],
+  },
+  {
+    question: 'Who should read the Production Memory Brief?',
+    answer:
+      'It is for creative operations leaders and production leaders in organizations producing high volumes of AI-assisted work.',
     categories: ['general'],
   },
   {
@@ -51,23 +57,17 @@ export const faqs: FaqItem[] = [
     categories: ['general'],
   },
   {
-    question: 'How is portals different from a DAM?',
+    question: 'Is production memory the same as a DAM?',
     answer:
-      'A DAM primarily organizes and distributes finished assets. portals is a production repository and memory system that stores the files and preserves the evolving production identity, history, context, approvals, and lineage behind an AI-generated asset \u2014 how it was made, approved, reproduced, extended, and handed off.',
+      'No. portals is a production repository and agent memory system that preserves the production context, lineage, decisions, and approvals that file storage and delivery systems often leave behind.',
     categories: ['general', 'assessment'],
   },
-  {
-    question: 'Do I need portals to use the guide?',
-    answer:
-      'No. The guide includes minimum practices that teams can implement using folders, spreadsheets, documentation, approval logs, and handoff procedures.',
-    categories: ['general'],
-  },
-  {
-    question: 'What is production memory?',
-    answer:
-      'It\'s the system that organizes the record behind an important asset: its approved version, previous versions, and creation context.',
-    categories: ['general'],
-  },
+  // {
+  //   question: 'Do I need portals to use the guide?',
+  //   answer:
+  //     'No. The guide includes minimum practices that teams can implement using folders, spreadsheets, documentation, approval logs, and handoff procedures.',
+  //   categories: ['general'],
+  // },
   {
     question: 'Does portals replace creative tools?',
     answer:

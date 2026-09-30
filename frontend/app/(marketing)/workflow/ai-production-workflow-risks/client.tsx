@@ -1,17 +1,17 @@
 'use client'
 
-import {useState} from 'react'
-import type {PortableTextBlock, ResourceDocument} from '@/types/resource'
-import {CTAButton} from '@/components/CTAButton'
-import {ResourceLeadForm} from '@/components/leads/ResourceLeadForm'
-import type {KnownLeadContext} from '@/lib/leads/contracts'
-import {productionWorkflows} from '@/lib/production-workflows'
-import {getFaqsByCategories} from '@/lib/faqs'
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
+import { useState } from 'react'
+import type { PortableTextBlock, ResourceDocument } from '@/types/resource'
+import { CTAButton } from '@/components/CTAButton'
+import { ResourceLeadForm } from '@/components/leads/ResourceLeadForm'
+import type { KnownLeadContext } from '@/lib/leads/contracts'
+import { productionWorkflows } from '@/lib/production-workflows'
+import { getFaqsByCategories } from '@/lib/faqs'
+import { canonical } from '@/lib/seo'
 
 function StructuredData() {
-  const pageUrl = `${SITE_URL}/workflow/ai-production-workflow-risks`
+  const pageUrl = canonical('/workflow/ai-production-workflow-risks')
+  const homeUrl = canonical('/')
 
   return (
     <script
@@ -28,16 +28,9 @@ function StructuredData() {
               url: pageUrl,
             },
             {
-              '@type': 'Organization',
-              name: 'portals',
-              description:
-                'The production repository for AI-native creative organizations',
-              url: SITE_URL,
-            },
-            {
               '@type': 'BreadcrumbList',
               itemListElement: [
-                {'@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL},
+                { '@type': 'ListItem', position: 1, name: 'Home', item: homeUrl },
                 {
                   '@type': 'ListItem',
                   position: 2,
@@ -45,6 +38,14 @@ function StructuredData() {
                   item: pageUrl,
                 },
               ],
+            },
+            {
+              '@type': 'FAQPage',
+              mainEntity: faqs.map(({ question, answer }) => ({
+                '@type': 'Question',
+                name: question,
+                acceptedAnswer: { '@type': 'Answer', text: answer },
+              })),
             },
           ],
         }),
@@ -62,16 +63,6 @@ function ResourceHero({
 
   return (
     <section data-header-theme="light" className="relative min-h-screen flex items-center">
-      <header className="pointer-events-none w-full absolute inset-x-0 top-0 z-(--z-header)">
-        <div className="flex h-Header-h items-center px-sms !pr-16">
-          <div className="pointer-events-auto flex flex-1 items-center gap-x-sgs items-baseline">
-            <a className="md:absolute" href="/">
-              <span className="t-h3-sans !font-medium">portals</span>
-            </a>
-          </div>
-        </div>
-      </header>
-
       <div className="ui-grid gap-y-fluid-[30,52] mx-auto py-fluid-[76,106] text-white">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
           {landing.eyebrow ? (
@@ -146,7 +137,7 @@ function ProductionWorkflows({
                 key={workflow.id}
                 className="scroll-mt-Header-h p-24 text-white bg-white/20 rounded-sm backdrop-blur-[12px]"
               >
-                
+
                 <h3 className="mt-12 t-h3-sans">{workflow.title}</h3>
                 <p className="mt-16 t-p-sans text-white">{workflow.problem}</p>
                 <p className="mt-12 t-p-sans text-white">instead, {workflow.outcome}</p>
@@ -187,33 +178,33 @@ function WhatsInside({
           <h2 className="t-d2-sans">{section.title}</h2>
           <div className="flex flex-1 flex-col gap-y-8">
             {body.map((block, i) => {
-            const text = block.children?.[0]?.text || ''
-            if (i === 0) {
+              const text = block.children?.[0]?.text || ''
+              if (i === 0) {
+                return (
+                  <p key={block._key} className="mb-20 t-p-lg-serif max-w-[50em] text-white">
+                    {text}
+                  </p>
+                )
+              }
+              if (i === body.length - 1) {
+                return (
+                  <p key={block._key} className="mt-20 t-p-sans max-w-[50em]">
+                    {text}
+                  </p>
+                )
+              }
               return (
-                <p key={block._key} className="mb-20 t-p-lg-serif max-w-[50em] text-white">
-                  {text}
-                </p>
+                <div
+                  key={block._key}
+                  className="flex items-start gap-x-16 t-p-sans max-w-[50em]"
+                >
+                  <span className="flex h-[1.364em] items-center">
+                    <span className="size-8 shrink-0 bg-current" />
+                  </span>
+                  <span>{text}</span>
+                </div>
               )
-            }
-            if (i === body.length - 1) {
-              return (
-                <p key={block._key} className="mt-20 t-p-sans max-w-[50em]">
-                  {text}
-                </p>
-              )
-            }
-            return (
-              <div
-                key={block._key}
-                className="flex items-start gap-x-16 t-p-sans max-w-[50em]"
-              >
-                <span className="flex h-[1.364em] items-center">
-                  <span className="size-8 shrink-0 bg-current" />
-                </span>
-                <span>{text}</span>
-              </div>
-            )
-          })}
+            })}
           </div>
           <div className="flex justify-center">
             <CTAButton href="#download">Download the Production Memory Brief</CTAButton>
@@ -224,7 +215,7 @@ function WhatsInside({
   )
 }
 
-function DownloadBriefForm({context}: {context: KnownLeadContext}) {
+function DownloadBriefForm({ context }: { context: KnownLeadContext }) {
   return (
     <section id="download" data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
@@ -236,13 +227,13 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
             description="Learn how to diagnose and address the production risks behind ai-native creative work."
             interestLabel="which workflow risk is most relevant?"
             options={[
-              {value: 'approved-version-retrieval', label: 'approved version confusion'},
-              {value: 'asset-reproduction', label: 'failed asset reproduction'},
-              {value: 'five-more-like-this', label: 'twelve more like this becomes a rebuild'},
-              {value: 'character-continuity', label: 'character or visual continuity drift'},
-              {value: 'production-handoff', label: 'production knowledge leaves with the creator'},
-              {value: 'campaign-variant-control', label: 'variant families become hard to control'},
-              {value: 'not-sure', label: 'not sure yet'},
+              { value: 'approved-version-retrieval', label: 'approved version confusion' },
+              { value: 'asset-reproduction', label: 'failed asset reproduction' },
+              { value: 'five-more-like-this', label: 'twelve more like this becomes a rebuild' },
+              { value: 'character-continuity', label: 'character or visual continuity drift' },
+              { value: 'production-handoff', label: 'production knowledge leaves with the creator' },
+              { value: 'campaign-variant-control', label: 'variant families become hard to control' },
+              { value: 'not-sure', label: 'not sure yet' },
             ]}
             downloadLabel="Download the Production Memory Brief"
             sourcePage="/workflow/ai-production-workflow-risks"
@@ -253,7 +244,7 @@ function DownloadBriefForm({context}: {context: KnownLeadContext}) {
   )
 }
 
-function PilotCTASection({document}: {document: ResourceDocument}) {
+function PilotCTASection({ document }: { document: ResourceDocument }) {
   const cta = document.finalCta
 
   if (!cta) return null

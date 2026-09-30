@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import { CTAButton } from '@/components/CTAButton'
 import { SmoothAnchor } from '@/components/SmoothAnchor'
-import { PortalsHeader } from '@/components/PortalsHeader'
 import { PilotScopeForm } from '@/components/leads/PilotScopeForm'
 import type { KnownLeadContext } from '@/lib/leads/contracts'
 import type {
@@ -125,7 +124,6 @@ function Hero({ document, offer, offerTerms }: { document: ResourceDocument; off
       data-header-theme="light"
       className="relative flex min-h-screen items-center overflow-hidden"
     >
-      <PortalsHeader breadcrumb={[{href: '/pilot', label: 'paid pilot'}]} />
       <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[96,126] text-white">
         <div className="col-span-full lg:col-span-11">
           <h1 className="t-d2-sans max-w-[11em]">

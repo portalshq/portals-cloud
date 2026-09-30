@@ -6,4 +6,8 @@ Disallow: /pilot/room/
 Disallow: /workflow/assessment
 Disallow: /production-memory/brief/
 
+# The wildcard policy permits Googlebot, Bingbot, OAI-SearchBot,
+# ChatGPT-User, PerplexityBot, ClaudeBot, anthropic-ai, and Google-Extended.
+# Keep their access rules in this group so private-path exclusions still apply.
+
 Sitemap: https://portals.works/sitemap.xml

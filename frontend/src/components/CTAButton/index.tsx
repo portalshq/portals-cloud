@@ -5,6 +5,7 @@ import type {
   ButtonHTMLAttributes,
   ReactNode,
 } from 'react'
+import Link from 'next/link'
 import { trackEvent } from '@/lib/leads/analytics-client'
 import { cn } from '@/lib/utils'
 
@@ -65,9 +66,12 @@ export function CTAButton(props: CTAButtonProps) {
   if ('href' in elementProps && typeof elementProps.href === 'string') {
     const { onClick, ...anchorProps } = elementProps
     const isSamePageAnchor = elementProps.href.startsWith('#')
+    // Internal routes go through next/link for client-side navigation.
+    // Hash, mailto:, tel:, and external hrefs stay plain anchors.
+    const Element = elementProps.href.startsWith('/') ? Link : 'a'
 
     return (
-      <a
+      <Element
         {...anchorProps}
         data-analytics-cta="true"
         className={cn(classes)}
@@ -90,7 +94,7 @@ export function CTAButton(props: CTAButtonProps) {
         }}
       >
         {content}
-      </a>
+      </Element>
     )
   }
 

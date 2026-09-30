@@ -6,11 +6,7 @@ Single positioning sentence (use everywhere, never rephrase into new jargon):
 
 ## IA allowlist
 
-Canonical routes: `/`, `/production-memory`, `/use-cases`, `/use-cases/[slug]`,
-`/blog`, `/blog/[slug]`,
-`/assessment`, `/resources/production-memory-brief`, `/contact`, `/pilot`,
-`/security-and-architecture`, `/privacy-policy`, `/terms-of-service`,
-`/workflow/ai-production-workflow-risks` (legacy, keep until folded into `/use-cases`).
+Canonical routes are in cloud/frontend/app/sitemap.ts
 
 - No new `/workflow/*` public URLs. `/workflow/assessment` 308s to `/assessment`
   (see `next.config.ts`); the file under `workflow/assessment/` is the implementation,

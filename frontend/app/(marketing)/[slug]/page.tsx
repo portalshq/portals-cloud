@@ -4,7 +4,7 @@ import {PaidPilotLandingPage} from '@/components/resources/PaidPilotLandingPage'
 import {ResourceLandingPage} from '@/components/resources/ResourceLandingPage'
 import {SecurityArchitectureLandingPage} from '@/components/resources/SecurityArchitectureLandingPage'
 import {getKnownLeadContext} from '@/lib/leads/profile'
-import {DEFAULT_OG_IMAGE} from '@/lib/seo'
+import {marketingMetadata} from '@/lib/seo'
 import {getResourceDocument, getResourceSlugs} from '@/sanity/lib/resources'
 import {resolveCurrentPilotOffer} from '@/lib/leads/pilot-offers'
 
@@ -31,42 +31,22 @@ export async function generateMetadata({
     return {}
   }
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
-
   const canonicalPath =
     document.seo?.canonicalPath || `/${document.slug}`
 
-  const shareImage = [{url: document.seo?.shareImageUrl || DEFAULT_OG_IMAGE}]
-
-  return {
+  return marketingMetadata({
     title: document.seo?.metaTitle || document.title,
     description: document.seo?.metaDescription || document.abstract,
+    path: canonicalPath,
     keywords: document.seo?.keywords,
-    alternates: {
-      canonical: new URL(canonicalPath, siteUrl),
-    },
-    robots: document.seo?.noIndex
-      ? {
-          index: false,
-          follow: false,
-        }
-      : undefined,
-    openGraph: {
-      type: 'article',
-      title:
-        document.seo?.shareTitle ||
-        document.seo?.metaTitle ||
-        document.title,
-      description:
-        document.seo?.shareDescription ||
-        document.seo?.metaDescription ||
-        document.abstract,
-      publishedTime: document.publishedAt,
-      modifiedTime: document._updatedAt,
-      images: shareImage,
-    },
-  }
+    type: 'article',
+    image: document.seo?.shareImageUrl,
+    shareTitle: document.seo?.shareTitle,
+    shareDescription: document.seo?.shareDescription,
+    noIndex: document.seo?.noIndex,
+    publishedTime: document.publishedAt,
+    modifiedTime: document._updatedAt,
+  })
 }
 
 export default async function ResourcePage({params, searchParams}: PageProps) {

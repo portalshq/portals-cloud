@@ -13,11 +13,17 @@ export const SITE_DESCRIPTION =
 export const DEFAULT_OG_IMAGE = '/og-image.jpg'
 
 export function siteUrl() {
-  return SITE_URL
+  const configuredUrl = new URL(SITE_URL)
+  if (configuredUrl.hostname === 'www.portals.works') configuredUrl.hostname = 'portals.works'
+  return configuredUrl.origin
 }
 
 export function canonical(path: string) {
-  return new URL(path, SITE_URL).toString()
+  const url = new URL(path, siteUrl())
+  // Marketing URLs use trailing slashes in Next.js. Normalize them here so
+  // canonical, sitemap, Open Graph, and JSON-LD URLs all agree.
+  if (url.pathname !== '/' && !url.pathname.endsWith('/')) url.pathname += '/'
+  return url.toString()
 }
 
 type SeoInput = {
@@ -27,6 +33,8 @@ type SeoInput = {
   keywords?: string[]
   type?: 'website' | 'article'
   image?: string
+  shareTitle?: string
+  shareDescription?: string
   noIndex?: boolean
   publishedTime?: string
   modifiedTime?: string
@@ -40,6 +48,8 @@ export function marketingMetadata({
   keywords,
   type = 'website',
   image = DEFAULT_OG_IMAGE,
+  shareTitle,
+  shareDescription,
   noIndex,
   publishedTime,
   modifiedTime,
@@ -50,23 +60,37 @@ export function marketingMetadata({
     title,
     description,
     keywords,
-    metadataBase: new URL(SITE_URL),
+    metadataBase: new URL(siteUrl()),
     alternates: {canonical: url},
-    robots: noIndex ? {index: false, follow: false} : 'index, follow',
+    robots: noIndex
+      ? {index: false, follow: false}
+      : {index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1},
     openGraph: {
       type,
       url,
       siteName: SITE_NAME,
-      title: ogTitle,
-      description,
-      ...(image ? {images: [{url: image, width: 1200, height: 630}]} : undefined),
+      locale: 'en_US',
+      title: shareTitle || ogTitle,
+      description: shareDescription || description,
+      ...(image
+        ? {
+            images: [
+              {
+                url: image,
+                width: 1200,
+                height: 630,
+                alt: 'Portals AI creative production repository',
+              },
+            ],
+          }
+        : undefined),
       ...(publishedTime ? {publishedTime} : {}),
       ...(modifiedTime ? {modifiedTime} : {}),
     },
     twitter: {
       card: 'summary_large_image',
-      title: ogTitle,
-      description,
+      title: shareTitle || ogTitle,
+      description: shareDescription || description,
       ...(image ? {images: [image]} : undefined),
     },
   }
@@ -90,16 +114,34 @@ export function orgWebSiteJsonLd() {
     '@graph': [
       {
         '@type': 'Organization',
+        '@id': canonical('/#organization'),
         name: SITE_NAME,
-        url: SITE_URL,
+        url: canonical('/'),
         description: SITE_TAGLINE,
       },
       {
         '@type': 'WebSite',
+        '@id': canonical('/#website'),
         name: SITE_NAME,
-        url: SITE_URL,
+        url: canonical('/'),
+        publisher: {'@id': canonical('/#organization')},
       },
     ],
+  }
+}
+
+export function softwareApplicationJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    '@id': canonical('/#software'),
+    name: 'portals',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    url: canonical('/'),
+    description:
+      'Production memory for AI-native creative teams — preserve every approved version and reuse it.',
+    publisher: {'@id': canonical('/#organization')},
   }
 }
 

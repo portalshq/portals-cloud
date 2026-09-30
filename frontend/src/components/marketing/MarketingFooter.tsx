@@ -37,8 +37,8 @@ export function MarketingFooter() {
                 <li><a href="/blog" className="transition-colors hover:text-white">blog</a>
                 </li>
                 <li><a href="/px" className="transition-colors hover:text-white">px</a></li>
-                <li><a href="/resources/production-memory-brief" className="transition-colors hover:text-white">production memory brief</a></li>
                 <li><a href="/assessment" className="transition-colors hover:text-white">assess your workflow</a></li>
+                <li><a href="/production-memory#download" className="transition-colors hover:text-white">download the production memory brief</a></li>
               </ul>
             </nav>
             <nav aria-label="Work with Portals" className="space-y-12">

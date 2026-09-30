@@ -290,19 +290,19 @@ const document = {
   edition: 'Version 1.0',
   seo: {
     _type: 'seoSettings',
-    metaTitle: 'Security and Architecture | Portals',
+    metaTitle: 'AI Production Security & Architecture | portals',
     metaDescription:
-      'Review Portals data isolation, encryption, access, recovery, retention, model-training, incident response, certifications, and security roadmap.',
+      'How Portals secures AI creative production data: workspace isolation, access control, permissions, encryption, retention, and architecture.',
     keywords: [
-      'Portals security',
       'AI production security',
-      'data isolation',
-      'model training policy',
-      'security architecture',
+      'AI creative production data security',
+      'AI asset management security',
+      'AI production repository security',
+      'AI data handling',
     ],
-    shareTitle: 'Portals Security and Architecture Brief',
+    shareTitle: 'AI Production Security & Architecture | portals',
     shareDescription:
-      'Current security positions, explicit limitations, and planned controls for valuable AI production assets.',
+      'How Portals secures AI creative production data: workspace isolation, access control, permissions, encryption, retention, and architecture.',
     canonicalPath: '/security-and-architecture',
     noIndex: false,
   },
@@ -310,7 +310,7 @@ const document = {
     _type: 'landingPageSettings',
     enabled: true,
     eyebrow: 'SECURITY AND ARCHITECTURE / VERSION 1.0',
-    headline: 'Security for production memory',
+    headline: 'Security for AI Creative Production Data',
     description:
       'A direct account of how Portals approaches valuable production assets: what is current, what depends on deployment or agreement, and what remains planned.',
     primaryCta: {

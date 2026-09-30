@@ -5,7 +5,6 @@ import {SagaWebGLEngine} from '@/lib/SagaWebGLEngine'
 import {CTAButton} from '@/components/CTAButton'
 import type {LegalDocument} from '@/types/resource'
 import {ResourceBody} from '@/components/resources/ResourceBody'
-import {PortalsHeader} from '@/components/PortalsHeader'
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -50,10 +49,6 @@ export function LegalDocumentView({document}: {document: LegalDocument}) {
         aria-hidden="true"
         data-webgl-marker="scrollTo"
         data-webgl-position="0.96"
-      />
-      <PortalsHeader
-        breadcrumb={[{href: '#document-sections', label: document.title.toLowerCase()}]}
-        action={{href: '#document-sections', label: `${document.title.toLowerCase()} / ${new Date(document.effectiveDate).getFullYear()}`}}
       />
 
       <div className="relative z-10">

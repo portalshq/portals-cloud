@@ -1,0 +1,26 @@
+# Portals
+
+> Production memory for AI-native creative teams — preserve every approved version and reuse it across film, television, interactive media, and game development workflows.
+
+Portals is an AI creative production repository and agent memory system. It saves creative assets along with approved versions, prompts, model settings, references, approvals, and history so teams can recover, reuse, and extend production work.
+
+## Product and operating model
+
+- [Production memory](https://portals.works/production-memory/): definition, capabilities, and the value of retaining production context.
+- [AI creative production use cases](https://portals.works/use-cases/): operational workflows where production memory helps teams recover and reuse work.
+- [AI production workflow risks](https://portals.works/workflow/ai-production-workflow-risks/): common risks in retrieval, reproduction, variants, continuity, and handoffs.
+
+## Evaluation and trust
+
+- [Workflow assessment](https://portals.works/assessment/): assess production workflow friction and context loss.
+- [Production pilot](https://portals.works/pilot/): evaluate Portals on a real production workflow.
+- [Security and architecture](https://portals.works/security-and-architecture/): security and data-handling information.
+- [Contact](https://portals.works/contact/): contact the Portals team.
+
+## Further reading
+
+- [Blog](https://portals.works/blog/): articles about AI creative production best practices.
+- [Production Memory Brief](https://portals.works/production-memory#download/): downloadable production memory framework and organizational evaluation resource.
+- [Sitemap](https://portals.works/sitemap.xml): current indexable public URLs.
+
+This file summarizes the public site and links to canonical pages. Refer to each page for current product, security, and evaluation details.

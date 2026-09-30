@@ -104,7 +104,8 @@ function measureLineageLayout(track: HTMLElement, stage: number): LineageLayout 
     const firstVisible = visible[0] ?? 0;
     const positions = nodes.map((node, index) => {
         const slot = visible.includes(index) ? visible.indexOf(index) : index - firstVisible;
-        return roundPoint((slotCenters[slot] ?? (slot < 0 ? slotCenters[0] + slot * width / 3 : slotCenters.at(-1)! + (slot - slotCenters.length + 1) * width / 3)) - node!.offsetWidth / 2);
+        const slotPosition = slotCenters[slot] ?? (slot < 0 ? slotCenters[0] + slot * width / 3 : slotCenters.at(-1)! + (slot - slotCenters.length + 1) * width / 3);
+        return roundPoint(slot === 0 ? 0 : slotPosition - node!.offsetWidth / 2);
     });
     const trackLeft = track.getBoundingClientRect().left;
     const visualPositions = nodes.map((node) => roundPoint(node!.getBoundingClientRect().left - trackLeft));
@@ -309,7 +310,7 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
     });
     const motionStyle = (step: number): CSSProperties => {
         if (step === stage && transitionStage !== 'hidden' && transitionStage !== 'exiting') {
-            return overviewMotionStyle(stage, step, transitionStage, scrollDirection, 2);
+            return overviewMotionStyle(stage, step, transitionStage, scrollDirection);
         }
         if (step === stage - 1 || (step === stage && transitionStage === 'exiting')) {
             return {
@@ -323,7 +324,6 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
             step,
             step === stage ? transitionStage : 'idle',
             scrollDirection,
-            2,
         );
     };
     const nodeMotionStyle = (node: number): CSSProperties => ({
@@ -334,7 +334,7 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
             : { opacity: 0, filter: 'blur(10px)', pointerEvents: 'none' }),
     });
     const connectorMotionStyle = (step: number): CSSProperties => connectorVisible(step)
-        ? overviewMotionStyle(stage, step, transitionStage, scrollDirection, 2)
+        ? overviewMotionStyle(stage, step, transitionStage, scrollDirection)
         : {
             opacity: 0,
             filter: 'blur(10px)',
