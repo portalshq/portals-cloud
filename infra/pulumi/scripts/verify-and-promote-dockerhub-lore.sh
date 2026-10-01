@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify a Docker Hub Lore digest and atomically record the production Lore pin.
+# Verify a Docker Hub Lore digest and atomically record its Mac deployment pin.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,7 +11,6 @@ PACKAGING_COMMIT="${PACKAGING_COMMIT:?PACKAGING_COMMIT is required}"
 BUILD_ID="${BUILD_ID:?BUILD_ID is required}"
 LORE_VERSION="${LORE_VERSION:?LORE_VERSION is required}"
 COSIGN_CERTIFICATE_IDENTITY="${COSIGN_CERTIFICATE_IDENTITY:?COSIGN_CERTIFICATE_IDENTITY is required}"
-COSIGN_BUNDLE="${COSIGN_BUNDLE:?COSIGN_BUNDLE is required}"
 
 [[ "${IMAGE}" =~ ^portalshq/lore@sha256:[a-f0-9]{64}$ && "${BASE_IMAGE}" =~ ^portalshq/lore@sha256:[a-f0-9]{64}$ ]] || { echo "images must be portalshq/lore immutable digests" >&2; exit 2; }
 [[ "${SOURCE_COMMIT}" =~ ^[a-f0-9]{40}$ && "${PACKAGING_COMMIT}" =~ ^[a-f0-9]{40}$ ]] || { echo "source and packaging commits must be full hashes" >&2; exit 2; }
@@ -32,7 +31,13 @@ jq -e --arg commit "${PACKAGING_COMMIT}" '.. | strings | select(. == $commit)' >
 jq -e --arg build_id "${BUILD_ID}" '.. | strings | select(. == $build_id)' >/dev/null <<<"${PROVENANCE}" || { echo "provenance does not bind build ID" >&2; exit 1; }
 jq -e --arg base_image "${BASE_IMAGE}" '.. | strings | select(. == $base_image)' >/dev/null <<<"${PROVENANCE}" || { echo "provenance does not bind base image" >&2; exit 1; }
 
-cosign verify --bundle "${COSIGN_BUNDLE}" --certificate-identity "${COSIGN_CERTIFICATE_IDENTITY}" --certificate-oidc-issuer https://token.actions.githubusercontent.com "${IMAGE}" >/dev/null
+for attempt in {1..6}; do
+  if cosign verify --certificate-identity "${COSIGN_CERTIFICATE_IDENTITY}" --certificate-oidc-issuer https://token.actions.githubusercontent.com "${IMAGE}" >/dev/null; then
+    break
+  fi
+  [[ "${attempt}" -lt 6 ]] || { echo "signature was not available from the registry" >&2; exit 1; }
+  sleep "$((attempt * 5))"
+done
 if command -v trivy >/dev/null; then
   TRIVY_BIN=trivy
 else
@@ -51,5 +56,4 @@ PACKAGE_VERSION="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' "${REPO_ROOT}/infra/l
 VERSION_OUTPUT="$(docker run --rm --platform linux/amd64 -e LORE__SERVER=invalid "${IMAGE}" 2>&1 || true)"
 grep -Fq "Server version: ${PACKAGE_VERSION}+${LORE_VERSION}" <<<"${VERSION_OUTPUT}" || { printf '%s\n' "${VERSION_OUTPUT}" >&2; exit 1; }
 
-BUNDLE_SHA256="sha256:$(shasum -a 256 "${COSIGN_BUNDLE}" | awk '{print $1}')"
-node "${SCRIPT_DIR}/record-verified-dockerhub-lore.mjs" "${IMAGE}" "${BASE_IMAGE}" "${PLATFORM_DIGEST}" "${SOURCE_COMMIT}" "${PACKAGING_COMMIT}" "${BUILD_ID}" "${TRIVY_VERSION}" "${COSIGN_CERTIFICATE_IDENTITY}" https://token.actions.githubusercontent.com "${BUNDLE_SHA256}"
+node "${SCRIPT_DIR}/record-verified-dockerhub-lore.mjs" "${IMAGE}" "${BASE_IMAGE}" "${PLATFORM_DIGEST}" "${SOURCE_COMMIT}" "${PACKAGING_COMMIT}" "${BUILD_ID}" "${TRIVY_VERSION}" "${COSIGN_CERTIFICATE_IDENTITY}" https://token.actions.githubusercontent.com

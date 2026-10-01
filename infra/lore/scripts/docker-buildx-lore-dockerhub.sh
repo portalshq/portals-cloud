@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build the production Lore release on Docker Hub. The ECR publisher remains a
-# separate legacy dual-architecture path with AWS/KMS requirements.
+# Build the Intel Mac Lore release on Docker Hub. The ECR publisher remains a
+# separate dual-architecture path with AWS/KMS requirements.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

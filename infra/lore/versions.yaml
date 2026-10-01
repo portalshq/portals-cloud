@@ -44,27 +44,18 @@ lore-client:
   artifact_manifest_sha256: "sha256:7687395bb4f264df31f0da5bd3575085aad93dc4cdc22ddbfaa4f95eeeb2610c"
   signature_bundle_url: "https://github.com/portalshq/lore/releases/download/v0.8.4-portals.10/SHA256SUMS.sigstore.json"
 
-lore-sdk:
-  package: "@lore-vcs/sdk"
-  version: "0.8.4"
-  integrity: "sha512-exxAjXsDYlO68nb9i8vHx31V9KXEgGQtiQghVQgHnj5koPTpQ3Iu2VJpHHu5BQ06KSlbBUK0DfHKSFEJK96T7g=="
-  lore_client_version: "0.8.4-portals.10"
-  security_contract: "lore-auth-v1"
-
 lore:
-# Docker Hub promotion writes the verified source/packaging commits and image
-# digests here. This is the single production Lore image record.
+  # Docker Hub is the single production Lore image record.
   source_repository: "https://github.com/portalshq/lore"
   source_commit: "f717f97c7efffb53674d6c10cae94bd994b0c7e9"
-  packaging_commit: ""
+  packaging_commit: "ccfba1ce79984627cef17fcd26cf9aaaea5828f8"
   upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
   upstream_tag: ""
   security_contract: "lore-auth-v1"
-  base_image: ""
-  image: ""
-
+  base_image: "portalshq/lore@sha256:24ede89d03a0075c1ed67e44ee4394d1e4ae8eaad30863c28b2d90648ea2251c"
+  image: "portalshq/lore@sha256:d204cee28f0966017f9622822b235e5630bdd6163ffbbc9d70c1bed2ff8fe4e4"
   platform: "linux/amd64"
-  receipt_key: ""
+  receipt_key: "portalshq/lore@sha256:d204cee28f0966017f9622822b235e5630bdd6163ffbbc9d70c1bed2ff8fe4e4"
 
 # The active control-plane runtime is the private Auth Gateway. The old
 # caller-selected-claims issuer is separately and permanently retired below.
