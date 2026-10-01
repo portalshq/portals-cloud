@@ -45,28 +45,16 @@ lore-client:
   signature_bundle_url: "https://github.com/portalshq/lore/releases/download/v0.8.4-portals.10/SHA256SUMS.sigstore.json"
 
 lore:
-  # source_commit and packaging_commit updated 2026-08-21 with production build
-  source_repository: "https://github.com/portalshq/lore"
-  source_commit: "ed901a04f154b826a59ce50f8fa33d5bf078aac1"
-  packaging_commit: "600c071a04795f440a70f4ddada5635deb7ea13e"
-  upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
-  upstream_tag: ""
-  security_contract: "lore-auth-v1"
-  base_image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:71e498761479e03df95ba83df54d49435a5d862ecac9ead80ea4e3321f1515ad"
-  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/lore@sha256:fa302513c205540ac8f6efb98870d8b2bc7ca49d56ff9fd2ea19ad7a1843c7da"
-
-# The Intel Mac path is promoted independently from the retained ECR path.
-# Its immutable digests and packaging commit are written only by the Docker Hub
-# promotion script after build, signature, attestation, and scan verification.
-mac-lore:
-  version: "0.8.4-portals.10"
+  # Docker Hub is the single production Lore image record.
   source_repository: "https://github.com/portalshq/lore"
   source_commit: "f717f97c7efffb53674d6c10cae94bd994b0c7e9"
   packaging_commit: "034fc2cb9b45113f5171c482957f7dec7045c752"
+  upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
+  upstream_tag: ""
   security_contract: "lore-auth-v1"
-  platform: "linux/amd64"
   base_image: "portalshq/lore@sha256:1f4aee42cfe023c6b865f7e5ce62800e95bfb42392728e3113a3b26fc75a1c78"
   image: "portalshq/lore@sha256:1c7e86d5e30c28905891783bc190a79e92ed5a42693dfa1bc1cc4c577fd45380"
+  platform: "linux/amd64"
   receipt_key: "portalshq/lore@sha256:1c7e86d5e30c28905891783bc190a79e92ed5a42693dfa1bc1cc4c577fd45380"
 
 # The active control-plane runtime is the private Auth Gateway. The old
