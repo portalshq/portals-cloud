@@ -1161,20 +1161,25 @@ export function VCS({
           <div className="col-span-full space-y-20">
             <h1 ref={heroHeadingRef} className="max-w-[12.725em] text-balance t-d2-sans">
               scale{' '}
-              <strong className="t-d2-serif">creative media production</strong>{' '}without the overhead
+              <strong className="t-d2-serif">creative media production</strong>{' '}
+              <br/>without the overhead
             </h1>
-            <p className="t-h3-sans max-w-[24.5ch]">ship campaigns faster, reduce production costs, and keep every shipped asset provable.</p>
-            <div className="saga-hero-assess flex flex-col gap-12 pt-12 sm:flex-row">
+            <p className="t-h3-sans max-w-[24.5ch]">ship campaigns faster, cut production costs, and keep every asset traceable from brief to delivery.</p>
+            <p className="t-p-sans block">
+              Discover the bottlenecks costing you time, output, and margin
+            </p>
+            <div className="saga-hero-assess grid grid-cols-[max-content_max-content] gap-12">
               <CTAButton
                 href="/assessment"
                 analyticsLabel="Assess Your Workflow"
                 analyticsIntent="assessment"
               >
-                Assess your production workflow
+                Find my production bottlenecks
               </CTAButton>
               <CTAButton className="!hidden" href="/use-cases" analyticsLabel="Explore Use Cases" analyticsIntent="education">
                 Explore use cases
               </CTAButton>
+              <div className="row-start-2 t-p-sm-sans cursor-default">4-minute assessment · Personalized recommendations</div>
             </div>
           </div>
         </div>

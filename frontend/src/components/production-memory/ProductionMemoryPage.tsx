@@ -44,8 +44,20 @@ export function ProductionMemoryPage({ context, sanityDocument, useCases }: { co
     <section className="ui-grid py-fluid-[76,106] lg:py-48 pm-snap-section lg:min-h-[90vh] lg:content-center"><div className="col-span-full lg:col-span-12"><h2 className="t-d2-sans">What is production memory?</h2></div><div className="col-span-full mt-32 max-w-2xl lg:col-span-9 lg:mt-0 content-center"><p className="t-p-sans text-white">Production memory is the complete, recoverable organizational record of how valuable creative work was made.</p>
       {/* <p className="t-p-sans mt-24 text-white">It connects an asset to versions, prompts, models, source references, settings, approvals, rejected directions, production decisions, derivatives, delivery status, and reuse opportunities. A finished asset tells you what shipped. Production memory tells you how it happened, why it changed, what it connects to, and how to build from it again.</p> */}
     </div></section>
-    <section className="ui-grid py-fluid-[76,106] lg:py-48 pm-snap-section lg:min-h-[90vh] lg:content-center"><div className="col-span-full"><p className="t-h3-sans text-white">The value of production memory</p><div className="mt-24 grid gap-[2px] lg:grid-cols-2"><article className="bg-white/10 p-32 rounded-t-sm lg:rounded-none lg:rounded-l-sm"><h2 className="t-p-lg-sans">Stop losing production value</h2><p className="t-p-sans mt-20 max-w-xl text-white">Stop paying your team to rediscover work it already did. Recover approved versions, lineage, decision history, and the context required to reproduce or extend it.</p></article>
-      <article className="bg-white/10 p-32 rounded-b-sm lg:rounded-none lg:rounded-r-sm"><h2 className="t-p-lg-sans">Turn prior work into future capacity</h2><p className="t-p-sans mt-20 max-w-xl text-white">When successful assets retain their production record, they become reusable systems: faster variants, consistent continuity, smoother handoffs, and less rework.</p></article></div></div></section>
+    <section className="ui-grid py-fluid-[76,106] lg:py-48 pm-snap-section lg:min-h-[90vh] lg:content-center">
+      <div className="col-span-full">
+        <p className="t-h3-sans text-white">The value of production memory</p>
+        <div className="mt-24 flex flex-col gap-[2px] lg:flex-row lg:items-stretch w-full text-black">
+          <article className="bg-white p-32 pb-40 rounded-t-[1em] lg:rounded-none origin-center lg:rounded-l-[1em] w-full lg:flex-1 cursor-default transition-all duration-250 ease-in-out">
+            <h2 className="t-h3-sans">Stop losing production value&nbsp;✔️</h2><p className="t-p-sans mt-20 max-w-xl h-full">Stop paying your team to rediscover work it already did. 
+              <br/>
+              Recover approved versions, lineage, decision history, and the context required to reproduce or extend it.</p>
+          </article>
+          <article className="bg-white p-32 pb-40 rounded-b-[1em] lg:rounded-none origin-center lg:rounded-r-[1em] w-full lg:flex-1 cursor-default transition-all duration-250 ease-in-out"><h2 className="t-h3-sans">Turn prior work into future capacity&nbsp;↗</h2><p className="t-p-sans mt-20 max-w-xl h-full">When successful assets retain their production record, they become reusable systems: 
+          faster variants, consistent continuity, smoother handoffs, and less rework.</p></article>
+        </div>
+      </div>
+    </section>
     <section className="ui-grid py-fluid-[76,106] lg:py-48 pm-snap-section lg:min-h-[90vh] lg:content-center"><div className="col-span-full lg:col-span-12"><p className="t-p-sans text-white">operating production memory</p><h2 className="t-d2-sans mt-24">Preserve what made the work valuable</h2></div><div className="col-span-full mt-32 grid text-white sm:grid-cols-2 lg:col-span-9 lg:mt-0">{[
       'Asset identity',
       'Prompts and model versions',
@@ -54,7 +66,7 @@ export function ProductionMemoryPage({ context, sanityDocument, useCases }: { co
       'Approval and contributor history',
       'Complete version history',
     ].map((item) => <div key={item} className="border-t border-white/50 px-24 py-16 t-p-sans text-center md:text-left">{item}</div>)}</div></section>
-    <section className="ui-grid py-fluid-[76,106] lg:py-48 pm-snap-section lg:min-h-[90vh] lg:content-center"><div className="col-span-full"><h2 className="t-d2-sans mt-24 max-w-4xl">The risks of fragmented context</h2><div className="mt-40 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{risks.map(([n, title, text, slug]) => <a href={hrefForUseCase(useCases, slug)} key={n} className="group bg-white/10 p-24 transition-colors hover:bg-white/15 rounded-sm duration-100"><span className="t-p-sans text-white">{n}</span><h3 className="t-h3-sans mt-24">{title}</h3><p className="t-p-sans mt-16 text-white">{text}</p><span className="mt-24 inline-block t-p-sm-sans decoration-2 underline-offset-4 group-hover:underline">read more <span className="inline-block transition-transform duration-[220ms] group-hover:translate-x-5">→</span></span></a>)}</div></div></section>
+    <section className="ui-grid py-fluid-[76,106] lg:py-48 pm-snap-section lg:min-h-[90vh] lg:content-center"><div className="col-span-full"><h2 className="t-d2-sans mt-24 max-w-4xl">The risks of fragmented context</h2><div className="mt-40 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{risks.map(([n, title, text, slug]) => <a href={hrefForUseCase(useCases, slug)} key={n} className="group flex flex-col bg-white/10 p-24 transition-colors hover:bg-white/15 rounded-sm duration-100"><span className="t-p-sans text-white">{n}</span><h3 className="t-h3-sans mt-24">{title}</h3><p className="t-p-sans mt-16 text-white">{text}</p><span className="mt-auto pt-24 inline-block t-p-sm-sans decoration-2 underline-offset-4 group-hover:underline">read more <span className="inline-block transition-transform duration-[220ms] group-hover:translate-x-5">→</span></span></a>)}</div></div></section>
 
     {sanityDocument?.sections && <WhatsInside sections={sanityDocument.sections} />}
 
@@ -138,5 +150,5 @@ export function UseCasesHub({ useCases }: { useCases: UseCaseDocument[] }) {
       <CTAButton href="/production-memory">About production memory</CTAButton></div></section>
     <section id="use-cases" className="col-span-full py-fluid-[76,106]">
       <div className="grid gap-[2px] md:grid-cols-2">
-        {useCases.map(({ title, outcome, slug }, i) => <a key={slug} href={`/use-cases/${slug}`} className="group bg-white/10 p-32 transition-all duration-100 hover:bg-white/15"><span className="t-p-sm-sans text-white">{String(i + 1).padStart(2, '0')}</span><h2 className="t-h3-sans mt-40">{title}</h2><p className="t-p-sans mt-16">{outcome}</p><span className="mt-32 inline-block t-p-sans decoration-2 underline-offset-4 group-hover:underline">read more <span className="inline-block transition-transform duration-[220ms] group-hover:translate-x-5">→</span></span></a>)}</div></section></main></>
+        {useCases.map(({ title, outcome, slug }, i) => <a key={slug} href={`/use-cases/${slug}`} className="group flex flex-col bg-white/10 p-32 transition-all duration-100 hover:bg-white/15"><span className="t-p-sm-sans text-white">{String(i + 1).padStart(2, '0')}</span><h2 className="t-h3-sans mt-40">{title}</h2><p className="t-p-sans mt-16">{outcome}</p><span className="mt-auto pt-32 inline-block t-p-sans decoration-2 underline-offset-4 group-hover:underline">read more <span className="inline-block transition-transform duration-[220ms] group-hover:translate-x-5">→</span></span></a>)}</div></section></main></>
 }

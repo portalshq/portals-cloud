@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   ArrowRight,
   Check,
@@ -108,9 +109,22 @@ function StaticPilotBackground() {
   )
 }
 
-function Hero({ document, offer, offerTerms }: { document: ResourceDocument; offer?: string; offerTerms?: OfferTerms }) {
+function Hero({ document, offer, offerTerms, pilotMode }: { document: ResourceDocument; offer?: string; offerTerms?: OfferTerms; pilotMode?: 'standard' | 'assisted' }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
+  const router = useRouter()
+  const isPilotPage = usePathname() === '/pilot'
+  // Same-page anchors are smooth-scrolled by CTAButton; only a button that still
+  // has to change the page navigates. Assisted mode comes from the server, so on
+  // /pilot it is swapped in with a scroll-less replace instead of a navigation
+  // that would turn the scroll into a jump.
+  const assistedParams = () => new URLSearchParams({ ...(offer ? {offer} : {}), mode: 'assisted' })
+  const talkThroughHref = isPilotPage
+    ? '#scope'
+    : `/pilot?${assistedParams().toString()}#scope`
+  const startHref = isPilotPage
+    ? '#scope'
+    : `/pilot?${new URLSearchParams({ ...(offer ? {offer} : {}) }).toString()}#scope`
 
   const metrics = [
     [offerTerms ? `${offerTerms.pilotDurationDays} days` : packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
@@ -135,12 +149,21 @@ function Hero({ document, offer, offerTerms }: { document: ResourceDocument; off
           {offerTerms?.offerCopy ? <p className="mt-20 max-w-[37em] t-p-sans text-white/80">{offerTerms.offerCopy}</p> : null}
           <div className="mt-32 flex gap-20 flex-row">
             <CTAButton
-              href={`/pilot?${new URLSearchParams({ ...(offer ? {offer} : {}), mode: 'assisted' }).toString()}#scope`}
+              href={talkThroughHref}
               appearance="plain"
-            >
+              analyticsLabel="Talk through a pilot"
+              onClick={() => {
+                if (isPilotPage && pilotMode !== 'assisted') {
+                  void router.replace(`/pilot?${assistedParams().toString()}#scope`, {scroll: false})
+                }
+              }}
+              >
               <span>Talk through a pilot</span>
             </CTAButton>
-            <CTAButton href="#scope">
+            <CTAButton
+              href={startHref}
+              analyticsLabel="Start a pilot"
+            >
               <span>Start a pilot</span>
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
@@ -281,25 +304,12 @@ function SuccessCriteria({ document, offerTerms }: { document: ResourceDocument;
           ))}
         </ol>
       </div>
-      <div className="ui-grid mt-24">
-        <div className="col-span-full">
-          {offerTerms?.offerCopy || offerTerms?.acceptanceDeadlineLabel ? (
-            <p className="mb-16 max-w-[42em] t-p-sans !text-white">
-              {offerTerms.offerCopy || `sign by ${offerTerms.acceptanceDeadlineLabel} to lock in ${offerTerms.annualCreditLabel}.`}
-            </p>
-          ) : null}
-          <CTAButton href="#scope">
-            <span>Start a pilot</span>
-            <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
-          </CTAButton>
-        </div>
-      </div>
       </div>
     </section>
   )
 }
 
-function CommercialTerms({ document }: { document: ResourceDocument }) {
+function CommercialTerms({ document, offerTerms }: { document: ResourceDocument; offerTerms?: OfferTerms }) {
   const section = sectionByAnchor(document, 'commercial-terms')
   const specification = paidPilotSpec(document)
   if (!section) return null
@@ -320,6 +330,17 @@ function CommercialTerms({ document }: { document: ResourceDocument }) {
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
+        <div className="mt-24 col-span-full">
+          {offerTerms?.offerCopy || offerTerms?.acceptanceDeadlineLabel ? (
+            <p className="mb-16 max-w-[42em] t-p-sans !text-white">
+              {offerTerms.offerCopy || `sign by ${offerTerms.acceptanceDeadlineLabel} to lock in ${offerTerms.annualCreditLabel}.`}
+            </p>
+          ) : null}
+          <CTAButton href="#scope">
+            <span>Start a pilot</span>
+            <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
+          </CTAButton>
+        </div>
         </div>
       </div>
     </section>
@@ -493,9 +514,9 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
               <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
             <p className="items-center gap-2 t-p-sans text-white/80">
-              Not ready to streamline your production workflow?
+              Not ready to streamline your production?
             </p>
-            <a className="t-p-sans underline decoration-2 underline-offset-4" href="/assessment">Assess your creative production workflow first.</a>
+            <a className="t-p-sans underline decoration-2 underline-offset-4" href="/assessment">Evaluate your current production workflow first.</a>
           </div>
         </div>
       </div>
@@ -538,7 +559,7 @@ export function PaidPilotLandingPage({
       />
       <StaticPilotBackground />
       <div className="relative z-10">
-        <Hero document={document} offer={offer} offerTerms={offerTerms} />
+        <Hero document={document} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} />
         <div
           aria-hidden="true"
           className="pointer-events-none h-px w-full"
@@ -548,7 +569,7 @@ export function PaidPilotLandingPage({
         <Objective document={document} />
         <ScopeAndMilestone document={document} />
         <SuccessCriteria document={document} offerTerms={offerTerms} />
-        <CommercialTerms document={document} />
+        <CommercialTerms document={document} offerTerms={offerTerms} />
         <Responsibilities document={document} />
         <PilotForm specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
         <PilotFaq document={document} />

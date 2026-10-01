@@ -36,9 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PaidPilotPage({
   searchParams,
 }: {
-  searchParams: Promise<{offer?: string}>
+  searchParams: Promise<{offer?: string; mode?: 'standard' | 'assisted'}>
 }) {
-  const {offer} = await searchParams
+  const {offer, mode} = await searchParams
   const [document, context, offerVariant] = await Promise.all([
     getResourceDocument('paid-pilot'),
     getKnownLeadContext(),
@@ -58,6 +58,7 @@ export default async function PaidPilotPage({
           offerCopy: offerVariant.offerCopy,
       } : undefined}
       assessmentOrigin="standard"
+      pilotMode={mode}
     />
   )
 }

@@ -181,8 +181,32 @@
 
 .saga-webgl-viewport canvas {
   display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+
+.saga-webgl-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  opacity: 1;
+}
+
+.saga-webgl-viewport.is-ready canvas {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saga-webgl-viewport canvas {
+    transition-duration: 700ms;
+  }
 }
 
 @keyframes security-flow-gradient {
