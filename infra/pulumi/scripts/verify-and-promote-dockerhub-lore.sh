@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify a Docker Hub Lore digest and atomically record its Mac deployment pin.
+# Verify a Docker Hub Lore digest and atomically record the production Lore pin.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

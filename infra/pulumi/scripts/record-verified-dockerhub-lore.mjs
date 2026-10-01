@@ -22,7 +22,7 @@ const repoRoot = path.resolve(scriptDir, "../../..");
 const versionsFile = path.join(repoRoot, "infra/lore/versions.yaml");
 const receiptsFile = path.join(repoRoot, "infra/lore/verified-dockerhub-images.json");
 const versions = readYamlDocument(versionsFile);
-if (versions.getIn(["mac-lore", "platform"]) !== "linux/amd64") throw new Error("mac-lore must target linux/amd64");
+if (versions.getIn(["lore", "platform"]) !== "linux/amd64") throw new Error("lore must target linux/amd64");
 
 let ledger = fs.existsSync(receiptsFile) ? readJsonObject(receiptsFile) : { schemaVersion: 1, receipts: {} };
 if (ledger.schemaVersion !== 1 || ledger.receipts === null || Array.isArray(ledger.receipts) || typeof ledger.receipts !== "object") {
@@ -46,11 +46,12 @@ ledger.receipts[image] = {
   verifiedAt,
 };
 
-versions.setIn(["mac-lore", "source_commit"], sourceCommit);
-versions.setIn(["mac-lore", "packaging_commit"], packagingCommit);
-versions.setIn(["mac-lore", "base_image"], baseImage);
-versions.setIn(["mac-lore", "image"], image);
-versions.setIn(["mac-lore", "receipt_key"], image);
+versions.setIn(["lore", "source_commit"], sourceCommit);
+versions.setIn(["lore", "packaging_commit"], packagingCommit);
+versions.setIn(["lore", "base_image"], baseImage);
+versions.setIn(["lore", "image"], image);
+versions.setIn(["lore", "platform"], "linux/amd64");
+versions.setIn(["lore", "receipt_key"], image);
 
 atomicWriteJson(receiptsFile, ledger);
 atomicWriteYaml(versionsFile, versions);
