@@ -7,21 +7,17 @@ does not replace release verification for the Intel image.
 
 ## Current deployment status — 2026-10-02
 
-- **Done:** Auth Gateway image pushed to Docker Hub as
-  `portalshq/auth-gateway:0.2.0-build-20261002-retry6-0906980`. The OCI index
-  digest is `sha256:5d2381bd323a92191e5cbb67001558500a5ded84187753202f170da87ba194b1`;
-  its manifest contains `linux/amd64` and `linux/arm64`. BuildKit generated
-  SBOM and provenance.
-- **Not yet a deployable release:** this direct push has no verified GitHub
-  signature/Trivy receipt and is not pinned in the BOM. The BOM still points
-  `control-plane.image` at ECR and records Auth source `2b492c82…` and protocol
-  `ed901a04…`; this Docker Hub build uses Auth source `0906980e…` and protocol
-  `f717f97c…`. Do not deploy it or change the BOM until the mismatch is
-  reviewed and a verified receipt is produced.
+- **Released and pinned:** Auth Gateway Docker Hub index
+  `portalshq/auth-gateway@sha256:7d1c6a95654679990d609f3979710267f7270fec8b2634e626cdadbb2cebd6a2`.
+  The successful GitHub release below tested, built, signed, and verified both
+  `linux/amd64` and `linux/arm64`, with SBOM/provenance and zero HIGH/CRITICAL
+  Trivy findings. Its exact CI evidence is now in the BOM and receipt ledger;
+  protected Lore release entries are unchanged. Earlier direct-push and
+  failed-scan candidates are not approved for deployment.
 - **Operator-reported:** AWS storage resources have been created; Pinggy and
   ZITADEL are being configured. Resource schemas, credentials, connectivity,
   tunnel behavior, and OIDC login are still unverified here.
-- **Still blocking deployment:** verified Auth release promotion; exact Lore
+- **Still blocking deployment:** exact Lore
   storage configuration and restore test; Vercel/Neon migration and live cron
   check; custom DNS and certificates; Pinggy TCP+UDP confirmation; host Docker
   access for `portals-svc` and reboot behavior; release checks and external
@@ -61,16 +57,17 @@ does not replace release verification for the Intel image.
   `InvalidClientTokenId`. This is a credential failure, not proof of account
   suspension. Use a valid operator profile before inspecting the reported new
   storage; its settings remain unverified.
-- **Auth release running:** dedicated branch `release/mac-bootstrap-20261002`,
+- **Auth release history:** dedicated branch `release/mac-bootstrap-20261002`,
   [GitHub run 37072019542](https://github.com/portalshq/portals-cloud/actions/runs/37072019542).
   Its CI Auth/unit/Postgres tests, multi-architecture publication, and GitHub
   signature verification passed; promotion stopped on three HIGH OpenSSL
   findings in the old runtime base. No BOM promotion occurred. The Dockerfile
   now pins replacement distroless index `sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2`,
-  whose AMD64 base scan has zero HIGH/CRITICAL findings. A new full build and
-  both-architecture verification are required before promotion.
-  Replacement release: [run 37073376806](https://github.com/portalshq/portals-cloud/actions/runs/37073376806),
-  source `fa6c3a949c4fcbff9a45fb645be388e932593369`.
+  whose AMD64 base scan has zero HIGH/CRITICAL findings.
+  Replacement release [run 37073376806](https://github.com/portalshq/portals-cloud/actions/runs/37073376806)
+  succeeded, source `fa6c3a949c4fcbff9a45fb645be388e932593369`, protocol
+  `f717f97c7efffb53674d6c10cae94bd994b0c7e9`. Both full-image architecture scans
+  passed, not just the replacement base scan.
 
 ## Runtime boundary
 

@@ -61,11 +61,13 @@ lore:
 # caller-selected-claims issuer is separately and permanently retired below.
 control-plane:
   implementation: "auth-gateway"
-  source_repository: "https://github.com/DigitalCreationsCo/portals-cloud.git"
-  source_commit: "2b492c82e365f92d0e2e17bd3e750d2b0319b3b7"
-  protocol_commit: "ed901a04f154b826a59ce50f8fa33d5bf078aac1"
+  source_repository: "https://github.com/portalshq/portals-cloud.git"
+  source_commit: "fa6c3a949c4fcbff9a45fb645be388e932593369"
+  protocol_commit: "f717f97c7efffb53674d6c10cae94bd994b0c7e9"
   security_contract: "lore-auth-v1"
-  image: "907199504810.dkr.ecr.us-east-1.amazonaws.com/portals-prod/auth-gateway@sha256:c8abcef29e26a95c2c63c5bbfc86b1062da111699fae832bb19affc70fdaf8ba"
+  image: "portalshq/auth-gateway@sha256:7d1c6a95654679990d609f3979710267f7270fec8b2634e626cdadbb2cebd6a2"
+  platform: linux/amd64
+  receipt_key: portalshq/auth-gateway@sha256:7d1c6a95654679990d609f3979710267f7270fec8b2634e626cdadbb2cebd6a2
 
 legacy-control-plane:
   status: "retired"

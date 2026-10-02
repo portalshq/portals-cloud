@@ -31,6 +31,37 @@ try {
   const rejected = spawnSync(process.execPath, [join(root, 'scripts/check-release.mjs')], {env: {...process.env, ...Object.fromEntries(inputs.map(name => [name, '__REPLACE_VALUE__']))}, encoding: 'utf8'})
   assert.notEqual(rejected.status, 0)
   assert.match(rejected.stderr, /deployment placeholder/)
+  // Check the real promoted BOM with isolated, non-secret configuration fixtures.
+  mkdirSync(join(temp, 'lore'))
+  for (const file of ['versions.yaml', 'verified-dockerhub-images.json']) {
+    writeFileSync(join(temp, 'lore', file), readFileSync(join(root, '../lore', file)))
+  }
+  for (const file of ['compose.prod.yaml', 'Caddyfile']) {
+    writeFileSync(join(runtime, 'templates', file), readFileSync(join(root, 'templates', file)))
+  }
+  const positive = {AUTH_DOMAIN: 'auth.example.test', LORE_DOMAIN: 'lore.example.test'}
+  const images = readFileSync(join(root, 'templates/release.env.example'), 'utf8')
+  for (const name of inputs.filter(name => name.endsWith('_IMAGE_DIGEST'))) positive[name] = images.match(new RegExp(`^${name}=(.+)$`, 'm'))[1]
+  for (const name of ['AUTH_SECRET_DIR', 'CADDY_CERT_DIR', 'LORE_QUIC_CERT_DIR']) {
+    positive[name] = join(temp, name)
+    mkdirSync(positive[name])
+    for (const file of name === 'AUTH_SECRET_DIR' ? ['signing-key', 'api-key-pepper'] : ['fullchain.pem', 'privkey.pem']) writeFileSync(join(positive[name], file), 'test-only fixture')
+  }
+  for (const [name, template] of [['AUTH_ENV_FILE', 'auth.env.example'], ['LORE_ENV_FILE', 'lore.env.example'], ['CADDY_ENV_FILE', 'caddy.env.example']]) {
+    positive[name] = join(temp, name)
+    const contents = readFileSync(join(root, 'templates', template), 'utf8')
+      .replace(/__REPLACE_AUTH_DOMAIN__/g, positive.AUTH_DOMAIN)
+      .replace(/__REPLACE_LORE_DOMAIN__/g, positive.LORE_DOMAIN)
+      .replace(/__REPLACE_[A-Z0-9_]+__/g, 'fixture-value-with-at-least-32-bytes')
+    writeFileSync(positive[name], contents)
+  }
+  const check = () => spawnSync(process.execPath, [join(root, 'scripts/check-release.mjs')], {cwd: runtime, env: {...process.env, ...positive}, encoding: 'utf8'})
+  const accepted = check()
+  assert.equal(accepted.status, 0, accepted.stderr)
+  const validDigest = positive.AUTH_GATEWAY_IMAGE_DIGEST
+  positive.AUTH_GATEWAY_IMAGE_DIGEST = `portalshq/auth-gateway@sha256:${'0'.repeat(64)}`
+  assert.match(check().stderr, /must match the Docker Hub control-plane.image/)
+  positive.AUTH_GATEWAY_IMAGE_DIGEST = validDigest
   fixture(join(temp, 'nc'), '#!/bin/sh\nexit 0\n')
   writeFileSync(envFile, "PINGGY_TCP_COMMAND='sleep 30'\nPINGGY_UDP_COMMAND='false'\n")
   const tunnel = spawnSync('sh', [join(root, 'scripts/run-pinggy.sh')], {env: {...process.env, PATH: `${temp}:${process.env.PATH}`, MAC_RELEASE_ENV: envFile, TEST_CURL_LOG: curlLog}, encoding: 'utf8', timeout: 6000})
