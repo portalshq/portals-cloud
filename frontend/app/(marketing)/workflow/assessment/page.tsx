@@ -120,18 +120,18 @@ export default async function WorkflowAssessmentPage() {
               <h1 className="mt-20 max-w-[10em] t-d2-sans">
                 reduce the hidden costs of AI production
               </h1>
-              <p className="mt-28 max-w-[38em] t-p-serif text-white">
-                take a quick assessment to measure how your team preserves approved work, production context, team handoffs, and continuity.
+              <p className="mt-28 max-w-[32em] t-p-serif text-white">
+                measure how your team manages production context, handles team handoffs, and maintains continuity.
               </p>
               <p className="mt-20 max-w-[32em] t-p-sans text-white">
-                for film and animation studios, content and brand agencies, in-house marketing teams, and game and entertainment companies.
+                built for film and animation studios, content and brand agencies, in-house marketing teams, and game companies.
               </p>
-              <p className="mt-20 max-w-[42em] t-p-sm-sans text-white">
-                complete in four minutes. you’ll receive an evaluation of where your production workflow may be creating avoidable cost, rework, and delays—and where portals will improve operating efficiency.
+              <p className="mt-20 max-w-[32em] t-p-sm-sans text-white">
+                complete in four minutes — identify where your production workflow is creating avoidable cost, rework, and delays — and where portals can improve operating efficiency.
                 <br /><br />
-                after reviewing your results, you can build a customized pilot plan and evaluate the potential cost savings, productivity gains, and return on investment from improving the workflow with portals.
+                then quantify the cost savings, productivity gains, and ROI, and build a tailored 21-day pilot plan.*
                 <br /><br />
-                scoping and receiving your pilot plan is free. a pilot is applied only if you approve the plan and proceed with the 21-day production pilot.
+                *your pilot plan is free to build. a fee applies only if you approve the plan and proceed with the production pilot.
               </p>
             </div>
             <nav

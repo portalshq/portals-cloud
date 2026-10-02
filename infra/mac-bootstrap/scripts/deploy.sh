@@ -1,12 +1,19 @@
 #!/bin/sh
 set -eu
 
+PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
+export PATH
+
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 ENV_FILE=${MAC_RELEASE_ENV:?MAC_RELEASE_ENV is required}
+test -r "$ENV_FILE" || { echo 'MAC_RELEASE_ENV is unreadable' >&2; exit 1; }
+export MAC_RELEASE_ENV="$ENV_FILE"
+set -a
+. "$ENV_FILE"
+set +a
 COMPOSE="docker compose --env-file $ENV_FILE -f $DIR/templates/compose.prod.yaml"
 cd "$DIR"
-node "$DIR/scripts/check-release.mjs"
-"$DIR/scripts/check-images.sh"
+"$DIR/scripts/bootstrap.sh"
 
 wait_http() {
   url=$1
@@ -21,14 +28,10 @@ wait_http() {
 }
 
 $COMPOSE up -d auth-gateway
-wait_http http://127.0.0.1:8085/health
+wait_http http://127.0.0.1:8085/healthz
 
 $COMPOSE up -d lore
 wait_http http://127.0.0.1:41339/health
-
-$COMPOSE up -d delivery-worker
-wait_http http://127.0.0.1:8090/health
-wait_http http://127.0.0.1:8090/ready
 
 $COMPOSE up -d caddy
 echo 'Mac services started in dependency order; external Pinggy and protocol checks remain required.'

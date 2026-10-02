@@ -8,7 +8,11 @@
   handle @grpc {
     reverse_proxy h2c://auth-gateway:8084
   }
-  reverse_proxy auth-gateway:8085
+  @public path /callback /.well-known/jwks.json
+  handle @public {
+    reverse_proxy auth-gateway:8085
+  }
+  respond 404
 }
 
 {$LORE_DOMAIN} {
@@ -17,13 +21,4 @@
   handle @grpc {
     reverse_proxy h2c://lore:41337
   }
-}
-
-{$WORKER_DOMAIN} {
-  tls /run/secrets/caddy/fullchain.pem /run/secrets/caddy/privkey.pem
-  @wake path /internal/wake
-  handle @wake {
-    reverse_proxy delivery-worker:8090
-  }
-  respond 404
 }

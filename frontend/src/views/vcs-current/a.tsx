@@ -756,14 +756,14 @@ function ProblemSection() {
                 )}
                 {card.title === 'Preserve' && (
                   <>
-                    <div className="grid w-fit m-auto items-end grid-cols-[repeat(2,max-content)] gap-1 lg:grid-cols-[max-content] xl:grid-cols-[repeat(2,max-content)]">
+                    <div className="grid w-full max-w-[351px] m-auto h-[400px] items-end grid-cols-2 gap-1 lg:w-fit lg:max-w-none lg:grid-cols-[max-content] xl:grid-cols-[repeat(2,max-content)]">
                       {[
                         ['/images/vcs/components/front-photo-print.png', 'A single bordered portrait print'],
                         ['/images/vcs/components/model-variation-04.png', 'The model in a cobalt knit with a side braid'],
                         ['/images/vcs/components/preserve-portrait-03.png', 'The model in a flowing cobalt blouse'],
                         ['/images/vcs/components/preserve-portrait-02.png', 'The model in a cobalt blazer'],
                       ].map(([src, alt], index) => (
-                        <img key={src} src={src} alt={alt} className={`h-[190px] object-contain ${index === 0 ? '-rotate-[8.5deg] scale-[129%] overflow-visible p-0 m-0' : 'border-[8px] border-[#f5ebe0] rounded-[1px]'} ${index % 2 === 1 ? 'lg:hidden xl:block' : ''}`} />
+                        <img key={src} src={src} alt={alt} className={`h-[190px] max-w-full lg:max-w-none object-contain ${index === 0 ? '-rotate-[8.5deg] scale-[129%] overflow-visible p-0 m-0' : 'border-[8px] border-[#f5ebe0] rounded-[1px]'} ${index % 2 === 1 ? 'lg:hidden xl:block' : ''}`} />
                       ))}
                     </div>
                     <p className="mt-12 t-p-sans text-center">Keep defining traits consistent across variations.</p>
@@ -783,17 +783,16 @@ function SolutionSection() {
     <section data-header-theme="light">
       <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white min-h-screen">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
-          <h2 className="t-d2-sans w-fit mx-auto max-w-[82vw] md:max-w-[12em]">
-            the repository for
+          <h2 className="t-d2-sans mx-auto w-fit">
+            the production memory
             <br />
-            AI{`\u2011`}native production
+            AI{`\u2011`}native creative teams
           </h2>
           <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
-            Production memory for AI-native creative teams — preserve every approved version and reuse it. Extend what already shipped instead of rebuilding it, shorten delivery cycles, and scale volume without adding headcount.
-            {/* portals treats every AI-generated asset the way software engineering treats source code: with a permanent identity, a complete history, and a record of exactly what produced it. */}
+            Preserve every approved asset, its history, and the context that produced it. Extend approved work using identity instead of rebuilding from scratch — reduce rework, eliminate manual context reconstruction, accelerate delivery, and scale output without adding headcount.
           </p>
           <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
-            Built for teams already producing high-volume AI media with the tools they use today.
+            Built for high-volume teams without changing the tools they already use.
           </p>
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
@@ -815,14 +814,14 @@ function ComparisonSection() {
           <h2 className="t-d2-sans max-w-[12.58em]">What changes when your production has a memory?</h2>
         </div>
         <div className="hidden md:block col-span-full">
-          <div className="grid-cols-3 t-m2 text-white/80 grid">
+          <div className="grid-cols-[1fr_1fr_1.2fr] t-m2 text-white/80 grid">
             <div className="p-16 col-span-2" />
             {/* <div className="p-16 lowercase">without portals</div> */}
             <div className="p-16 text-white lowercase">with portals</div>
           </div>
           {comparisonRows.map((row, index) => (
-            <div key={row.metric} className={`grid grid-cols-1 border-t border-white/50 grid-cols-3 lowercase ${index === comparisonRows.length - 1 ? 'border-b' : ''}`}>
-              <div className="p-16 t-p-sans col-span-2 text-white w-[26ch] bg-transparent">{row.metric}</div>
+            <div key={row.metric} className={`grid grid-cols-1 border-t border-white/50 grid-cols-[1fr_.6fr] lg:grid-cols-[1fr_1fr_1.2fr] lowercase ${index === comparisonRows.length - 1 ? 'border-b' : ''}`}>
+              <div className="p-16 t-p-sans lg:col-span-2 text-white w-[26ch] bg-transparent">{row.metric}</div>
               {/* <div className="border-white/50 p-16 t-p-sans text-white/80 border-t-0 border-l">
                 <span className="mb-8 block t-m2 lg:hidden !lowercase">without portals</span>
                 {row.without}
@@ -832,7 +831,7 @@ function ComparisonSection() {
               </div>
             </div>
           ))}
-          <div className='grid grid-cols-3 pt-20'><CTAButton href="/production-memory" className="lg:col-start-3">Explore production memory</CTAButton></div>
+          <div className='grid grid-cols-[1fr_1fr_1.2fr] pt-30'><CTAButton href="/production-memory" className="ml-16 col-start-3">Explore production memory</CTAButton></div>
         </div>
         <div className="md:hidden col-span-full">
           {comparisonRows.map((row) => (
@@ -840,7 +839,7 @@ function ComparisonSection() {
               <div className="inline-flex p-16 t-p-sans col-span-full text-white">{row.metric} {row.withPortals}</div>
             </div>
           ))}
-          <div className='pt-16'><CTAButton href="/production-memory">Explore production memory</CTAButton></div>
+          <div className='flex pt-30 justify-end items-end'><CTAButton href="/production-memory">Explore production memory</CTAButton></div>
         </div>
       </div>
     </section>
@@ -941,11 +940,11 @@ function PxSection() {
             />
           </div>
           <div className="lineage-node-label flex justify-between">
-            <span>px://aqualab/character/eliza</span>
+            <span>px://campaign/character/eliza</span>
             <span>revision 8</span>
           </div>
         </div>
-        <div className="col-span-full lg:row-start-4 lg:col-span-12 flex flex-col gap-16">
+        <div className="col-span-full lg:row-start-4 lg:col-span-12 flex flex-col gap-30">
           <p className="t-p-sans text-white"><strong>px</strong> is free and open source for creators and developers building locally.</p>
           <CTAButton href="/px" analyticsLabel="Explore px" analyticsIntent="education">
             Explore<span className="font-bold">{' '}px</span>
@@ -1035,7 +1034,6 @@ function PricingSection({
             <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
               <h3 className="t-h3-sans mb-20">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
-                <span className="t-h3-sans">{tier.price}</span>
                 <span className="t-m2 !lowercase">{tier.period}</span>
               </div>
               <p className="t-p-sans">{tier.subtitle}</p>
@@ -1086,6 +1084,7 @@ export function VCS({
 }) {
   const heroHeadingRef = useRef<HTMLHeadingElement>(null);
   const headerBrandRef = useRef<HTMLAnchorElement>(null);
+  const mobileRepositoryCopyRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const mobileQuery = window.matchMedia('(max-width: 47.99rem)');
@@ -1095,10 +1094,30 @@ export function VCS({
       frame = 0;
       const brand = headerBrandRef.current;
       const heading = heroHeadingRef.current;
+      const copy = mobileRepositoryCopyRef.current;
 
       if (!mobileQuery.matches) {
         if (brand) brand.style.transform = '';
+        if (copy) copy.style.transform = '';
         return;
+      }
+
+      // Accelerate the pinned copy upward over 25vh, ending one line above the problem section.
+      if (copy) {
+        const problemSection = copy.parentElement?.nextElementSibling;
+
+        if (problemSection) {
+          const pin = parseFloat(getComputedStyle(copy).top) || 0;
+          const ramp = window.innerHeight * 0.25;
+          const release = pin + copy.offsetHeight;
+          const lineHeight = parseFloat(getComputedStyle(copy).lineHeight) || copy.offsetHeight;
+          const finish = pin + copy.offsetHeight / 2 - ramp / 2 + lineHeight;
+          const sectionTop = problemSection.getBoundingClientRect().top;
+          const distance = Math.min(Math.max(finish + ramp - sectionTop, 0), ramp);
+          const lift = (distance * distance) / (2 * ramp);
+          const stickyLift = Math.min(Math.max(release - sectionTop, 0), release - finish);
+          copy.style.transform = `translate3d(0, calc(-50% + ${stickyLift}px - ${lift}px), 0)`;
+        }
       }
 
       if (brand && heading) {
@@ -1146,7 +1165,7 @@ export function VCS({
           </div>
         </div>
       </header>
-      <section className="saga-front-hero relative isolate min-h-screen flex items-center" data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
+      <section className="saga-front-hero relative isolate min-h-screen flex items-center overflow-x-clip" data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
         <div className="pointer-events-none z-[-10]" aria-hidden="true">
           <img src="/images/vcs/components/creative-production-hero-woman-portrait-4k-alt-2.png" alt=""
             className="hidden lg:block absolute h-full right-[calc(18%-12rem)] xl:right-[calc(18%-6rem)] top-[50%] scale-[200%] object-cover" />
@@ -1158,17 +1177,17 @@ export function VCS({
             <span className="ml-auto">REFERENCE → HISTORY → DELIVERY</span>
           </div> */}
         <div className="relative z-10 ui-grid w-full my-auto gap-y-[max(var(--spacing-sgs),12.5svh)] pt-[max(var(--spacing-Header-h))] pb-sms text-white">
-          <div className="col-span-full space-y-20">
+          <div className="col-span-full space-y-30">
             <h1 ref={heroHeadingRef} className="max-w-[12.725em] text-balance t-d2-sans">
               scale{' '}
               <strong className="t-d2-serif">creative media production</strong>{' '}
               <br/>without the overhead
             </h1>
             <p className="t-h3-sans max-w-[24.5ch]">ship campaigns faster, cut production costs, and keep every asset traceable from brief to delivery.</p>
-            <p className="t-p-sans block">
-              Discover the bottlenecks costing you time, output, and margin
+            <p className="t-p-sm-sans max-w-[52ch]">
+              Discover the bottlenecks costing you time, output, and margin in 4 minutes · Receive personalized recommendations
             </p>
-            <div className="saga-hero-assess grid grid-cols-[max-content_max-content] gap-12">
+            <div className="saga-hero-assess grid grid-cols-[max-content_max-content] gap-30">
               <CTAButton
                 href="/assessment"
                 analyticsLabel="Assess Your Workflow"
@@ -1179,7 +1198,6 @@ export function VCS({
               <CTAButton className="!hidden" href="/use-cases" analyticsLabel="Explore Use Cases" analyticsIntent="education">
                 Explore use cases
               </CTAButton>
-              <div className="row-start-2 t-p-sm-sans cursor-default">4-minute assessment · Personalized recommendations</div>
             </div>
           </div>
         </div>
@@ -1187,8 +1205,11 @@ export function VCS({
           <div className="md:col-span-8 md:col-start-5 flex justify-center md:justify-end items-end col-span-full">
             <div className="saga-hero-repository-anchor">
               <div className="saga-hero-repository-copy t-p-sans lowercase!">
-                <p>THE REPOSITORY FOR
-                  <br />AI{`\u2011`}NATIVE PRODUCTION</p>
+                <p>
+                  the production memory for
+                  <br />
+                  AI{`\u2011`}native creative teams
+                </p>
               </div>
             </div>
           </div>
@@ -1196,9 +1217,9 @@ export function VCS({
       </section>
 
       <div className="saga-mobile-repository-transition">
-        <p className="saga-mobile-repository-copy t-p-sans lowercase!">
-          THE REPOSITORY
-          FOR AI{`\u2011`}NATIVE PRODUCTION
+        <p ref={mobileRepositoryCopyRef} className="saga-mobile-repository-copy t-p-sans lowercase!">
+          the production memory for
+            AI{`\u2011`}native creative teams
         </p>
       </div>
 

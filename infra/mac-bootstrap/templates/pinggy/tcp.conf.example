@@ -1,5 +1,4 @@
-# Replace placeholders outside source control. Run as the dedicated service user.
-# The paid Pinggy plan must be verified for persistent TLS/TCP, HTTP/2, and SNI.
-ssh -p 443 -R0:127.0.0.1:8443 -o ServerAliveInterval=30 \
-  ${PINGGY_HOST:?set Pinggy host} \
-  -T
+# This is not a production command: -R0 creates a changing endpoint.
+# In the Pinggy dashboard, reserve and validate a persistent TLS passthrough
+# mapping to 127.0.0.1:8443. Then put its foreground command in the private
+# release file as PINGGY_TCP_COMMAND. It must preserve TLS/SNI and HTTP/2.

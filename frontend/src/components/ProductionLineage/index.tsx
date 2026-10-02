@@ -427,7 +427,7 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
                     {labels && (
                         <div className="lineage-provenance">
                             <span className="lineage-provenance-label">
-                                <span className="lineage-provenance-path">aqualab/character/elize</span>
+                                <span className="lineage-provenance-path">campaign/character/elize</span>
                                 <span className="lineage-provenance-meta">revision: 4</span>
                                 <span className="lineage-provenance-meta">model: gpt-image-2</span>
                                 <span className="lineage-provenance-prompt">prompt: cream skin-toned woman with dark windswept hair...</span>

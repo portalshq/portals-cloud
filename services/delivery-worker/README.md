@@ -6,6 +6,12 @@ delivery jobs, Stripe delivery webhooks, or the worker's product workflow.
 This is a separate runtime boundary for paid Lore delivery. It is intentionally
 not embedded in Next.js or Lore.
 
+The Docker Hub release and deployment gates are documented in
+[`docs/deployment/productcharacters-delivery-worker-deployment.md`](../../docs/deployment/productcharacters-delivery-worker-deployment.md).
+The production image listens on its container interface via
+`WORKER_BIND_ADDRESS=0.0.0.0`; host-run development defaults to loopback. Do
+not publish port 8090 directly to a public interface.
+
 ## Current status
 
 This directory provides the reusable runtime boundary and deployment scaffold:

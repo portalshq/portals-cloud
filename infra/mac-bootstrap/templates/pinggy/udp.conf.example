@@ -1,3 +1,5 @@
-# Lore QUIC is direct UDP and must not pass through Caddy.
-# Confirm the plan's persistent UDP allocation before production use.
-pinggy udp 127.0.0.1:41337 --remote-port "${PINGGY_UDP_PORT:?set persistent UDP port}"
+# Lore QUIC is direct UDP and must not pass through Caddy. Pinggy documents
+# UDP as beta and says its port changes without a Pro reservation. Reserve and
+# test a persistent UDP mapping to 127.0.0.1:41337, then put the dashboard-
+# generated foreground command in the private release file as
+# PINGGY_UDP_COMMAND.

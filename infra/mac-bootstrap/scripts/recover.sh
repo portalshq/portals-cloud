@@ -13,7 +13,7 @@ test -w "$isolation" || { echo 'Recovery isolation target is not writable' >&2; 
 case "$manifest" in
   *.json)
     command -v jq >/dev/null || { echo 'jq is required for JSON recovery manifests' >&2; exit 1; }
-    jq -e '.architecture == "mac-amd64" and (.services | index("auth-gateway")) and (.services | index("lore")) and (.services | index("delivery-worker"))' "$manifest" >/dev/null \
+    jq -e '.architecture == "mac-amd64" and (.services | index("auth-gateway")) and (.services | index("lore"))' "$manifest" >/dev/null \
       || { echo 'Recovery manifest is missing the required Mac services' >&2; exit 1; }
     ;;
   *.yaml|*.yml) : ;;

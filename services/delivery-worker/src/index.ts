@@ -110,7 +110,7 @@ const server = createServer(async (request, response) => {
   }
 })
 
-server.listen(port, '127.0.0.1')
+server.listen(port, process.env.WORKER_BIND_ADDRESS || '127.0.0.1')
 const interval = setInterval(() => void runSweep().catch((error) => console.error('worker sweep failed', error)), sweepMs)
 void runSweep().catch((error) => console.error('worker initial sweep failed', error))
 
