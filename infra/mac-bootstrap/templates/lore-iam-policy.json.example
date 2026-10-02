@@ -13,7 +13,7 @@
     },
     {
       "Effect": "Allow",
-      "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:BatchWriteItem", "dynamodb:BatchGetItem", "dynamodb:TransactWriteItems", "dynamodb:TransactGetItems", "dynamodb:DescribeTable"],
+      "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:BatchWriteItem", "dynamodb:BatchGetItem", "dynamodb:DescribeTable"],
       "Resource": [
         "arn:aws:dynamodb:__REPLACE_REGION__:__REPLACE_ACCOUNT_ID__:table/__REPLACE_FRAGMENTS_TABLE__",
         "arn:aws:dynamodb:__REPLACE_REGION__:__REPLACE_ACCOUNT_ID__:table/__REPLACE_METADATA_TABLE__",

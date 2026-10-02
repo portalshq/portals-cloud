@@ -36,6 +36,26 @@ does not replace release verification for the Intel image.
   remote commands ran. The direct route to `192.168.0.27:22` timed out. Tool
   installation/runtime configuration cannot be claimed complete until the host
   is reachable again; all attempts are in ignored `ssh-activity.log`.
+- **Verified locally:** Auth's eight unit tests and two disposable-Postgres
+  integration tests pass; deployment/placeholder/Pinggy restart contracts and
+  storage-schema self-tests pass. Caddy `2.11.6-alpine` index
+  `sha256:13b7fbadd017b042956fddbceedeeea12bb1e560534f9b3df281269dbcc61813`
+  passed actual configuration validation with test-only certificates and an
+  AMD64 HIGH/CRITICAL scan with zero findings. This does not validate live DNS,
+  issued certificates, public traffic, or host permissions.
+- **Frontend verification:** all 245 lead/CRM/account/pilot tests and TypeScript
+  checks pass. The test command now preloads isolated fixture settings before
+  static imports. Membership resolution retains multiple SQL roles, consistently
+  prefers signer over approver, and keeps account-membership denial intact.
+  These are local tests, not evidence that production Neon migrations ran.
+- **AWS access:** the local default AWS credential failed STS validation with
+  `InvalidClientTokenId`. This is a credential failure, not proof of account
+  suspension. Use a valid operator profile before inspecting the reported new
+  storage; its settings remain unverified.
+- **Auth release running:** dedicated branch `release/mac-bootstrap-20261002`,
+  [GitHub run 37072019542](https://github.com/portalshq/portals-cloud/actions/runs/37072019542).
+  Its CI Auth/unit/Postgres tests passed and the fresh multi-architecture build
+  started. No signature/scan/promotion result is claimed until the run finishes.
 
 ## Runtime boundary
 
@@ -283,6 +303,8 @@ Before starting containers, prove:
   customer KMS encryption, review the exact KMS permissions separately; do not
   add wildcard KMS/admin access. Retain the bucket's deny-insecure-transport
   policy and prove no public grants through bucket/IAM/access-point policy.
+  [DynamoDB transaction permissions](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis-iam.html)
+  use the underlying item actions, not invented `Transact*` IAM actions.
 - Use a dedicated Lore-only AWS identity scoped to this bucket and these four
   tables/indexes; deny unrelated resources and account-wide administration.
   Put credentials only in the owner-only `LORE_ENV_FILE`, never in the image,

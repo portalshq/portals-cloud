@@ -585,8 +585,7 @@ export async function pilotMembershipRoles(pilotId: string, userId: string): Pro
   const result = await leadPool().query<{ role: PilotMemberRole }>(
     `SELECT role FROM pilot_memberships
       WHERE pilot_id = $1 AND user_id = $2 AND revoked_at IS NULL
-      ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'approver' THEN 1 WHEN 'signer' THEN 2 ELSE 3 END
-      LIMIT 1`,
+      ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'signer' THEN 1 WHEN 'approver' THEN 2 ELSE 3 END`,
     [pilotId, userId],
   )
   return result.rows.map((row) => row.role)
@@ -630,7 +629,7 @@ export async function pilotMembershipWithAccountRole(pilotId: string, userId: st
   customerAccountId: string | null
 }> {
   if (leadsDryRun()) {
-    const pilotRole = memoryStore().pilotMemberships.get(pilotMemberKey(pilotId, userId, "owner")) || null
+    const pilotRole = await pilotMembershipRole(pilotId, userId)
     if (!pilotRole) return { pilotRole: null, accountRole: null, customerAccountId: null }
     const pilot = await getPilotById(pilotId)
     if (!pilot?.customerAccountId) return { pilotRole, accountRole: null, customerAccountId: null }
@@ -647,7 +646,7 @@ export async function pilotMembershipWithAccountRole(pilotId: string, userId: st
        LEFT JOIN pilot_memberships pm ON pm.pilot_id = p.id AND pm.user_id = $2 AND pm.revoked_at IS NULL
        LEFT JOIN customer_memberships cm ON cm.customer_account_id = p.customer_account_id AND cm.user_id = $2 AND cm.revoked_at IS NULL
       WHERE p.id = $1
-      ORDER BY CASE pm.role WHEN 'owner' THEN 0 WHEN 'approver' THEN 1 WHEN 'signer' THEN 2 ELSE 3 END
+      ORDER BY CASE pm.role WHEN 'owner' THEN 0 WHEN 'signer' THEN 1 WHEN 'approver' THEN 2 ELSE 3 END
       LIMIT 1`,
     [pilotId, userId],
   )
@@ -698,11 +697,10 @@ export async function invitePilotMember(input: {
   if (leadsDryRun()) {
     const stored = memoryStore()
     const pilot = await getPilotById(input.pilotId)
-    const customer = pilot?.customerAccountId
-      ? stored.customers.get(pilot.customerAccountId)
-      : [...stored.customers.values()][0]
+    const customer = pilot?.customerAccountId ? stored.customers.get(pilot.customerAccountId) : undefined
     if (!customer) throw new Error('Pilot customer account is missing.')
-    stored.memberships.set(memberKey(customer.id, user.id), 'member')
+    const membership = memberKey(customer.id, user.id)
+    if (!stored.memberships.has(membership)) stored.memberships.set(membership, 'member')
     stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id, input.role), input.role)
     return { user, customerAccountId: customer.id }
   }

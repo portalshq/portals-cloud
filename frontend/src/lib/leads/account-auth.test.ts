@@ -13,9 +13,34 @@ import {
   getCustomerAccountForUser,
   issueMagicLink,
   pilotMembershipRole,
+  pilotMembershipRoles,
   pilotMembershipWithAccountRole,
 } from './application-auth'
-import {getPilotById} from './store'
+import {getPilotById, leadPool} from './store'
+
+test('SQL membership reads retain every role and prefer signer over approver', async (t) => {
+  const previousDryRun = process.env.LEADS_DRY_RUN
+  const previousUrl = process.env.LEADS_DATABASE_URL
+  process.env.LEADS_DRY_RUN = 'false'
+  process.env.LEADS_DATABASE_URL = 'postgresql://fixture:fixture@127.0.0.1:1/never-connect'
+  try {
+    t.mock.method(leadPool(), 'query', async (sql: string) => {
+      if (sql.includes('SELECT role FROM pilot_memberships')) {
+        assert.doesNotMatch(sql, /LIMIT\s+1/i)
+        return {rows: [{role: 'signer'}, {role: 'approver'}]}
+      }
+      assert.match(sql, /WHEN 'signer' THEN 1 WHEN 'approver' THEN 2/)
+      return {rows: [{pilot_role: 'signer', account_role: 'member', customer_account_id: 'account'}]}
+    })
+    assert.deepEqual(await pilotMembershipRoles('pilot', 'user'), ['signer', 'approver'])
+    assert.equal(await pilotMembershipRole('pilot', 'user'), 'signer')
+    assert.equal((await pilotMembershipWithAccountRole('pilot', 'user')).pilotRole, 'signer')
+  } finally {
+    process.env.LEADS_DRY_RUN = previousDryRun
+    if (previousUrl === undefined) delete process.env.LEADS_DATABASE_URL
+    else process.env.LEADS_DATABASE_URL = previousUrl
+  }
+})
 
 test('getCustomerAccountsForUser returns accounts ordered by privilege', async () => {
   const ownerEmail = `owner-${crypto.randomUUID()}@studio.example`
