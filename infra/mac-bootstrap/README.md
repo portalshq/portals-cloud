@@ -28,10 +28,11 @@ does not replace release verification for the Intel image.
   schema probe; corrected HTTPS/JWKS startup order and Lore health endpoint;
   paired Pinggy restart supervision. These are implemented code paths, not
   evidence that the production host or external providers have passed.
-- **Latest connectivity check:** four SSH attempts on 2026-10-02 failed before
+- **Latest connectivity check:** five SSH attempts on 2026-10-02 failed before
   remote commands ran. The direct route to `192.168.0.27:22` timed out. Tool
   installation/runtime configuration cannot be claimed complete until the host
-  is reachable again; all attempts are in ignored `ssh-activity.log`.
+  is reachable again; all attempts are in ignored `ssh-activity.log`. The final
+  retry at 22:52 UTC also timed out before authentication.
 - **Verified locally:** Auth's eight unit tests and two disposable-Postgres
   integration tests pass; deployment/placeholder/Pinggy restart contracts and
   storage-schema self-tests pass. Caddy `2.11.6-alpine` index
