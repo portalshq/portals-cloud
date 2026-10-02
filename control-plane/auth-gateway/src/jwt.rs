@@ -161,6 +161,42 @@ impl KmsJwtSigner {
         &self.jwks
     }
 
+    /// Retain public verification keys during sealed-file key rotation. Never
+    /// retain retired private keys in the running container.
+    pub fn with_retired_local_keys(mut self, retired: Jwks) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            matches!(self.backend, SignerBackend::Local(_)),
+            "retired local keys require sealed-file signing"
+        );
+        let decoding_keys = Arc::make_mut(&mut self.decoding_keys);
+        for key in retired.keys {
+            anyhow::ensure!(
+                key.kty == "RSA" && key.alg == "RS256" && key.use_ == "sig",
+                "retired key must be an RSA/RS256 signing public key"
+            );
+            anyhow::ensure!(
+                !key.kid.is_empty() && !decoding_keys.contains_key(&key.kid),
+                "retired key ID is empty or duplicates another key"
+            );
+            let modulus = URL_SAFE_NO_PAD.decode(&key.n)?;
+            let exponent = URL_SAFE_NO_PAD.decode(&key.e)?;
+            let public = RsaPublicKey::new(
+                rsa::BigUint::from_bytes_be(&modulus),
+                rsa::BigUint::from_bytes_be(&exponent),
+            )?;
+            anyhow::ensure!(
+                public.n().bits() >= 2048,
+                "retired RSA key must be at least 2048 bits"
+            );
+            decoding_keys.insert(
+                key.kid.clone(),
+                DecodingKey::from_rsa_components(&key.n, &key.e)?,
+            );
+            self.jwks.keys.push(key);
+        }
+        Ok(self)
+    }
+
     pub async fn authentication_token(
         &self,
         subject: &str,
@@ -392,5 +428,46 @@ mod tests {
             "prod".into()
         )
         .is_ok());
+    }
+
+    #[tokio::test]
+    async fn sealed_file_rotation_preserves_old_tokens_and_rejects_duplicate_keys() {
+        let make_signer = |kid: &str| {
+            let key = RsaPrivateKey::new(&mut rand::thread_rng(), 2048).unwrap();
+            let pem = key.to_pkcs8_pem(LineEnding::LF).unwrap();
+            KmsJwtSigner::load_local(
+                pem.as_bytes(),
+                kid.into(),
+                "https://auth.portals.works".into(),
+                "prod".into(),
+            )
+            .unwrap()
+        };
+        let old = make_signer("old");
+        let new = make_signer("new");
+        let (old_token, _) = old
+            .authentication_token("user", "User", "user@example.com", false, "test")
+            .await
+            .unwrap();
+        assert!(new.verify_authentication(&old_token).is_err());
+        let rotated = new
+            .clone()
+            .with_retired_local_keys(old.jwks().clone())
+            .unwrap();
+        assert!(rotated.verify_authentication(&old_token).is_ok());
+        let (new_token, _) = rotated
+            .authentication_token("user", "User", "user@example.com", false, "test")
+            .await
+            .unwrap();
+        assert!(rotated.verify_authentication(&new_token).is_ok());
+        assert!(old.verify_authentication(&new_token).is_err());
+        assert_eq!(rotated.jwks().keys.len(), 2);
+        assert!(new
+            .clone()
+            .with_retired_local_keys(new.jwks().clone())
+            .is_err());
+        let mut malformed = old.jwks().clone();
+        malformed.keys[0].alg = "HS256".into();
+        assert!(new.with_retired_local_keys(malformed).is_err());
     }
 }

@@ -24,6 +24,7 @@ pub struct GatewayConfig {
     pub jwt_issuer: String,
     pub jwt_kms_key_id: String,
     pub jwt_local_private_key_path: Option<String>,
+    pub jwt_local_retired_jwks_path: Option<String>,
     pub jwt_kid: String,
     pub jwt_signing_enabled: bool,
     pub jwt_retired_kms_key_ids: Vec<String>,
@@ -67,6 +68,7 @@ impl GatewayConfig {
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             jwt_kid: required("JWT_KID")?,
+            jwt_local_retired_jwks_path: optional("JWT_LOCAL_RETIRED_JWKS_PATH"),
             jwt_signing_enabled: value("JWT_SIGNING_ENABLED", "false")
                 .parse()
                 .context("JWT_SIGNING_ENABLED must be true or false")?,

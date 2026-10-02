@@ -27,13 +27,13 @@ RUN cd /app/control-plane && \
       linux/arm64) \
         CARGO_INCREMENTAL=0 \
         RUSTFLAGS="-Cdebuginfo=0 -Clinker=aarch64-linux-gnu-gcc" \
-        cargo build --release --target aarch64-unknown-linux-gnu --bin lore-auth-gateway \
+        cargo build --locked --release --target aarch64-unknown-linux-gnu --bin lore-auth-gateway \
         && cp target/aarch64-unknown-linux-gnu/release/lore-auth-gateway /auth-gateway-bin \
         ;; \
       linux/amd64) \
         CARGO_INCREMENTAL=0 \
         RUSTFLAGS="-Cdebuginfo=0" \
-        cargo build --release --bin lore-auth-gateway \
+        cargo build --locked --release --bin lore-auth-gateway \
         && cp target/release/lore-auth-gateway /auth-gateway-bin \
         ;; \
       *) echo "unsupported TARGETPLATFORM: $TARGETPLATFORM (expected linux/amd64 or linux/arm64)" >&2; exit 1 ;; \

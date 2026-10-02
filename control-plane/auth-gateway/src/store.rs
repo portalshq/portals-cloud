@@ -1018,9 +1018,27 @@ mod tests {
         let store = SecurityStore::new(pool);
         store.run_migration().await.expect("apply migrations");
 
-        // Create a refresh family via login simulation
+        // A successful login registers an active principal before issuing a
+        // refresh token. Unique subjects keep repeated runs independent.
+        let [alice, bob, carol, expired] =
+            ["alice", "bob", "carol", "expired"].map(|name| format!("{name}-{}", Uuid::new_v4()));
+        for subject in [&alice, &bob, &carol, &expired] {
+            let login = store
+                .start_session(Uuid::new_v4(), "a".repeat(64))
+                .await
+                .unwrap();
+            store
+                .complete_session(
+                    login.oauth_state,
+                    subject,
+                    subject,
+                    &format!("{subject}@example.test"),
+                )
+                .await
+                .unwrap();
+        }
         let (initial_plain, _) = store
-            .create_refresh_session("user", "alice", "Alice", "alice@example.test", "cognito")
+            .create_refresh_session("user", &alice, "Alice", "alice@example.test", "oidc")
             .await
             .expect("create refresh session");
 
@@ -1029,7 +1047,7 @@ mod tests {
             .rotate_refresh_token(&initial_plain)
             .await
             .expect("first rotation");
-        assert_eq!(session1.subject_id, "alice");
+        assert_eq!(session1.subject_id, alice);
         assert_ne!(initial_plain, rotated1);
 
         // Reuse of the consumed token triggers replay detection and family revocation
@@ -1043,7 +1061,7 @@ mod tests {
 
         // New family stays independent
         let (fresh_plain, _) = store
-            .create_refresh_session("user", "bob", "Bob", "bob@example.test", "cognito")
+            .create_refresh_session("user", &bob, "Bob", "bob@example.test", "oidc")
             .await
             .expect("create fresh session");
         let (_, fresh_rotated) = store
@@ -1052,15 +1070,15 @@ mod tests {
             .expect("fresh rotation");
         assert_ne!(fresh_plain, fresh_rotated);
 
-        // Disabled principal revokes خانواده and blocks refresh
-        store.disable_user("bob").await.expect("disable user");
+        // Disabling a principal immediately revokes its refresh family.
+        store.disable_user(&bob).await.expect("disable user");
         let disabled = store.rotate_refresh_token(&fresh_rotated).await;
         assert!(disabled.is_err());
-        assert!(disabled.unwrap_err().to_string().contains("disabled"));
+        assert!(disabled.unwrap_err().to_string().contains("revoked"));
 
         // Explicit family revocation via refresh token
         let (carol_plain, _) = store
-            .create_refresh_session("user", "carol", "Carol", "carol@example.test", "cognito")
+            .create_refresh_session("user", &carol, "Carol", "carol@example.test", "oidc")
             .await
             .expect("create carol");
         let (_, carol_rotated) = store
@@ -1072,5 +1090,24 @@ mod tests {
             .await
             .expect("revoke via token");
         assert!(store.rotate_refresh_token(&carol_rotated).await.is_err());
+
+        let (expired_plain, expired_family) = store
+            .create_refresh_session("user", &expired, "Expired", "expired@example.test", "oidc")
+            .await
+            .unwrap();
+        sqlx::query("UPDATE auth_refresh_sessions SET expires_at=NOW()-INTERVAL '1 second' WHERE family_id=$1")
+            .bind(expired_family).execute(&store.pool).await.unwrap();
+        assert!(store
+            .rotate_refresh_token(&expired_plain)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("expired"));
+        assert!(store
+            .rotate_refresh_token(&expired_plain)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("revoked"));
     }
 }

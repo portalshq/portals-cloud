@@ -984,12 +984,18 @@ pub async fn run(config: GatewayConfig) -> anyhow::Result<()> {
             .jwt_local_private_key_path
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("sealed-file signing key is missing"))?;
-        KmsJwtSigner::load_local(
+        let signer = KmsJwtSigner::load_local(
             &std::fs::read(path)?,
             config.jwt_kid.clone(),
             config.jwt_issuer.clone(),
             config.environment.clone(),
-        )?
+        )?;
+        match &config.jwt_local_retired_jwks_path {
+            Some(path) => {
+                signer.with_retired_local_keys(serde_json::from_slice(&std::fs::read(path)?)?)?
+            }
+            None => signer,
+        }
     } else {
         KmsJwtSigner::load_with_retired(
             aws_sdk_kms::Client::new(&aws),

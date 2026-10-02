@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
+PATH="$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin"
 export PATH
 
 test "$(uname -m)" = x86_64 || { echo 'An Intel Mac is required' >&2; exit 1; }
@@ -40,4 +40,12 @@ case "$(stat -f '%Lp' "$AUTH_SECRET_DIR")" in *[1-7][0-7]|*[0-7][1-7]) echo 'AUT
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$DIR"
 node scripts/check-release.mjs
-exec scripts/check-images.sh
+scripts/check-images.sh
+# Docker Desktop bind-mount UID translation is runtime-dependent. Prove the
+# distroless UID can read sealed files; never fix it with world-readable keys.
+docker run --rm --network none --read-only --user 65532:65532 \
+  --entrypoint /bin/sh \
+  --mount "type=bind,source=$AUTH_SECRET_DIR,target=/run/secrets/auth,readonly" \
+  --mount "type=bind,source=$LORE_QUIC_CERT_DIR,target=/run/secrets/lore-quic,readonly" \
+  "$CADDY_IMAGE_DIGEST" -ec 'test -r /run/secrets/auth/signing-key && test -r /run/secrets/auth/api-key-pepper && test -r /run/secrets/lore-quic/fullchain.pem && test -r /run/secrets/lore-quic/privkey.pem' \
+  || { echo 'Container UID 65532 cannot read sealed files; fix runtime UID mapping, not world permissions' >&2; exit 1; }

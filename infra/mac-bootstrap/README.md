@@ -26,6 +26,16 @@ does not replace release verification for the Intel image.
   check; custom DNS and certificates; Pinggy TCP+UDP confirmation; host Docker
   access for `portals-svc` and reboot behavior; release checks and external
   acceptance/recovery drills.
+- **Prepared in source:** Auth Docker Hub release workflow with unit/Postgres
+  tests and both-architecture scan/signature gates; sealed-file public-key
+  overlap support; placeholder configuration examples; read-only storage
+  schema probe; corrected HTTPS/JWKS startup order and Lore health endpoint;
+  paired Pinggy restart supervision. These are implemented code paths, not
+  evidence that the production host or external providers have passed.
+- **Latest connectivity check:** four SSH attempts on 2026-10-02 failed before
+  remote commands ran. The direct route to `192.168.0.27:22` timed out. Tool
+  installation/runtime configuration cannot be claimed complete until the host
+  is reachable again; all attempts are in ignored `ssh-activity.log`.
 
 ## Runtime boundary
 
@@ -33,7 +43,7 @@ The Mac runs Auth Gateway, Lore, and Caddy. Pinggy supplies the persistent
 TCP/TLS and UDP mappings:
 
 ```text
-Auth Gateway → Lore → Caddy → Pinggy
+Auth Gateway → Caddy HTTPS/JWKS → Lore → Pinggy
 ```
 
 Lore uses TCP/gRPC and UDP/QUIC on `41337`; its health port (`41339`) remains
@@ -51,6 +61,13 @@ it does not block or join the Portals runtime.
 
 Create a private environment file outside the repository. Use immutable
 digests and service-owned, read-only environment files:
+
+Start from `templates/release.env.example`, `templates/auth.env.example`,
+`templates/lore.env.example`, and `templates/caddy.env.example`. Copy them
+outside the checkout; replace every `__REPLACE_*__` marker. Live checks reject
+placeholders. They are preparation files, not permission to deploy incomplete
+provider settings. The release file also defines `AUTH_DOMAIN` and
+`LORE_DOMAIN`, matching Caddy's environment exactly.
 
 ```text
 AUTH_GATEWAY_IMAGE_DIGEST=portalshq/auth-gateway@sha256:<64 hex chars>
@@ -77,11 +94,19 @@ API_KEY_PEPPER_FILE_PATH=/run/secrets/auth/api-key-pepper
 ```
 
 `AUTH_SECRET_DIR` is mounted read-only at `/run/secrets/auth` and must contain
-only `signing-key` and `api-key-pepper`, owned by `portals-svc` with mode `0700`
+`signing-key` and `api-key-pepper` (plus public `retired-jwks.json` during
+rotation), owned by `portals-svc` with mode `0700`
 on the directory and `0400` on each file. The release file itself is also
 owned by `portals-svc` and mode `0600`; `bootstrap.sh` and `deploy.sh` load it
 through `MAC_RELEASE_ENV`. It is data-only shell assignments, never a checked-in
 file.
+
+The distroless Auth and Lore images run as Linux UID `65532`, not macOS UID
+`502`. `bootstrap.sh` now performs a read-only, network-disabled bind-mount
+readability probe under UID `65532` before starting services. If the selected
+runtime does not translate ownership safely, stop and configure its UID mapping
+or a private managed-secret volume; never make signing/private keys world
+readable. This host's effective mount access remains to be tested.
 
 Lore QUIC requires persistent DNS-01 certificates mounted read-only:
 
@@ -166,15 +191,33 @@ using the npm Pinggy CLI. Caddy runs as its digest-pinned container, not as a
 host binary. Also configure the required DNS, Neon, ZITADEL, AWS, and backup
 credentials. The standalone Pinggy binary may replace its npm CLI.
 
+Once SSH works, first inventory existing binaries; install only missing tools.
+As the Homebrew-owning maintenance account, use `brew install jq grpcurl` if
+needed. As `portals-svc`, install user-local CLIs without sudo:
+
+```bash
+npm install --global --prefix "$HOME/.local" pinggy@0.6.0 vercel@62.2.0
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+pinggy --help
+vercel --version
+grpcurl --version
+jq --version
+```
+
+These npm versions were resolved on 2026-10-02. The npm [Pinggy CLI is official](https://pinggy.io/docs/cli/).
+Use the dashboard-generated persistent commands, not a guessed free-tunnel
+command. If Homebrew is absent or the maintenance account does not own its
+prefix, stop and install tools through the supported admin path; do not grant
+the service account broad write access to `/usr/local` or passwordless sudo.
+
 ### 5. Promote and pin release images
 
 The Auth Gateway image is now pushed as the tag and OCI index digest recorded
 above, with both `linux/amd64` and `linux/arm64` manifests plus BuildKit SBOM
 and provenance. This is only a build artifact: it is not yet approved by the
 existing release gate. The current BOM still names the ECR image and different
-Auth/protocol source commits. The repo currently has an Auth ECR image-release
-workflow but no Auth Docker Hub signing/promotion workflow. Add or adapt that
-workflow to verify the exact source/protocol commits, scan the image with
+Auth/protocol source commits. Dispatch `auth-dockerhub-release.yml` to verify
+the exact source/protocol commits, scan the image with
 Trivy (zero critical/high findings), sign it using GitHub OIDC, and write the
 receipt consumed by `check-release.mjs`. Then review/promote the Docker Hub
 digest and matching source/protocol pins in `infra/lore/versions.yaml` and
@@ -218,6 +261,28 @@ Before starting containers, prove:
   Table/bucket names and region must exactly match the created resources.
   Lore's AWS plugin checks that configured resources exist; it does not
   provision them.
+- Run the read-only schema/security probe using an operator AWS identity with
+  configuration-inspection permissions (not the narrower Lore workload key):
+
+  ```bash
+  set -a
+  . /private/path/lore.env
+  set +a
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+  export AWS_PROFILE=__REPLACE_OPERATOR_INSPECTION_PROFILE__
+  node scripts/check-storage.mjs
+  ```
+
+  The probe checks binary primary keys, all three lock indexes, active tables,
+  bucket public-access blocking, versioning, and encryption. It reports PITR
+  and billing mode; it neither enables paid features nor proves a free tier.
+  It does not prove application write access, account-wide public-denial policy,
+  backup consistency, or restoration. `templates/lore-iam-policy.json.example`
+  is a resource-scoped workload-policy starting point, not an operator policy.
+  Replace all names/region/account IDs before applying it. If the bucket uses
+  customer KMS encryption, review the exact KMS permissions separately; do not
+  add wildcard KMS/admin access. Retain the bucket's deny-insecure-transport
+  policy and prove no public grants through bucket/IAM/access-point policy.
 - Use a dedicated Lore-only AWS identity scoped to this bucket and these four
   tables/indexes; deny unrelated resources and account-wide administration.
   Put credentials only in the owner-only `LORE_ENV_FILE`, never in the image,
@@ -301,9 +366,13 @@ MAC_RELEASE_ENV=/private/path/portals-release.env scripts/deploy.sh
 `bootstrap.sh` is fail-closed and does not silently repair security state.
 `deploy.sh` starts and verifies services in this order:
 
-1. Auth HTTP/gRPC, JWKS, OIDC, and sealed-key readiness.
-2. Lore Auth/ReBAC readiness and S3/DynamoDB connectivity.
-3. Caddy TLS and routing.
+1. Auth HTTP `/healthz` and local JWKS availability.
+2. Caddy TLS and HTTPS JWKS, verified with the production hostname against
+   loopback. Caddy carries a Docker-network alias for `AUTH_DOMAIN`, so Lore's
+   trusted HTTPS JWKS request stays local and does not need Pinggy to start.
+3. Lore `/health_check` readiness. The container healthcheck additionally
+   checks ReBAC; authenticated gRPC, OIDC, and storage read/write behavior
+   still require the acceptance tests below. Never substitute `/health`.
 4. Start the foreground-supervised Pinggy TLS and UDP mappings only after Caddy
    is healthy. Their commands belong in the service-owned release file and
    must use the persistent mappings validated in step 6.
@@ -311,6 +380,9 @@ MAC_RELEASE_ENV=/private/path/portals-release.env scripts/deploy.sh
 ### 9. Execute external acceptance and recovery drills
 
 ```bash
+set -a
+. /private/path/portals-release.env
+set +a
 scripts/check-external.sh
 ```
 
@@ -333,13 +405,52 @@ internal ports are not public.
 ### 10. Install supervision and capture evidence
 
 Install the supplied launchd jobs only after the interactive deployment passes,
-in the `portals-svc` user domain—not as root daemons. They gate Auth → Lore →
-Caddy → Pinggy, use restart throttling, and write logs under
+in the `portals-svc` user domain—not as root daemons. They gate Auth → Caddy
+HTTPS/JWKS → Lore → Pinggy, use restart throttling, and write logs under
 `~/Library/Logs/portals-*`. Standard Docker Desktop may require an interactive
 user session after a reboot; prove it does not for this host, or select a
 headless-capable runtime. Never enable automatic macOS login as a workaround.
 Record image manifest, migrations, health, certificate, tunnel, authorization,
 and external-test evidence.
+
+Do not assume the launchd user domain exists before login. After FileVault
+unlock, prove both the `portals-svc` jobs and their selected container runtime
+start without logging into a service desktop session. This requirement remains
+unverified; the existing Docker Desktop socket belongs to `andresb`.
+
+### Auth Docker Hub publication
+
+`.github/workflows/auth-dockerhub-release.yml` builds fresh clean source for
+AMD64 and ARM64, includes SBOM/provenance, signs the immutable index with
+GitHub OIDC, verifies registry signatures and image source/protocol labels,
+and scans both architectures for HIGH/CRITICAL vulnerabilities. It uploads
+`auth-dockerhub-evidence` containing the proposed BOM and receipt ledger.
+It does **not** change the checked-in release pin automatically. Review the
+artifact diff, preserving existing Lore receipts, and commit the verified Auth
+pin and receipt together. Set GitHub Actions secrets `DOCKERHUB_USERNAME`
+and `DOCKERHUB_TOKEN` before dispatch. Do not use Auth JWT keys for image signing.
+The workflow also runs on source/release-tool changes pushed to a dedicated
+`release/mac-bootstrap-*` branch, allowing verified preparation before merging
+the workflow into the default branch. It does not publish from arbitrary
+feature-branch pushes.
+
+The earlier directly pushed Auth index is still unpromoted. A fresh workflow
+release can have a different source hash and digest; adopt only its matching
+verified evidence. If the scanner fails, fix and rebuild rather than writing
+a passing receipt or relaxing the gate.
+
+Sealed-file rotation uses optional `JWT_LOCAL_RETIRED_JWKS_PATH` containing
+public-only JWKS for retired keys, mounted in the private Auth secret directory.
+Before replacing the active RSA PKCS#8 key, save its public JWKS, generate a new
+key and unique `JWT_KID`, and publish both public keys while signing only with
+the new key. Retain the old public key for at least nine hours (Auth tokens last
+eight hours; repository authorization tokens five minutes), then remove it and
+restart Auth. Verify old/new tokens during overlap and old-token denial after
+retirement. Back up active signing keys/pepper off-Mac; never publish private
+keys in JWKS. Compromise revocation is a separate drill: Lore may cache JWKS for
+up to its configured stale window, so restart/invalidate affected verifiers.
+Pepper rotation is not the same procedure: existing API keys depend on that
+pepper, so preserve it or explicitly revoke/reissue their keys.
 
 ### 11. Backup and recovery drills
 
