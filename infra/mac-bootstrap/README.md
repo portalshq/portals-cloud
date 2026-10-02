@@ -54,8 +54,12 @@ does not replace release verification for the Intel image.
   storage; its settings remain unverified.
 - **Auth release running:** dedicated branch `release/mac-bootstrap-20261002`,
   [GitHub run 37072019542](https://github.com/portalshq/portals-cloud/actions/runs/37072019542).
-  Its CI Auth/unit/Postgres tests passed and the fresh multi-architecture build
-  started. No signature/scan/promotion result is claimed until the run finishes.
+  Its CI Auth/unit/Postgres tests, multi-architecture publication, and GitHub
+  signature verification passed; promotion stopped on three HIGH OpenSSL
+  findings in the old runtime base. No BOM promotion occurred. The Dockerfile
+  now pins replacement distroless index `sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2`,
+  whose AMD64 base scan has zero HIGH/CRITICAL findings. A new full build and
+  both-architecture verification are required before promotion.
 
 ## Runtime boundary
 

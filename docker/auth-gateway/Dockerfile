@@ -39,7 +39,7 @@ RUN cd /app/control-plane && \
       *) echo "unsupported TARGETPLATFORM: $TARGETPLATFORM (expected linux/amd64 or linux/arm64)" >&2; exit 1 ;; \
     esac
 
-FROM --platform=$TARGETPLATFORM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775 AS runtime
+FROM --platform=$TARGETPLATFORM gcr.io/distroless/cc-debian13:nonroot@sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2 AS runtime
 COPY --from=builder /auth-gateway-bin /usr/local/bin/lore-auth-gateway
 # Region-scoped AWS RDS trust roots. The checksum makes CA-bundle changes an
 # explicit reviewed image update instead of an unpinned network dependency.
