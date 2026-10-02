@@ -43,11 +43,20 @@ does not replace release verification for the Intel image.
   passed actual configuration validation with test-only certificates and an
   AMD64 HIGH/CRITICAL scan with zero findings. This does not validate live DNS,
   issued certificates, public traffic, or host permissions.
-- **Frontend verification:** all 245 lead/CRM/account/pilot tests and TypeScript
+- **Frontend verification:** all 246 lead/CRM/account/pilot tests and TypeScript
   checks pass. The test command now preloads isolated fixture settings before
   static imports. Membership resolution retains multiple SQL roles, consistently
   prefers signer over approver, and keeps account-membership denial intact.
+  Accepting a lower-role magic link no longer demotes an existing owner/admin;
+  the regression also verifies single-use consumption.
   These are local tests, not evidence that production Neon migrations ran.
+- **Invitation limitation:** the pilot-room invitation path uses Next.js and
+  Neon, but the legacy `/api/invitations` route still calls the old AWS Backend
+  through `backend-api.server.ts`. No current frontend caller was found for
+  its exported browser helpers. Do not configure a dummy backend URL or claim
+  team invitations migrated: the legacy contract needs a tested Next.js
+  replacement (including acceptance, expiry, authorization, and mail delivery)
+  before exposing that feature. It is not a reason to deploy another Mac service.
 - **AWS access:** the local default AWS credential failed STS validation with
   `InvalidClientTokenId`. This is a credential failure, not proof of account
   suspension. Use a valid operator profile before inspecting the reported new
@@ -60,6 +69,8 @@ does not replace release verification for the Intel image.
   now pins replacement distroless index `sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2`,
   whose AMD64 base scan has zero HIGH/CRITICAL findings. A new full build and
   both-architecture verification are required before promotion.
+  Replacement release: [run 37073376806](https://github.com/portalshq/portals-cloud/actions/runs/37073376806),
+  source `fa6c3a949c4fcbff9a45fb645be388e932593369`.
 
 ## Runtime boundary
 
@@ -489,6 +500,25 @@ copy service env files or secret directories. Before onboarding customers,
 prove clean reboot, Pinggy reconnect, host rebuild, isolated Lore restore,
 Neon restore, DNS/ACME recovery, and Auth key rotation.
 Use `scripts/recover.sh` only with explicit isolated restore inputs.
+
+New recovery bundles use authenticated AES-256-GCM with a random salt/nonce and
+scrypt-derived key, not unauthenticated CBC. Store a random backup key (at least
+32 bytes, owner-only file) in the off-Mac vault separately from the bundle.
+Use a new destination per backup: existing files are not overwritten. Tar must
+finish successfully before encryption, and decryption authenticates the entire
+bundle before writing plaintext. The SHA-256 sidecar is for transfer checking;
+it is not the tamper protection. Restore manifests into a private isolation
+directory, never the live runtime:
+
+```bash
+node scripts/backup-crypto.mjs decrypt /private/path/recovery.bundle /private/isolation/recovery.tar.gz /private/path/backup-key
+tar -tzf /private/isolation/recovery.tar.gz
+# Review archive paths before extracting into the empty private isolation directory.
+```
+
+Do not treat this manifest round-trip as the Lore/Neon/provider restore drill.
+Historical CBC bundles, if any exist, require their original OpenSSL decrypt
+procedure; the new utility deliberately rejects that unauthenticated format.
 
 ## Customer onboarding gate
 

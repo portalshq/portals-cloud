@@ -441,7 +441,11 @@ export async function consumeMagicLink(token: string): Promise<{ sessionToken: s
     if (!stored || stored.expiresAt < Date.now()) return null
     memoryStore().magicLinks.delete(tokenHash)
     if (stored.customerAccountId && stored.role) {
-      memoryStore().memberships.set(memberKey(stored.customerAccountId, stored.userId), stored.role)
+      const key = memberKey(stored.customerAccountId, stored.userId)
+      const current = memoryStore().memberships.get(key)
+      if (current !== 'owner' && !(current === 'admin' && stored.role === 'member')) {
+        memoryStore().memberships.set(key, stored.role)
+      }
     }
     const sessionToken = randomToken()
     memoryStore().sessions.set(hashValue(sessionToken), {
@@ -475,7 +479,11 @@ export async function consumeMagicLink(token: string): Promise<{ sessionToken: s
         `INSERT INTO customer_memberships(customer_account_id, user_id, role)
          VALUES ($1,$2,$3)
          ON CONFLICT(customer_account_id, user_id)
-         DO UPDATE SET role = EXCLUDED.role, revoked_at = NULL`,
+         DO UPDATE SET role = CASE
+           WHEN customer_memberships.role = 'owner' THEN 'owner'
+           WHEN customer_memberships.role = 'admin' AND EXCLUDED.role = 'member' THEN 'admin'
+           ELSE EXCLUDED.role
+         END, revoked_at = NULL`,
         [row.customer_account_id, row.user_id, row.role],
       )
     }

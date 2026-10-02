@@ -3,6 +3,7 @@ import {mkdtempSync, mkdirSync, readFileSync, writeFileSync, chmodSync, rmSync} 
 import {tmpdir} from 'node:os'
 import {join, resolve} from 'node:path'
 import {spawnSync} from 'node:child_process'
+import {randomBytes} from 'node:crypto'
 
 const root = resolve(import.meta.dirname, '..')
 const temp = mkdtempSync(join(tmpdir(), 'portals-deployment-'))
@@ -35,5 +36,24 @@ try {
   const tunnel = spawnSync('sh', [join(root, 'scripts/run-pinggy.sh')], {env: {...process.env, PATH: `${temp}:${process.env.PATH}`, MAC_RELEASE_ENV: envFile, TEST_CURL_LOG: curlLog}, encoding: 'utf8', timeout: 6000})
   assert.equal(tunnel.status, 1, `Tunnel supervisor must exit when either mapping dies: ${tunnel.stderr}`)
   assert.match(tunnel.stderr, /restarting both mappings/)
+  const backupSource = join(temp, 'backup source')
+  mkdirSync(backupSource)
+  writeFileSync(join(backupSource, 'manifest.json'), '{"architecture":"mac-amd64"}')
+  writeFileSync(join(backupSource, 'auth.env'), 'DO_NOT_BACK_UP=secret-fixture')
+  const key = join(temp, 'backup-key')
+  writeFileSync(key, randomBytes(32), {mode: 0o600})
+  const bundle = join(temp, 'recovery.bundle')
+  const backupEnv = {...process.env, BACKUP_SOURCE_DIR: backupSource, BACKUP_DESTINATION: bundle, BACKUP_KEY_FILE: key}
+  const backup = spawnSync('sh', [join(root, 'scripts/backup.sh')], {env: backupEnv, encoding: 'utf8'})
+  assert.equal(backup.status, 0, backup.stderr)
+  const restored = join(temp, 'restored.tar.gz')
+  const decrypt = spawnSync(process.execPath, [join(root, 'scripts/backup-crypto.mjs'), 'decrypt', bundle, restored, key], {encoding: 'utf8'})
+  assert.equal(decrypt.status, 0, decrypt.stderr)
+  const archive = spawnSync('tar', ['-tzf', restored], {encoding: 'utf8'})
+  assert.equal(archive.status, 0, archive.stderr)
+  assert.match(archive.stdout, /manifest.json/)
+  assert.doesNotMatch(archive.stdout, /auth.env/)
+  assert.notEqual(spawnSync('sh', [join(root, 'scripts/backup.sh')], {env: backupEnv, encoding: 'utf8'}).status, 0)
   console.log('Deployment order, spaced paths, correct health endpoint, placeholder rejection, and paired tunnel restart passed')
+  console.log('Encrypted manifest backup/restore, secret exclusion, and overwrite rejection passed')
 } finally { rmSync(temp, {recursive: true, force: true}) }

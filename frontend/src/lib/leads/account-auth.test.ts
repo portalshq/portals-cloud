@@ -130,7 +130,7 @@ test('magic link with customerAccountId grants membership to specified account',
   })
 
   const magicLink = await issueMagicLink({
-    userId: user.id,
+    userId: (await ensureApplicationUser({email: `new-member-${crypto.randomUUID()}@studio.example`})).id,
     purpose: 'invite',
     customerAccountId: customer.id,
     role: 'admin',
@@ -138,11 +138,24 @@ test('magic link with customerAccountId grants membership to specified account',
 
   const session = await consumeMagicLink(magicLink)
   assert.ok(session)
-  assert.equal(session.user.id, user.id)
 
-  const account = await getCustomerAccountForUser(customer.id, user.id)
+  const account = await getCustomerAccountForUser(customer.id, session.user.id)
   assert.ok(account)
   assert.equal(account.role, 'admin')
+})
+
+test('a lower-role invitation cannot demote an existing owner or admin and is single-use', async () => {
+  const user = await ensureApplicationUser({email: `existing-role-${crypto.randomUUID()}@studio.example`})
+  const accountId = crypto.randomUUID()
+  const memory = (globalThis as any).portalsApplicationAuth
+  memory.customers.set(accountId, {id: accountId, name: 'Existing account'})
+  for (const role of ['owner', 'admin'] as const) {
+    memory.memberships.set(`${accountId}:${user.id}`, role)
+    const token = await issueMagicLink({userId: user.id, purpose: 'invite', customerAccountId: accountId, role: 'member'})
+    assert.ok(await consumeMagicLink(token))
+    assert.equal((await getCustomerAccountForUser(accountId, user.id))?.role, role)
+    assert.equal(await consumeMagicLink(token), null)
+  }
 })
 
 test('pilot membership validation requires both account and pilot membership', async () => {
