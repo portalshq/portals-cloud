@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-PATH="$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin"
+PATH="$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin:/Users/Shared/portals-tools/node_modules/.bin:/Users/Shared/portals-tools/bin"
 export PATH
 
 release_env=${MAC_RELEASE_ENV:-/Users/portals-svc/portals-release.env}

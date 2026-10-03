@@ -1,9 +1,9 @@
 # Intel Mac production host preparation and release checklist
 
 This record captures the designated host (`andresb`) before and after its
-wipe. The latest post-wipe state below was checked over SSH on 2026-10-02.
+wipe. The latest post-wipe state below was checked over SSH on 2026-10-03.
 
-Initial probe: 2026-09-26; latest post-wipe probe: 2026-10-02
+Initial probe: 2026-09-26; latest post-wipe probe: 2026-10-03
 
 ## Live host facts
 
@@ -15,18 +15,18 @@ Initial probe: 2026-09-26; latest post-wipe probe: 2026-10-02
 | Host memory | 16 GiB |
 | macOS | 13.7.8, build `22H730` |
 | Docker | Docker Desktop 4.43.0 present and running as `andresb`; Engine 28.3.0, `x86_64`; CLI at `/usr/local/bin/docker` |
-| Docker socket | `/var/run/docker.sock` links to `/Users/andresb/.docker/run/docker.sock`, owned by `andresb:staff`, mode `0755`; `portals-svc` cannot write to it. `sudo -n -u portals-svc docker info` could not run because sudo requires the admin password. |
+| Docker socket | `/Users/andresb/.docker/run/docker.sock`, owned by `andresb:staff`, mode `0755`; Docker CLI context `desktop-linux` works as `andresb`. `portals-svc` cannot write to it; `sudo -n` confirms admin password is required. |
 | SSH command PATH | `/usr/local/bin` is omitted; use the absolute Docker CLI path or set a deliberate PATH in launchd jobs |
-| macOS firewall | Enabled on 2026-10-01 and rechecked 2026-10-02; SSH remained reachable; built-in signed software allowed |
-| FileVault | On as of 2026-10-02; encryption progress message cleared; operator confirmed recovery key saved off-Mac |
+| macOS firewall | Enabled; rechecked 2026-10-03 |
+| FileVault | On; rechecked 2026-10-03; operator confirmed recovery key saved off-Mac |
 | Service account | `portals-svc` created as non-admin uid 502, with `/Users/portals-svc` owned by that account; SecureToken disabled |
-| Installed tools | Node.js v22.23.3 and npm 10.9.9 installed; `grpcurl`, `jq`, Pinggy CLI, Vercel CLI, and AWS CLI remain pending installation |
+| Installed tools | Node.js v22.23.3/npm 10.9.9; Pinggy CLI 0.6.0; Vercel CLI 62.2.0; jq 1.8.2; grpcurl 1.9.4. Tools are under `/Users/Shared/portals-tools`; jq, grpcurl, and the Pinggy native addon matched official release checksums. AWS CLI is not installed on this host and is not needed by the Lore container. |
 | Power | System sleep enabled; display and disk sleep set to 10 minutes |
-| Network | Wi-Fi, `192.168.0.27` at probe time |
+| Network | SSH alias `andresb` connected on 2026-10-03; address can change |
 
-The post-wipe root volume has 441 GiB free (466 GiB total); this clears the
-100 GiB bootstrap minimum. The active SSH target is `192.168.0.27`, and its
-host key matches the saved known-host entry. `andresb` is an administrator;
+The post-wipe root volume has 434 GiB free (466 GiB total); this clears the
+100 GiB bootstrap minimum. SSH alias `andresb` and its host key match the saved
+known-host entry. `andresb` is an administrator;
 SSH key authentication works. Sudo was validated interactively in a shared
 `screen` TTY and remains password-protected; no sudoers changes were made.
 
@@ -80,15 +80,19 @@ Complete these before running `bootstrap.sh`:
 
 1. Record the accepted host support risk above and prove the installed Docker
    runtime recovers after reboot before production deployment.
-2. Enable FileVault and escrow the recovery key separately from the Mac.
-3. Create a dedicated non-admin `portals-svc` account. Keep a separate admin
+2. FileVault and off-Mac recovery-key escrow are confirmed complete.
+3. The dedicated non-admin `portals-svc` account exists. Keep a separate admin
    account for maintenance; do not run services as `andresb`.
-4. Verify Docker access as the service account. Allocate enough VM memory for
-   Auth, Lore, and Caddy.
-5. Install Pinggy, `grpcurl`, `jq`, and Node.js 22+ for Pinggy's npm CLI.
-   Caddy is deployed from its pinned Docker Hub image; it is not a host binary.
-   Docker Hub supplies the Auth Gateway, Lore, and Caddy images; AWS access is
-   only for Lore's production S3/DynamoDB storage.
+4. Docker access as the service account remains blocked: the Docker socket is
+   owned by `andresb`, and granting access permits broad control of the daemon.
+   Settle the runtime ownership model before deployment. VM memory allocation
+   and combined service load also remain unverified.
+5. Node.js, Pinggy, `grpcurl`, and `jq` are installed. Vercel CLI is also
+   installed for operator use. They are in `/Users/Shared/portals-tools`; the
+   deployment scripts add their executable paths. Caddy is deployed from its
+   pinned Docker Hub image, not as a host binary. AWS CLI credentials are for
+   the workstation running the read-only storage probe, not needed by Lore's
+   running container.
 6. Install the supplied `launchd` jobs in the `portals-svc` user domain. The
    bundled plists deliberately do not run as root. Before release, prove the
    selected local container runtime survives a reboot without an interactive

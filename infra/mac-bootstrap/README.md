@@ -5,7 +5,7 @@ host is Intel, so the deployment needs `linux/amd64`. Auth Gateway now has a
 multi-architecture Docker Hub build; ARM64 is available for a future host, but
 does not replace release verification for the Intel image.
 
-## Current deployment status — 2026-10-02
+## Current deployment status — 2026-10-03
 
 - **Released and pinned:** Auth Gateway Docker Hub index
   `portalshq/auth-gateway@sha256:7d1c6a95654679990d609f3979710267f7270fec8b2634e626cdadbb2cebd6a2`.
@@ -17,22 +17,26 @@ does not replace release verification for the Intel image.
 - **Operator-reported:** AWS storage resources have been created; Pinggy and
   ZITADEL are being configured. Resource schemas, credentials, connectivity,
   tunnel behavior, and OIDC login are still unverified here.
-- **Still blocking deployment:** exact Lore
-  storage configuration and restore test; Vercel/Neon migration and live cron
-  check; custom DNS and certificates; Pinggy TCP+UDP confirmation; host Docker
-  access for `portals-svc` and reboot behavior; release checks and external
-  acceptance/recovery drills.
+- **Still blocking deployment:** actual Lore bucket/table names, least-privilege
+  AWS access, application read/write and restore tests; Vercel/Neon migrations
+  and live cron; ZITADEL client/login; custom DNS and renewed certificates;
+  Pinggy persistent TCP/UDP confirmation; a production runtime ownership plan
+  that lets `portals-svc` control containers and recovers after reboot; full
+  release checks and external acceptance/recovery drills.
 - **Prepared in source:** Auth Docker Hub release workflow with unit/Postgres
   tests and both-architecture scan/signature gates; sealed-file public-key
   overlap support; placeholder configuration examples; read-only storage
   schema probe; corrected HTTPS/JWKS startup order and Lore health endpoint;
   paired Pinggy restart supervision. These are implemented code paths, not
   evidence that the production host or external providers have passed.
-- **Latest connectivity check:** five SSH attempts on 2026-10-02 failed before
-  remote commands ran. The direct route to `192.168.0.27:22` timed out. Tool
-  installation/runtime configuration cannot be claimed complete until the host
-  is reachable again; all attempts are in ignored `ssh-activity.log`. The final
-  retry at 22:52 UTC also timed out before authentication.
+- **Latest host check (2026-10-03):** SSH now works. FileVault and the macOS
+  firewall are on; the non-admin `portals-svc` account exists; 434 GiB is free.
+  Node.js 22.23.3 was already installed. Pinggy, Vercel, jq, and grpcurl are
+  installed under `/Users/Shared/portals-tools` and their versions verified.
+  Docker Desktop runs as `andresb`, but its socket is not accessible to
+  `portals-svc`; sudo still requires the admin password. No service launchd
+  domain or reboot test has been established for `portals-svc`. SSH activity,
+  including this install, is recorded in ignored `ssh-activity.log`.
 - **Verified locally:** Auth's eight unit tests and two disposable-Postgres
   integration tests pass; deployment/placeholder/Pinggy restart contracts and
   storage-schema self-tests pass. Caddy `2.11.6-alpine` index
@@ -54,10 +58,11 @@ does not replace release verification for the Intel image.
   team invitations migrated: the legacy contract needs a tested Next.js
   replacement (including acceptance, expiry, authorization, and mail delivery)
   before exposing that feature. It is not a reason to deploy another Mac service.
-- **AWS access:** the local default AWS credential failed STS validation with
-  `InvalidClientTokenId`. This is a credential failure, not proof of account
-  suspension. Use a valid operator profile before inspecting the reported new
-  storage; its settings remain unverified.
+- **AWS access:** only a local `default` profile is configured, and it failed
+  STS validation with `InvalidClientTokenId`. This is a credential failure,
+  not proof of suspension. Configure a named operator profile on the workstation
+  that runs `check-storage.mjs`; the Mac runtime needs separate, narrowly scoped
+  Lore credentials in its private `LORE_ENV_FILE`.
 - **Auth release history:** dedicated branch `release/mac-bootstrap-20261002`,
   [GitHub run 37072019542](https://github.com/portalshq/portals-cloud/actions/runs/37072019542).
   Its CI Auth/unit/Postgres tests, multi-architecture publication, and GitHub
@@ -216,52 +221,39 @@ before publishing a tunnel.
 
 ### 4. Prepare the host
 
-Complete [HOST_PREP.md](HOST_PREP.md): verify the installed Docker runtime,
-FileVault with escrowed recovery key, dedicated non-admin `portals-svc`,
-firewall, stable power/network, at least 100 GiB free disk, Docker usable by
-the service account, Pinggy, `grpcurl`, `jq`, `openssl`, and Node.js 22+ if
-using the npm Pinggy CLI. Caddy runs as its digest-pinned container, not as a
-host binary. Also configure the required DNS, Neon, ZITADEL, AWS, and backup
-credentials. The standalone Pinggy binary may replace its npm CLI.
-
-Once SSH works, first inventory existing binaries; install only missing tools.
-As the Homebrew-owning maintenance account, use `brew install jq grpcurl` if
-needed. As `portals-svc`, install user-local CLIs without sudo:
+The host inventory is complete. Node.js 22.23.3 was present. The requested
+tools were installed at `/Users/Shared/portals-tools` so `portals-svc` can read
+and execute them without changing `/usr/local` ownership:
 
 ```bash
-npm install --global --prefix "$HOME/.local" pinggy@0.6.0 vercel@62.2.0
-export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+export PATH="/Users/Shared/portals-tools/node_modules/.bin:/Users/Shared/portals-tools/bin:$PATH"
 pinggy --help
 vercel --version
 grpcurl --version
 jq --version
 ```
 
-These npm versions were resolved on 2026-10-02. The npm [Pinggy CLI is official](https://pinggy.io/docs/cli/).
-Use the dashboard-generated persistent commands, not a guessed free-tunnel
-command. If Homebrew is absent or the maintenance account does not own its
-prefix, stop and install tools through the supported admin path; do not grant
-the service account broad write access to `/usr/local` or passwordless sudo.
+Verified versions: Pinggy CLI 0.6.0, Vercel CLI 62.2.0, jq 1.8.2,
+grpcurl 1.9.4, and Node.js 22.23.3. The jq, grpcurl, and Pinggy native-addon
+checksums matched official release metadata. The npm [Pinggy CLI is official](https://pinggy.io/docs/cli/).
+Launchd PATH and execution as `portals-svc` still need verification when jobs
+are installed. Use the dashboard-generated persistent commands, not a guessed
+free-tunnel command.
 
 ### 5. Promote and pin release images
 
-The Auth Gateway image is now pushed as the tag and OCI index digest recorded
-above, with both `linux/amd64` and `linux/arm64` manifests plus BuildKit SBOM
-and provenance. This is only a build artifact: it is not yet approved by the
-existing release gate. The current BOM still names the ECR image and different
-Auth/protocol source commits. Dispatch `auth-dockerhub-release.yml` to verify
-the exact source/protocol commits, scan the image with
-Trivy (zero critical/high findings), sign it using GitHub OIDC, and write the
-receipt consumed by `check-release.mjs`. Then review/promote the Docker Hub
-digest and matching source/protocol pins in `infra/lore/versions.yaml` and
-rerun the release checks. Keep the multi-architecture index digest; the Intel
-Mac will pull its `linux/amd64` manifest. Do not pin the mutable build tag or
-treat SBOM/provenance alone as a signature or vulnerability scan.
+Auth Gateway has been built from clean source, signed with GitHub OIDC, scanned
+for both `linux/amd64` and `linux/arm64` with zero HIGH/CRITICAL findings, and
+promoted with its evidence receipt into `infra/lore/versions.yaml`. Keep the
+multi-architecture index digest; this Intel Mac pulls its `linux/amd64`
+manifest. Do not pin mutable build tags or treat SBOM/provenance alone as a
+signature or vulnerability scan.
 
-Lore already has an immutable Docker Hub BOM pin and receipt; verify the
-currently pinned digest still passes the release gate. Select and pin an
-immutable Caddy image digest too. Do not substitute QEMU emulation for an
-architecture-specific release artifact.
+Lore has an immutable Docker Hub BOM pin and verified receipt. Auth, Lore, and
+Caddy registry manifests were just inspected from the production Mac; each has
+a `linux/amd64` image. Caddy is pinned to digest
+`sha256:13b7fbadd017b042956fddbceedeeea12bb1e560534f9b3df281269dbcc61813`.
+Do not substitute QEMU emulation for an architecture-specific release artifact.
 
 ### 6. Verify Lore storage and configure the network edge
 
@@ -297,14 +289,27 @@ Before starting containers, prove:
 - Run the read-only schema/security probe using an operator AWS identity with
   configuration-inspection permissions (not the narrower Lore workload key):
 
+  Configure an operator AWS profile on the workstation where this probe runs:
+
   ```bash
-  set -a
-  . /private/path/lore.env
-  set +a
-  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-  export AWS_PROFILE=__REPLACE_OPERATOR_INSPECTION_PROFILE__
+  aws configure sso --profile portals-operator # if IAM Identity Center is configured
+  # or: aws configure --profile portals-operator
+  aws sts get-caller-identity --profile portals-operator
+  export AWS_PROFILE=portals-operator AWS_REGION='REPLACE_WITH_REGION'
+  export LORE__PLUGINS__AWS__IMMUTABLE_STORE__S3_BUCKET='REPLACE_WITH_BUCKET'
+  export LORE__PLUGINS__AWS__IMMUTABLE_STORE__DYNAMODB_FRAGMENTS_TABLE='REPLACE_WITH_FRAGMENTS_TABLE'
+  export LORE__PLUGINS__AWS__IMMUTABLE_STORE__DYNAMODB_METADATA_TABLE='REPLACE_WITH_METADATA_TABLE'
+  export LORE__PLUGINS__AWS__MUTABLE_STORE__DYNAMODB_TABLE='REPLACE_WITH_MUTABLE_TABLE'
+  export LORE__PLUGINS__AWS__LOCK_STORE__DYNAMODB_TABLE='REPLACE_WITH_LOCKS_TABLE'
   node scripts/check-storage.mjs
   ```
+
+  The profile is stored in the local AWS CLI files under `~/.aws/config` and
+  `~/.aws/credentials`. The probe
+  requires read-only S3 `GetPublicAccessBlock`, `GetBucketVersioning`, and
+  `GetEncryption`, plus DynamoDB `DescribeTable` and
+  `DescribeContinuousBackups` on these resources. No credentials belong in the
+  repo or chat. Do not source the Lore runtime env file to run this probe.
 
   The probe checks binary primary keys, all three lock indexes, active tables,
   bucket public-access blocking, versioning, and encryption. It reports PITR
@@ -320,7 +325,8 @@ Before starting containers, prove:
   use the underlying item actions, not invented `Transact*` IAM actions.
 - Use a dedicated Lore-only AWS identity scoped to this bucket and these four
   tables/indexes; deny unrelated resources and account-wide administration.
-  Put credentials only in the owner-only `LORE_ENV_FILE`, never in the image,
+  Put runtime credentials only in the owner-only `LORE_ENV_FILE` on the
+  production Mac (`/Users/portals-svc/secrets/lore.env`), never in the image,
   release manifest, or repository. Prove Lore reads/writes these stores and
   cannot access unrelated AWS resources.
 - DNS-01 issuance and staged renewal for Caddy and Lore QUIC.
@@ -353,7 +359,8 @@ Operator-side setup (keep tokens and private keys outside this repository):
    certificates through DNS-01 using a narrowly scoped Cloudflare API token.
    The stock Caddy image has no Cloudflare DNS plugin: use a separate ACME
    client, automate renewal and reload, and prove both TLS and QUIC hostnames.
-4. In AWS, verify the exact four DynamoDB table schemas/indexes from
+4. On the workstation running the probe, configure the operator profile above.
+   In AWS, verify the exact four DynamoDB table schemas/indexes from
    `infra/pulumi/src/components/PlatformDataStore.ts` and the private,
    versioned S3 configuration from `PlatformStorage.ts`. Set Lore's AWS plugin
    names to those actual resources as described above. Provide the off-AWS
@@ -366,10 +373,11 @@ Operator-side setup (keep tokens and private keys outside this repository):
    Docker Hub read-only token outside the repository if they are private;
    Docker Hub credentials are not Lore's AWS credentials. Lore's bucket/table
    permissions are a distinct identity and policy. Put
-   `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` for that
-   narrowly scoped Lore identity in `LORE_ENV_FILE`; the container uses the
-   AWS SDK default credential chain. Keep that file owner-only and rotate the
-   key. Never reuse Docker Hub pull credentials for Lore.
+   `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` for the
+   narrowly scoped Lore runtime identity in `/Users/portals-svc/secrets/lore.env`
+   on the production Mac; the container uses the AWS SDK default credential
+   chain. Keep that file owned by `portals-svc` with mode `0600` and rotate the
+   key. Never reuse operator or Docker Hub credentials for Lore.
 
 ### 7. Validate the release
 
@@ -469,10 +477,10 @@ The workflow also runs on source/release-tool changes pushed to a dedicated
 the workflow into the default branch. It does not publish from arbitrary
 feature-branch pushes.
 
-The earlier directly pushed Auth index is still unpromoted. A fresh workflow
-release can have a different source hash and digest; adopt only its matching
-verified evidence. If the scanner fails, fix and rebuild rather than writing
-a passing receipt or relaxing the gate.
+The earlier direct-push index and first failed-scan candidate remain
+unpromoted. Only the verified digest and receipt currently in the BOM are
+approved. If a future scanner fails, fix and rebuild rather than writing a
+passing receipt or relaxing the gate.
 
 Sealed-file rotation uses optional `JWT_LOCAL_RETIRED_JWKS_PATH` containing
 public-only JWKS for retired keys, mounted in the private Auth secret directory.

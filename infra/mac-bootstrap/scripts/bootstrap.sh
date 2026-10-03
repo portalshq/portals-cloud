@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-PATH="$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin"
+PATH="$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin:/Users/Shared/portals-tools/node_modules/.bin:/Users/Shared/portals-tools/bin"
 export PATH
 
 test "$(uname -m)" = x86_64 || { echo 'An Intel Mac is required' >&2; exit 1; }
