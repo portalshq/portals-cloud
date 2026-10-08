@@ -1,3 +1,4 @@
+import {diagnosticResult, pilotAssessmentPrefill} from './assessment-diagnostic'
 import {cookies} from 'next/headers'
 import type {KnownLeadContext} from './contracts'
 import {getProfileById, getProfileByToken, latestQualificationAnswers, PROFILE_COOKIE} from './store'
@@ -58,6 +59,7 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
     const qualification = resolvedProfile.qualification
     const combinedAnswers = {
       ...resolvedProfile.identity,
+      ...pilotAssessmentPrefill(fallbackAnswers),
       ...fallbackAnswers,
     }
     const knownAnswerFields = Object.entries(combinedAnswers)
@@ -83,7 +85,8 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
         Boolean(resolvedProfile.identity.email) &&
         !resolvedProfile.identity.website &&
         isPublicEmailDomain(emailDomain(resolvedProfile.identity.email || '')),
-      scores: fallbackScores,
+      scores: fallbackScores?.diagnostic ? undefined : fallbackScores,
+      diagnosticResult: fallbackScores?.diagnostic ? diagnosticResult(fallbackAnswers, fallbackScores.diagnostic) : undefined,
       qualificationTier: tier,
       qualificationOutcome: outcome,
       reasonCodes:

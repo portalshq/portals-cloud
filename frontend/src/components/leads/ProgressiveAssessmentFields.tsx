@@ -1,6 +1,7 @@
 'use client'
 
 import {useEffect, useState} from 'react'
+import {ASSESSMENT_VERSION} from '@/lib/leads/assessment-definition'
 import type {KnownLeadContext} from '@/lib/leads/contracts'
 import {LeadSelectField as SelectField} from '@/components/mui/fields'
 import {LeadField} from './LeadFields'
@@ -27,6 +28,13 @@ export function ProgressiveAssessmentFields({
       setRecreationFrequency(draft.recreationFrequency)
     }
   }, [draft?.recreationFrequency])
+
+  if (context.answerValues?.assessment_version === ASSESSMENT_VERSION) {
+    return <div className="space-y-12 t-p-sm-sans">
+      <p>Your production diagnostic is carried forward. Review the workflow, baseline, implementation requirements, and success criteria for this pilot.</p>
+      {context.answerValues.productionBaseline ? <p className="text-white/80">{String(context.answerValues.productionBaseline)}</p> : null}
+    </div>
+  }
 
   return (
     <div className="grid grid-cols-2 gap-20">

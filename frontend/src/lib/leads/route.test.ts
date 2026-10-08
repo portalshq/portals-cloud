@@ -845,3 +845,47 @@ test('reset_profile clears both profile and session cookies with complete attrib
   assert.match(sessionCookie, /SameSite=lax/i)
   assert.match(sessionCookie, /Path=\//i)
 })
+
+// Current diagnostic boundary, persistence, and self-serve routes.
+import {ASSESSMENT_VERSION} from './assessment-definition'
+import {completeAssessment, highAssessment} from './assessment-fixtures'
+
+function diagnosticBody(email: string, answers = highAssessment) {
+  return {...assessmentBody(email), formVersion: ASSESSMENT_VERSION,
+    identity: {name: 'Test Producer', email, company: 'Studio Example', role: 'production-operations', website: ''},
+    answers, idempotencyKey: `diagnostic:${crypto.randomUUID()}`}
+}
+test('v4 High and Mid results enter pilot application and keep internal tags out of public responses', async () => {
+  for (const [label, answers] of [['high', highAssessment], ['medium', {...highAssessment, production_status: 'within_1_to_3_months'}]] as const) {
+    const response = await post(diagnosticBody(`v4-${label}@studio.example`, answers))
+    assert.equal(response.status, 200)
+    const json = await response.json()
+    assert.equal(json.nextAction, 'pilot_scope')
+    assert.equal(json.qualificationTier, label)
+    assert.ok(json.diagnosticResult.explanations.length)
+    assert.ok(!JSON.stringify(json).includes('A_STATE_PERSON_DEPENDENT'))
+    const profile = await getProfileByToken(profileTokenFrom(response))
+    assert.ok(profile?.qualification?.scores.diagnostic)
+    assert.equal(profile.qualification.answers.pilotWorkflow, answers.most_urgent_active_workflow)
+    assert.ok(String(profile.qualification.answers.productionBaseline).includes('Time to transfer'))
+  }
+})
+test('v4 Low result routes to materials even when a legacy commercial readiness path was strong', async () => {
+  const email = 'v4-low-after-high@studio.example'
+  const first = await post(diagnosticBody(email))
+  const response = await post(diagnosticBody(email, completeAssessment), {cookie: `portals_profile=${profileTokenFrom(first)}`})
+  assert.equal(response.status, 200)
+  const json = await response.json()
+  assert.equal(json.nextAction, 'use_case')
+  assert.equal(json.qualificationTier, 'low')
+  const profile = await getProfileByToken(profileTokenFrom(first))
+  assert.equal(profile!.qualification!.scores.diagnostic!.meaningfulProblem, false)
+  assert.equal(profile!.qualification!.answers.manual_handoff_requirements, undefined)
+})
+test('v4 server rejects missing required and conditional answers before persistence', async () => {
+  for (const override of [{contributors_count: undefined}, {most_recent_incident: ''}, {ip_controlled_content: 'yes'}]) {
+    const response = await post(diagnosticBody(`v4-invalid-${crypto.randomUUID()}@studio.example`, {...highAssessment, ...override}))
+    assert.equal(response.status, 400)
+    assert.equal(response.headers.getSetCookie().length, 0)
+  }
+})

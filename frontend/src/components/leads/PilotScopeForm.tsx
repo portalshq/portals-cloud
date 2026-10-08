@@ -206,6 +206,7 @@ export function PilotScopeForm({
   }, [pilotId])
 
   useEffect(() => {
+    void trackEvent('pilot_application_started', {assessment_version: carriedAnswers.assessment_version})
     void trackEvent('pilot_scope_viewed', {
       assessment_origin: assessmentOrigin,
       carried_fields: Object.keys(carriedAnswers).length,
@@ -411,6 +412,7 @@ export function PilotScopeForm({
       return (value || '') as T[number]
     }
     return {
+      ...pilotRequestAnswersSchema.parse(carriedAnswers),
       assessmentOrigin,
       teamType: string('teamType'),
       teamSize: string('teamSize'),
@@ -989,7 +991,7 @@ export function PilotScopeForm({
               name="successCriteria"
               required
               minRows={5}
-              defaultValue={String(initialAnswers?.successCriteria || '')}
+              defaultValue={String(carriedAnswers.successCriteria || '')}
               placeholder="tell us your current baseline and desired improvement, if known. e.g. retrieval currently takes 15 minutes; we want it under 2 minutes"
             />
           </LeadField>

@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import {ASSESSMENT_VERSION, assessmentValidationErrors, diagnosticAnswersSchema, diagnosticFields} from './assessment-definition'
+import type {DiagnosticScore} from './assessment-diagnostic'
 import { productionWorkflowIds } from '@/lib/production-workflows'
 
 export const DISCLOSURE_VERSION = '2026-08-01'
@@ -108,6 +110,11 @@ const primaryObjectionSchema = z.enum([
 ])
 
 export const assessmentAnswersSchema = z.object({
+  ...diagnosticFields,
+  assessment_version: z.literal(ASSESSMENT_VERSION).optional(),
+  assessment_completion_seconds: z.number().int().min(0).max(7_776_000).optional(),
+  productionStateBottleneck: optionalText(2500),
+  productionBaseline: optionalText(2000),
   teamType: optionalText(80),
   teamSize: optionalText(40),
   workflowCollaborators: optionalText(40),
@@ -360,6 +367,15 @@ export const leadRequestSchema = z.discriminatedUnion('submissionType', [
   }),
 ])
 
+export const validatedLeadRequestSchema = leadRequestSchema.superRefine((request, ctx) => {
+  if (request.submissionType !== 'assessment') return
+  if (request.formVersion !== ASSESSMENT_VERSION && request.answers.assessment_version !== ASSESSMENT_VERSION) return
+  if (request.answers.assessment_version !== ASSESSMENT_VERSION) ctx.addIssue({code: 'custom', path: ['answers', 'assessment_version'], message: 'Assessment version is required.'})
+  const validated = diagnosticAnswersSchema.safeParse(request.answers)
+  if (!validated.success) for (const issue of validated.error.issues) ctx.addIssue({...issue, path: ['answers', ...issue.path]})
+  for (const error of assessmentValidationErrors(request.answers)) ctx.addIssue({code: 'custom', path: ['answers', error.field], message: error.message})
+})
+
 export const profileResetSchema = z.object({
   action: z.literal('reset_profile'),
 })
@@ -381,6 +397,7 @@ export type QualificationScores = {
   intent: ScoreDimension
   assessmentScore: number
   workflowRiskScore: number
+  diagnostic?: DiagnosticScore
 }
 
 export type QualificationTier = 'high' | 'medium' | 'low' | 'incomplete'
@@ -423,6 +440,7 @@ export type LeadResponse = {
   workflowRiskScore?: number
   recommendedWorkflow?: string
   message?: string
+  diagnosticResult?: {title: string; explanations: string[]; recommendation: string}
   analyticsPersonId?: string
   dryRun?: boolean
 }
@@ -439,6 +457,7 @@ export type KnownLeadContext = {
   qualificationOutcome?: QualificationOutcome
   reasonCodes?: QualificationReasonCode[]
   missingFields?: string[]
+  diagnosticResult?: LeadResponse['diagnosticResult']
   assessmentCompleted?: boolean
   recommendedWorkflow?: string
   incidentFollowUpEligible?: boolean

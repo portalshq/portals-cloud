@@ -1,6 +1,9 @@
+import {ASSESSMENT_VERSION, activeAssessmentAnswers, assessmentQuestions} from '@/lib/leads/assessment-definition'
+import {diagnosticResult, pilotAssessmentPrefill} from '@/lib/leads/assessment-diagnostic'
 import { after, NextResponse } from 'next/server'
 import {
-  leadRequestSchema,
+  validatedLeadRequestSchema as leadRequestSchema,
+  assessmentAnswersSchema,
   pilotRequestAnswersSchema,
   pilotRequiredAnswerFields,
   profileResetSchema,
@@ -173,6 +176,13 @@ function routeResponse(
   }
   if (request.submissionType === 'contact') {
     return { ok: true, nextAction: 'follow_up', message: 'Your request is recorded.' }
+  }
+  if (request.submissionType === 'assessment' && scores?.diagnostic) {
+    const result = diagnosticResult(qualificationAnswers || request.answers, scores.diagnostic)
+    return {ok: true, nextAction: tier === 'low' ? 'use_case' : 'pilot_scope', qualificationTier: tier,
+      qualificationOutcome: tier === 'low' ? 'education' : tier === 'high' ? 'pilot_candidate' : 'clarify',
+      diagnosticResult: result, recommendedWorkflow: workflow, downloadUrl: '/api/leads/documents/assessment-result',
+      message: tier === 'low' ? 'Explore the production patterns that may become relevant as your work grows.' : 'Make one live AI production team-operable without replacing the tools your team already uses.'}
   }
   if (
     ['assessment', 'commercial_readiness'].includes(request.submissionType) &&
@@ -597,6 +607,14 @@ async function handleLeadRequest(
       }]
       : []),
   )
+  if (effectiveLeadRequest.submissionType === 'assessment' && effectiveLeadRequest.answers.assessment_version === ASSESSMENT_VERSION) {
+    // A fresh diagnostic replaces its own answers, including cleared and inactive branches.
+    // Historical fields remain intact; they must not revive obsolete branch evidence.
+    qualificationAnswers = mergeQualificationAnswers(priorAnswers, effectiveLeadRequest.answers)
+    const active = activeAssessmentAnswers(effectiveLeadRequest.answers)
+    for (const {id} of assessmentQuestions) if (!(id in active)) delete qualificationAnswers[id]
+    qualificationAnswers = {...qualificationAnswers, ...pilotAssessmentPrefill(qualificationAnswers)}
+  }
   if (effectiveLeadRequest.submissionType === 'pilot_request') {
     qualificationAnswers = mergeQualificationAnswers(qualificationAnswers, {
       pilotWorkflow:
@@ -632,7 +650,9 @@ async function handleLeadRequest(
           ),
         }),
       }
-      : { ...effectiveLeadRequest, identity }
+      : effectiveLeadRequest.submissionType === 'assessment' && effectiveLeadRequest.answers.assessment_version === ASSESSMENT_VERSION
+        ? {...effectiveLeadRequest, identity, answers: assessmentAnswersSchema.parse({...effectiveLeadRequest.answers, ...pilotAssessmentPrefill(qualificationAnswers)})}
+        : { ...effectiveLeadRequest, identity }
   if (
     finalLeadRequest.submissionType === 'pilot_request' &&
     pilotRequiredAnswerFields.some(

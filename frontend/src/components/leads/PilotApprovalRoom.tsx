@@ -347,6 +347,8 @@ export function PilotApprovalRoom({
   )
 
   useEffect(() => {
+    void trackEvent('pilot_room_entered', {assessment_version: answers.assessment_version})
+    void trackEvent('pilot_terms_viewed', {pilot_state: pilot.state})
     void trackEvent('pilot_room_opened', {
       pilot_state: pilot.state,
       pilot_route: pilot.route,
@@ -524,6 +526,8 @@ export function PilotApprovalRoom({
         }
         if (opts.sync) syncFromPilot(json.pilot)
       }
+      if (body.action === 'confirm_scope') void trackEvent('pilot_approved', {pilot_state: json.pilot?.state})
+      if (body.action === 'section_change_request' || (body.action === 'reviewer_decision' && body.decision === 'changes')) void trackEvent('pilot_terms_adjustment_requested', {pilot_state: json.pilot?.state})
       return true
     } catch (cause) {
       if (!opts.silent) {
@@ -1236,6 +1240,8 @@ export function PilotApprovalRoom({
         action={!canEditDraft ? requestAction('Scope') : null}
       >
         <dl className="grid gap-14 t-p-sm-sans md:grid-cols-2">
+          {answers.productionStateBottleneck ? <div><dt className="text-white/60">Production-state bottleneck</dt><dd className="mt-2">{String(answers.productionStateBottleneck)}</dd></div> : null}
+          {answers.productionBaseline ? <div><dt className="text-white/60">Assessment baseline to validate</dt><dd className="mt-2">{String(answers.productionBaseline)}</dd></div> : null}
           <div><dt className="text-white/60">Pilot workflow</dt><dd className="mt-2">{canEditDraft ? <RoomTextareaField minRows={3} value={String(answers.pilotWorkflow || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, pilotWorkflow: event.target.value }))} /> : String(answers.pilotWorkflow || answers.activeWorkflow || '-')}</dd></div>
           <div><dt className="text-white/60">Production owner</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.productionOwner || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, productionOwner: event.target.value }))} /> : String(answers.productionOwner || '-')}</dd></div>
           <div><dt className="text-white/60">Economic buyer</dt><dd className="mt-2">{String(answers.economicBuyer || '-')}</dd></div>

@@ -206,3 +206,14 @@ test('a one-call pilot plan with exceptions stays a two-page record', async () =
   assert.equal(plan.subarray(0, 4).toString(), '%PDF')
   assert.equal(plan.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length, 2)
 })
+
+import {highAssessment} from './assessment-fixtures'
+test('v4 downloaded result renders evidence and recommendations as a PDF without legacy ROI estimates', async () => {
+  const diagnosticScores = calculateQualification(highAssessment)
+  const buffer = await renderToBuffer(AssessmentResultPdfDocument({data: {...data, answers: highAssessment, scores: diagnosticScores, tier: 'high'}}))
+  assert.equal(buffer.subarray(0, 4).toString(), '%PDF')
+  const pdf = buffer.toString('latin1')
+  assert.ok((pdf.match(/\/Type\s*\/Page\b/g)?.length || 0) >= 2)
+  assert.match(pdf, /\/URI \(https:\/\/portals\.works\/pilot\)/)
+  assert.ok(!pdf.includes('A_STATE_PERSON_DEPENDENT'))
+})

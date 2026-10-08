@@ -125,7 +125,9 @@ The pilot controlled fields include `productionOwnerEmail` as a required field. 
 
 The workflow assessment is the single prospect-facing qualification flow. It asks about a real creative-production workflow, the pain it creates, the desired outcome, and only the practical context needed to recommend a next step. Do not reintroduce a separate "pilot readiness" form after the assessment result.
 
-`assessment` submissions are merged with the lead profile's previous qualification answers in `frontend/app/api/leads/route.ts`. `frontend/src/lib/leads/scoring.ts` scores fit, production-memory pain, and intent from that merged record. A credible workflow with sufficient fit and pain can move directly to `pilot_scope` when the assessment also establishes timing, ownership, approval path, and the prospect's stated question or friction. Otherwise, return the most relevant workflow/use-case recommendation. The legacy `commercial_readiness` submission type remains parseable only to preserve earlier submissions; do not use it for new UI.
+`assessment.v4` is a progressive production-state diagnostic. Definitions/branches live in `assessment-definition.ts`; deterministic operational (70)/commercial (30) scoring and internal evidence live in `assessment-diagnostic.ts`. `scoring.ts` dispatches by version and retains historical scoring. High/Mid route to the existing self-serve pilot application; Low receives materials. Do not expose internal categories or force a call. The API uses `validatedLeadRequestSchema`.
+
+Current diagnostic answers replace prior branches; historical answers/raw submissions remain intact. New data uses existing encrypted payloads and score JSON, without a destructive migration. `pilotAssessmentPrefill` carries workflow, tools, timing, approval path, bottleneck, and baseline. Strip internal diagnostic score/evidence from public profile context. See [the normal product/engineering specification](../../../../marketing/ASSESSMENT.md).
 
 Keep the form value-led: describe the concrete output first—less rediscovery, fewer recreated assets, faster repeatable production, and lower cost. Questions about approval or a pilot must make clear that they do not commit the prospect to either.
 
@@ -147,7 +149,7 @@ For any field that is captured from a prospect, update every applicable layer:
 5. Map the answer in `contactFields` in `frontend/src/lib/leads/crm.ts`. The CRM is a projection of Portals data, never the source of truth.
 6. Update tests for validation, score/routing, and CRM mapping when the new field affects them.
 
-`tools_used` is the reference field: it is a single text input for a comma-separated list of relevant tools, is stored in Apollo as the `Tools used` contact custom field, and is categorized as both `general` and `pilot`. The scoring layer accepts both this text list and historical count-shaped values so old submissions remain valid.
+`tools_used` remains the historical/pilot reference field: it is a single text input for a comma-separated list of relevant tools, is stored in Apollo as the `Tools used` contact custom field, and is categorized as both `general` and `pilot`. The scoring layer accepts both this text list and historical count-shaped values so old submissions remain valid.
 
 ## Apollo provisioning
 
