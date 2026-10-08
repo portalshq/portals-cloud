@@ -563,16 +563,17 @@ float blenderWave(vec3 p, float scale, float distortion, float detail, float rou
 }
 
 vec3 middleGradient(vec3 base, vec3 c1, vec3 c2, float wave) {
-  float n = wave * perlinNoise(vec3(vUv.x, 1., (vUv.y - uTime*0.04) * .2) * 50.) + .2;
+  float n = wave * perlinNoise(vec3(vUv.x, 1., ((vUv.y - 0.52) - uTime*0.04) * .2) * 50.) + .2;
   vec3 baseColor = base;
   vec3 color = c1;
   float center = 0.48;
+  float y = vUv.y - 0.52;
   color = mix(color, baseColor, smoothstep(center - .3, center - .2, n));
-  vec3 grad = mix(baseColor, color, smoothstep(center - .2, center - .1, vUv.y));
-  grad = mix(grad, baseColor, smoothstep(center + .1, center + .2, vUv.y));
+  vec3 grad = mix(baseColor, color, smoothstep(center - .2, center - .1, y));
+  grad = mix(grad, baseColor, smoothstep(center + .1, center + .2, y));
   vec3 temp = grad;
-  grad = mix(grad, c1, smoothstep(center - .1, center, vUv.y));
-  grad = mix(grad, temp, smoothstep(center, center + .1, vUv.y));
+  grad = mix(grad, c1, smoothstep(center - .1, center, y));
+  grad = mix(grad, temp, smoothstep(center, center + .1, y));
   return grad;
 }
 
@@ -627,7 +628,7 @@ void main() {
   color = vec3(colorVal);
   vec3 ramp1 = sampleColorRamp(uColorRamp1, uColorRamp1To, uColorRamp1Mix, colorVal);
   vec3 ramp2 = sampleColorRamp(uColorRamp2, uColorRamp2To, uColorRamp2Mix, colorVal);
-  color = mix(ramp1, ramp2, vUv.y);
+  color = mix(ramp1, ramp2, vUv.y - 0.52);
   color = middleGradient(color, uColor1, uColor2, wave);
   color = applySaturation(color, uSaturation);
   gl_FragColor = vec4(color, 1.0);

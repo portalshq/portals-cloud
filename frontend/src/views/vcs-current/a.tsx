@@ -482,8 +482,8 @@ function OverviewSection() {
                 </div>
                 <div className="col-span-full space-y-18">
                   <NumberLabel index={scrollIndex} />
-                  <div className="relative -mx-sms h-px bg-white/20">
-                    <div ref={progressLineRef} data-progress-line className="saga-overview-progress-line absolute top-0 left-0 h-px w-full origin-left bg-white" />
+                  <div className="relative -mx-sms h-2 bg-white/20">
+                    <div ref={progressLineRef} data-progress-line className="saga-overview-progress-line absolute top-0 left-0 h-2 w-full origin-left bg-white" />
                   </div>
                 </div>
 
@@ -1181,7 +1181,7 @@ export function VCS({
             <h1 ref={heroHeadingRef} className="max-w-[12.725em] text-balance t-d2-sans">
               scale{' '}
               <strong className="t-d2-serif">creative media production</strong>{' '}
-              <br/>without the overhead
+              <br />without the overhead
             </h1>
             <p className="t-h3-sans max-w-[24.5ch]">ship campaigns faster, cut production costs, and keep every asset traceable from brief to delivery.</p>
             <p className="t-p-sm-sans max-w-[52ch]">
@@ -1219,7 +1219,7 @@ export function VCS({
       <div className="saga-mobile-repository-transition">
         <p ref={mobileRepositoryCopyRef} className="saga-mobile-repository-copy t-p-sans lowercase!">
           the production memory for
-            AI{`\u2011`}native creative teams
+          AI{`\u2011`}native creative teams
         </p>
       </div>
 
