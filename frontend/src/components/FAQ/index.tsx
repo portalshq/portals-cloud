@@ -7,7 +7,7 @@ export default function Faq({ faqs }: { faqs: { question: string, answer: string
 
   return (
     <div className="col-span-full flex flex-col w-full space-y-36">
-      <div className="space-y-16 max-w-3xl lg:w-3xl lg:mx-auto">
+      <div className="space-y-16 max-w-3xl lg:w-3xl mx-auto">
         {faqs.map((faq, index) => (
           <div
             key={faq.question}
@@ -20,13 +20,13 @@ export default function Faq({ faqs }: { faqs: { question: string, answer: string
               onClick={() =>
                 setOpenIndex(openIndex === index ? null : index)
               }
-              className="flex w-full items-center justify-between !p-24 h-auto text-left text-white focus:outline-none [&>span]:w-full [&>span]:justify-between"
+              className="flex w-full items-center no-underline justify-between !p-24 h-auto text-left text-white focus:outline-none [&>span]:w-full [&>span]:justify-between"
               aria-expanded={openIndex === index}
             >
               <span className="t-p-serif">{faq.question}</span>
               <span
                 aria-hidden="true"
-                className={`transform transition-transform duration-300 ${openIndex === index ? 'rotate-45' : ''}`}
+                className={`transform t-p-sans transition-transform duration-100 ${openIndex === index ? 'rotate-45' : ''}`}
               >
                 +
               </span>

@@ -11,7 +11,7 @@ export async function GET() {
       <div style={{display: 'flex', fontSize: 34}}>portals</div>
       <div style={{display: 'flex', flexDirection: 'column', gap: 24}}>
         <div style={{fontSize: 66, lineHeight: 1.03, maxWidth: 1020}}>AI creative production workflow assessment</div>
-        <div style={{fontSize: 28, opacity: 0.88}}>Approved versions · generation history · reproducibility · production memory</div>
+        <div style={{fontSize: 28, opacity: 0.88}}>Transfer approved work · preserve production state · reduce coordination cost</div>
       </div>
     </div>,
     size,

@@ -7,14 +7,14 @@ import { getKnownLeadContext } from '@/lib/leads/profile'
 import { SagaWebGLEngine } from '@/lib/SagaWebGLEngine'
 import Faq from '@/components/FAQ'
 import { getFaqsByCategories } from '@/lib/faqs'
-import {canonical, marketingMetadata} from '@/lib/seo'
+import { canonical, marketingMetadata } from '@/lib/seo'
 
 const assessmentUrl = canonical('/assessment')
 const assessmentImageUrl = canonical('/assessment/opengraph-image')
 
 export const metadata: Metadata = marketingMetadata({
   title: 'AI Creative Workflow Assessment | portals',
-  description: 'Assess your AI creative production workflow in four minutes. Find gaps in approved asset retrieval, version history, context, handoffs, continuity, and reproducibility.',
+  description: 'Assess one live AI production for context reconstruction, incorrect inputs, and state that cannot transfer between creators. See what to improve first.',
   path: '/assessment',
   image: assessmentImageUrl,
   keywords: [
@@ -22,7 +22,7 @@ export const metadata: Metadata = marketingMetadata({
     'AI production workflow assessment',
     'generative AI workflow audit',
     'AI creative asset management',
-    'AI asset version control',
+    'AI production state',
     'prompt and generation history',
     'AI content reproducibility',
     'creative production repository',
@@ -56,7 +56,7 @@ const nextSteps = [
   },
   {
     label: 'you see where time and cost leak',
-    detail: 'get a practical evaluation of version-control, context, continuity, and handoff risk—plus the production capability we enable that’s most relevant to your team.',
+    detail: 'see whether approved production state can transfer between creators, where incorrect inputs cause rework, and which capability is most worth fixing first.',
   },
   {
     label: 'you choose the next step',
@@ -99,12 +99,12 @@ export default async function WorkflowAssessmentPage() {
   return (
     <main className="relative z-(--z-main) min-h-screen overflow-hidden text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
-      <SagaWebGLEngine />
+      {/* <SagaWebGLEngine /> */}
       <div
         className="pointer-events-none h-px w-full"
         aria-hidden="true"
         data-webgl-marker="scrollFrom"
-        data-webgl-position="0.96"
+        data-webgl-position="0"
         data-webgl-easing="easeInOut"
       />
       <div
@@ -118,20 +118,16 @@ export default async function WorkflowAssessmentPage() {
           <div className="ui-grid relative z-10 w-full gap-y-fluid-[30,52] py-fluid-[76,106] pt-[max(var(--spacing-Header-h),16svh)] text-white">
             <div className="col-span-full lg:col-span-14">
               <h1 className="mt-20 max-w-[10em] t-d2-sans">
-                reduce the hidden costs of AI production
+                Make your AI production team-operable
               </h1>
               <p className="mt-28 max-w-[32em] t-p-serif text-white">
-                measure how your team manages production context, handles team handoffs, and maintains continuity.
+                Can another creator continue approved work without rebuilding context or interrupting its original creator?
               </p>
               <p className="mt-20 max-w-[32em] t-p-sans text-white">
-                built for film and animation studios, content and brand agencies, in-house marketing teams, and game companies.
+                Assess one live production to find where missing context, wrong inputs, or difficult handoffs cost your team time—and what to fix first.
               </p>
               <p className="mt-20 max-w-[32em] t-p-sm-sans text-white">
-                complete in four minutes — identify where your production workflow is creating avoidable cost, rework, and delays — and where portals can improve operating efficiency.
-                <br /><br />
-                then quantify the cost savings, productivity gains, and ROI, and build a tailored 21-day pilot plan.*
-                <br /><br />
-                *your pilot plan is free to build. a fee applies only if you approve the plan and proceed with the production pilot.
+                No commitment to a pilot. No meeting required.
               </p>
             </div>
             <nav
@@ -216,7 +212,7 @@ export default async function WorkflowAssessmentPage() {
               <NumberLabel index={2} />
             </div>
             <p className="col-span-full max-w-[24em] lg:col-span-14 lg:col-start-9 t-p-lg-serif text-white">
-              assess how your team preserves approved work, production context, team handoffs, and continuity.
+              Follow the questions for your production. Your answers are saved in this browser as you go.
             </p>
             <section className="col-span-full scroll-mt-24 lg:col-span-14 lg:col-start-9">
               <div className="max-w-[42em] space-y-5 text-white">
@@ -228,8 +224,8 @@ export default async function WorkflowAssessmentPage() {
 
         <section className="relative" id="assessment-faq">
           <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
-            <div className="col-span-full mx-auto lg:mx-0 lg:col-span-14 lg:col-start-9"><h2 className="t-d2-sans">assessment FAQs</h2></div>
-            <div className="col-span-full lg:col-span-14 lg:col-start-9">
+            <div className="col-span-full mx-auto"><h2 className="t-d2-sans">assessment FAQs</h2></div>
+            <div className="col-span-full">
               <Faq faqs={faqs} />
             </div>
           </div>
@@ -240,19 +236,19 @@ export default async function WorkflowAssessmentPage() {
             <div className="col-span-full lg:col-span-3">
               <NumberLabel index={3} />
             </div>
-            <div className="col-span-full lg:col-span-13 lg:col-start-9">
+            <div className="col-span-full lg:mx-auto">
               <h2 className="max-w-[10em] t-d2-sans">
                 turn your assessment into a more efficient production workflow
               </h2>
               <p className="mt-24 max-w-[34em] t-p-lg-serif text-white">
                 Your results point to the most valuable next step for your workflow.
-                See the recommended production approach, complete any remaining qualification,
-                or build a customized pilot plan when the fit is clear.
+                See the recommended production approach or build a customized pilot plan when the fit is clear.
               </p>
               <div className="mt-32 flex flex-wrap items-center gap-16">
                 <CTAButton href="#the-assessment" analyticsLabel="See My Recommendation" analyticsIntent="workflow_assessment">
                   <span>See my recommendation</span>
                 </CTAButton>
+                <CTAButton href="/use-cases" appearance="plain" analyticsLabel="Explore production use cases">Explore use cases</CTAButton>
                 {/* <CTAButton
                   href="/contact?intent=workflow-assessment"
                   appearance="plain"

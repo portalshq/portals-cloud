@@ -17,7 +17,7 @@ export const faqs: FaqItem[] = [
   {
     question: 'What does a production workflow assessment measure?',
     answer:
-      'It evaluates the operational cost of missing production memory in one production workflow.',
+      'It checks whether one live AI production loses capacity to context reconstruction, incorrect inputs, or approved production state that cannot transfer between creators. Your result identifies the capability most worth fixing first; it does not commit you to a pilot or meeting.',
     categories: ['assessment'],
   },
   {
@@ -27,7 +27,7 @@ export const faqs: FaqItem[] = [
     categories: ['assessment'],
   },
   {
-    question: 'When does the $5,000 pilot fee apply?',
+    question: 'When does the paid pilot fee apply?',
     answer:
       'The fee applies when you approve the customized plan and commercial terms and choose to conduct the production pilot. Payment is completed in the Pilot Room.',
     categories: ['assessment'],
