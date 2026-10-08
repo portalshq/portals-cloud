@@ -65,3 +65,7 @@ storage API.
 
 Pre-alpha. Contracts and runtime are scaffolds, not yet wired to live infra. Treat this
 as the structural skeleton the team fills in, not a deployable system yet.
+
+## Marketing lead qualification
+
+The progressive AI production assessment, scoring/routing, encrypted lead persistence, Apollo projection, and self-serve pilot handoff are documented in [marketing/ASSESSMENT.md](marketing/ASSESSMENT.md). Follow the frontend and lead-folder guidance when editing this funnel. The specification includes current field IDs, branches, analytics/privacy, compatibility, and local validation commands.

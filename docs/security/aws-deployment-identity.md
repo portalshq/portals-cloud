@@ -20,6 +20,44 @@ shell profiles, or user groups. IAM user groups organize IAM users; they do not
 make credentials temporary. Use IAM Identity Center groups for humans and role
 trust policies for automation.
 
+## Read-only workstation profile: `portals-operator`
+
+`portals-operator` is a proposed **local AWS CLI profile name**, not an AWS
+user, role, or account that must be created with that name. The AWS identity
+behind it must be separately provisioned and granted read-only permissions in
+the intended account. This profile is for inspection and approved read-only
+validation only; it must not be used for Pulumi updates, deployments, IAM
+changes, or other writes. The profile has not yet been configured.
+
+Prefer a short-lived IAM Identity Center session when AWS-account assignments
+are available. Configure and verify it on the operator workstation:
+
+```bash
+aws configure sso --profile portals-operator
+aws sso login --profile portals-operator
+aws sts get-caller-identity --profile portals-operator
+```
+
+Confirm the returned account ID and assumed-role identity are the intended
+production read-only identity before inspecting resources. AWS CLI profiles
+are stored in the workstation's `~/.aws/config` (and, for static credentials,
+`~/.aws/credentials`); they are not scoped to a repository directory. Select
+the profile per command with `--profile portals-operator`, or for the current
+shell session with `export AWS_PROFILE=portals-operator`. Do not commit AWS
+files, export credentials into checked-in environment files, or place secrets
+in this repository.
+
+Grant only the read actions and resource scope needed for the operator's
+documented tasks. For the Lore storage configuration probe, that means S3
+`GetPublicAccessBlock`, `GetBucketVersioning`, and `GetEncryption` on the
+named bucket, plus DynamoDB `DescribeTable` and
+`DescribeContinuousBackups` on the named tables. Broader account inventory,
+logs, or findings access must be separately justified and scoped. Do not
+assume that an AWS-managed policy named `ReadOnlyAccess` is adequately narrow:
+review its effective permissions and sensitive-data exposure before use. Keep
+read-only credentials distinct from the infrastructure/bootstrap identity,
+and verify that attempted write operations are denied.
+
 ## Current temporary operation: IAM Identity Center account instance
 
 The current IAM Identity Center instance is an **account instance**, not an

@@ -75,3 +75,7 @@ the WebGL dependency: default bg `#010528`, hairlines `white/15–20`, fills
 Path in IA allowlist · `marketingMetadata()` used · OG image renders ·
 JSON-LD valid · links to hub + `/assessment` · sitemap entry ·
 `npm run typecheck` green. Run the `seo-auditor` and `copy-editing` skills before merge.
+
+## Assessment and pilot campaign
+
+`/assessment` uses the unified offer: make one live AI production team-operable without replacing existing tools. Explain transferability, required state, and coordination cost in that order. Do not expose A/B/C signals, lead with version control, imply existing pipelines are primitive, or promise causal savings. Keep provenance conditional on risk. Avoid fixed completion-time promises; this diagnostic branches. See `../../../marketing/ASSESSMENT.md`.

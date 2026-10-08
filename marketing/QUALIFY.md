@@ -1,182 +1,44 @@
-How many incidents justify the cost?
+# Production qualification and economic evidence
 
-Use the buyer’s own numbers rather than claiming universal averages.
+The current diagnostic, field dictionary, scoring model, caps, and routing rules are documented in [ASSESSMENT.md](ASSESSMENT.md). The question is whether one live or imminent AI-heavy production has a valuable production-state problem.
 
-Core cost-of-status-quo formula
-Incident cost =
-people affected
-× hours lost per person
-× loaded hourly labor cost
-+ repeated generation spend
-+ contractor or vendor cost
-+ delay exposure
+## Operational qualification
 
-Your existing example is useful:
+A production is team-operable when another qualified creator can continue or extend approved work without reconstructing the original operator's context or repeatedly interrupting them.
 
-5 people
-× 3 hours
-× $100 loaded hourly cost
-= $1,500 labor cost per incident
+Look for actual evidence: required context living with people, missing inputs/dependencies/decisions needed to reproduce approved work, wrong-reference/version failures, repetitive reconstruction, or production capacity absorbed by coordination. A workflow graph or mature pipeline may preserve execution state while operational context remains outside it. Multiple tools or a large company alone do not establish a problem.
 
-At that level:
+The v4 diagnostic measures operational fit/pain out of 70 and commercial readiness out of 30. Company size earns no points. Unknown/untested transfer is not affirmative pain. Research, solo work without imminent scaling, and reliable state-complete workflows have explicit caps. High requires near-term live production, multiple contributors/scaling, meaningful state pain, testing readiness, ownership, approval, and a specific urgent workflow. Mid can proceed to an application with readiness gaps to clarify. Low receives materials and reassessment.
 
-$5,000 pilot ÷ $1,500 = 3.3 incidents
+Financial disclosure is optional. Branch to source exposure/traceability only for controlled IP, and to agent context resolution only for agent-assisted production. Do not require phone, social, or portfolio data for qualification.
 
-Approximately four avoided or materially reduced incidents would equal the pilot fee before counting:
+## Measure the coordination tax
 
-duplicate generation spend;
-client delay;
-missed delivery;
-damaged confidence;
-lost production capacity.
-Production Team break-even
-$750 monthly price ÷ $100 hourly cost
-= 7.5 labor hours per month
+Use the buyer's own numbers:
 
-Production Team is economically justified when it can eliminate approximately 7.5 hours of monthly labor waste at that assumed rate, or create equivalent value through faster delivery, greater capacity, reduced generation spend, or lower risk.
+```text
+Incident exposure = affected contributors × hours lost per contributor × loaded hourly cost
+                  + repeated generation spend + contractor/vendor cost + documented delay exposure
+```
 
-Studio break-even
-$2,500 monthly price ÷ $100 hourly cost
-= 25 labor hours per month
+Clarify whether reported time is elapsed time, total contributor-hours, or hours per person before multiplying it. Avoid double-counting a delay and the labor that caused it. A range is a planning assumption, not proof of recoverable savings.
 
-Studio needs to recover approximately 25 labor hours monthly at that assumed cost before accounting for generation spend or delivery risk.
+For example, if five contributors each reconstruct context for three hours at a documented loaded cost of $100/hour, labor exposure is $1,500 for that incident. This does not prove that a deployment will eliminate the incident or recover every exposed hour. Compare the applicable live package fee against a measured production baseline and an agreed target.
 
-Do not present these as guaranteed savings. Present them as a method for evaluating economic fit.
+## Pilot measurement
 
-6. Where economic content belongs in the funnel
+Agree before/after windows and operational definitions for:
 
-Do not place the entire economic case on one page. Deliver increasing detail as buying intent increases.
+- Another creator's time to become productive and time to hand off approved work.
+- Original-creator interruptions and senior-operator coordination burden.
+- Context reconstruction time and workflow recurrence.
+- Wrong-reference/version failures and avoidable generations caused by missing state.
+- Reproduction success and percentage of required approved state captured.
 
-Homepage: establish economic plausibility
+Define the applicable-state denominator before claiming a capture percentage. Use the pilot's existing editable criteria to record baselines, targets, participants, and evidence. Do not claim causal savings from answer ranges alone.
 
-Place a compact section immediately before pricing:
+## Buying and self-serve routing
 
-When does production memory pay for itself?
+The assessment asks early whether a team could test a fix within 30 days, without replacing its tools. Later, it captures the closest production owner and adoption authority, with optional approval detail. No near-term test or a missing sponsor prevents High routing even with strong operational pain.
 
-Use one transparent example:
-
-If five contributors each spend three hours reconstructing an approved workflow at a loaded cost of $100 per hour, one incident costs $1,500 before duplicate generation spend or delivery delay.
-
-CTA:
-
-Estimate Your Rework Cost
-
-The purpose is not to prove ROI. It is to make the buyer recognize that the problem has measurable economics.
-
-Use-case pages: connect each failure to a cost
-
-For every workflow risk, add:
-
-costly event;
-people affected;
-likely cost category;
-evidence to measure.
-
-Example:
-
-Failed asset reproduction
-
-Cost categories:
-
-labor spent reconstructing context;
-additional generation spend;
-delayed client revisions;
-dependency on the original creator.
-
-Evidence:
-
-incidents per month;
-hours per incident;
-number of contributors involved;
-repeated generation cost;
-time to produce an acceptable extension.
-
-Classify pricing objections correctly
-
-Create an Attio attribute called Pricing Objection Type with these values:
-
-Objection	Meaning	Correct response
-Cannot afford	The prospect lacks sufficient economic capacity	Smaller plan, defer, or disqualify
-Does not believe value	They reject the economic case	Workflow proof, calculator, pilot
-No approved budget	Value may exist, but funds are unavailable	Business-case material and budget timing
-Wrong contract structure	Pricing may work under different terms	Billing schedule, onboarding treatment, pilot credit
-Wrong segment	The problem is not economically important enough	Disqualify
-Procurement restriction	Budget exists but process blocks purchase	Vendor onboarding and enterprise evaluation
-Pilot-risk concern	They fear spending $5,000 without confidence	Precise criteria, responsibilities, and decision terms
-
-Add progressive enterprise questions -- do not overwhelm prospects with too many questions. only give 5-10 of the most high value, unanswered questions based on the progressive prospect profile.
-
-Only show these when the respondent indicates a larger organization, multiple teams, significant security needs, or enterprise intent.
-
-Deployment scope
-Number of teams or business units
-Estimated production users
-Locations or regions
-Expected repositories or projects
-Asset types and approximate volume
-Existing systems
-Storage and DAM systems
-Review and approval systems
-Generation tools
-Production-management systems
-Required integrations
-Identity and access
-SSO or SAML requirement
-Identity provider
-Role and permission requirements
-Guest or external-vendor access
-Security and data
-Data sensitivity
-Data-residency requirements
-Encryption requirements
-Retention and deletion requirements
-Audit-log requirements
-Security questionnaire requirement
-Required certifications or contractual controls
-Procurement
-Business sponsor
-Technical owner
-Security or procurement owner
-Desired implementation date
-Existing budget
-Legal or procurement timeline
-Required contract documents
-Evaluation design
-Workflow to prove
-Success criteria
-Participating users
-Required integrations
-Economic or operational outcome
-Final decision-maker
-
-Is Portals a necessity or optional infrastructure?
-
-The honest answer is segment-dependent.
-
-Portals is probably optional when:
-one person produces most assets;
-work is experimental or disposable;
-outputs are rarely reused;
-only one generation tool is involved;
-the existing platform history is sufficient;
-assets have low economic value;
-failed reproduction causes little consequence;
-there is no recurring client, character, campaign, or world.
-Portals becomes production infrastructure when:
-multiple people must continue one another’s work;
-several generation and post-production tools are involved;
-approved assets become contractual or organizational IP;
-clients regularly request extensions of prior work;
-characters, styles, campaigns, or worlds must persist;
-work spans months;
-contractors enter and leave;
-errors affect delivery, margin, or client trust;
-production history must survive the original creator.
-
-Add a Who should not buy Portals section to either:
-
-the pricing FAQ;
-the Production Memory Assessment result;
-the use-case guide.
-
-This will increase trust and improve qualification.
+High/Mid continue into the existing application and pilot room. Carry identity, workflow, tools, timing, approval context, bottleneck, and observed baseline forward. Terms and implementation requirements remain reviewable before approval. A call is optional unless the buyer requests assistance or requirements/internal policy require validation. Use live package specifications for all commercial terms.

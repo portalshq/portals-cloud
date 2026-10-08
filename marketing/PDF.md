@@ -1,3 +1,5 @@
+> Current contract: [Production-state diagnostic and pilot funnel](ASSESSMENT.md). This supersedes historical assessment scoring, mandatory-call sequencing, and quoted pilot terms below. Use live package specifications for prices/durations.
+
 # PDF Generation System
 
 This system automatically generates PDF documents from resource data stored in Sanity. It is integrated into the development workflow to ensure that repository-hosted PDF assets remain in sync with the live content.
@@ -52,3 +54,7 @@ If the generation fails:
 1. Check that `frontend/.env.local` exists.
 2. Ensure you have network access to Sanity.
 3. Verify that `generated-assets/` is writable by your user.
+
+## Personalized diagnostic evaluations
+
+`/api/leads/documents/assessment-result` renders a private evaluation from the existing authenticated/verified profile. Assessment v4 leads with answer-derived reasons and a recommended intervention, followed by reported baselines and diagnostic answers. It does not use the historical assumed ROI recovery cases or expose internal signal tags. Historical assessments retain their compatible report template. PDF rendering is covered by the lead test suite; these personalized reports are generated on demand rather than committed into static resource assets.

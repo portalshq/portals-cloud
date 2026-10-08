@@ -1,3 +1,5 @@
+> Current contract: [Production-state diagnostic and pilot funnel](ASSESSMENT.md). This supersedes historical assessment scoring, mandatory-call sequencing, and quoted pilot terms below. Use live package specifications for prices/durations.
+
 Read the following pilot details, business logic, and pilot assessment details. Then implement. Ask questions to clarify any implementation details. After implementing, update this document to contain the updated implementation details and business mechanisms. The docuemnt will then serve as a reference for the pilot operations.
 
 Clarify pilot credit eligibility
@@ -182,3 +184,6 @@ Instant Email: Personalized Blueprint (Gated Execution Data)
 Live-Verify Data ➔ Secure Launch Date / Close Paid Pilot
 
 Why This Specific Flow Moves FasterZero Interruption: The prospect never hits a hard wall; the value (Blueprint) is pushed to their inbox while the calendar widget captures their attention on-screen.Asynchronous Education: Heavy documentation (Security Page + Paid Pilot Brief) is packaged as a resource they can digest on their own time or forward to technical teams.Pre-Qualified Calls: Your team skips standard discovery because the question intake gives you their exact pain point before the call even starts.
+## Current assessment handoff
+
+Assessment v4 High/Mid prospects enter the existing self-serve application; a call is not a default requirement. Workflow, tools, timing, approval context, production-state bottleneck, and reported baseline carry forward. Review editable measurement criteria, implementation scope/requirements, commercial terms, adjustments, and approval in the pilot room. Use [ASSESSMENT.md](ASSESSMENT.md) and live package specifications instead of historical commercial examples above.
