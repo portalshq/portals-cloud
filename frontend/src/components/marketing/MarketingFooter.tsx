@@ -1,13 +1,67 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { useEffect, useRef } from 'react'
 
 export function MarketingFooter() {
   const pathname = usePathname()
   const isPx = pathname === '/px' || pathname === '/px/'
+  const footerRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const footer = footerRef.current
+    if (!footer) return
+
+    const desktop = window.matchMedia('(min-width: 64rem)')
+    const offsets = new Map<HTMLElement, number>()
+    let frame = 0
+
+    const update = () => {
+      frame = 0
+      const footerTop = footer.getBoundingClientRect().top
+      document.querySelectorAll<HTMLElement>('.saga-webgl-viewport').forEach(viewport => {
+        if (desktop.matches) {
+          viewport.style.removeProperty('translate')
+          offsets.delete(viewport)
+          return
+        }
+
+        // Recover the undisplaced bottom so scrolling back restores the canvas.
+        const bottom = viewport.getBoundingClientRect().bottom + (offsets.get(viewport) ?? 0)
+        const offset = Math.max(0, bottom - footerTop)
+        viewport.style.translate = `0 ${-offset}px`
+        offsets.set(viewport, offset)
+      })
+    }
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+
+    const observer = new ResizeObserver(schedule)
+    observer.observe(footer)
+    observer.observe(document.body)
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
+    window.visualViewport?.addEventListener('resize', schedule)
+    window.visualViewport?.addEventListener('scroll', schedule)
+    desktop.addEventListener('change', schedule)
+    schedule()
+
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+      window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      window.visualViewport?.removeEventListener('resize', schedule)
+      window.visualViewport?.removeEventListener('scroll', schedule)
+      desktop.removeEventListener('change', schedule)
+      offsets.forEach((_, viewport) => viewport.style.removeProperty('translate'))
+    }
+  }, [pathname])
 
   return (
     <footer
+      ref={footerRef}
       className="ui-grid relative z-(--z-footer) min-h-[52vh] pb-(--spacing-sms) text-white lg:pt-50"
       style={isPx ? { backgroundColor: '#000', isolation: 'isolate' } : undefined}
     >
