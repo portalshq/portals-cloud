@@ -42,8 +42,16 @@ export class LoreService extends pulumi.ComponentResource {
       },
     }, { parent: this });
 
-    // S3 access for immutable store (lore chunks)
-    const s3Policy = pulumi.all([args.s3BucketArn]).apply(([bucketArn]) => JSON.stringify({
+    if (args.taskStoragePolicyArn) {
+      // In split-stack mode the lore-data stack owns the policy document;
+      // the service stack owns only its attachment to this task role.
+      new aws.iam.RolePolicyAttachment(`${resourcePrefix}-lore-storage-access`, {
+        role: this.taskRole.name,
+        policyArn: args.taskStoragePolicyArn,
+      }, { parent: this });
+    } else {
+      // Legacy single-stack mode retains inline policies during the staged cutover.
+      const s3Policy = pulumi.all([args.s3BucketArn]).apply(([bucketArn]) => JSON.stringify({
       Version: "2012-10-17",
       Statement: [
         {
@@ -61,20 +69,20 @@ export class LoreService extends pulumi.ComponentResource {
           ],
         },
       ],
-    }));
+      }));
 
-    new aws.iam.RolePolicy(`${resourcePrefix}-lore-s3-policy`, {
-      role: this.taskRole.id,
-      policy: s3Policy,
-    }, { parent: this });
+      new aws.iam.RolePolicy(`${resourcePrefix}-lore-s3-policy`, {
+        role: this.taskRole.id,
+        policy: s3Policy,
+      }, { parent: this });
 
-    // DynamoDB access for immutable (fragments + metadata), mutable and lock stores
-    const dynamoDbPolicy = pulumi.all([
-      args.fragmentsTableName,
-      args.metadataTableName,
-      args.mutableTableName,
-      args.locksTableName,
-    ]).apply(([fragments, metadata, mutable, locks]) => JSON.stringify({
+      // DynamoDB access for immutable (fragments + metadata), mutable and lock stores
+      const dynamoDbPolicy = pulumi.all([
+        args.fragmentsTableName,
+        args.metadataTableName,
+        args.mutableTableName,
+        args.locksTableName,
+      ]).apply(([fragments, metadata, mutable, locks]) => JSON.stringify({
       Version: "2012-10-17",
       Statement: [
         {
@@ -104,12 +112,13 @@ export class LoreService extends pulumi.ComponentResource {
           ],
         },
       ],
-    }));
+      }));
 
-    new aws.iam.RolePolicy(`${resourcePrefix}-lore-dynamodb-policy`, {
-      role: this.taskRole.id,
-      policy: dynamoDbPolicy,
-    }, { parent: this });
+      new aws.iam.RolePolicy(`${resourcePrefix}-lore-dynamodb-policy`, {
+        role: this.taskRole.id,
+        policy: dynamoDbPolicy,
+      }, { parent: this });
+    }
 
     // ── ECS Task Definition ──────────────────────────────────────────────
     // TODO(PORTALS-CLOUD-PRESIGN): Production is WIP; inject a dedicated server-only HMAC key.

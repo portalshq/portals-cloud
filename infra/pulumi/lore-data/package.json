@@ -1,0 +1,10 @@
+{
+  "name": "portals-lore-data-infrastructure",
+  "private": true,
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@pulumi/aws": "^6.0.0",
+    "@pulumi/pulumi": "^3.0.0"
+  }
+}

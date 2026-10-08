@@ -3,6 +3,9 @@
 <plist version="1.0"><dict>
   <key>Label</key><string>com.portals.auth</string>
   <key>ProgramArguments</key><array><string>/Users/portals-svc/portals/infra/mac-bootstrap/scripts/run-service.sh</string><string>auth</string></array>
+  <key>EnvironmentVariables</key><dict>
+    <key>DOCKER_HOST</key><string>unix:///Users/andresb/.docker/run/docker.sock</string>
+  </dict>
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
   <key>ThrottleInterval</key><integer>10</integer>
   <key>StandardOutPath</key><string>/Users/portals-svc/Library/Logs/portals-auth.log</string>

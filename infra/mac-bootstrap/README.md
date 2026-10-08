@@ -33,10 +33,18 @@ does not replace release verification for the Intel image.
   firewall are on; the non-admin `portals-svc` account exists; 434 GiB is free.
   Node.js 22.23.3 was already installed. Pinggy, Vercel, jq, and grpcurl are
   installed under `/Users/Shared/portals-tools` and their versions verified.
-  Docker Desktop runs as `andresb`, but its socket is not accessible to
-  `portals-svc`; sudo still requires the admin password. No service launchd
-  domain or reboot test has been established for `portals-svc`. SSH activity,
-  including this install, is recorded in ignored `ssh-activity.log`.
+  On 2026-10-04, the operator reported narrowing Docker Desktop file sharing to
+  `/Users/portals-svc/` and restarting it. A targeted `user:portals-svc allow
+  write` ACL was then added to `/Users/andresb/.docker/run/docker.sock`; the
+  daemon remains owned by `andresb`, and `docker version` works in that account.
+  The service-account Docker request could not yet be tested because
+  `sudo -n -u portals-svc` still requires the admin password. `DOCKER_HOST` is
+  now set in the Auth, Lore, and Caddy launchd source plists, but those plists
+  have not been installed on the Mac. The Portals checkout and secret/certificate
+  directories do not yet exist under `/Users/portals-svc`; no service launchd
+  domain or reboot test has been established. Docker Desktop may recreate the
+  socket and lose its ACL after restart. SSH activity is recorded in ignored
+  `ssh-activity.log`.
 - **Verified locally:** Auth's eight unit tests and two disposable-Postgres
   integration tests pass; deployment/placeholder/Pinggy restart contracts and
   storage-schema self-tests pass. Caddy `2.11.6-alpine` index

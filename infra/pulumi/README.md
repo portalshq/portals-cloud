@@ -21,6 +21,16 @@ rejects a nonzero desired count. Tasks use scoped IAM roles for S3 and DynamoDB.
 RDS is private. Cognito is a user pool only and the asymmetric JWT signer is in
 KMS.
 
+Lore storage is factored into the separately selectable
+[`lore-data` Pulumi project](lore-data/README.md). The existing `prod` stack
+keeps `legacyLoreDataEnabled=true` so its old-account resources remain declared
+and do not disappear from its preview. A fresh platform stack in the target
+account can set `legacyLoreDataEnabled=false` and
+`loreDataStackReference=DigitalCreationsCo/portals-lore-data/prod`; that mode
+reads the bucket/table outputs and attaches the managed policy owned by
+`lore-data`. Both stacks must target the same AWS account for IAM policy
+attachment. No cross-account state move or data migration is used.
+
 The stack owns immutable, scan-on-push ECR repositories for Lore and the Auth
 Gateway (the active control-plane runtime). The legacy control-plane repository
 is retained only for migration history and is never deployed. The stack also forces PostgreSQL TLS and writes ALB,

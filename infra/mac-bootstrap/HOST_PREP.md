@@ -15,7 +15,8 @@ Initial probe: 2026-09-26; latest post-wipe probe: 2026-10-03
 | Host memory | 16 GiB |
 | macOS | 13.7.8, build `22H730` |
 | Docker | Docker Desktop 4.43.0 present and running as `andresb`; Engine 28.3.0, `x86_64`; CLI at `/usr/local/bin/docker` |
-| Docker socket | `/Users/andresb/.docker/run/docker.sock`, owned by `andresb:staff`, mode `0755`; Docker CLI context `desktop-linux` works as `andresb`. `portals-svc` cannot write to it; `sudo -n` confirms admin password is required. |
+| Docker socket | `/Users/andresb/.docker/run/docker.sock`, owned by `andresb:staff`; targeted ACL `user:portals-svc allow write` added 2026-10-04 after operator-reported file sharing restriction to `/Users/portals-svc/`. Docker daemon query succeeds as `andresb`; service-identity query remains unverified because `sudo -n -u portals-svc` requires the admin password. Docker Desktop restart may recreate the socket without this ACL. |
+| Docker file sharing | Operator reports only `/Users/portals-svc/` remains shared; no containers were running before the reported restart. |
 | SSH command PATH | `/usr/local/bin` is omitted; use the absolute Docker CLI path or set a deliberate PATH in launchd jobs |
 | macOS firewall | Enabled; rechecked 2026-10-03 |
 | FileVault | On; rechecked 2026-10-03; operator confirmed recovery key saved off-Mac |

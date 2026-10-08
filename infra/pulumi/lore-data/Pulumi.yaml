@@ -1,0 +1,4 @@
+name: portals-lore-data
+runtime: nodejs
+description: Lore S3 and DynamoDB storage stack, isolated from the platform/RDS stack.
+main: index.ts
