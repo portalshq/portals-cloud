@@ -106,6 +106,7 @@ export default async function WorkflowAssessmentPage() {
         data-webgl-marker="scrollFrom"
         data-webgl-position="0"
         data-webgl-easing="easeInOut"
+        data-webgl-uv-shift="0.52"
       />
       <div
         className="pointer-events-none h-px w-full"
