@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AnalyticsProvider } from '@/components/leads/AnalyticsProvider'
 import { SagaWebGLEngine } from '@/lib/SagaWebGLEngine'
+import { MarketingRouteEntrance } from '@/components/marketing/MarketingRouteEntrance'
 import { muiTheme } from '@/lib/mui/theme'
 
 const queryClient = new QueryClient({
@@ -25,6 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider theme={muiTheme}>
         <TooltipProvider>
           <SagaWebGLEngine />
+          <MarketingRouteEntrance />
           <Suspense fallback={null}>
             <AnalyticsProvider />
           </Suspense>
