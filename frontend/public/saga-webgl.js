@@ -72,6 +72,7 @@ const DEEP_NAVY = "#0E115F";
 let DEFAULT_BG_COLOR1 = "#0E115F";
 let DEFAULT_BG_COLOR2 = "#726DD2";
 
+// Electric Bloom: the standard indigo, cobalt, violet, and pink field.
 let DEFAULT_RAMP1 = [
   { stop: 0, color: "#0E115F" },
   { stop: 0.148, color: DEEP_NAVY },
@@ -100,7 +101,7 @@ const ORIGINAL_MESH_COLOR1 = "#B6F2FF";
 const ORIGINAL_MESH_COLOR2 = "#274fff";
 const ORIGINAL_MESH_MIDDLE = "#B6F2FF";
 
-// PX-exclusive palette. Main: black. Secondary: #efdc3d. Third: the same
+// Golden Signal: the PX-exclusive palette. Main: black. Secondary: #efdc3d. Third: the same
 // yellow at 42% opacity — written here as rgba(239,220,61,0.42) composited
 // over the black field (#645c1a) wherever the shader needs an opaque stop.
 const PX_BG_COLOR1 = "#000000";
@@ -124,6 +125,11 @@ const PX_MESH_COLOR1 = "#efdc3d";
 const PX_MESH_COLOR2 = "#000000";
 const PX_MESH_MIDDLE = "#efdc3d";
 
+// Dark Void: the near-black, navy-noise field in the historical hero reference.
+// The background shader keeps moving while the bright mesh stays hidden.
+const DARK_VOID_BG_COLOR1 = "#010528";
+const DARK_VOID_BG_COLOR2 = "#0E115F";
+
 // REVISION 2: the large central pink swath lived in the first two sections'
 // background (bg2 was pure #DD30C9 / #bc39ae) and in section 1's ramp2 pinks.
 // Those are now blue -> pink gradients: the blue side matches the adjacent blue
@@ -131,6 +137,7 @@ const PX_MESH_MIDDLE = "#efdc3d";
 // off-center flashes) is intentionally left exactly as it was.
 const SECTION_RAMPS = [
   {
+    name: "Violet Veil",
     ramp1: [
       { stop: 0, color: "#0E115F" },
       { stop: 0.148, color: DEEP_NAVY },
@@ -151,6 +158,7 @@ const SECTION_RAMPS = [
     bg1: "#0E115F", bg2: "#8A55D6",
   },
   {
+    name: "Orchid Drift",
     ramp1: [
       { stop: 0, color: "#0E115F" },
       { stop: 0.148, color: DEEP_NAVY },
@@ -171,6 +179,7 @@ const SECTION_RAMPS = [
     bg1: "#4470cc", bg2: "#8A55D6",
   },
   {
+    name: "Cobalt Flow",
     ramp1: [
       { stop: 0, color: "#0E115F" },
       { stop: 0.148, color: DEEP_NAVY },
@@ -189,6 +198,7 @@ const SECTION_RAMPS = [
     bg1: "#053A68", bg2: "#6162cd",
   },
   {
+    name: "Sea Glass",
     ramp1: [
       { stop: 0, color: "#0E115F" },
       { stop: 0.148, color: DEEP_NAVY },
@@ -495,9 +505,10 @@ void main() {
 
 const UV_Y_SHIFT = (() => {
   const __el = document.querySelector("[data-webgl-uv-shift]");
-  const __v = __el ? parseFloat(__el.getAttribute("data-webgl-uv-shift")) : 0;
-  return Number.isFinite(__v) ? __v : 0;
+  const __v = __el ? parseFloat(__el.getAttribute("data-webgl-uv-shift")) : 0.52;
+  return Number.isFinite(__v) ? __v : 0.52;
 })();
+const UV_Y_SHIFT_GLSL = Number.isInteger(UV_Y_SHIFT) ? `${UV_Y_SHIFT}.0` : `${UV_Y_SHIFT}`;
 
 const MESH_FS = `precision highp float;
 precision highp sampler2D;
@@ -569,11 +580,11 @@ float blenderWave(vec3 p, float scale, float distortion, float detail, float rou
 }
 
 vec3 middleGradient(vec3 base, vec3 c1, vec3 c2, float wave) {
-  float n = wave * perlinNoise(vec3(vUv.x, 1., ((vUv.y - ${UV_Y_SHIFT}) - uTime*0.04) * .2) * 50.) + .2;
+  float n = wave * perlinNoise(vec3(vUv.x, 1., ((vUv.y - ${UV_Y_SHIFT_GLSL}) - uTime*0.04) * .2) * 50.) + .2;
   vec3 baseColor = base;
   vec3 color = c1;
   float center = 0.48;
-  float y = vUv.y - ${UV_Y_SHIFT};
+  float y = vUv.y - ${UV_Y_SHIFT_GLSL};
   color = mix(color, baseColor, smoothstep(center - .3, center - .2, n));
   vec3 grad = mix(baseColor, color, smoothstep(center - .2, center - .1, y));
   grad = mix(grad, baseColor, smoothstep(center + .1, center + .2, y));
@@ -634,7 +645,7 @@ void main() {
   color = vec3(colorVal);
   vec3 ramp1 = sampleColorRamp(uColorRamp1, uColorRamp1To, uColorRamp1Mix, colorVal);
   vec3 ramp2 = sampleColorRamp(uColorRamp2, uColorRamp2To, uColorRamp2Mix, colorVal);
-  color = mix(ramp1, ramp2, vUv.y - ${UV_Y_SHIFT});
+  color = mix(ramp1, ramp2, vUv.y - ${UV_Y_SHIFT_GLSL});
   color = middleGradient(color, uColor1, uColor2, wave);
   color = applySaturation(color, uSaturation);
   gl_FragColor = vec4(color, 1.0);
@@ -747,6 +758,7 @@ class SagaEngine {
     this.renderer.toneMapping = THREE.NoToneMapping;
 
     this.scene = new THREE.Scene();
+    this.darkVoidActive = false;
     this.camera = null;
     this.baseCameraFov = null;
     this.designAspect = 1.5;
@@ -879,7 +891,10 @@ class SagaEngine {
     gltf.scene.traverse((obj) => {
       if (obj.isMesh) {
         if (obj.name === "background") obj.material = this.backgroundMat;
-        if (obj.name === "mesh") obj.material = this.meshMat;
+        if (obj.name === "mesh") {
+          obj.material = this.meshMat;
+          obj.visible = !this.darkVoidActive;
+        }
       }
     });
 
@@ -925,11 +940,11 @@ class SagaEngine {
 
   setAnimationPosition(pos) {
     const t = Math.min(1, Math.max(0, pos));
-    this.animationPosition = t;
     if (this.positionAnimation) {
       this.positionAnimation.to = t;
       return;
     }
+    this.animationPosition = t;
     this.applyAnimationPosition(t);
   }
 
@@ -973,6 +988,17 @@ class SagaEngine {
 
   setMeshSaturation(val) {
     this.meshUniforms.uSaturation.value = val;
+  }
+
+  setDarkVoidThemeActive(on) {
+    this.darkVoidActive = !!on;
+    this.scene.traverse((obj) => {
+      if (obj.isMesh && obj.name === "mesh") obj.visible = !this.darkVoidActive;
+    });
+    this.setBackgroundColors(
+      this.darkVoidActive ? DARK_VOID_BG_COLOR1 : ORIGINAL_BG_COLOR1,
+      this.darkVoidActive ? DARK_VOID_BG_COLOR2 : ORIGINAL_BG_COLOR2
+    );
   }
 
   setBackgroundColors(c1, c2) {
@@ -1601,6 +1627,7 @@ class ScrollSystem {
 class ReactOwnedScrollSystem {
   constructor(engine) {
     this.engine = engine;
+    this.currentPath = window.location.pathname;
     this.scrollFromEls = [];
     this.scrollToEls = [];
     this.overviewSection = null;
@@ -1626,15 +1653,30 @@ class ReactOwnedScrollSystem {
 
   _bind() {
     const schedule = () => {
+      if (this.currentPath !== window.location.pathname) return;
       if (this.rafId) return;
       this.rafId = requestAnimationFrame(() => {
         this.rafId = 0;
+        if (this.currentPath !== window.location.pathname) return;
         this._parseMarkers();
         this._update();
       });
     };
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule, { passive: true });
+    window.addEventListener("saga-webgl-route-change", () => {
+      this.currentPath = window.location.pathname;
+      this._parseMarkers();
+      if (!this.engine.rig) return;
+
+      const target = this._getScrollAnimationTarget();
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reducedMotion) {
+        this.engine.positionAnimation = null;
+        this.engine.setAnimationPosition(target);
+      }
+      else this.engine.animateToPosition(target, 0.7, "easeInOut");
+    });
   }
 
   _scrollTop(el) {
@@ -1647,7 +1689,12 @@ class ReactOwnedScrollSystem {
   }
 
   _updateScrollAnimation() {
-    if (!this.engine.rig || this.scrollFromEls.length === 0 || this.scrollToEls.length === 0) return;
+    if (!this.engine.rig) return;
+    this.engine.setAnimationPosition(this._getScrollAnimationTarget());
+  }
+
+  _getScrollAnimationTarget() {
+    if (this.scrollFromEls.length === 0 || this.scrollToEls.length === 0) return 0;
     const from = this.scrollFromEls[0];
     const to = this.scrollToEls[0];
     const threshold = window.innerHeight / 2;
@@ -1658,15 +1705,15 @@ class ReactOwnedScrollSystem {
     const easing = from.getAttribute("data-webgl-easing") || "easeInOut";
 
     if (end <= start) {
-      this.engine.setAnimationPosition(fromPos);
-      return;
+      return fromPos;
     }
 
     const raw = Math.max(0, Math.min(1, (window.scrollY - start) / (end - start)));
-    this.engine.setAnimationPosition(fromPos + (toPos - fromPos) * easeValue(raw, easing));
+    return fromPos + (toPos - fromPos) * easeValue(raw, easing);
   }
 
   _updateColorRamps() {
+    if (this.engine.darkVoidActive) return;
     if (!this.overviewSection) return;
 
     const top = this._scrollTop(this.overviewSection);
@@ -1724,7 +1771,9 @@ function bootstrap() {
       new ReactOwnedScrollSystem(engine);
     },
   });
-  if (window.__sagaPendingPxTheme === true || document.querySelector('[data-webgl-theme="px"]')) {
+  if (document.querySelector('[data-webgl-theme="dark-void"]')) {
+    engine.setDarkVoidThemeActive(true);
+  } else if (window.__sagaPendingPxTheme === true || document.querySelector('[data-webgl-theme="px"]')) {
     engine.setPxThemeActive(true);
   }
 }

@@ -35,10 +35,12 @@ Agree before/after windows and operational definitions for:
 - Wrong-reference/version failures and avoidable generations caused by missing state.
 - Reproduction success and percentage of required approved state captured.
 
-Define the applicable-state denominator before claiming a capture percentage. Use the pilot's existing editable criteria to record baselines, targets, participants, and evidence. Do not claim causal savings from answer ranges alone.
+Define the applicable-state denominator before claiming a capture percentage. Preserve the pilot's unified approved-version/context/handoff test. Record applicable baselines, targets, participants, evidence, and optional adjustments in the existing room criteria; do not introduce another required success-selection step. Do not claim causal savings from answer ranges alone.
 
 ## Buying and self-serve routing
 
 The assessment asks early whether a team could test a fix within 30 days, without replacing its tools. Later, it captures the closest production owner and adoption authority, with optional approval detail. No near-term test or a missing sponsor prevents High routing even with strong operational pain.
 
 High/Mid continue into the existing application and pilot room. Carry identity, workflow, tools, timing, approval context, bottleneck, and observed baseline forward. Terms and implementation requirements remain reviewable before approval. A call is optional unless the buyer requests assistance or requirements/internal policy require validation. Use live package specifications for all commercial terms.
+
+The implemented application, inheritance/source rules, identity checks, pricing, signature/payment sequence, drafts, measurement, and private-page indexability are documented in [PILOT.md](PILOT.md). A pilot override records a changed execution fact without rewriting the assessment or its qualification.

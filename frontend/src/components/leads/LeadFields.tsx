@@ -18,10 +18,10 @@ export function LeadField({
   children: ReactNode
 }) {
   return (
-    <label className="block t-p-sm-sans text-white" htmlFor={name}>
-      {label}
+    <div className="block t-p-sm-sans text-white">
+      <label htmlFor={name}>{label}</label>
       {children}
-    </label>
+    </div>
   )
 }
 
@@ -30,7 +30,7 @@ export function KnownProfileNotice({context}: {context: KnownLeadContext}) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-12 rounded-sm bg-white/8 px-14 py-12 sm:col-span-2">
       <p className="t-p-sm-sans text-white">
-        using the contact details from your previous request in this browser.
+        {[context.identity?.name, context.identity?.email, context.identity?.company].filter(Boolean).join(' · ')}
       </p>
       <CTAButton
         type="button"

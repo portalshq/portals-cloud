@@ -91,7 +91,7 @@ test('progressive form validates, preserves navigation/drafts, and submits acces
   )
   assert.equal(currentStage(), '0')
   assert.equal(
-    document.querySelector('progress')?.getAttribute('aria-label'),
+    document.querySelector('[role="progressbar"]')?.getAttribute('aria-label'),
     'Assessment progress',
   )
   await submit()

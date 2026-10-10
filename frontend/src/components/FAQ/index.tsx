@@ -20,7 +20,7 @@ export default function Faq({ faqs }: { faqs: { question: string, answer: string
               onClick={() =>
                 setOpenIndex(openIndex === index ? null : index)
               }
-              className="flex w-full items-center no-underline justify-between !p-24 h-auto text-left text-white focus:outline-none [&>span]:w-full [&>span]:justify-between"
+              className="flex w-full no-underline items-center justify-between !p-24 h-auto text-left text-white focus:outline-none [&>span]:w-full [&>span]:justify-between"
               aria-expanded={openIndex === index}
             >
               <span className="t-p-serif">{faq.question}</span>

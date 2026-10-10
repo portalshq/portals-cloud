@@ -1,5 +1,6 @@
 import {ASSESSMENT_VERSION, activeAssessmentAnswers, assessmentQuestions} from '@/lib/leads/assessment-definition'
 import {diagnosticResult, pilotAssessmentPrefill} from '@/lib/leads/assessment-diagnostic'
+import {inheritPilotAssessment} from '@/lib/leads/pilot-inheritance'
 import { after, NextResponse } from 'next/server'
 import {
   validatedLeadRequestSchema as leadRequestSchema,
@@ -44,6 +45,8 @@ import {
   createPilotRecord,
   enqueuePilotEmail,
   getPilotById,
+  getPilotBySubmissionId,
+  withPilotSubmissionLock,
   getProfileByEmail,
   getProfileById,
   getProfileByToken,
@@ -67,6 +70,7 @@ import {
   recommendedWorkflow,
 } from '@/lib/leads/scoring'
 import { resolveCurrentPilotOffer } from '@/lib/leads/pilot-offers'
+import {getPublishedPackageSpecifications} from '@/lib/package-specifications'
 
 export const runtime = 'nodejs'
 
@@ -280,8 +284,14 @@ async function syncPilotRecord(
   submissionId: string,
   profileId: string,
   response: LeadResponse,
+  immediateAccess = false,
 ): Promise<LeadResponse> {
   if (leadRequest.submissionType !== 'pilot_request') return response
+  const existingPilot = await getPilotBySubmissionId(submissionId)
+  if (existingPilot?.customerAccountId && existingPilot.proposal) {
+    return {...response, nextAction: 'pilot_room', pilotUrl: pilotRoomPathForPilot(existingPilot),
+      pilotState: existingPilot.state, pilotRoute: existingPilot.route}
+  }
   const answers = leadRequest.answers as PilotAnswers
   const baseClassification = classifyPilot(answers)
   const assessmentOverride = answers.assessmentOrigin === 'assessment_override'
@@ -331,7 +341,8 @@ async function syncPilotRecord(
       : {}),
     ...(submitterEmail ? { email: submitterEmail } : {}),
     ...(submitterName ? { name: submitterName } : {}),
-    ...(submitterEmail ? { productionOwnerEmail: submitterEmail } : {}),
+    ...(!answers.productionOwnerEmail && submitterEmail && (!answers.productionOwner || answers.productionOwner === submitterName)
+      ? { productionOwnerEmail: submitterEmail } : {}),
   }
 
   if (leadRequest.pilotId) {
@@ -433,6 +444,7 @@ async function syncPilotRecord(
       })
       await enqueueExceptionReviewTask(updated.id, eventKey)
     }
+    await attachSubmissionToPilot(submissionId, updated.id)
     return {
       ...response,
       nextAction: 'pilot_room',
@@ -444,11 +456,12 @@ async function syncPilotRecord(
   }
 
   const profile = await getProfileById(profileId)
+  const packages = leadsDryRun() ? [] : await getPublishedPackageSpecifications()
   const offer = await resolveCurrentPilotOffer(leadRequest.offer, leadRequest.identity?.email).catch((cause) => {
     console.error('pilot offer resolution failed', cause)
     return null
   })
-  const pilot = await createPilotRecord({
+  const pilot = existingPilot || await createPilotRecord({
     profileId,
     initialSubmissionId: submissionId,
     answers: pilotAnswers,
@@ -471,7 +484,7 @@ async function syncPilotRecord(
     companyName: leadRequest.identity?.company,
   })
   await setPilotCustomerAccountId(pilot.id, account.customer.id)
-  const proposal = buildCommercialSnapshot(pilotAnswers as PilotAnswers, [], { offer })
+  const proposal = buildCommercialSnapshot(pilotAnswers as PilotAnswers, packages, { offer })
   const immutableProposal = offer
     ? {
       ...proposal,
@@ -481,17 +494,16 @@ async function syncPilotRecord(
     }
     : proposal
   const updatedPilot = await updatePilot(pilot.id, { proposal: immutableProposal })
-  // The applicant has just proven control of this email address in the form.
-  // Issue a short-lived, single-use credential so the first room visit can
-  // establish the same session as the emailed magic-link flow.
+  // Typing an email is not proof of ownership. Only a signed-in applicant
+  // receives immediate access; everyone else uses the existing emailed link.
   const pilotRoomPath = pilotRoomPathForPilot(updatedPilot)
-  const pilotAuthToken = await issueMagicLink({
+  const pilotAuthToken = immediateAccess ? await issueMagicLink({
     userId: account.user.id,
     purpose: 'sign_in',
     customerAccountId: account.customer.id,
     nextPath: pilotRoomPath,
     maxAgeSeconds: 10 * 60,
-  })
+  }) : undefined
   await attachSubmissionToPilot(submissionId, pilot.id)
   try {
     await enqueuePilotEmail(pilot.id, 'reviewing', undefined, `revision:${pilot.version}:reviewing`)
@@ -530,6 +542,8 @@ async function handleLeadRequest(
   leadRequest: LeadRequest,
   verified: boolean,
   boundProfileId?: string,
+  immediateAccess = false,
+  suppliedAnswerFields?: string[],
 ): Promise<NextResponse> {
   const configurationError = productionConfigurationError(leadRequest)
   if (configurationError) {
@@ -586,6 +600,11 @@ async function handleLeadRequest(
     return NextResponse.json({ ok: false, error: identityError }, { status: 400 })
   }
 
+  // Returning identities must resume through their existing session or email
+  // verification, rather than minting a profile token from a claimed address.
+  if (!profile && effectiveLeadRequest.provider === 'browser' && await getProfileByEmail(identity.email)) {
+    return NextResponse.json({ok: false, error: 'Sign in with your work email to resume securely.'}, {status: 403})
+  }
   const priorAnswers = profile
     ? await latestQualificationAnswers(profile.id)
     : {}
@@ -616,10 +635,9 @@ async function handleLeadRequest(
     qualificationAnswers = {...qualificationAnswers, ...pilotAssessmentPrefill(qualificationAnswers)}
   }
   if (effectiveLeadRequest.submissionType === 'pilot_request') {
-    qualificationAnswers = mergeQualificationAnswers(qualificationAnswers, {
-      pilotWorkflow:
-        qualificationAnswers.pilotWorkflow || qualificationAnswers.activeWorkflow,
-    })
+    // A pilot override cannot rewrite the assessment's diagnostic or lift its tier.
+    qualificationAnswers = Object.keys(priorAnswers).length ? priorAnswers :
+      inheritPilotAssessment({}, effectiveLeadRequest.answers)
   }
   if (effectiveLeadRequest.submissionType === 'assessment' || effectiveLeadRequest.submissionType === 'commercial_readiness') {
     const readiness = effectiveLeadRequest.answers
@@ -640,14 +658,11 @@ async function handleLeadRequest(
       ? {
         ...effectiveLeadRequest,
         identity,
-        answers: pilotRequestAnswersSchema.parse({
-          ...effectiveLeadRequest.answers,
-          ...Object.fromEntries(
-            pilotRequiredAnswerFields.map((field) => [
-              field,
-              String(qualificationAnswers[field] || ''),
-            ]),
-          ),
+        answers: inheritPilotAssessment(priorAnswers, effectiveLeadRequest.answers, {
+          profileId: profile?.id,
+          assessedAt: typeof priorAnswers.assessmentSubmittedAt === 'string' ? priorAnswers.assessmentSubmittedAt : profile?.qualification?.updatedAt,
+          submissionId: typeof priorAnswers.assessmentSubmissionId === 'string' ? priorAnswers.assessmentSubmissionId : undefined,
+          explicitFields: suppliedAnswerFields,
         }),
       }
       : effectiveLeadRequest.submissionType === 'assessment' && effectiveLeadRequest.answers.assessment_version === ASSESSMENT_VERSION
@@ -675,8 +690,11 @@ async function handleLeadRequest(
   )
   const scores = scoreable ? calculateQualification(qualificationAnswers) : undefined
   const tier = scores ? qualificationTier(scores, qualificationAnswers) : undefined
+  if (finalLeadRequest.submissionType === 'pilot_request' && scores?.diagnostic?.tier === 'low') {
+    finalLeadRequest.answers.assessmentOrigin = 'assessment_override'
+  }
   const response = routeResponse(finalLeadRequest, scores, qualificationAnswers)
-  const persisted = await persistSubmission({
+  const persist = () => persistSubmission({
     request: finalLeadRequest,
     identity,
     scores,
@@ -691,20 +709,28 @@ async function handleLeadRequest(
     },
     verified,
     currentProfileToken: profileToken,
-    qualificationAnswers: scoreable ? qualificationAnswers : undefined,
+    qualificationAnswers: scoreable && finalLeadRequest.submissionType !== 'pilot_request' ? qualificationAnswers : undefined,
   })
+  const persisted = finalLeadRequest.submissionType === 'pilot_request'
+    ? await withPilotSubmissionLock(`intake:${finalLeadRequest.idempotencyKey}`, persist)
+    : await persist()
+  if (normalizeEmail(persisted.submission.identity.email || '') !== normalizeEmail(identity.email || '')) {
+    return NextResponse.json({ok: false, error: 'This submission could not be resumed.'}, {status: 409})
+  }
   const finalResponse = {
     ...persisted.submission.response,
+    profileId: persisted.submission.profile.id,
     analyticsPersonId: persisted.submission.profile.analyticsPersonId,
   }
   const pilotResponse =
     finalLeadRequest.submissionType === 'pilot_request'
-      ? await syncPilotRecord(
-        finalLeadRequest,
+      ? await withPilotSubmissionLock(persisted.submission.id, () => syncPilotRecord(
+        persisted.submission.request,
         persisted.submission.id,
         persisted.submission.profile.id,
         finalResponse,
-      )
+        immediateAccess && Boolean(profile && profile.id === boundProfileId),
+      ))
       : finalResponse
   const nextResponse = NextResponse.json(pilotResponse)
   if (persisted.profileToken) {
@@ -823,7 +849,7 @@ export async function POST(request: Request) {
       { status: 400 },
     )
   }
-  if (!['browser', 'apollo'].includes(parsed.data.provider)) {
+  if (parsed.data.provider !== 'browser') {
     return NextResponse.json({ ok: false, error: 'invalid provider' }, { status: 400 })
   }
   const applicationSession = request.headers.get('cookie')
@@ -840,7 +866,7 @@ export async function POST(request: Request) {
     if (!applicationUser?.profileId || role !== 'owner') {
       return NextResponse.json({ ok: false, error: 'only the pilot account owner can submit a revision' }, { status: 403 })
     }
-    return handleLeadRequest(request, parsed.data, true, applicationUser.profileId)
+    return handleLeadRequest(request, parsed.data, true, applicationUser.profileId, true, Object.keys((json as {answers?: Record<string, unknown>}).answers || {}))
   }
-  return handleLeadRequest(request, parsed.data, true)
+  return handleLeadRequest(request, parsed.data, true, applicationUser?.profileId || undefined, Boolean(applicationUser), Object.keys((json as {answers?: Record<string, unknown>}).answers || {}))
 }

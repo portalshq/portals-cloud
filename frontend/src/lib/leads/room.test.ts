@@ -41,6 +41,7 @@ const eligible = {
   company: 'Studio Example',
   pilotWorkflow: 'campaign variant production',
   productionOwner: 'Ava Nguyen, Senior Producer',
+  productionOwnerEmail: 'ava@studio.example',
   approvalPath: 'self',
   annualDeploymentOption: 'studio',
   annualPriceAcknowledged: true,

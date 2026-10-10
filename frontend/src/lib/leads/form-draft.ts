@@ -33,7 +33,7 @@ export function readFormDraft(key: string): FormDraft {
     }
     const values: FormDraft = {}
     for (const [name, value] of Object.entries(envelope.values)) {
-      if (typeof value === 'string' && value) values[name] = value
+      if (typeof value === 'string') values[name] = value
     }
     return values
   } catch {
@@ -49,7 +49,7 @@ export function readFormDraft(key: string): FormDraft {
 export function writeFormDraft(key: string, values: FormDraft) {
   if (typeof window === 'undefined') return
   const names = Object.keys(values)
-  if (names.length === 0) return
+  if (names.length === 0) { clearFormDraft(key); return }
   try {
     const serialized = JSON.stringify({
       values,
@@ -70,6 +70,15 @@ export function clearFormDraft(key: string) {
   } catch {
     // drafts must never throw
   }
+}
+
+/** Carry an older browser draft forward only when its identity is compatible. */
+export function migrateMatchingFormDraft(from: string, to: string, expectedEmail?: string) {
+  if (Object.keys(readFormDraft(to)).length) return
+  const values = readFormDraft(from)
+  if (!Object.keys(values).length) return
+  if (expectedEmail && values.email?.trim().toLowerCase() !== expectedEmail.trim().toLowerCase()) return
+  writeFormDraft(to, values)
 }
 
 export function clearAllFormDrafts() {
@@ -112,7 +121,7 @@ export function collectDraftValues(form: HTMLFormElement): FormDraft {
     if (control instanceof HTMLInputElement && control.type === 'hidden') continue
     const value = controlValue(control)
     if (control instanceof HTMLInputElement && control.type === 'checkbox') {
-      if (value) values[control.name] = value
+      values[control.name] = value
       continue
     }
     if (control instanceof HTMLInputElement && control.type === 'radio') {
@@ -122,7 +131,7 @@ export function collectDraftValues(form: HTMLFormElement): FormDraft {
       continue
     }
     const trimmed = value.trim()
-    if (trimmed) values[control.name] = trimmed
+    values[control.name] = trimmed
   }
   return values
 }

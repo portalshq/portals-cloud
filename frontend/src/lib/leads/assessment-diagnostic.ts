@@ -5,6 +5,7 @@ import {
   selected,
   type AssessmentValues,
 } from './assessment-definition'
+import {PRIMARY_PILOT_SUCCESS_TEST} from './pilot-success'
 
 export const stateSignals = [
   'A_STATE_PERSON_DEPENDENT',
@@ -397,12 +398,10 @@ export function pilotAssessmentPrefill(a: AssessmentValues): AssessmentValues {
     pilotWorkflow: a.most_urgent_active_workflow,
     activeWorkflow: a.most_urgent_active_workflow,
     toolsUsed: selected(a, 'ai_tools').join(', '),
+    requiredIntegrations: selected(a, 'ai_tools').join(', '),
     targetStartPeriod:
-      a.production_status === 'within_1_to_3_months'
-        ? 'this-quarter'
-        : a.production_status === 'experimenting_or_researching'
-        ? 'later'
-        : 'within-30-days',
+      ({live_now: 'within-30-days', within_30_days: 'within-30-days',
+        within_1_to_3_months: 'this-quarter', experimenting_or_researching: 'later'} as Record<string, string>)[String(a.production_status)] || '',
     approvalPath:
       (
         {
@@ -421,18 +420,7 @@ export function pilotAssessmentPrefill(a: AssessmentValues): AssessmentValues {
     }. Time lost per incident: ${String(
       a.time_lost_per_incident || 'unknown',
     ).replaceAll('_', ' ')}.`,
-    successCriteria:
-      'Compare before and after: creator time to become productive; original-creator interruptions; context reconstruction and handoff time; wrong-reference/version failures; reproduction success; retries caused by missing state; required production state captured. Agree a baseline and target for each relevant measure.',
-    workflowCollaborators:
-      (
-        {
-          '1': '1',
-          '2_5': '2-4',
-          '6_10': '5-9',
-          '11_25': '10-plus',
-          '25_plus': '10-plus',
-        } as Record<string, string>
-      )[String(a.contributors_count)] || '',
+    successCriteria: PRIMARY_PILOT_SUCCESS_TEST,
   }
 }
 

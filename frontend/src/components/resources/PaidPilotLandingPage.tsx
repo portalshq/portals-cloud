@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { trackEvent } from '@/lib/leads/analytics-client'
 import { PRIMARY_PILOT_SUCCESS_TEST } from '@/lib/leads/pilot-success'
 import { usePathname, useRouter } from 'next/navigation'
@@ -531,7 +532,7 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
             <p className="items-center gap-2 t-p-sans text-white">
               Need to assess the workflow first?
             </p>
-            <a className="t-p-sans underline decoration-2 underline-offset-4" href="/assessment">Evaluate your current production workflow first.</a>
+            <Link className="t-p-sans underline decoration-2 underline-offset-4" href="/assessment">Evaluate your current production workflow first.</Link>
           </div>
         </div>
       </div>

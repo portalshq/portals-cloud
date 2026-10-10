@@ -14,11 +14,13 @@ import {shouldSkipFormDraftRestore} from '@/lib/leads/client'
 
 const PERSIST_DELAY_MS = 350
 
-export function useFormDraft(formName: string) {
+export function useFormDraft(formName: string, baseline?: Record<string, unknown>) {
   const storageKey = useMemo(() => formDraftKey(formName), [formName])
   const [formElement, setFormElement] = useState<HTMLFormElement | null>(null)
   const [restored, setRestored] = useState<FormDraft>({})
   const timerRef = useRef<number | null>(null)
+  const baselineRef = useRef(baseline)
+  baselineRef.current = baseline
 
   const ref = useCallback((element: HTMLFormElement | null) => {
     setFormElement(element)
@@ -26,7 +28,14 @@ export function useFormDraft(formName: string) {
 
   const persist = useCallback(() => {
     if (!formElement) return
-    writeFormDraft(storageKey, collectDraftValues(formElement))
+    const values = collectDraftValues(formElement)
+    // Store explicit edits rather than stale inherited defaults. A newer
+    // assessment can then refresh the fields the applicant never changed.
+    for (const [name, value] of Object.entries(baselineRef.current || {})) {
+      const normalized = typeof value === 'boolean' ? (value ? 'on' : '') : String(value ?? '')
+      if (values[name] === normalized) delete values[name]
+    }
+    writeFormDraft(storageKey, values)
   }, [formElement, storageKey])
 
   const schedulePersist = useCallback(() => {

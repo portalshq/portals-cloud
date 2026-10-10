@@ -1,189 +1,69 @@
-> Current contract: [Production-state diagnostic and pilot funnel](ASSESSMENT.md). This supersedes historical assessment scoring, mandatory-call sequencing, and quoted pilot terms below. Use live package specifications for prices/durations.
+# Paid production pilot: implemented lifecycle
 
-Read the following pilot details, business logic, and pilot assessment details. Then implement. Ask questions to clarify any implementation details. After implementing, update this document to contain the updated implementation details and business mechanisms. The docuemnt will then serve as a reference for the pilot operations.
+The shared offer is one production, one agreed workflow, and one measured outcome. AI-native, established VFX/animation, and high-volume commercial teams use the same public offer; A/B/C remain internal diagnostic signals. See [ASSESSMENT.md](ASSESSMENT.md) for the unchanged diagnostic and [PAID-PILOT-IMPLEMENTATION.md](PAID-PILOT-IMPLEMENTATION.md) for the dated audit/decision record.
 
-Clarify pilot credit eligibility
+## Lifecycle and identity
 
-Use:
+`/assessment` validates declarative v4 branches and records an encrypted submission, lead profile, qualification, and durable outbox. High/Mid continue to `/pilot`; Low receives material/reassessment. A Low applicant can still request a plan, but the server forces the existing assessment-qualification exception review. No default call is added for qualified standard applications.
 
-The $5,000 pilot fee is credited in full toward the first-year Studio deployment when the annual agreement is signed within 14 days of the final pilot review. Enterprise credit terms are defined in the written evaluation agreement.
+`/pilot` resolves an opaque authorized profile cookie or authenticated application user, published resource/package specifications, and an applicable server offer. Name/email/company/role/website remain reviewable. URL identity prefill is not authentication; an email mismatch removes the previous profile's context. Public metadata contains only public resource content.
 
-Do not publicly use:
+`/api/leads` validates the browser origin, size, schema, identity/domain policy, consent, required scope, and role emails. Unsigned requests must use the browser provider; Apollo commercial callbacks require the existing HMAC signature. An existing email without its profile/session must sign in before resuming. Client assessment IDs, diagnostics, prices, and approval flags do not establish authority.
 
-within the agreed decision window.
+A valid application records an encrypted submission and creates an application user, customer account, membership, and approval room. Unsigned applicants receive the existing email-verification route; entering an email cannot mint an immediate room-access credential. A signed-in owner retains the existing authorized continuation. CRM, invitation, analytics, and notification work uses the existing durable outboxes. A successful response does not prove an external delivery completed.
 
-A default term is easier to understand. You can vary it in the signed order form.
+## Shared inheritance and source rules
 
-Do not promise the full $5,000 credit toward the $9,000 Production Team plan as a standard policy.
+`pilotAssessmentPrefill` in `assessment-diagnostic.ts` derives safe editable defaults. `pilotAssessmentContext` and `inheritPilotAssessment` in `pilot-inheritance.ts` share those defaults between profile context and server submission. Do not duplicate mapping in another component.
 
-Add non-refund and data-disposition terms to the order form
+| Assessment source                                                                                                                              | Pilot use                                                                                                                                        |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Authorized profile identity and profile ID                                                                                                     | Reviewable contact fields, scoped draft, profile/account association                                                                             |
+| Persisted assessment submission ID and original assessment timestamp                                                                           | Server-owned encrypted `assessmentSnapshot` source metadata                                                                                      |
+| `production_status`, `pilot_readiness_30d`                                                                                                     | Timing default only when the source explicitly supports it; unknown stays unanswered                                                             |
+| `production_type`, `workflow_role`, `teamSize`, `contributors_count`, `imminent_contributor_scaling`                                           | Exact inherited assessment evidence; contributor ranges are not converted into incompatible legacy ranges or the smaller pilot participant count |
+| `ai_tools`                                                                                                                                     | `toolsUsed` and editable `requiredIntegrations` default; export/import path still needs confirmation                                             |
+| `active_workflows`, `most_urgent_active_workflow`, `recurringWorkflow`, `assetVolume`                                                          | Exact evidence plus editable `pilotWorkflow` default from the urgent workflow                                                                    |
+| `transferability_without_originator`, `time_to_transfer`, `context_storage_locations`, `captured_production_state`, `execution_state_complete` | Exact evidence and answer-derived bottleneck/baseline                                                                                            |
+| `manual_handoff_requirements`, `context_interrupt_owner`, `production_failures`, `most_recent_incident`, `recreationFrequency`                 | Exact original operational evidence; no repeated v4 discovery                                                                                    |
+| `time_lost_per_incident`, `cost_bearer`, `affected_work_value`                                                                                 | Reported baseline and original economic evidence, never guaranteed savings                                                                       |
+| Controlled-IP and agent-context branches                                                                                                       | Applicable original rights/traceability/context evidence                                                                                         |
+| `productionOwner`, `adoption_authority`, `approval_path_detail`                                                                                | Editable owner/approval defaults; preserve actual owner email instead of replacing it with the applicant                                         |
+| Qualification scores, caps, High/Mid/Low, internal signals                                                                                     | Server recomputation from original assessment; browser input cannot lift a tier                                                                  |
+| Submission consent, source/UTM attribution and stored profile identifiers                                                                      | Existing consent/attribution and CRM/analytics relationships; do not invent a search source when unknown                                         |
 
-The signed agreement—not necessarily the marketing page—should clarify:
+Inherited defaults yield to explicit editable pilot fields, including false and cleared fields. Missing schema-default blanks do not erase inherited values. The original assessment and diagnostic remain unchanged; each application stores an original assessment snapshot beside pilot overrides. New assessments refresh untouched draft defaults; explicit saved pilot edits remain. Legacy records retain their schema and original values. No destructive migration is required.
 
-the pilot fee compensates Portals for work performed;
-the fee is non-refundable unless expressly stated;
-the credit is conditional on timely annual conversion;
-what happens to customer data if the customer stops;
-which exports are available;
-when the pilot environment is deleted;
-what is excluded from the fixed scope.
-4. Why the pilot costs $5,000
+## Progressive application and primary success test
 
-You need two separate justifications:
+The existing five mounted stages remain: eligibility, scope, success, approval, confirmation. Known identity/acquisition fields are carried; returning assessed applicants skip repeated acquisition/discovery. Direct-entry acquisition questions are optional. V4 applicants skip the historical diagnostic fields; missing relevant direct/legacy fields retain the existing progressive rules.
 
-Delivery economics: what it costs Portals to perform the engagement.
-Customer economics: what the engagement can prove or recover for the buyer.
+Pilot-specific facts remain reviewable: selected workflow, start period, one historical project, actual pilot participants, integration/import path, data classification/security requirements, production owner, approval path, procurement exceptions, budget timing/owner, and proposed annual option. No mandatory phone, social, portfolio, confidential asset upload, new stage, or call is introduced.
 
-Do not rely on only one.
+`pilot-success.ts` owns the default test: by final review, the team can find the exact approved production version, recover its prompts/source context, and hand the work to another qualified creator without unnecessary reconstruction or coordination. The form displays the answer-derived priority and baseline when available. `Adjust success criteria` is optional; existing custom criteria remain supported. Standard supporting measurement keys are carried internally without requiring another selection checklist. Exact source retrieval is distinguished from stochastic output reproduction; agree tolerances during scope review.
 
-Delivery-cost rationale
+Controls remain mounted across navigation. Drafts are scoped to profile or revision room; only edits that differ from inherited defaults are saved. Blank values and unchecked checkboxes survive. Compatible legacy browser drafts migrate without overriding a newer scoped draft; a known identity must match. Confirmation state is scoped to the returned authorized profile; different email hints isolate anonymous drafts without granting access. Store the canonical room URL, never a one-time sign-in credential, for durable resume. Profile reset clears draft/confirmation state. Errors announce/focus required controls; stage navigation focuses its heading and honors reduced motion. Final submission has a loading/double-click guard and server idempotency.
 
-A realistic internal pilot labor model might look like this:
+## Routing, terms, and commercial authority
 
-Activity	Estimated hours
-Qualification and workflow alignment	4
-Success criteria and implementation plan	3
-Repository and project configuration	6
-Historical project import and structuring	7
-Integration or export setup	4
-User onboarding	3
-Support and iteration	5
-Final analysis and deployment recommendation	4
-Total	36
+Keep `classifyPilot`, `computeUnresolved`, and the existing room state machine. Standard/one-call/not-eligible scope decisions remain separate from assessment High/Mid/Low. Timing, unknown integrations, procurement/security exceptions, authority, and capacity constraints still require review when applicable. Incomplete initial form defaults do not display a disqualification warning before the prospect provides scope.
 
-At a fully loaded delivery cost of $125 per hour:
+Prices, duration, credits, deadlines, and package limits come from published Sanity specifications and the server-resolved offer. The live offer overrides the base package consistently in hero/form/FAQ and the immutable room proposal; no price values are accepted from the browser. Annual-option labels use the published annual amount. Price acknowledgment is planning, not an annual purchase.
 
-36 hours × $125 = $4,500
+The room preserves scoped memberships, collaborative encrypted drafts, field conflicts, revision hashes, reviewer decisions, security/implementation review, term adjustment, signature locking, acceptance snapshots, and verified payment. Confirming scope is not commercial approval. Assigned signers accept the finalized agreement; payment follows signature, and launch/kickoff follows payment. Preserve webhook verification and replay protections. Manual payment recording is available only in local dry-run; a missing production Stripe configuration cannot make an owner-supplied payment flag authoritative. Room updates preserve protected assessment evidence and founder-qualification exceptions; signature records the finalized server scope, not new browser-supplied terms.
 
-At $150 per hour:
+Concurrent applications with one idempotency key serialize persistence and room creation. A replay uses the persisted request and returns the same room. Production uses PostgreSQL transaction advisory locks through a separate two-connection lock pool, leaving the existing five-connection data pool available; allow for this connection budget; transaction-scoped locks also support transaction pooling. Local dry-run uses an in-memory mutex. No table migration is introduced.
 
-36 hours × $150 = $5,400
+## Measurement and privacy
 
-This means $5,000 is not an aggressive services price. It may barely cover delivery if scope is not tightly controlled.
+Keep consent-gated Mixpanel and durable CRM/outbox processing. Browser events cover `paid_pilot_page_viewed`, qualified assessment arrival, application start on actual interaction, stage completion, validation field/stage, pagehide abandonment, room/terms views, successful adjustment/assisted requests, scope confirmation, and accepted agreement. `pilot_approved` fires only after successful `sign` returning `signed`; `pilot_scope_confirmed` is separate. Pagehide abandonment is a best-effort signal, not an authoritative count.
 
-Your immediate operational task is to track:
+Server submission events retain stable submission/event deduplication, `pilot_requested`, and `pilot_application_submitted`; the client no longer emits a duplicate `pilot_requested`. Server diagnostics supply qualification/components/internal signals/structured workflow/campaign dimensions. Do not send free text, incident details, identity, or raw applications to browser analytics. Approval and revenue reporting must reconcile stored signed/paid state, acceptance, and payment records; browser delivery alone undercounts denied consent or blocked/unloaded sessions.
 
-founder hours;
-engineering hours;
-onboarding hours;
-integration hours;
-support hours;
-infrastructure cost;
-gross margin per pilot.
+Use the assessment submission ID, profile/account/pilot associations, recorded timestamps, history, acceptance, and payment to measure assessment-to-pilot time, submission-to-approval time, qualified approved-pilot conversion, paid-pilot revenue per qualified assessment, and assisted intervention. Separate score versions and organic/outbound attribution. No production baseline was available during this implementation.
 
-If the median pilot consumes more than approximately 30–35 skilled hours, $5,000 is probably underpriced.
+## SEO and validation
 
-Public pricing rationale
+`/pilot` retains public title/description/keywords, canonical `/pilot/`, share metadata, sitemap inclusion, crawlable rendered copy, one H1, internal links, and valid site Organization/WebSite JSON-LD. No fabricated FAQ/rating/testimonial schema is added. An email-prefilled or profile/session-personalized prospect URL uses noindex with public metadata/canonical. Account, authentication/recovery, and legacy pilot layouts explicitly noindex private rooms, in addition to robots exclusions and authentication.
 
-Do not publish an hourly breakdown. Publish the work and outcome.
-
-Add this section to the pilot page:
-
-What the $5,000 funds
-
-The pilot fee covers the implementation and evaluation work required to apply Portals to real production—not temporary access to an empty software account.
-
-workflow and success-criteria design;
-configuration of one active and one historical project;
-one agreed standard integration or export path;
-onboarding for up to 10 users;
-21 days of guided implementation support;
-measurement of retrieval, reproduction, handoff, and reuse;
-final deployment and business-case recommendation.
-
-Then add:
-
-The annual deployment scope and price are established before kickoff, and the pilot fee is credited according to the written conversion terms.
-
-This is the optimal public explanation.
-
-The workflow assessment / paid pilot form generates a customized pilot. Message: "Based on your ROI score, we’ve drafted a 1-page Pilot Blueprint for your stack. Let’s spend 15 minutes reviewing it."
-
-I feel the best onboarding structure is to ask them to take the pilot assessment, then produce a pilot blueprint (that appends to the paid pilot brief). Depending on the fit, they can schedule a call -- the prospect has the blueprint, and our team also has and reviews the blueprint. At this point, we have addressed all objections. The prospect can immediately schedule the pilot call, where we close. This shifts the relationship from "vendor selling a product" to "expert delivering a tailored solution."
-
-Here is how to optimize, simplify, and expedite this exact structure to maximize customer convenience and velocity.
-
-- Split the assessment into a "2-Minute Micro-Intake." Workflow assessment and paid pilot assessment. Ask high-intent pilot related questions right after they engage with "6 Production Workflow Risks" page.
-- Use the answers to instantly generate the dynamic parts of their blueprint.
-- Create a standard 3-page template. Page 1 is their specific risk score (based on the 3 micro-intake questions). Page 2 appends your existing Paid Pilot Info Brief. Page 3 maps out the 30-day live timeline.
-- The moment they finish the micro-intake, show a blurred or loading preview of their PDF on screen with the CTA: "Your Pilot Blueprint is ready. Schedule a 15-minute activation call to unlock your full risk mitigation map."
-- Keep the main Blueprint strictly limited to 1 or 2 pages focused entirely on their workflow gaps and their ROI. Put a prominent link or appendix at the bottom: "Click here to download our full SOC2/Data Security Brief for your info-sec team." Let them pass the heavy paperwork to their technical team while you keep the decision-maker focused on business value.
-- Position the call not as a "sales pitch," but as a "Blueprint Validation and Booking Session." Your CTA copy should read: "Schedule 15 minutes to validate your custom blueprint configuration and secure your pilot launch date." Here is the exact strategy to balance value delivery with calendar conversions, along with the specific data to hold back:
-
-What to include in the Instant Download: The Risk Score, The Financial Gaps, The Solution Architecture. 
-The 3 Pieces of Execution Data to Hold Back for the Call: The Custom Scope Configuration, The Resource Requirements, Pilot Slot Availability & Launch Timeline
-
-How to Prevent Drop-Off (The Post-Assessment UI)Instead of a hard gate, use a Psychological Gate. The moment they click "Submit" on your micro-assessment, your redirect screen should look like this:1. The Confirmation (Instant Gratification)"Success! Your Custom Pilot Blueprint is being generated and has been sent to [Email]." (This eliminates the feeling of being trapped).2. The Hook (Creating Urgency)"Important: Your Blueprint includes a provisional $XX,XXX ROI projection based on your risk inputs."3. The Call to Action (The Secure Launch Date)"To lock in your calculated ROI and activate this blueprint, we must live-verify your infrastructure variables. Claim your 15-minute Validation & Launch Slot below."[Embedded Calendar Widget]
-
-Why This Works Interally & ExternallyFor the Prospect: They get the immediate satisfaction of checking their inbox and seeing a beautiful, personalized PDF. They don't feel forced.For the Document: The PDF itself becomes a sales tool. On page 2, insert a massive call-to-action button: "Ready to execute this plan? Click here to book your 15-minute configuration validation." If they forward the PDF to their VP, the VP can click that link and book the call themselves.For Your Team: When they do book the call, they are arriving with your document in hand. You aren't pitching; you are confirming the data they already read.
-
-Pilot blueprint: justify the $5,000
-
-Add:
-
-What the pilot fee funds
-What operational cost the pilot is intended to test
-A link to a pilot business-case worksheet
-Pilot brief: add a small business-case panel
-
-Include:
-
-Current monthly incidents: ______
-Average hours per incident: ______
-People affected: ______
-Estimated labor cost: ______
-Repeated generation spend: ______
-Delivery or client impact: ______
-
-Then:
-
-The pilot should establish whether the observed improvement is sufficient to justify the proposed annual deployment.
-
-Pilot proposal: personalized business case
-
-This is where you should present:
-
-estimated annual cost of the current process;
-conservative recoverable value;
-proposed annual price;
-expected payback period;
-assumptions;
-unquantified strategic benefits.
-Case studies: measured outcomes
-
-Once you have evidence, publish:
-
-baseline retrieval time;
-post-pilot retrieval time;
-reconstruction hours avoided;
-generation spend reduced;
-handoff time improved;
-additional output capacity;
-annualized economic estimate.
-
-Until then, label examples as models, not customer results.
-
-enterprise onboarding workflow:
-
-[ 1. Top-of-Funnel Hook ]
-6 Risks Brief
-            ⬇
-[ 2. Workflow Assessment ]
-            ⬇
-[ 3. Post-Assessment UI ]
-Instant Success Page: "Your Custom Pilot Blueprint is Ready!"
-            ⬇
-[ 4. Psychological Gate ]
-On-Screen Risk/ROI Highlight + Calendar Link
-            ⬇
-[ 5. Automated Asset Delivery ]
-Instant Email: Personalized Blueprint (Gated Execution Data)
-+ Attached Security Page & Paid Pilot Info Brief
-            ⬇
-[ 6. 15-Minute Pilot Booking Call ]
-Live-Verify Data ➔ Secure Launch Date / Close Paid Pilot
-
-Why This Specific Flow Moves FasterZero Interruption: The prospect never hits a hard wall; the value (Blueprint) is pushed to their inbox while the calendar widget captures their attention on-screen.Asynchronous Education: Heavy documentation (Security Page + Paid Pilot Brief) is packaged as a resource they can digest on their own time or forward to technical teams.Pre-Qualified Calls: Your team skips standard discovery because the question intake gives you their exact pain point before the call even starts.
-## Current assessment handoff
-
-Assessment v4 High/Mid prospects enter the existing self-serve application; a call is not a default requirement. Workflow, tools, timing, approval context, production-state bottleneck, and reported baseline carry forward. Review editable measurement criteria, implementation scope/requirements, commercial terms, adjustments, and approval in the pilot room. Use [ASSESSMENT.md](ASSESSMENT.md) and live package specifications instead of historical commercial examples above.
+Run `test:leads`, `typecheck`, `check:marketing`, and the production build from the frontend workspace; inspect whitespace and rendered desktop/mobile metadata, focus/validation, pricing, and overflow. Fixtures cover High A/B/C/Multi, Mid, Low/state-complete, direct entry, legacy, new assessment defaults, returning edits, forged identifiers/provider, duplicate submissions, owner preservation, scoped drafts, room terms, conflict/replay/security, and payments. Production PostgreSQL, email/CRM delivery, Stripe transactions, and live conversion/performance measurements require the deployment environment; local dry-run is not their verification.

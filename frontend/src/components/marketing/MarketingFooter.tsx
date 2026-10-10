@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { useEffect, useRef } from 'react'
 
 export function MarketingFooter() {
@@ -13,7 +14,6 @@ export function MarketingFooter() {
     if (!footer) return
 
     const desktop = window.matchMedia('(min-width: 64rem)')
-    const offsets = new Map<HTMLElement, number>()
     let frame = 0
 
     const update = () => {
@@ -21,16 +21,15 @@ export function MarketingFooter() {
       const footerTop = footer.getBoundingClientRect().top
       document.querySelectorAll<HTMLElement>('.saga-webgl-viewport').forEach(viewport => {
         if (desktop.matches) {
-          viewport.style.removeProperty('translate')
-          offsets.delete(viewport)
+          viewport.style.removeProperty('clip-path')
           return
         }
 
-        // Recover the undisplaced bottom so scrolling back restores the canvas.
-        const bottom = viewport.getBoundingClientRect().bottom + (offsets.get(viewport) ?? 0)
-        const offset = Math.max(0, bottom - footerTop)
-        viewport.style.translate = `0 ${-offset}px`
-        offsets.set(viewport, offset)
+        // Keep the canvas anchored at the viewport top; reveal only the part
+        // above the transparent footer as it enters the screen.
+        const bounds = viewport.getBoundingClientRect()
+        const visibleHeight = Math.max(0, Math.min(bounds.height, footerTop - bounds.top))
+        viewport.style.clipPath = `inset(0 0 ${bounds.height - visibleHeight}px 0)`
       })
     }
     const schedule = () => {
@@ -55,7 +54,9 @@ export function MarketingFooter() {
       window.visualViewport?.removeEventListener('resize', schedule)
       window.visualViewport?.removeEventListener('scroll', schedule)
       desktop.removeEventListener('change', schedule)
-      offsets.forEach((_, viewport) => viewport.style.removeProperty('translate'))
+      document.querySelectorAll<HTMLElement>('.saga-webgl-viewport').forEach(viewport => {
+        viewport.style.removeProperty('clip-path')
+      })
     }
   }, [pathname])
 
@@ -79,35 +80,35 @@ export function MarketingFooter() {
       <div className="col-span-full relative z-10 flex flex-col gap-y-fluid-[32,40]">
         <div className="col-span-full m-0 grid h-full grid-cols-1 space-y-fluid-[32,40] p-0 ui-grid lg:grid-cols-5">
           <div className="col-span-full mb-24 lg:col-span-2 lg:mb-0">
-            <a href="/" className="t-d1-sans !font-medium">portals</a>
+            <Link href="/" className="t-d1-sans !font-medium">portals</Link>
             <p className="mt-24 max-w-md t-p-sans">the production memory for AI-native creative teams.</p>
           </div>
           <div className="col-span-full grid gap-y-32 sm:grid-cols-3 lg:col-span-3">
             <nav aria-label="Explore" className="space-y-12">
               <h2 className="t-p-sm-sans text-white/60">explore</h2>
               <ul className="space-y-8 t-p-sans lg:text-white/80">
-                <li><a href="/use-cases" className="transition-colors hover:text-white">use cases</a></li>
-                <li><a href="/production-memory" className="transition-colors hover:text-white">production memory</a></li>
-                <li><a href="/blog" className="transition-colors hover:text-white">blog</a>
+                <li><Link href="/use-cases" className="transition-colors hover:text-white">use cases</Link></li>
+                <li><Link href="/production-memory" className="transition-colors hover:text-white">production memory</Link></li>
+                <li><Link href="/blog" className="transition-colors hover:text-white">blog</Link>
                 </li>
-                <li><a href="/px" className="transition-colors hover:text-white">px</a></li>
-                <li><a href="/assessment" className="transition-colors hover:text-white">assess your workflow</a></li>
-                <li><a href="/production-memory#download" className="transition-colors hover:text-white">download the production memory brief</a></li>
+                <li><Link href="/px" className="transition-colors hover:text-white">px</Link></li>
+                <li><Link href="/assessment" className="transition-colors hover:text-white">assess your workflow</Link></li>
+                <li><Link href="/production-memory#download" className="transition-colors hover:text-white">download the production memory brief</Link></li>
               </ul>
             </nav>
             <nav aria-label="Work with Portals" className="space-y-12">
               <h2 className="t-p-sm-sans text-white/60">get started</h2>
               <ul className="space-y-8 t-p-sans lg:text-white/80">
-                <li><a href="/pilot" className="transition-colors hover:text-white">paid pilot</a></li>
-                <li><a href="/security-and-architecture" className="transition-colors hover:text-white">security</a></li>
-                <li><a href="/contact" className="transition-colors hover:text-white">contact us</a></li>
+                <li><Link href="/pilot" className="transition-colors hover:text-white">paid pilot</Link></li>
+                <li><Link href="/security-and-architecture" className="transition-colors hover:text-white">security</Link></li>
+                <li><Link href="/contact" className="transition-colors hover:text-white">contact us</Link></li>
               </ul>
             </nav>
             <nav aria-label="Legal" className="space-y-12">
               <h2 className="t-p-sm-sans text-white/60">legal</h2>
               <ul className="space-y-8 t-p-sans lg:text-white/80">
-                <li><a href="/privacy-policy" className="transition-colors hover:text-white">privacy</a></li>
-                <li><a href="/terms-of-service" className="transition-colors hover:text-white">terms of service</a></li>
+                <li><Link href="/privacy-policy" className="transition-colors hover:text-white">privacy</Link></li>
+                <li><Link href="/terms-of-service" className="transition-colors hover:text-white">terms of service</Link></li>
               </ul>
             </nav>
           </div>

@@ -1,4 +1,5 @@
-import {diagnosticResult, pilotAssessmentPrefill} from './assessment-diagnostic'
+import {diagnosticResult} from './assessment-diagnostic'
+import {pilotAssessmentContext} from './pilot-inheritance'
 import {cookies} from 'next/headers'
 import type {KnownLeadContext} from './contracts'
 import {getProfileById, getProfileByToken, latestQualificationAnswers, PROFILE_COOKIE} from './store'
@@ -59,8 +60,7 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
     const qualification = resolvedProfile.qualification
     const combinedAnswers = {
       ...resolvedProfile.identity,
-      ...pilotAssessmentPrefill(fallbackAnswers),
-      ...fallbackAnswers,
+      ...pilotAssessmentContext(fallbackAnswers),
     }
     const knownAnswerFields = Object.entries(combinedAnswers)
       .filter(([, value]) =>
@@ -77,6 +77,8 @@ export async function getKnownLeadContext(): Promise<KnownLeadContext> {
     const outcome = tier ? qualificationOutcome(tier) : undefined
     return {
       known: true,
+      profileId: resolvedProfile.id,
+      assessmentUpdatedAt: typeof fallbackAnswers.assessmentSubmittedAt === 'string' ? fallbackAnswers.assessmentSubmittedAt : qualification?.updatedAt,
       knownFields,
       knownAnswerFields,
       identity,

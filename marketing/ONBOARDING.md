@@ -1,3 +1,5 @@
+> Historical planning reference; these proposed prices/onboarding packages are not live commitments. The implemented paid-pilot application and approval/payment sequence are documented in [PILOT.md](PILOT.md).
+
 > Current contract: [Production-state diagnostic and pilot funnel](ASSESSMENT.md). This supersedes historical assessment scoring, mandatory-call sequencing, and quoted pilot terms below. Use live package specifications for prices/durations.
 
 Direct Production Team onboarding

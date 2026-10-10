@@ -280,6 +280,13 @@ export type SecurityDecision = {
 }
 
 export const pilotRequestAnswersSchema = assessmentAnswersSchema.extend({
+  // Constructed from authorized server context. Incoming copies are discarded.
+  assessmentSnapshot: z.object({
+    profileId: z.string(),
+    assessedAt: z.string().optional(),
+    submissionId: z.string().optional(),
+    answers: assessmentAnswersSchema,
+  }).optional(),
   assessmentOrigin: z.enum(['standard', 'assessment_override']).optional().default('standard'),
   pilotWorkflow: optionalText(2000),
   productionOwner: optionalText(300),
@@ -423,6 +430,7 @@ export type LeadNextAction =
 
 export type LeadResponse = {
   ok: true
+  profileId?: string
   nextAction: LeadNextAction
   provisional?: boolean
   downloadUrl?: string
@@ -446,6 +454,10 @@ export type LeadResponse = {
 }
 
 export type KnownLeadContext = {
+  profileId?: string
+  /** Browser draft isolation only; an email hint grants no lead authorization. */
+  draftScopeHint?: string
+  assessmentUpdatedAt?: string
   known: boolean
   knownFields: Array<'email' | 'name' | 'company' | 'role' | 'website'>
   knownAnswerFields: string[]

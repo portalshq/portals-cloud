@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 declare global {
   interface Window {
@@ -10,6 +11,25 @@ declare global {
 
 export const SagaWebGLEngine: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const previousPathRef = useRef(pathname);
+
+  useEffect(() => {
+    if (previousPathRef.current === pathname) return;
+    previousPathRef.current = pathname;
+
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        window.dispatchEvent(new CustomEvent('saga-webgl-route-change', { detail: { pathname } }));
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     const targetScriptId = 'saga-webgl-standalone-module';

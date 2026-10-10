@@ -286,7 +286,7 @@ test('assessment prepopulation supplies reviewed scope, owner path, tool list an
   assert.equal(prefill.approvalPath, 'self')
   assert.equal(prefill.targetStartPeriod, 'within-30-days')
   assert.equal(prefill.toolsUsed, 'ComfyUI, Runway, Midjourney')
-  assert.ok(String(prefill.successCriteria).includes('interruptions'))
+  assert.ok(String(prefill.successCriteria).includes('exact approved production version'))
   assert.ok(String(prefill.productionBaseline).includes('one day'))
   assert.deepEqual(pilotAssessmentPrefill({activeWorkflow: 'legacy'}), {})
 })

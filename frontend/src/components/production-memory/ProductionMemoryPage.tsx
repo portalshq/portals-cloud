@@ -49,12 +49,12 @@ export function ProductionMemoryPage({ context, sanityDocument, useCases }: { co
         <p className="t-h3-sans text-white">The value of production memory</p>
         <div className="mt-24 flex flex-col gap-[2px] lg:flex-row lg:items-stretch w-full text-black">
           <article className="bg-white p-32 pb-40 rounded-t-[1em] lg:rounded-none origin-center lg:rounded-l-[1em] w-full lg:flex-1 cursor-default transition-all duration-250 ease-in-out">
-            <h2 className="t-h3-sans">Stop losing production value&nbsp;✔️</h2><p className="t-p-sans mt-20 max-w-xl h-full">Stop paying your team to rediscover work it already did. 
-              <br/>
+            <h2 className="t-h3-sans">Stop losing production value&nbsp;✔️</h2><p className="t-p-sans mt-20 max-w-xl h-full">Stop paying your team to rediscover work it already did.
+              <br />
               Recover approved versions, lineage, decision history, and the context required to reproduce or extend it.</p>
           </article>
-          <article className="bg-white p-32 pb-40 rounded-b-[1em] lg:rounded-none origin-center lg:rounded-r-[1em] w-full lg:flex-1 cursor-default transition-all duration-250 ease-in-out"><h2 className="t-h3-sans">Turn prior work into future capacity&nbsp;↗</h2><p className="t-p-sans mt-20 max-w-xl h-full">When successful assets retain their production record, they become reusable systems: 
-          faster variants, consistent continuity, smoother handoffs, and less rework.</p></article>
+          <article className="bg-white p-32 pb-40 rounded-b-[1em] lg:rounded-none origin-center lg:rounded-r-[1em] w-full lg:flex-1 cursor-default transition-all duration-250 ease-in-out"><h2 className="t-h3-sans">Turn prior work into future capacity&nbsp;↗</h2><p className="t-p-sans mt-20 max-w-xl h-full">When successful assets retain their production record, they become reusable systems:
+            faster variants, consistent continuity, smoother handoffs, and less rework.</p></article>
         </div>
       </div>
     </section>
@@ -70,7 +70,7 @@ export function ProductionMemoryPage({ context, sanityDocument, useCases }: { co
 
     {sanityDocument?.sections && <WhatsInside sections={sanityDocument.sections} />}
 
-    <section id="download" className="ui-grid py-fluid-[76,106] lg:py-48 pm-snap-section lg:min-h-[90vh] lg:content-center"><div className="col-span-full mx-auto w-full max-w-4xl"><h2 className="t-d2-sans mt-24">Download the Production Memory Brief</h2><p className="t-p-lg-serif mt-24 text-white">How AI-native creative teams preserve the versions, context, decisions, and relationships behind their most valuable work—and turn that memory into faster future production.</p><p className="t-p-sans mt-24 text-white">Share with your organization's Production, Creative Operations, Technical, Executive, and Agency stakeholders.</p><div className="mt-40"><ResourceLeadForm context={context} submissionType="guide_download" title="" description="" interestLabel="which workflow is most relevant?" options={risks.map(([, title]) => ({ value: title.toLowerCase().replaceAll(' ', '-'), label: title.toLowerCase() }))} downloadLabel="Download the Production Memory Brief" sourcePage="/production-memory" /></div></div></section>
+    <section id="download" className="ui-grid py-fluid-[76,106] lg:py-48 pm-snap-section lg:min-h-[90vh] lg:content-center"><div className="col-span-full mx-auto w-full max-w-4xl"><h2 className="t-d2-sans mt-24">Download the Production Memory Brief</h2><p className="t-p-lg-serif mt-24 text-white">How AI-native creative teams preserve the versions, context, decisions, and relationships behind their most valuable work—and turn that memory into faster future production.</p><p className="t-p-sans mt-24 text-white">Share with your organization's production, creative operations, technical, executive, and agency stakeholders.</p><div className="mt-40"><ResourceLeadForm context={context} submissionType="guide_download" title="" description="" interestLabel="which workflow is most relevant?" options={risks.map(([, title]) => ({ value: title.toLowerCase().replaceAll(' ', '-'), label: title.toLowerCase() }))} downloadLabel="Download the Production Memory Brief" sourcePage="/production-memory" /></div></div></section>
 
     <section className="ui-grid py-fluid-[76,106] lg:py-48 text-white pm-snap-section lg:min-h-[90vh]"><div className="col-span-full w-full max-w-4xl lg:mx-auto"><p className="t-d2-sans mb-24 text-center">Frequently asked questions</p>
       <FAQ faqs={getFaqsByCategories(['general'])} />

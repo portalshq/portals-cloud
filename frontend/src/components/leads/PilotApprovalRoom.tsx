@@ -526,8 +526,10 @@ export function PilotApprovalRoom({
         }
         if (opts.sync) syncFromPilot(json.pilot)
       }
-      if (body.action === 'confirm_scope') void trackEvent('pilot_approved', {pilot_state: json.pilot?.state})
+      if (body.action === 'confirm_scope') void trackEvent('pilot_scope_confirmed', {pilot_state: json.pilot?.state})
+      if (body.action === 'sign' && json.pilot?.state === 'signed') void trackEvent('pilot_approved', {pilot_state: 'signed'})
       if (body.action === 'section_change_request' || (body.action === 'reviewer_decision' && body.decision === 'changes')) void trackEvent('pilot_terms_adjustment_requested', {pilot_state: json.pilot?.state})
+      if (body.action === 'request_exception') void trackEvent('pilot_assisted_review_requested', {pilot_state: json.pilot?.state})
       return true
     } catch (cause) {
       if (!opts.silent) {

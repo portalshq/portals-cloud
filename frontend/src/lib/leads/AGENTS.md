@@ -42,7 +42,7 @@ Mixpanel analytics is consent-gated and separate from CRM. Client identifiers/at
 
 ### Progressive qualification fields
 
-All website forms collect two qualification questions:
+Website forms support the following acquisition fields; returning assessed pilot applicants skip them, and direct-entry pilot acquisition fields are optional:
 - `whatBroughtYouHere`: Enum value indicating primary motivation (workflow-problem, assess-scaling, evaluating-tools, other)
 - `whatBroughtYouHereOther`: Free-text detail when "other" is selected
 - `howDidYouHearAboutPortals`: Enum value indicating discovery channel (google-search, linkedin, email, someone-company, friend-colleague, article-newsletter-podcast, partner-company, social-media)
@@ -55,7 +55,7 @@ Lead forms support URL parameter-based field pre-population for campaign attribu
 
 - Parses URL parameters on form load using `frontend/src/lib/leads/url-params.ts`
 - Normalizes enum values to lowercase (e.g., `LinkedIn` → `linkedin`)
-- Applies fallback defaults (e.g., `how_did_you_hear` defaults to `google-search` when absent)
+- Preserves existing form-specific fallback defaults; the pilot leaves an unknown discovery source unanswered instead of assuming Google/search.
 - Persists attribution across page navigation via localStorage (`retrieveFormParams`/`storeFormParams` in `analytics-client.ts`)
 - Hides non-critical fields when pre-filled (`howDidYouHearAboutPortals`, `whatBroughtYouHere`)
 - Never hides critical identity fields (`email`, `company`, `role`)
@@ -77,11 +77,13 @@ Supported URL parameters:
 - `tools_used`: Comma-separated tool list
 - UTM parameters: `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`
 
-URL parameter priority (highest to lowest):
+The shared URL helper's priority (highest to lowest):
 1. URL-provided values
 2. Existing profile/context values (`context.answerValues`, `context.identity`)
 3. Form draft values
 4. Fallback defaults
+
+Pilot drafts additionally preserve explicit edits over inherited defaults, including cleared/unchecked values. Untouched defaults refresh from the current assessment. URL hints never authorize profile access; use the source and draft rules in `marketing/PILOT.md` for the pilot lifecycle.
 
 URL formatting guidelines:
 - Use canonical lowercase enum values (e.g., `linkedin`, not `LinkedIn`)
@@ -119,7 +121,7 @@ Role entries are only emitted when both name and email are present. The mapped r
 
 ### Production owner email
 
-The pilot controlled fields include `productionOwnerEmail` as a required field. This email is persisted in the `lead_pilots` table, used for reviewer invitations, and projected to the Apollo Contact custom field `Production owner email`.
+The pilot controlled fields include `productionOwnerEmail`. Preserve an explicit owner email; infer the applicant only when the named owner is absent or exactly matches the applicant. Other owners are confirmed/invited in the room, not guessed from the submitting identity. This email is persisted in the `lead_pilots` table, used for reviewer invitations, and projected to the Apollo Contact custom field `Production owner email`.
 
 ## Progressive qualification
 
@@ -226,3 +228,13 @@ Reserve 25% of eligible, never-contacted accounts as a stratified account-level 
 Vercel invokes `/api/internal/leads/retry` daily at 00:00 UTC on the free-plan schedule. New room events also request an in-process outbox run; the daily cron remains the durable retry path. Lead and CRM outboxes are leased and retried; inspect their `last_error`, correct the configuration, and move the affected row to `retry` to replay it. Raw encrypted submissions are redacted after 30 days once the intake outbox completes. The opaque profile cookie expires after 90 days.
 
 Mixpanel starts only after analytics consent. Do not send identity, messages, application answers, or workflow descriptions to browser analytics.
+
+## Paid-pilot continuation constraints
+
+Read `../../../../marketing/PILOT.md` for the implemented lifecycle. Share mapping through `pilot-inheritance.ts`/`pilotAssessmentPrefill`; keep original assessment facts/scores separate from editable pilot overrides and store the server-owned assessment source snapshot. Preserve exact contributor ranges and explicit unknowns. The default success test lives in `pilot-success.ts`; do not create redundant discovery or scoring.
+
+An existing email requires its authorized profile/session to resume; a typed address or unsigned Apollo provider must never mint access. Browser requests use the browser provider; signed callbacks retain HMAC verification. Application idempotency serializes persistence/room creation and replays the persisted request. Production advisory locks use a separate two-connection pool so the five-connection data pool cannot be starved by lock holders; locks are transaction-scoped to support transaction pooling.
+
+Use published packages/server offers for proposals and display labels. Preserve immutable prices, signature/reviewer locks, payment verification, and conflict checks. `pilot_scope_confirmed` is distinct from accepted `pilot_approved`. Browser event payloads contain only structured metadata; raw diagnostic answers/snapshots remain encrypted app data. Account/authentication/legacy room layouts are noindex, and email-prefilled public URLs keep public metadata with noindex. No new CRM fields are required for the snapshot or pilot mapping change.
+
+Room writes must preserve protected assessment snapshots and unresolved founder qualification. Signature acceptance uses finalized server scope, not arbitrary `body.answers`; owner-supplied manual payment is dry-run only, even when production Stripe configuration is missing. Persist canonical resume URLs under the returned profile scope, never a short-lived credential.

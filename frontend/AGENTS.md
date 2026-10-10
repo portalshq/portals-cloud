@@ -12,4 +12,4 @@ For all lead-related functionality, read src/lib/leads/AGENTS.md.
 
 For the Sanity use-case document model, migration, static generation, and sitemap integration, read [docs/sanity-use-case-documents.md](../docs/sanity-use-case-documents.md).
 
-Read `src/components/leads/AGENTS.md` for lead UI changes. The production diagnostic/pilot contract is in `../marketing/ASSESSMENT.md`; v4 uses shared branches and deterministic scoring, preserves older submissions, and never exposes internal segmentation.
+Read `src/components/leads/AGENTS.md` for lead UI changes. The production diagnostic contract is in `../marketing/ASSESSMENT.md` and the application/approval contract is in `../marketing/PILOT.md`; v4 uses shared branches and deterministic scoring, preserves older submissions, and never exposes internal segmentation.
