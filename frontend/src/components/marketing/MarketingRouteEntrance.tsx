@@ -27,8 +27,13 @@ export function MarketingRouteEntrance() {
       previousMain.current = main
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       animation = content.animate(
-        [{ opacity: 0 }, { opacity: 1 }],
-        { duration: reducedMotion ? 500 : 700, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' },
+        reducedMotion
+          ? [{ opacity: 0 }, { opacity: 1 }]
+          : [
+              { opacity: 0, transform: 'translateY(24px)' },
+              { opacity: 1, transform: 'translateY(0)' },
+            ],
+        { duration: reducedMotion ? 167 : 267, easing: 'ease-in-out', fill: 'both' },
       )
       return true
     }

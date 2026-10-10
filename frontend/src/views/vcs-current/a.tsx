@@ -724,7 +724,7 @@ function ProblemSection() {
         <div className="col-span-full grid grid-cols-1 lg:grid-cols-3">
           {problemCards.map((card, index) => (
             <div key={card.title}>
-              <article className={`min-h-194 h-full p-24 rounded-sm text-white flex flex-col ${index % 2 === 0 ? 'bg-white/10' : ''}`}>
+              <article className={`min-h-194 h-full p-24 rounded-sm text-white flex flex-col ${index % 2 === 1 ? 'bg-white/10' : ''}`}>
                 <div className="mb-20 flex items-center gap-x-8">
                   <span className="size-8 bg-white" />
                   <span className="t-m2">{card.label}</span>
