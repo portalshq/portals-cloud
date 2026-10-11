@@ -27,7 +27,7 @@ try {
   assert.match(probes, /https:\/\/auth\.example\.test:8443\/\.well-known\/jwks\.json/)
   assert.match(probes, /41339\/health_check/)
   assert.doesNotMatch(probes, /41339\/health(?:\s|$)/)
-  const inputs = ['AUTH_GATEWAY_IMAGE_DIGEST', 'LORE_IMAGE_DIGEST', 'CADDY_IMAGE_DIGEST', 'AUTH_ENV_FILE', 'AUTH_SECRET_DIR', 'LORE_ENV_FILE', 'CADDY_ENV_FILE', 'CADDY_CERT_DIR', 'LORE_QUIC_CERT_DIR', 'AUTH_DOMAIN', 'LORE_DOMAIN']
+  const inputs = ['AUTH_GATEWAY_IMAGE_DIGEST', 'LORE_IMAGE_DIGEST', 'CADDY_IMAGE_DIGEST', 'AUTH_ENV_FILE', 'AUTH_SECRET_DIR', 'LORE_ENV_FILE', 'LORE_AWS_ENV_FILE', 'CADDY_ENV_FILE', 'CADDY_CERT_DIR', 'LORE_QUIC_CERT_DIR', 'AUTH_DOMAIN', 'LORE_DOMAIN']
   const rejected = spawnSync(process.execPath, [join(root, 'scripts/check-release.mjs')], {env: {...process.env, ...Object.fromEntries(inputs.map(name => [name, '__REPLACE_VALUE__']))}, encoding: 'utf8'})
   assert.notEqual(rejected.status, 0)
   assert.match(rejected.stderr, /deployment placeholder/)
@@ -39,7 +39,10 @@ try {
   for (const file of ['compose.prod.yaml', 'Caddyfile']) {
     writeFileSync(join(runtime, 'templates', file), readFileSync(join(root, 'templates', file)))
   }
-  const positive = {AUTH_DOMAIN: 'auth.example.test', LORE_DOMAIN: 'lore.example.test'}
+  const positive = {AUTH_DOMAIN: 'auth.portals.works', LORE_DOMAIN: 'lore.portals.works'}
+  const pulumiProd = readFileSync(resolve(root, '../pulumi/Pulumi.prod.yaml'), 'utf8')
+  assert.match(pulumiProd, /^  portals-platform:authHostname: auth\.portals\.works$/m)
+  assert.match(pulumiProd, /^  portals-platform:loreHostname: lore\.portals\.works$/m)
   const images = readFileSync(join(root, 'templates/release.env.example'), 'utf8')
   for (const name of inputs.filter(name => name.endsWith('_IMAGE_DIGEST'))) positive[name] = images.match(new RegExp(`^${name}=(.+)$`, 'm'))[1]
   for (const name of ['AUTH_SECRET_DIR', 'CADDY_CERT_DIR', 'LORE_QUIC_CERT_DIR']) {
@@ -47,24 +50,47 @@ try {
     mkdirSync(positive[name])
     for (const file of name === 'AUTH_SECRET_DIR' ? ['signing-key', 'api-key-pepper'] : ['fullchain.pem', 'privkey.pem']) writeFileSync(join(positive[name], file), 'test-only fixture')
   }
-  for (const [name, template] of [['AUTH_ENV_FILE', 'auth.env.example'], ['LORE_ENV_FILE', 'lore.env.example'], ['CADDY_ENV_FILE', 'caddy.env.example']]) {
+  for (const [name, template] of [['AUTH_ENV_FILE', 'auth.env.example'], ['LORE_ENV_FILE', 'lore.env.example'], ['LORE_AWS_ENV_FILE', 'lore-aws.env.example'], ['CADDY_ENV_FILE', 'caddy.env.example']]) {
     positive[name] = join(temp, name)
     const contents = readFileSync(join(root, 'templates', template), 'utf8')
-      .replace(/__REPLACE_AUTH_DOMAIN__/g, positive.AUTH_DOMAIN)
-      .replace(/__REPLACE_LORE_DOMAIN__/g, positive.LORE_DOMAIN)
       .replace(/__REPLACE_[A-Z0-9_]+__/g, 'fixture-value-with-at-least-32-bytes')
     writeFileSync(positive[name], contents)
   }
   const check = () => spawnSync(process.execPath, [join(root, 'scripts/check-release.mjs')], {cwd: runtime, env: {...process.env, ...positive}, encoding: 'utf8'})
   const accepted = check()
   assert.equal(accepted.status, 0, accepted.stderr)
+  const validLoreAwsEnv = readFileSync(positive.LORE_AWS_ENV_FILE, 'utf8')
+  writeFileSync(positive.LORE_AWS_ENV_FILE, `${validLoreAwsEnv}\nAWS_REGION=us-east-1\n`)
+  assert.match(check().stderr, /unexpected AWS_REGION/)
+  writeFileSync(positive.LORE_AWS_ENV_FILE, validLoreAwsEnv)
+  const validLoreEnv = readFileSync(positive.LORE_ENV_FILE, 'utf8')
+  writeFileSync(positive.LORE_ENV_FILE, `${validLoreEnv}\nAWS_ACCESS_KEY_ID=duplicate-from-config\n`)
+  assert.match(check().stderr, /both define AWS_ACCESS_KEY_ID/)
+  writeFileSync(positive.LORE_ENV_FILE, validLoreEnv)
+  writeFileSync(positive.LORE_AWS_ENV_FILE, validLoreAwsEnv.replace('AWS_SECRET_ACCESS_KEY=', 'AWS_SECRET_ACCESS_KEY=__REPLACE_SECRET__'))
+  assert.match(check().stderr, /placeholder/)
+  writeFileSync(positive.LORE_AWS_ENV_FILE, validLoreAwsEnv)
   const validDigest = positive.AUTH_GATEWAY_IMAGE_DIGEST
   positive.AUTH_GATEWAY_IMAGE_DIGEST = `portalshq/auth-gateway@sha256:${'0'.repeat(64)}`
   assert.match(check().stderr, /must match the Docker Hub control-plane.image/)
   positive.AUTH_GATEWAY_IMAGE_DIGEST = validDigest
   fixture(join(temp, 'nc'), '#!/bin/sh\nexit 0\n')
-  writeFileSync(envFile, "PINGGY_TCP_COMMAND='sleep 30'\nPINGGY_UDP_COMMAND='false'\n")
-  const tunnel = spawnSync('sh', [join(root, 'scripts/run-pinggy.sh')], {env: {...process.env, PATH: `${temp}:${process.env.PATH}`, MAC_RELEASE_ENV: envFile, TEST_CURL_LOG: curlLog}, encoding: 'utf8', timeout: 6000})
+  fixture(join(temp, 'pinggy'), '#!/bin/sh\nexec sleep 30\n')
+  const knownHosts = join(temp, 'known_hosts')
+  writeFileSync(knownHosts, 'test-host-key\n', {mode: 0o600})
+  const pinnedHostKeyOptions = `-o StrictHostKeyChecking=yes -o UserKnownHostsFile=${knownHosts}`
+  writeFileSync(envFile, `PINGGY_TCP_COMMAND='pinggy ${pinnedHostKeyOptions}'\nPINGGY_UDP_COMMAND='false ${pinnedHostKeyOptions}'\nPINGGY_KNOWN_HOSTS_FILE=${knownHosts}\n`)
+  const tunnelEnv = {env: {...process.env, PATH: `${temp}:${process.env.PATH}`, MAC_RELEASE_ENV: envFile, TEST_CURL_LOG: curlLog}, encoding: 'utf8'}
+  writeFileSync(envFile, `PINGGY_TCP_COMMAND=''\nPINGGY_UDP_COMMAND='false ${pinnedHostKeyOptions}'\nPINGGY_KNOWN_HOSTS_FILE=${knownHosts}\n`)
+  const unsafeTunnel = spawnSync('sh', [join(root, 'scripts/run-pinggy.sh')], {...tunnelEnv, timeout: 6000})
+  assert.notEqual(unsafeTunnel.status, 0)
+  assert.match(unsafeTunnel.stderr, /PINGGY_TCP_COMMAND is required/)
+  writeFileSync(envFile, `PINGGY_TCP_COMMAND='pinggy -o StrictHostKeyChecking=no ${pinnedHostKeyOptions}'\nPINGGY_UDP_COMMAND='false ${pinnedHostKeyOptions}'\nPINGGY_KNOWN_HOSTS_FILE=${knownHosts}\n`)
+  const hostKeyRejected = spawnSync('sh', [join(root, 'scripts/run-pinggy.sh')], {...tunnelEnv, timeout: 6000})
+  assert.notEqual(hostKeyRejected.status, 0)
+  assert.match(hostKeyRejected.stderr, /disables SSH host-key verification/)
+  writeFileSync(envFile, `PINGGY_TCP_COMMAND='pinggy ${pinnedHostKeyOptions}'\nPINGGY_UDP_COMMAND='false ${pinnedHostKeyOptions}'\nPINGGY_KNOWN_HOSTS_FILE=${knownHosts}\n`)
+  const tunnel = spawnSync('sh', [join(root, 'scripts/run-pinggy.sh')], {...tunnelEnv, timeout: 6000})
   assert.equal(tunnel.status, 1, `Tunnel supervisor must exit when either mapping dies: ${tunnel.stderr}`)
   assert.match(tunnel.stderr, /restarting both mappings/)
   const backupSource = join(temp, 'backup source')

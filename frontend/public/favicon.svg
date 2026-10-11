@@ -11,5 +11,5 @@
       <stop offset="100%" stop-color="#9B29FF"/>
     </linearGradient>
   </defs>
-  <rect width="180" height="180" rx="36" fill="url(#portalGradient)"/>
+  <circle cx="90" cy="90" r="90" fill="url(#portalGradient)"/>
 </svg>

@@ -130,6 +130,13 @@ const PX_MESH_MIDDLE = "#efdc3d";
 const DARK_VOID_BG_COLOR1 = "#010528";
 const DARK_VOID_BG_COLOR2 = "#0E115F";
 
+// Post Overview Flow: the homepage treatment after Overview has finished.
+// The named route preset reuses its default palette, full flowing geometry,
+// and final scene pose on Production Memory, Use Cases, and Blog pages.
+const POST_OVERVIEW_FLOW_POSITION = 0.96;
+const isPostOverviewFlowRoute = (pathname) =>
+  /^\/(?:production-memory|use-cases|blog)(?:\/|$)/.test(pathname);
+
 // REVISION 2: the large central pink swath lived in the first two sections'
 // background (bg2 was pure #DD30C9 / #bc39ae) and in section 1's ramp2 pinks.
 // Those are now blue -> pink gradients: the blue side matches the adjacent blue
@@ -503,12 +510,11 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
 }`;
 
-const UV_Y_SHIFT = (() => {
+const readUvYShift = () => {
   const __el = document.querySelector("[data-webgl-uv-shift]");
-  const __v = __el ? parseFloat(__el.getAttribute("data-webgl-uv-shift")) : 0.52;
-  return Number.isFinite(__v) ? __v : 0.52;
-})();
-const UV_Y_SHIFT_GLSL = Number.isInteger(UV_Y_SHIFT) ? `${UV_Y_SHIFT}.0` : `${UV_Y_SHIFT}`;
+  const __v = __el ? parseFloat(__el.getAttribute("data-webgl-uv-shift")) : 0;
+  return Number.isFinite(__v) ? __v : 0;
+};
 
 const MESH_FS = `precision highp float;
 precision highp sampler2D;
@@ -520,6 +526,8 @@ uniform vec3 uMiddleColor;
 uniform float uTime;
 uniform float uHueShift;
 uniform float uSaturation;
+uniform float uFlowMix;
+uniform float uUvYShift;
 uniform sampler2D uColorRamp1;
 uniform sampler2D uColorRamp1To;
 uniform float uColorRamp1Mix;
@@ -579,12 +587,16 @@ float blenderWave(vec3 p, float scale, float distortion, float detail, float rou
   return wave * 0.5 + 0.5;
 }
 
-vec3 middleGradient(vec3 base, vec3 c1, vec3 c2, float wave) {
-  float n = wave * perlinNoise(vec3(vUv.x, 1., ((vUv.y - ${UV_Y_SHIFT_GLSL}) - uTime*0.04) * .2) * 50.) + .2;
+vec3 middleGradient(vec3 base, vec3 c1, float wave, float shift, float wrapX) {
+  vec3 noisePosition = vec3(vUv.x, 1., ((vUv.y - shift) - uTime*0.04) * .2) * 50.;
+  float noise = perlinNoise(noisePosition);
+  float seamBlend = wrapX * smoothstep(0.94, 1.0, vUv.x);
+  noise = mix(noise, perlinNoise(noisePosition - vec3(50., 0., 0.)), seamBlend);
+  float n = wave * noise + .2;
   vec3 baseColor = base;
   vec3 color = c1;
   float center = 0.48;
-  float y = vUv.y - ${UV_Y_SHIFT_GLSL};
+  float y = vUv.y - shift;
   color = mix(color, baseColor, smoothstep(center - .3, center - .2, n));
   vec3 grad = mix(baseColor, color, smoothstep(center - .2, center - .1, y));
   grad = mix(grad, baseColor, smoothstep(center + .1, center + .2, y));
@@ -645,8 +657,15 @@ void main() {
   color = vec3(colorVal);
   vec3 ramp1 = sampleColorRamp(uColorRamp1, uColorRamp1To, uColorRamp1Mix, colorVal);
   vec3 ramp2 = sampleColorRamp(uColorRamp2, uColorRamp2To, uColorRamp2Mix, colorVal);
-  color = mix(ramp1, ramp2, vUv.y - ${UV_Y_SHIFT_GLSL});
-  color = middleGradient(color, uColor1, uColor2, wave);
+  color = mix(ramp1, ramp2, vUv.y - uUvYShift);
+  vec3 brightColor = middleGradient(color, uColor1, wave, uUvYShift, 0.0);
+  // Reuse the assessment's flowing coordinates with the active section ramp,
+  // leaving the cyan paint in the pre-overview treatment only.
+  vec3 flowBase = mix(ramp1, ramp2, vUv.y - 0.52);
+  vec3 flowColor = middleGradient(flowBase,
+    sampleColorRamp(uColorRamp2, uColorRamp2To, uColorRamp2Mix, 0.3),
+    wave, 0.52, 1.0);
+  color = mix(brightColor, flowColor, uFlowMix);
   color = applySaturation(color, uSaturation);
   gl_FragColor = vec4(color, 1.0);
 }`;
@@ -810,6 +829,8 @@ class SagaEngine {
       uTime:          { value: 0 },
       uHueShift:      { value: 0 },
       uSaturation:    { value: 1 },
+      uFlowMix:       { value: 0 },
+      uUvYShift:      { value: readUvYShift() },
     };
 
     this.meshMat = new THREE.ShaderMaterial({
@@ -988,6 +1009,14 @@ class SagaEngine {
 
   setMeshSaturation(val) {
     this.meshUniforms.uSaturation.value = val;
+  }
+
+  setFlowMix(progress) {
+    this.meshUniforms.uFlowMix.value = Math.max(0, Math.min(1, progress));
+  }
+
+  setUvYShift(shift) {
+    this.meshUniforms.uUvYShift.value = shift;
   }
 
   setDarkVoidThemeActive(on) {
@@ -1649,6 +1678,7 @@ class ReactOwnedScrollSystem {
       if (type === "scrollTo") this.scrollToEls.push(el);
     }
     this.overviewSection = document.querySelector('main [data-slice-type="overview"]');
+    this.engine.setUvYShift(readUvYShift());
   }
 
   _bind() {
@@ -1667,6 +1697,16 @@ class ReactOwnedScrollSystem {
     window.addEventListener("saga-webgl-route-change", () => {
       this.currentPath = window.location.pathname;
       this._parseMarkers();
+      if (isPostOverviewFlowRoute(this.currentPath)) {
+        this.engine.transitionColorRamps(DEFAULT_RAMP1, DEFAULT_RAMP2, 1.2);
+        this.engine.animateBackgroundColors(DEFAULT_BG_COLOR1, DEFAULT_BG_COLOR2, 1.2);
+        this.lastColorRampIdx = -1;
+      }
+      this._updateFlowMix();
+      requestAnimationFrame(() => {
+        if (this.currentPath !== window.location.pathname) return;
+        this._updateFlowMix();
+      });
       if (!this.engine.rig) return;
 
       const target = this._getScrollAnimationTarget();
@@ -1686,6 +1726,20 @@ class ReactOwnedScrollSystem {
   _update() {
     this._updateScrollAnimation();
     this._updateColorRamps();
+    this._updateFlowMix();
+  }
+
+  _updateFlowMix() {
+    if (/^\/assessment\/?$/.test(window.location.pathname) || isPostOverviewFlowRoute(window.location.pathname)) {
+      this.engine.setFlowMix(1);
+      return;
+    }
+    if (window.location.pathname !== "/" || !this.overviewSection) {
+      this.engine.setFlowMix(0);
+      return;
+    }
+    const afterBoundary = window.scrollY - this._scrollTop(this.overviewSection);
+    this.engine.setFlowMix(afterBoundary / window.innerHeight);
   }
 
   _updateScrollAnimation() {
@@ -1694,6 +1748,7 @@ class ReactOwnedScrollSystem {
   }
 
   _getScrollAnimationTarget() {
+    if (isPostOverviewFlowRoute(window.location.pathname)) return POST_OVERVIEW_FLOW_POSITION;
     if (this.scrollFromEls.length === 0 || this.scrollToEls.length === 0) return 0;
     const from = this.scrollFromEls[0];
     const to = this.scrollToEls[0];

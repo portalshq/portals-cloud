@@ -8,6 +8,7 @@ const required = [
   'AUTH_ENV_FILE',
   'AUTH_SECRET_DIR',
   'LORE_ENV_FILE',
+  'LORE_AWS_ENV_FILE',
   'CADDY_ENV_FILE',
   'CADDY_CERT_DIR',
   'LORE_QUIC_CERT_DIR',
@@ -41,6 +42,7 @@ for (const name of required.filter((value) => value.endsWith('_IMAGE_DIGEST'))) 
 const compose = readFileSync(resolve(process.cwd(), 'templates/compose.prod.yaml'), 'utf8')
 const authEnv = readFileSync(resolve(process.cwd(), process.env.AUTH_ENV_FILE), 'utf8')
 const loreEnv = readFileSync(resolve(process.cwd(), process.env.LORE_ENV_FILE), 'utf8')
+const loreAwsEnv = readFileSync(resolve(process.cwd(), process.env.LORE_AWS_ENV_FILE), 'utf8')
 for (const [name, contents] of [['Auth', authEnv], ['Lore', loreEnv]]) {
   if (placeholder.test(contents)) throw new Error(`${name} environment contains deployment placeholders`)
   const seen = new Set()
@@ -49,6 +51,22 @@ for (const [name, contents] of [['Auth', authEnv], ['Lore', loreEnv]]) {
     if (key && seen.has(key)) throw new Error(`${name} environment duplicates ${key}`)
     if (key) seen.add(key)
   }
+}
+const loreKeys = new Set(loreEnv.split(/\r?\n/).map((line) => line.match(/^([A-Z][A-Z0-9_]*)=/)?.[1]).filter(Boolean))
+const requiredLoreAwsKeys = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY']
+const seenLoreAwsKeys = new Set()
+for (const line of loreAwsEnv.split(/\r?\n/)) {
+  const assignment = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/)
+  if (!assignment) continue
+  const [, key, value] = assignment
+  if (!requiredLoreAwsKeys.includes(key)) throw new Error(`LORE_AWS_ENV_FILE may contain only scoped AWS credential keys; unexpected ${key}`)
+  if (seenLoreAwsKeys.has(key)) throw new Error(`LORE_AWS_ENV_FILE duplicates ${key}`)
+  if (!value || placeholder.test(value)) throw new Error(`LORE_AWS_ENV_FILE must define ${key} without a placeholder`)
+  if (loreKeys.has(key)) throw new Error(`Lore configuration and AWS credentials both define ${key}`)
+  seenLoreAwsKeys.add(key)
+}
+for (const key of requiredLoreAwsKeys) {
+  if (!seenLoreAwsKeys.has(key)) throw new Error(`LORE_AWS_ENV_FILE must define ${key}`)
 }
 const versions = readFileSync(resolve(process.cwd(), '../lore/versions.yaml'), 'utf8')
 const lore = versions.match(/^lore:\n([\s\S]*?)(?=^[^ ])/m)?.[1]
@@ -105,6 +123,9 @@ for (const store of ['IMMUTABLE_STORE', 'MUTABLE_STORE', 'LOCK_STORE']) {
 for (const name of ['AWS_REGION', 'LORE__PLUGINS__AWS__IMMUTABLE_STORE__S3_BUCKET', 'LORE__PLUGINS__AWS__IMMUTABLE_STORE__DYNAMODB_FRAGMENTS_TABLE', 'LORE__PLUGINS__AWS__IMMUTABLE_STORE__DYNAMODB_METADATA_TABLE', 'LORE__PLUGINS__AWS__MUTABLE_STORE__DYNAMODB_TABLE', 'LORE__PLUGINS__AWS__LOCK_STORE__DYNAMODB_TABLE']) {
   if (!new RegExp(`^${name}=.+$`, 'm').test(loreEnv)) throw new Error(`Lore environment must define ${name}`)
 }
+const loreConfigEnvIndex = compose.indexOf('- ${LORE_ENV_FILE:?LORE_ENV_FILE is required}')
+const loreAwsEnvIndex = compose.indexOf('- ${LORE_AWS_ENV_FILE:?LORE_AWS_ENV_FILE is required}')
+if (loreConfigEnvIndex < 0 || loreAwsEnvIndex < 0 || loreConfigEnvIndex > loreAwsEnvIndex) throw new Error('Lore Compose service must load general configuration before the separate scoped AWS credential file')
 if (/next/i.test(compose)) throw new Error('Next.js must remain Vercel-hosted')
 if (!compose.includes('127.0.0.1:41337:41337/udp')) throw new Error('Lore QUIC must remain UDP-mapped')
 if (!compose.includes('127.0.0.1:41339:41339')) throw new Error('Lore health must remain loopback-only')

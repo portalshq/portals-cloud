@@ -2,67 +2,14 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { useEffect, useRef } from 'react'
 
 export function MarketingFooter() {
   const pathname = usePathname()
   const isPx = pathname === '/px' || pathname === '/px/'
-  const footerRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    const footer = footerRef.current
-    if (!footer) return
-
-    const desktop = window.matchMedia('(min-width: 64rem)')
-    let frame = 0
-
-    const update = () => {
-      frame = 0
-      const footerTop = footer.getBoundingClientRect().top
-      document.querySelectorAll<HTMLElement>('.saga-webgl-viewport').forEach(viewport => {
-        if (desktop.matches) {
-          viewport.style.removeProperty('clip-path')
-          return
-        }
-
-        // Keep the canvas anchored at the viewport top; reveal only the part
-        // above the transparent footer as it enters the screen.
-        const bounds = viewport.getBoundingClientRect()
-        const visibleHeight = Math.max(0, Math.min(bounds.height, footerTop - bounds.top))
-        viewport.style.clipPath = `inset(0 0 ${bounds.height - visibleHeight}px 0)`
-      })
-    }
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(update)
-    }
-
-    const observer = new ResizeObserver(schedule)
-    observer.observe(footer)
-    observer.observe(document.body)
-    window.addEventListener('scroll', schedule, { passive: true })
-    window.addEventListener('resize', schedule)
-    window.visualViewport?.addEventListener('resize', schedule)
-    window.visualViewport?.addEventListener('scroll', schedule)
-    desktop.addEventListener('change', schedule)
-    schedule()
-
-    return () => {
-      cancelAnimationFrame(frame)
-      observer.disconnect()
-      window.removeEventListener('scroll', schedule)
-      window.removeEventListener('resize', schedule)
-      window.visualViewport?.removeEventListener('resize', schedule)
-      window.visualViewport?.removeEventListener('scroll', schedule)
-      desktop.removeEventListener('change', schedule)
-      document.querySelectorAll<HTMLElement>('.saga-webgl-viewport').forEach(viewport => {
-        viewport.style.removeProperty('clip-path')
-      })
-    }
-  }, [pathname])
 
   return (
     <footer
-      ref={footerRef}
+      data-marketing-footer
       className="ui-grid relative z-(--z-footer) min-h-[52vh] pb-(--spacing-sms) text-white lg:pt-50"
       style={isPx ? { backgroundColor: '#000', isolation: 'isolate' } : undefined}
     >
@@ -81,12 +28,12 @@ export function MarketingFooter() {
         <div className="col-span-full m-0 grid h-full grid-cols-1 space-y-fluid-[32,40] p-0 ui-grid lg:grid-cols-5">
           <div className="col-span-full mb-24 lg:col-span-2 lg:mb-0">
             <Link href="/" className="t-d1-sans !font-medium">portals</Link>
-            <p className="mt-24 max-w-md t-p-sans">the production memory for AI-native creative teams.</p>
+            <p className="mt-24 t-p-sm-sans">the production memory for AI-native creative teams.</p>
           </div>
           <div className="col-span-full grid gap-y-32 sm:grid-cols-3 lg:col-span-3">
             <nav aria-label="Explore" className="space-y-12">
               <h2 className="t-p-sm-sans text-white/60">explore</h2>
-              <ul className="space-y-8 t-p-sans lg:text-white/80">
+              <ul className="space-y-8 t-p-sm-sans lg:text-white/80">
                 <li><Link href="/use-cases" className="transition-colors hover:text-white">use cases</Link></li>
                 <li><Link href="/production-memory" className="transition-colors hover:text-white">production memory</Link></li>
                 <li><Link href="/blog" className="transition-colors hover:text-white">blog</Link>
@@ -98,7 +45,7 @@ export function MarketingFooter() {
             </nav>
             <nav aria-label="Work with Portals" className="space-y-12">
               <h2 className="t-p-sm-sans text-white/60">get started</h2>
-              <ul className="space-y-8 t-p-sans lg:text-white/80">
+              <ul className="space-y-8 t-p-sm-sans lg:text-white/80">
                 <li><Link href="/pilot" className="transition-colors hover:text-white">paid pilot</Link></li>
                 <li><Link href="/security-and-architecture" className="transition-colors hover:text-white">security</Link></li>
                 <li><Link href="/contact" className="transition-colors hover:text-white">contact us</Link></li>
@@ -106,7 +53,7 @@ export function MarketingFooter() {
             </nav>
             <nav aria-label="Legal" className="space-y-12">
               <h2 className="t-p-sm-sans text-white/60">legal</h2>
-              <ul className="space-y-8 t-p-sans lg:text-white/80">
+              <ul className="space-y-8 t-p-sm-sans lg:text-white/80">
                 <li><Link href="/privacy-policy" className="transition-colors hover:text-white">privacy</Link></li>
                 <li><Link href="/terms-of-service" className="transition-colors hover:text-white">terms of service</Link></li>
               </ul>

@@ -17,7 +17,9 @@ services:
   lore:
     image: ${LORE_IMAGE_DIGEST:?LORE_IMAGE_DIGEST is required}
     restart: unless-stopped
-    env_file: ${LORE_ENV_FILE:?LORE_ENV_FILE is required}
+    env_file:
+      - ${LORE_ENV_FILE:?LORE_ENV_FILE is required}
+      - ${LORE_AWS_ENV_FILE:?LORE_AWS_ENV_FILE is required}
     ports:
       - "127.0.0.1:41337:41337/tcp"
       - "127.0.0.1:41337:41337/udp"

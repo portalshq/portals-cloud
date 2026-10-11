@@ -260,7 +260,7 @@ test("Lore data is isolated behind a target-account-guarded stack", () => {
   assert.match(dataStore, /aliases:\s*legacyAlias\(logicalName\)/);
   assert.match(dataProgram, /expectedAwsAccountId/);
   assert.match(dataProgram, /got \$\{actualAccountId\}/);
-  assert.match(dataConfig, /168692731058/);
+  assert.doesNotMatch(dataConfig, /expectedAwsAccountId|168692731058|portals-prod-lore-chunks-/);
   assert.match(dataConfig, /us-east-2/);
 });
 

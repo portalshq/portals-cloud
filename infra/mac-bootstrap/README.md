@@ -19,7 +19,8 @@ does not replace release verification for the Intel image.
   tunnel behavior, and OIDC login are still unverified here.
 - **Still blocking deployment:** actual Lore bucket/table names, least-privilege
   AWS access, application read/write and restore tests; Vercel/Neon migrations
-  and live cron; ZITADEL client/login; custom DNS and renewed certificates;
+  and live cron; ZITADEL client/login; DNS resolution and renewed certificates
+  for the selected production names below;
   Pinggy persistent TCP/UDP confirmation; a production runtime ownership plan
   that lets `portals-svc` control containers and recovers after reboot; full
   release checks and external acceptance/recovery drills.
@@ -70,7 +71,7 @@ does not replace release verification for the Intel image.
   STS validation with `InvalidClientTokenId`. This is a credential failure,
   not proof of suspension. Configure a named operator profile on the workstation
   that runs `check-storage.mjs`; the Mac runtime needs separate, narrowly scoped
-  Lore credentials in its private `LORE_ENV_FILE`.
+  Lore credentials in its private `LORE_AWS_ENV_FILE`.
 - **Auth release history:** dedicated branch `release/mac-bootstrap-20261002`,
   [GitHub run 37072019542](https://github.com/portalshq/portals-cloud/actions/runs/37072019542).
   Its CI Auth/unit/Postgres tests, multi-architecture publication, and GitHub
@@ -103,17 +104,39 @@ ProductCharacters has a separate gated deployment path in
 [`productcharacters-delivery-worker-deployment.md`](../../docs/deployment/productcharacters-delivery-worker-deployment.md);
 it does not block or join the Portals runtime.
 
+For testing before custom DNS is configured, see
+[`PINGGY-LOCALHOST-STAGING.md`](PINGGY-LOCALHOST-STAGING.md). Pinggy can
+forward to Mac loopback without Cloudflare/Squarespace DNS, but remote clients
+still use Pinggy-assigned public hostnames/ports. The staging path does not
+waive direct TLS/SNI, OIDC issuer/callback, QUIC certificate, or production
+acceptance requirements.
+
 ## Required release inputs
 
 Create a private environment file outside the repository. Use immutable
 digests and service-owned, read-only environment files:
 
 Start from `templates/release.env.example`, `templates/auth.env.example`,
-`templates/lore.env.example`, and `templates/caddy.env.example`. Copy them
+`templates/lore.env.example`, `templates/lore-aws.env.example`, and
+`templates/caddy.env.example`. Copy them
 outside the checkout; replace every `__REPLACE_*__` marker. Live checks reject
 placeholders. They are preparation files, not permission to deploy incomplete
 provider settings. The release file also defines `AUTH_DOMAIN` and
 `LORE_DOMAIN`, matching Caddy's environment exactly.
+
+The selected production endpoints are recorded in both
+`infra/pulumi/Pulumi.prod.yaml` and `Pulumi.dev.yaml`:
+
+| Purpose | Production hostname / URL |
+| --- | --- |
+| Auth Gateway HTTPS issuer and callback host | `auth.portals.works` |
+| Lore gRPC over TLS | `lore.portals.works` (`grpcs://lore.portals.works:443`) |
+| Lore QUIC | Not set in Pulumi; use the actual Pinggy persistent UDP hostname and port until a supported production UDP DNS route is verified. |
+
+These Pulumi values establish the intended names, not proof that DNS currently
+resolves to the Mac/Pinggy route or that certificates are issued. The templates
+use the established Auth and Lore names; staging may override them with
+Pinggy-assigned names only in a separate staging release file.
 
 ```text
 AUTH_GATEWAY_IMAGE_DIGEST=portalshq/auth-gateway@sha256:<64 hex chars>
@@ -122,13 +145,16 @@ CADDY_IMAGE_DIGEST=caddy@sha256:<64 hex chars>
 AUTH_ENV_FILE=/private/path/auth.env
 AUTH_SECRET_DIR=/private/path/auth-secrets
 LORE_ENV_FILE=/private/path/lore.env
+LORE_AWS_ENV_FILE=/Users/portals-svc/.config/portals/lore-aws.env
 CADDY_ENV_FILE=/private/path/caddy.env
 CADDY_CERT_DIR=/private/path/dns01-issued-caddy-certs
 LORE_QUIC_CERT_DIR=/private/path/dns01-issued-lore-quic-certs
 ```
 
-The Caddy environment defines `AUTH_DOMAIN` and `LORE_DOMAIN`; production
-hostnames are never hard-coded in the template.
+The Caddy environment defines `AUTH_DOMAIN=auth.portals.works` and
+`LORE_DOMAIN=lore.portals.works`, matching Pulumi's production configuration.
+The Caddyfile remains parameterized so a staging-only release can use Pinggy's
+assigned names without changing production settings.
 
 Auth production uses sealed files, not embedded secrets:
 
@@ -154,7 +180,12 @@ runtime does not translate ownership safely, stop and configure its UID mapping
 or a private managed-secret volume; never make signing/private keys world
 readable. This host's effective mount access remains to be tested.
 
-Lore QUIC requires persistent DNS-01 certificates mounted read-only:
+Lore QUIC requires a certificate whose name matches the hostname the client
+validates. A Cloudflare DNS-01 `*.portals.works` certificate can serve Auth,
+Lore gRPC, controlled staging names, and Lore QUIC **only if** the QUIC client
+connects using a `portals.works` hostname. It cannot validate a Pinggy-owned
+hostname. Keep QUIC certificate installation gated on the actual UDP endpoint
+and client hostname behavior:
 
 ```text
 LORE__SERVER__QUIC__ENABLED=true
@@ -163,9 +194,24 @@ LORE__SERVER__QUIC__CERTIFICATE__CERT_FILE=/run/secrets/lore-quic/fullchain.pem
 LORE__SERVER__QUIC__CERTIFICATE__PKEY_FILE=/run/secrets/lore-quic/privkey.pem
 ```
 
-The certificate must match the Pinggy QUIC hostname. `/data` is disposable
-cache/workspace only; S3 and the exact DynamoDB tables required by the pinned
-Lore release are the production source of truth.
+`/data` is disposable cache/workspace only; S3 and the exact DynamoDB tables
+required by the pinned Lore release are the production source of truth.
+
+For Caddy, issue the wildcard certificate before moving any DNS records. The
+current public `auth.portals.works` and `lore.portals.works` records still point
+to the old AWS load balancer; DNS-01 validates Cloudflare TXT records and does
+not require changing those routes. The verified `lego` v5.5.2 Intel Mac binary
+is installed at `/Users/Shared/portals-tools/bin/lego` on `andresb`. The
+issuance script is installed there as `issue-wildcard-certificate.sh`. As
+`portals-svc`, run that script with
+`ACME_CONTACT_EMAIL`, `CF_DNS_API_TOKEN_FILE`, and optionally `CADDY_CERT_DIR`
+set. The Cloudflare token file must contain only the token, be owned by
+`portals-svc`, and have mode `0600` or `0400`; grant its token Zone/Zone/Read and
+Zone/DNS/Edit only for `portals.works`. The script saves ACME account state under
+`/Users/portals-svc/secrets/acme`, verifies the new certificate and key, installs
+the Caddy pair under `/Users/portals-svc/secrets/caddy-certs`, and retains the
+previous pair for rollback. Run it again for renewal, then restart and probe
+Caddy and Lore. Set up a supervised renewal schedule and prove it before launch.
 
 ## Deployment sequence
 
@@ -205,12 +251,13 @@ tables in Neon and a real, authenticated cron request before proceeding.
 
 Configure a ZITADEL Web application for authorization-code flow with PKCE/S256
 (public client; Auth Gateway sends no client secret). Register the exact
-production callback `https://<auth-domain>/callback`. Record the discovery
+production callback `https://auth.portals.works/callback`. Record the discovery
 issuer, client ID, and redirect URI in `AUTH_ENV_FILE`; verify the discovery
 document reports that exact issuer. The Auth database URL (`DATABASE_URL`) is
 a separate least-privilege PostgreSQL credential in `AUTH_ENV_FILE`, with TLS
 and a restore path; do not reuse the Vercel leads/CRM database role. Also set
-`PUBLIC_BASE_URL=https://<auth-domain>`, `JWT_ISSUER=https://<auth-domain>`,
+`PUBLIC_BASE_URL=https://auth.portals.works`,
+`JWT_ISSUER=https://auth.portals.works`,
 `JWT_KID`, `JWT_SIGNING_ENABLED=true`, `LORE_ENV=prod`, and a unique
 `INTERNAL_ADMIN_TOKEN` (at least 32 bytes). Keep the signing key and API-key
 pepper as separate sealed files in
@@ -221,7 +268,16 @@ JWKS publication, and signing-key rotation before public exposure.
 Set `LORE_REBAC_URL=http://auth-gateway:8087` in `LORE_ENV_FILE`: Docker service
 DNS is the Mac deployment's local-neighbor address. Other environments supply
 their own private peer URL through the same variable; no source change is
-needed when moving the services.
+needed when moving the services. Keep non-secret Lore settings, AWS region, and
+resource names in `LORE_ENV_FILE`; put only `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY` in `LORE_AWS_ENV_FILE`. Compose loads the credential
+file after the configuration file, while preflight rejects duplicate keys,
+unexpected entries, and unresolved placeholders. Compose injects these keys
+into Lore's process environment; anyone with Docker API access can inspect
+container environment metadata. Treat every Docker-socket principal as trusted
+for the AWS identity, keep the identity least-privileged, and rotate it. Mode
+`0600` protects the source file at rest but does not hide the running
+container's environment from Docker administrators.
 
 Prove OIDC discovery, PKCE, state, nonce, issuer, audience, token refresh
 rotation, refresh reuse detection, JWKS publication, and signing-key rotation
@@ -333,9 +389,12 @@ Before starting containers, prove:
   use the underlying item actions, not invented `Transact*` IAM actions.
 - Use a dedicated Lore-only AWS identity scoped to this bucket and these four
   tables/indexes; deny unrelated resources and account-wide administration.
-  Put runtime credentials only in the owner-only `LORE_ENV_FILE` on the
-  production Mac (`/Users/portals-svc/secrets/lore.env`), never in the image,
-  release manifest, or repository. Prove Lore reads/writes these stores and
+  Put only the runtime access key and secret key in the owner-only
+  `LORE_AWS_ENV_FILE` on the production Mac
+  (`/Users/portals-svc/.config/portals/lore-aws.env`), never in the image,
+  release manifest, or repository. Keep the non-secret region and resource
+  names in `LORE_ENV_FILE`. Both files must be owned by `portals-svc` and
+  inaccessible to group/other users; prove Lore reads/writes these stores and
   cannot access unrelated AWS resources.
 - DNS-01 issuance and staged renewal for Caddy and Lore QUIC.
 - Pinggy concurrent persistent TLS passthrough and UDP mappings, HTTP/2/SNI,
@@ -356,17 +415,31 @@ passes. Caddy's certificates use DNS-01 because this host has no inbound port
 Operator-side setup (keep tokens and private keys outside this repository):
 
 1. In ZITADEL, create a production Web/OIDC application using authorization
-   code + PKCE/S256. Register exactly `https://<auth-domain>/callback`; place
+   code + PKCE/S256. Register exactly
+   `https://auth.portals.works/callback`; place
    the HTTPS issuer and client ID in `AUTH_ENV_FILE`, then test one real login.
 2. In Pinggy Pro, reserve a persistent TLS passthrough mapping to
    `127.0.0.1:8443` and a persistent UDP mapping to `127.0.0.1:41337`.
    Confirm both can run concurrently on the paid seat. Save the dashboard's
-   actual foreground commands only in the private release file.
+   actual foreground commands only in the private release file. Verify Pinggy's
+   SSH gateway fingerprint through a trusted channel, pin it in
+   `/Users/portals-svc/.ssh/known_hosts`, and require
+   `StrictHostKeyChecking=yes` plus that explicit `UserKnownHostsFile` in both
+   commands. Remove any generated `StrictHostKeyChecking=no`; the tunnel
+   supervisor rejects it. Never paste tunnel tokens into chat or repository
+   files.
 3. With Cloudflare authoritative DNS (even if Squarespace is the registrar),
-   validate Pinggy's custom-domain DNS records, then issue Caddy and Lore QUIC
-   certificates through DNS-01 using a narrowly scoped Cloudflare API token.
-   The stock Caddy image has no Cloudflare DNS plugin: use a separate ACME
-   client, automate renewal and reload, and prove both TLS and QUIC hostnames.
+   issue one `*.portals.works` Caddy certificate through DNS-01 **before**
+   changing the current AWS-facing Auth/Lore records. Confirm the certificate
+   covers both names and any controlled staging names. Route the DNS records to
+   Pinggy only after the TLS tunnel and local Caddy route work. A Pinggy-owned
+   UDP hostname cannot be validated through the Cloudflare zone; before
+   installing the same certificate for QUIC, establish that the QUIC client can
+   validate a controlled `portals.works` name while reaching the reserved UDP
+   endpoint. Otherwise, obtain a provider-supported certificate path for that
+   endpoint or stop the QUIC release gate. The stock Caddy image has no
+   Cloudflare DNS plugin; the separate ACME client and tested renewal/reload
+   process are required.
 4. On the workstation running the probe, configure the operator profile above.
    In AWS, verify the exact four DynamoDB table schemas/indexes from
    `infra/pulumi/src/components/PlatformDataStore.ts` and the private,
@@ -380,12 +453,13 @@ Operator-side setup (keep tokens and private keys outside this repository):
    digest. Keep repositories public for anonymous pulls or configure a
    Docker Hub read-only token outside the repository if they are private;
    Docker Hub credentials are not Lore's AWS credentials. Lore's bucket/table
-   permissions are a distinct identity and policy. Put
-   `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` for the
-   narrowly scoped Lore runtime identity in `/Users/portals-svc/secrets/lore.env`
-   on the production Mac; the container uses the AWS SDK default credential
-   chain. Keep that file owned by `portals-svc` with mode `0600` and rotate the
-   key. Never reuse operator or Docker Hub credentials for Lore.
+   permissions are a distinct identity and policy. Keep `AWS_REGION` and
+   resource names in the general Lore config; keep `AWS_ACCESS_KEY_ID` and
+   `AWS_SECRET_ACCESS_KEY` for the narrowly scoped Lore runtime identity in
+   `/Users/portals-svc/.config/portals/lore-aws.env`. Compose supplies both
+   files to Lore, and the AWS SDK uses those credentials. Keep the credential
+   file owned by `portals-svc` with mode `0600` and rotate the key. Never reuse
+   operator or Docker Hub credentials for Lore.
 
 ### 7. Validate the release
 

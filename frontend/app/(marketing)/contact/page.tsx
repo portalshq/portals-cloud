@@ -23,6 +23,8 @@ export default async function ContactPage({
   const [context, params] = await Promise.all([getKnownLeadContext(), searchParams])
   return (
     <main className="relative z-(--z-main) min-h-screen text-white">
+      <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollFrom" data-webgl-position="0.96" data-webgl-easing="easeInOut" />
+      <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollTo" data-webgl-position="0.96" />
       <section data-header-theme="light" className="ui-grid pt-Header-h py-fluid-[76,106]">
         <div className="col-span-full max-w-[900px] flex flex-col gap-y-32 py-48">
           <h1 className="max-w-[12em] t-d2-sans">Contact Us</h1>

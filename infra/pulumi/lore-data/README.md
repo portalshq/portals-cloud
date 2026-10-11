@@ -7,15 +7,17 @@ This is the separately selectable Pulumi project for Lore's durable storage:
 - a managed IAM policy granting Lore's task role only the required S3 and
   DynamoDB actions.
 
-The target account is pinned to `168692731058` and region `us-east-2` in
-`Pulumi.prod.yaml`. The program also checks the live AWS caller identity and
-fails closed if it does not match. The S3 name includes the account ID to reduce
-global-name collisions; confirm availability before applying.
+The previous AWS identity and account-specific bucket name have been cleared.
+Before previewing, configure `expectedAwsAccountId` to match the newly
+authenticated account and choose a globally unique bucket name. The program
+checks the live AWS caller identity and fails closed on a mismatch. The region
+remains `us-east-2` in `Pulumi.prod.yaml`.
 
 ## Preview
 
 From this directory, authenticate Pulumi to the configured organization and
-configure AWS credentials for account `168692731058`. Do not paste credentials
+configure AWS credentials for the new account. Set the new account ID and a
+bucket name in Pulumi config after authentication. Do not paste credentials
 into repository files or chat.
 
 ```bash

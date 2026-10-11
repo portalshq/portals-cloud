@@ -56,7 +56,7 @@ export const SagaWebGLEngine: React.FC = () => {
     const webglScriptElement = document.createElement('script');
     webglScriptElement.id = targetScriptId;
     webglScriptElement.type = 'module';
-    webglScriptElement.src = '/saga-webgl.js';
+    webglScriptElement.src = '/saga-webgl.js?v=20261011-post-overview-flow1';
     
     webglScriptElement.onerror = (errorEvent) => {
       console.error('[SagaWebGLEngine] Critical failure: Unable to load external WebGL script.', errorEvent);
@@ -77,7 +77,9 @@ export const SagaWebGLEngine: React.FC = () => {
   return (
     // The exact HTML structure demanded by the script's configuration header
     <div ref={containerRef} className="saga-webgl-viewport fixed z-(--z-webgl)">
-      <img className="saga-webgl-poster" src="/saga-webgl-poster.jpg" alt="" aria-hidden="true" />
+      {pathname !== '/privacy-policy' && pathname !== '/terms-of-service' && pathname !== '/contact' ? (
+        <img className="saga-webgl-poster" src="/saga-webgl-poster.jpg" alt="" aria-hidden="true" />
+      ) : null}
       <canvas className="size-full"></canvas>
     </div>
   );

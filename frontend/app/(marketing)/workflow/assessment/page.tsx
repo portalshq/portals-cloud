@@ -127,9 +127,6 @@ export default async function WorkflowAssessmentPage() {
               <p className="mt-20 max-w-[32em] t-p-sans text-white">
                 Assess one live production to find where missing context, wrong inputs, or difficult handoffs cost your team time—and what to fix first.
               </p>
-              <p className="mt-20 max-w-[32em] t-p-sm-sans text-white">
-                No commitment to a pilot. No meeting required.
-              </p>
             </div>
             <nav
               aria-label="assessment sections"

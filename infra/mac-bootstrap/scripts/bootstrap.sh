@@ -26,8 +26,9 @@ mkdir -p "$HOME/Library/Logs"
 chmod 700 "$HOME/Library/Logs"
 test -r "${AUTH_ENV_FILE:?AUTH_ENV_FILE is required}" || exit 1
 test -r "${LORE_ENV_FILE:?LORE_ENV_FILE is required}" || exit 1
+test -r "${LORE_AWS_ENV_FILE:?LORE_AWS_ENV_FILE is required}" || exit 1
 test -r "${CADDY_ENV_FILE:?CADDY_ENV_FILE is required}" || exit 1
-for secret_file in "$AUTH_ENV_FILE" "$LORE_ENV_FILE" "$CADDY_ENV_FILE"; do
+for secret_file in "$AUTH_ENV_FILE" "$LORE_ENV_FILE" "$LORE_AWS_ENV_FILE" "$CADDY_ENV_FILE"; do
   test "$(stat -f '%Su' "$secret_file")" = "$(id -un)" || { echo "Secret file is not service-account owned: $secret_file" >&2; exit 1; }
   mode=$(stat -f '%Lp' "$secret_file")
   case "$mode" in
