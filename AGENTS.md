@@ -9,3 +9,12 @@ The application database owns identity, assessments, applications, pilot rooms, 
 Use the unified approved-version/context/handoff success test by default. Never introduce another required discovery or success-selection wizard. Preserve original assessment evidence alongside explicit pilot overrides. Keep public metadata free of private production details; private rooms must be noindex.
 
 Run relevant lead tests, frontend typecheck, marketing checks, whitespace checks, and a production build after funnel changes. Use explicit non-production dry-run mode for local integration tests. Report actual results and external-service limitations; do not claim conversion or ranking lift without production evidence.
+
+## Source code authority
+
+**Source code is always authoritative.** Documentation is best-effort up-to-date.
+
+- Always review the actual source code before making implementation decisions
+- Do not make decisions based on documentation alone
+- Always update applicable documentation after code changes
+- When documentation and code conflict, the code is correct
