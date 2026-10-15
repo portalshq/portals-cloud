@@ -74,6 +74,32 @@
         "completedAt": "2026-10-02T22:49:16.300Z"
       },
       "verifiedAt": "2026-10-02T22:49:16.300Z"
+    },
+    "portalshq/auth-gateway@sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162": {
+      "service": "auth-gateway",
+      "platform": "linux/amd64",
+      "verifiedPlatforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "indexDigest": "sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162",
+      "platformDigest": "sha256:337a92c5855d842fd79c5a776417d6459f65eb2e8a2996c46d1279f1f45b94c7",
+      "sourceCommit": "f099892b49cac5399b19e18f9d0c356fe01d5c96",
+      "protocolCommit": "f717f97c7efffb53674d6c10cae94bd994b0c7e9",
+      "signature": {
+        "identity": "https://github.com/portalshq/portals-cloud/.github/workflows/auth-dockerhub-release.yml@refs/heads/release/mac-bootstrap-20261002",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "verifiedFromRegistry": true
+      },
+      "sbomReference": "portalshq/auth-gateway@sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162#sbom",
+      "provenanceReference": "portalshq/auth-gateway@sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162#provenance",
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.76.0",
+        "completedAt": "2026-10-15T06:56:09.212Z"
+      },
+      "verifiedAt": "2026-10-15T06:56:09.212Z"
     }
   }
 }
