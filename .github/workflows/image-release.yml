@@ -22,6 +22,9 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   publish-images:
     name: Build, scan, sign, promote production images
+    # Lore release tags are consumed by the Docker Hub publisher. Do not send
+    # those tags through this legacy AWS/ECR publishing path as well.
+    if: ${{ !contains(github.ref_name, '-portals.') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
