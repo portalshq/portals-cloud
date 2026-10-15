@@ -18,7 +18,6 @@ use std::{collections::HashMap, sync::Arc};
 
 pub const JWT_AUDIENCES: [&str; 2] = ["lore", "portals.works"];
 
-const AUTHENTICATION_LIFETIME_HOURS: i64 = 8;
 const AUTHORIZATION_LIFETIME_MINUTES: i64 = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,6 +28,8 @@ pub struct ResourcePermission {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub originating_key_id: Option<uuid::Uuid>,
     pub sub: String,
     pub iss: String,
     pub iat: i64,
@@ -63,6 +64,7 @@ pub struct Jwks {
 
 #[derive(Clone)]
 pub struct KmsJwtSigner {
+    access_token_ttl_seconds: i64,
     backend: SignerBackend,
     key_id: String,
     kid: String,
@@ -113,6 +115,7 @@ impl KmsJwtSigner {
             });
         }
         Ok(Self {
+            access_token_ttl_seconds: 900,
             backend: SignerBackend::Kms(kms),
             key_id,
             kid,
@@ -147,6 +150,7 @@ impl KmsJwtSigner {
             }],
         };
         Ok(Self {
+            access_token_ttl_seconds: 900,
             backend: SignerBackend::Local(EncodingKey::from_rsa_pem(private_pem)?),
             key_id: String::new(),
             kid,
@@ -159,6 +163,15 @@ impl KmsJwtSigner {
 
     pub fn jwks(&self) -> &Jwks {
         &self.jwks
+    }
+
+    pub fn with_access_token_ttl(mut self, seconds: i64) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            (60..=3600).contains(&seconds),
+            "access token lifetime must be 60–3600 seconds"
+        );
+        self.access_token_ttl_seconds = seconds;
+        Ok(self)
     }
 
     /// Retain public verification keys during sealed-file key rotation. Never
@@ -205,6 +218,26 @@ impl KmsJwtSigner {
         service_account: bool,
         idp: &str,
     ) -> anyhow::Result<(String, i64)> {
+        self.authentication_token_bound(
+            subject,
+            name,
+            preferred_username,
+            service_account,
+            idp,
+            None,
+        )
+        .await
+    }
+
+    pub async fn authentication_token_bound(
+        &self,
+        subject: &str,
+        name: &str,
+        preferred_username: &str,
+        service_account: bool,
+        idp: &str,
+        originating_key_id: Option<uuid::Uuid>,
+    ) -> anyhow::Result<(String, i64)> {
         self.issue(
             subject,
             name,
@@ -212,7 +245,8 @@ impl KmsJwtSigner {
             service_account,
             idp,
             None,
-            Duration::hours(AUTHENTICATION_LIFETIME_HOURS),
+            Duration::seconds(self.access_token_ttl_seconds),
+            originating_key_id,
         )
         .await
     }
@@ -230,6 +264,7 @@ impl KmsJwtSigner {
             &identity.idp,
             Some(vec![resource]),
             Duration::minutes(AUTHORIZATION_LIFETIME_MINUTES),
+            identity.originating_key_id,
         )
         .await
     }
@@ -243,10 +278,12 @@ impl KmsJwtSigner {
         idp: &str,
         resources: Option<Vec<ResourcePermission>>,
         lifetime: Duration,
+        originating_key_id: Option<uuid::Uuid>,
     ) -> anyhow::Result<(String, i64)> {
         let now = Utc::now();
         let exp = (now + lifetime).timestamp();
         let claims = Claims {
+            originating_key_id,
             sub: subject.into(),
             iss: self.issuer.clone(),
             iat: now.timestamp(),
@@ -369,6 +406,57 @@ mod tests {
         };
         assert_eq!(permission.resource_id.len(), 36);
         assert!(!permission.resource_id.contains('*'));
+    }
+
+    #[tokio::test]
+    async fn configurable_access_lifetime_preserves_authorization_lifetime() {
+        let signer = local_signer("dev");
+        assert_eq!(signer.access_token_ttl_seconds, 900);
+        let signer = signer.with_access_token_ttl(60).unwrap();
+        let (token, _) = signer
+            .authentication_token("user", "User", "user@example.test", false, "test")
+            .await
+            .unwrap();
+        let claims = signer.verify_authentication(&token).unwrap();
+        assert_eq!(claims.exp - claims.iat, 60);
+        let resource = ResourcePermission {
+            resource_id: "urc-0123456789abcdef0123456789abcdef".into(),
+            permission: vec!["read".into()],
+        };
+        let (token, _) = signer
+            .authorization_token(&claims, resource.clone())
+            .await
+            .unwrap();
+        let claims = signer
+            .verify_authorization(&token, &resource.resource_id)
+            .unwrap();
+        assert_eq!(claims.exp - claims.iat, 300);
+        let id = uuid::Uuid::new_v4();
+        let (token, _) = signer
+            .authentication_token_bound(
+                "service",
+                "Service",
+                "service@example.test",
+                true,
+                "service-account",
+                Some(id),
+            )
+            .await
+            .unwrap();
+        let bound = signer.verify_authentication(&token).unwrap();
+        assert!(bound.is_service_account);
+        assert_eq!(bound.originating_key_id, Some(id));
+        let (token, _) = signer
+            .authorization_token(&bound, resource.clone())
+            .await
+            .unwrap();
+        assert_eq!(
+            signer
+                .verify_authorization(&token, &resource.resource_id)
+                .unwrap()
+                .originating_key_id,
+            Some(id)
+        );
     }
 
     #[tokio::test]

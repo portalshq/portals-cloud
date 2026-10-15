@@ -3,6 +3,7 @@ use std::{env, net::SocketAddr};
 
 #[derive(Debug, Clone)]
 pub struct GatewayConfig {
+    pub access_token_ttl_seconds: i64,
     pub database_url: String,
     pub grpc_addr: SocketAddr,
     pub http_addr: SocketAddr,
@@ -40,6 +41,10 @@ pub struct GatewayConfig {
 impl GatewayConfig {
     pub fn from_env() -> anyhow::Result<Self> {
         let config = Self {
+            access_token_ttl_seconds: parse_access_token_ttl(&value(
+                "AUTH_ACCESS_TOKEN_TTL_SECONDS",
+                "900",
+            ))?,
             database_url: required("DATABASE_URL")?,
             grpc_addr: value("GRPC_LISTEN_ADDR", "0.0.0.0:8084").parse()?,
             http_addr: value("HTTP_LISTEN_ADDR", "0.0.0.0:8085").parse()?,
@@ -251,6 +256,31 @@ impl GatewayConfig {
             ensure!(domain.starts_with("https://"), "OIDC_DOMAIN must use HTTPS");
         }
         Ok(())
+    }
+}
+
+fn parse_access_token_ttl(value: &str) -> anyhow::Result<i64> {
+    let ttl: i64 = value
+        .parse()
+        .context("AUTH_ACCESS_TOKEN_TTL_SECONDS must be an integer")?;
+    ensure!(
+        (60..=3600).contains(&ttl),
+        "AUTH_ACCESS_TOKEN_TTL_SECONDS must be 60–3600"
+    );
+    Ok(ttl)
+}
+
+#[cfg(test)]
+mod lifetime_tests {
+    use super::*;
+    #[test]
+    fn access_lifetime_bounds() {
+        for value in ["60", "900", "3600"] {
+            assert!(parse_access_token_ttl(value).is_ok());
+        }
+        for value in ["0", "59", "3601", "-1", "abc", ""] {
+            assert!(parse_access_token_ttl(value).is_err());
+        }
     }
 }
 
