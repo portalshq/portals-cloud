@@ -24,7 +24,7 @@ Each package has a small, standalone module in [`../docs/package-agents/`](../do
 | PX address interface | [`@portalshq/resolver`](./resolver) | stub |
 | Narrative state interface | [`@portalshq/capability-narrative-engine-adapter`](./narrative-engine-adapter) | stub |
 | Text/image chapter interface | [`@portalshq/capability-text-image-delivery`](./text-image-delivery) | stub |
-| Audience identity interface | [`@portalshq/capability-identity`](./stubs/identity) | stub |
+| Audience identity interface | [`@portalshq/capability-identity`](./capability-identity) | usable; requires PostgreSQL setup and a verified-credential verifier |
 
 **Stub means every implementation method throws.** It is safe to depend on the exported interfaces, not on the supplied class at runtime.
 

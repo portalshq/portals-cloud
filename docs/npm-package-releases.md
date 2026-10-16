@@ -1,8 +1,9 @@
 # npm package releases
 
-All 15 public workspaces in `packages/*` and `packages/stubs/*` use Changesets
+Every publishable workspace in `packages/*` uses Changesets
 and the **Release Engine** workflow (`.github/workflows/release.yml`). Private
-frontend and `lib/*` workspaces are not published.
+frontend and `lib/*` workspaces are not published. `scripts/package-release.mjs`
+discovers the list, so it does not need updating when a package moves.
 
 ## One-time setup
 
@@ -11,7 +12,7 @@ access to the packages and account 2FA enabled:
 
 ```sh
 npm login --registry=https://registry.npmjs.org/
-npm run release:trust                 # Preview all 15 commands, no network writes
+npm run release:trust                 # Preview every command, no network writes
 npm run release:trust -- --apply      # Configure missing trust connections
 npm run release:trust -- --list       # Inspect the resulting connections
 ```

@@ -232,7 +232,7 @@ passed tests while being wrong.
 | `registry` `latest()` is insertion order, not semver, so `resolve(id)` returns the wrong version | `capability-registry.ts` |
 | Two incompatible `CapabilityRegistry` implementations exist | `contracts/src/capabilities.ts` and `packages/registry` |
 | `resolver/dist` holds an orphaned `nap-resolver-adapter` with no `src` counterpart and no export | Its build script lacks the `rm -rf dist` the others use |
-| Four packages are stubs: `resolver`, `text-image-delivery`, `narrative-engine-adapter`, `capability-identity` | Every method throws; they typecheck, so an app can compile against one and fail at runtime |
+| Three packages are stubs: `resolver`, `text-image-delivery`, `narrative-engine-adapter` | Every method throws; they typecheck, so an app can compile against one and fail at runtime |
 
 ## Outstanding
 
