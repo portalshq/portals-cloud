@@ -234,6 +234,7 @@ export const BLOG_CARD_FIELDS = /* groq */ `
   _id,
   _updatedAt,
   title,
+  "metaTitle": seo.metaTitle,
   "slug": slug.current,
   definition,
   excerpt,

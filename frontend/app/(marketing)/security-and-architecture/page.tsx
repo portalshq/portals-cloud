@@ -11,14 +11,22 @@ export async function generateMetadata(): Promise<Metadata> {
   const document = await getResourceDocument('security-and-architecture')
   if (!document) return {}
   return marketingMetadata({
-    title: document.seo?.metaTitle || 'Security and architecture | portals',
+    title: document.seo?.metaTitle || 'AI Production Security & Architecture | portals',
     description:
       document.seo?.metaDescription ||
-      'How portals handles security, access control, and architecture for creative production repositories.',
-    path: '/security-and-architecture',
-    keywords: document.seo?.keywords ?? ['AI production security', 'creative asset security'],
+      'How Portals secures AI creative production data: workspace isolation, access control, permissions, encryption, retention, and architecture.',
+    path: document.seo?.canonicalPath || '/security-and-architecture',
+    keywords: document.seo?.keywords ?? [
+      'AI production security',
+      'AI creative production data security',
+      'AI asset management security',
+      'AI production repository security',
+      'AI data handling',
+    ],
     type: 'article',
     image: document.seo?.shareImageUrl,
+    shareTitle: document.seo?.shareTitle,
+    shareDescription: document.seo?.shareDescription,
     publishedTime: document.publishedAt,
     modifiedTime: document._updatedAt,
   })

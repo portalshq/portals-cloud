@@ -2,24 +2,25 @@
 
 Status: **implemented; unpublished and unverified**
 
-This plan releases the already-approved Lore `v0.8.4-portals.10` source as an
-immutable Docker Hub image for the Intel Mac deployment. It does not create a
-new Lore source release and does not modify Lore `prod.toml`.
+This plan releases the already-approved Lore `v0.8.4-portals.10` source as the
+immutable Docker Hub production image. It does not create a new Lore source
+release and does not modify Lore `prod.toml`.
 
 ## Decisions
 
 - Lore source: `f717f97c7efffb53674d6c10cae94bd994b0c7e9` (`v0.8.4-portals.10`).
-- Registry: Docker Hub `portalshq/lore` for the Mac Lore path only.
+- Registry: Docker Hub `portalshq/lore` for every production Lore deployment.
 - Target: `linux/amd64`; ARM64 is optional future support, not an MVP gate.
 - Signing: Cosign keyless/OIDC in GitHub Actions.
-- Cloud/ECR publishing remains unchanged until separately migrated.
+- Existing ECR pins are legacy and must not be selected for production Lore
+  deployment after the Docker Hub promotion.
 - Lore QUIC is enabled by runtime environment variables and mounted certificates.
 
 ## Release implementation
 
 ### Docker Hub publisher
 
-Add a publisher separate from the existing ECR publisher. It must:
+The Docker Hub publisher is the production Lore publisher. It must:
 
 - Refuse dirty Lore or packaging inputs.
 - Build and push an AMD64 base image and derived Lore server image.
@@ -31,7 +32,8 @@ Add a publisher separate from the existing ECR publisher. It must:
 - Resolve and print the final `repository@sha256:<digest>`.
 
 The AMD64 path should not install or compile the unused ARM cross-toolchain.
-The existing multi-architecture ECR path is left intact.
+The existing ECR publisher remains available for legacy workloads, but it is not
+the production Lore source of truth.
 
 ### GitHub Actions publication
 
@@ -57,11 +59,11 @@ provenance references, scan completion time, and scanner version.
 
 ### Release BOM
 
-Extend `infra/lore/versions.yaml` so the Mac release records the Docker Hub
+Use the single `lore` entry in `infra/lore/versions.yaml` for the Docker Hub
 immutable Lore image, base image, `linux/amd64` platform, source commit,
-packaging commit, security contract, and receipt. Preserve existing ECR fields
-for the legacy/cloud path. Promotion scripts, not manual edits, write digests
-and receipts.
+packaging commit, security contract, and receipt. There is no separate
+`mac-lore` BOM entry. Promotion scripts, not manual edits, write digests and
+receipts.
 
 ## Runtime and Mac deployment
 
@@ -102,8 +104,9 @@ ports, and cross-repository denial.
   exist.
 - Lore requires the exact S3 **and** DynamoDB resources for the pinned release,
   with least-privilege IAM, versioning/PITR, and isolated restore evidence.
-- Cross-tenant authorization must be enforced for every repository RPC and
-  produce denial audit records.
+- Lore partitions are the assumed per-repository authorization boundary; prove
+  every repository RPC rejects a credential for another partition and produces
+  a denial audit record. Path-level ACLs are out of scope.
 - Auth, Lore, repository, lock, webhook, and billing audit events must be
   durable, correlated, redacted, and exported off-host.
 - Reboot, tunnel reconnect, host loss, Lore restore, Neon restore, DNS recovery,
@@ -149,6 +152,5 @@ required at runtime for Lore's S3/DynamoDB storage access.
 - Lore `.10` source and CLI release are already approved.
 - The prior local Docker Hub build was canceled during cold Rust compilation.
 - No Docker Hub image digest or promotion receipt exists yet.
-- Current image promotion and documentation are still primarily ECR-oriented.
-- Mac image validation now requires immutable AMD64 images and the promoted
-  Docker Hub Lore receipt; deployment remains blocked until that receipt exists.
+- The Docker Hub image and promotion receipt do not yet exist; deployment
+  remains blocked until that receipt replaces the legacy Lore pin.

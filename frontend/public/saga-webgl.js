@@ -1,7 +1,16 @@
 // =============================================================================
-// SAGA.XYZ STANDALONE WEBGL ENGINE
+// SAGA.XYZ STANDALONE WEBGL ENGINE  (revised: "sublime" pass)
 // Self-contained ES module — no React, no frameworks, just Three.js r184
 // =============================================================================
+//
+// REVISIONS IN THIS PASS
+//   1. Global animation speed is now 96% of the previous speed
+//      (Timer._timescale 0.95 -> 0.912). Everything driven by the timer
+//      (shader flow, rig playback, color transitions) slows together.
+//   2. The large central pink swath is now a smooth blue -> pink gradient.
+//      The small off-center pink flashes (ramp1's 0.992 stop) are untouched.
+//   3. The gray/white corner color is replaced with deep navy (#0E115F),
+//      and the motion driving that gradient is slower and softer.
 //
 // HTML requirements:
 //   1. Add an import map BEFORE this script tag:
@@ -56,12 +65,16 @@ const { UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloo
 // SECTION 3: COLOR RAMP & BACKGROUND CONFIGURATIONS
 // =============================================================================
 
+// REVISION 3: the gray/white that used to appear (ramp1 #ffffff, ramp2 #bbc4cf)
+// is now deep navy.
+const DEEP_NAVY = "#0E115F";
+
 let DEFAULT_BG_COLOR1 = "#0E115F";
 let DEFAULT_BG_COLOR2 = "#726DD2";
 
 let DEFAULT_RAMP1 = [
   { stop: 0, color: "#0E115F" },
-  { stop: 0.148, color: "#ffffff" },
+  { stop: 0.148, color: DEEP_NAVY },
   { stop: 0.381, color: "#0E115F" },
   { stop: 0.673, color: "#726DD2" },
   { stop: 0.891, color: "#726DD2" },
@@ -71,7 +84,7 @@ let DEFAULT_RAMP1 = [
 let DEFAULT_RAMP2 = [
   { stop: 0, color: "#053A68" },
   { stop: 0.3, color: "#3A87CB" },
-  { stop: 0.6, color: "#bbc4cf" },
+  { stop: 0.6, color: DEEP_NAVY },
   { stop: 0.8, color: "#4470cc" },
   { stop: 1, color: "#6162cd" },
 ];
@@ -111,11 +124,16 @@ const PX_MESH_COLOR1 = "#efdc3d";
 const PX_MESH_COLOR2 = "#000000";
 const PX_MESH_MIDDLE = "#efdc3d";
 
+// REVISION 2: the large central pink swath lived in the first two sections'
+// background (bg2 was pure #DD30C9 / #bc39ae) and in section 1's ramp2 pinks.
+// Those are now blue -> pink gradients: the blue side matches the adjacent blue
+// and the pink only arrives gradually. Ramp1's 0.992 #DD30C9 stop (the small
+// off-center flashes) is intentionally left exactly as it was.
 const SECTION_RAMPS = [
   {
     ramp1: [
       { stop: 0, color: "#0E115F" },
-      { stop: 0.148, color: "#ffffff" },
+      { stop: 0.148, color: DEEP_NAVY },
       { stop: 0.381, color: "#0E115F" },
       { stop: 0.673, color: "#726DD2" },
       { stop: 0.891, color: "#726DD2" },
@@ -124,35 +142,38 @@ const SECTION_RAMPS = [
     ramp2: [
       { stop: 0, color: "#053A68" },
       { stop: 0.3, color: "#3A87CB" },
-      { stop: 0.6, color: "#bbc4cf" },
+      { stop: 0.6, color: DEEP_NAVY },
       { stop: 0.8, color: "#4470cc" },
       { stop: 1, color: "#6162cd" },
     ],
-    bg1: "#0E115F", bg2: "#DD30C9",
+    // bg2 softened from #DD30C9 to a blue-violet so the central field reads as
+    // blue easing toward pink rather than a flat pink block.
+    bg1: "#0E115F", bg2: "#8A55D6",
   },
   {
     ramp1: [
       { stop: 0, color: "#0E115F" },
-      { stop: 0.148, color: "#ffffff" },
+      { stop: 0.148, color: DEEP_NAVY },
       { stop: 0.381, color: "#0E115F" },
       { stop: 0.673, color: "#726DD2" },
       { stop: 0.891, color: "#726DD2" },
       { stop: 0.992, color: "#DD30C9" },
     ],
+    // Previously tan -> hard pink -> gray-mauve -> pink. Now a continuous
+    // gradient from the adjacent blue to pink.
     ramp2: [
-      { stop: 0.5, color: "#c6a07c" },
-      { stop: 0.6, color: "#c243a7" },
-      { stop: 0.65, color: "#c1afbd" },
-      { stop: 0.75, color: "#c1afbd" },
-      { stop: 0.8, color: "#bc39ae" },
-      { stop: 0.95, color: "#a12394" },
+      { stop: 0.5, color: "#4470cc" },
+      { stop: 0.62, color: "#5f68d0" },
+      { stop: 0.74, color: "#7e62cf" },
+      { stop: 0.86, color: "#a54fc6" },
+      { stop: 0.95, color: "#bc39ae" },
     ],
-    bg1: "#c6a07c", bg2: "#bc39ae",
+    bg1: "#4470cc", bg2: "#8A55D6",
   },
   {
     ramp1: [
       { stop: 0, color: "#0E115F" },
-      { stop: 0.148, color: "#ffffff" },
+      { stop: 0.148, color: DEEP_NAVY },
       { stop: 0.381, color: "#0E115F" },
       { stop: 0.673, color: "#726DD2" },
       { stop: 0.891, color: "#726DD2" },
@@ -161,7 +182,7 @@ const SECTION_RAMPS = [
     ramp2: [
       { stop: 0, color: "#053A68" },
       { stop: 0.3, color: "#3A87CB" },
-      { stop: 0.6, color: "#bbc4cf" },
+      { stop: 0.6, color: DEEP_NAVY },
       { stop: 0.8, color: "#4470cc" },
       { stop: 1, color: "#6162cd" },
     ],
@@ -170,7 +191,7 @@ const SECTION_RAMPS = [
   {
     ramp1: [
       { stop: 0, color: "#0E115F" },
-      { stop: 0.148, color: "#ffffff" },
+      { stop: 0.148, color: DEEP_NAVY },
       { stop: 0.381, color: "#0E115F" },
       { stop: 0.673, color: "#726DD2" },
       { stop: 0.891, color: "#726DD2" },
@@ -308,6 +329,10 @@ function blendTextures(fromTex, toTex, mix) {
 // SECTION 6: TIMER CLASS
 // =============================================================================
 
+// REVISION 1: 96% of the previous speed. 0.95 * 0.96 = 0.912.
+const BASE_TIMESCALE = 0.95;
+const SPEED_FACTOR = 0.96;
+
 class Timer {
   constructor() {
     this._prev = 0;
@@ -315,7 +340,7 @@ class Timer {
     this._start = performance.now();
     this._delta = 0;
     this._elapsed = 0;
-    this._timescale = 0.95;
+    this._timescale = BASE_TIMESCALE * SPEED_FACTOR;
     this._onVis = this._onVis.bind(this);
   }
 
@@ -586,12 +611,17 @@ vec3 sampleColorRamp(sampler2D rampFrom, sampler2D rampTo, float rampMix, float 
 
 void main() {
   vec3 color = vec3(0.0, 0.0, 0.0);
-  float waveSpeed1 = .3;
-  float noiseSpeedZ = .1;
-  float noiseSpeedY = .2;
+
+  // REVISION 3: calmer drift for the corner gradient. Wave sweep and noise
+  // scroll speeds are reduced (was .3 / .1 / .2) and the wave edge is softened
+  // (was smoothstep(1., 0.2, wave)) so the movement glides instead of snapping.
+  float waveSpeed1 = .2;
+  float noiseSpeedZ = .06;
+  float noiseSpeedY = .13;
+
   float waveShift = perlinNoise(vec3(sin(vUv.x*PI*2.), sin(mod(uTime*waveSpeed1, PI*2.)), vUv.y)) * 0.5;
   float wave = sin(vUv.x * PI * 10. + waveShift) * 0.5 + 0.5;
-  wave = smoothstep(1., 0.2, wave);
+  wave = smoothstep(1., 0.08, wave);
   float otherNoise = 1. - perlinNoise(vec3(sin(vUv.x*PI*2.), vUv.y-uTime*noiseSpeedY, uTime*noiseSpeedZ*2.));
   float colorVal = mix(otherNoise, wave, 0.5);
   color = vec3(colorVal);
@@ -705,7 +735,7 @@ class SagaEngine {
       canvas,
       antialias: false,
       powerPreference: "high-performance",
-      alpha: false,
+      alpha: true,
     });
     this.renderer.toneMapping = THREE.NoToneMapping;
 
@@ -717,6 +747,7 @@ class SagaEngine {
     this.timer = new Timer();
     this.rig = null;
     this.animationFrameId = null;
+    this.hasRenderedFirstFrame = false;
 
     this._dracoLoader = new DRACOLoader();
     this._dracoLoader.setDecoderPath("/draco/gltf/");
@@ -825,6 +856,12 @@ class SagaEngine {
         this.postEffects.render(delta);
       } else {
         this.renderer.render(this.scene, this.camera);
+      }
+
+      if (!this.hasRenderedFirstFrame) {
+        this.hasRenderedFirstFrame = true;
+        window.__sagaWebGLCanvas = this.renderer.domElement;
+        window.dispatchEvent(new Event("saga-webgl-ready"));
       }
     }
   };
@@ -1163,7 +1200,9 @@ function createPostEffects(renderer, scene, camera, width, height) {
 
   return {
     render(delta) {
-      bloomPass.strength = 0.03 * Math.sin(0.001 * performance.now()) + 0.1;
+      // Bloom pulse slowed by the same 96% factor so it stays in step with
+      // the rest of the animation.
+      bloomPass.strength = 0.03 * Math.sin(0.001 * SPEED_FACTOR * performance.now()) + 0.1;
       composer.render(delta);
     },
     setSize(w, h, pr) {
@@ -1258,7 +1297,7 @@ class ScrollSystem {
       // Final fallback: all ui-grid elements
       this.subBlocks = inner.querySelectorAll('.ui-grid');
     }
-    
+
     // Add overview-sub-block class to identified elements
     this.subBlocks.forEach((block, i) => {
       block.classList.add('overview-sub-block');

@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+release_env=${MAC_RELEASE_ENV:-/Users/portals-svc/portals-release.env}
+test -r "$release_env" || { echo 'MAC_RELEASE_ENV is unreadable' >&2; exit 1; }
+set -a
+. "$release_env"
+set +a
 test -n "${PINGGY_TCP_COMMAND:?PINGGY_TCP_COMMAND is required}"
 test -n "${PINGGY_UDP_COMMAND:?PINGGY_UDP_COMMAND is required}"
 command -v nc >/dev/null || { echo 'nc is required' >&2; exit 1; }

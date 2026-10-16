@@ -16,7 +16,9 @@ import {useBehaviorTracking} from '@/lib/leads/analytics-behaviors'
 export function AnalyticsProvider() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [consent, setConsent] = useState<AnalyticsConsent>(null)
+  // undefined = localStorage not read yet; null = read, no decision stored.
+  // Keeping them distinct stops the banner painting before the stored answer is known.
+  const [consent, setConsent] = useState<AnalyticsConsent | undefined>(undefined)
 
   useBehaviorTracking(pathname, consent === 'accepted')
 

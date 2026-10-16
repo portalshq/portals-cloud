@@ -46,7 +46,6 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
   const {slug} = await params
   const [post, posts] = await Promise.all([getBlogPost(slug), getBlogPosts()])
   if (!post) notFound()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
   const authorNames = post.authors?.map((a) => a.name).filter(Boolean)
   const related =
     post.relatedPosts?.length
@@ -66,7 +65,7 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
       ...(authorNames?.length ? {author: authorNames.map((name) => ({'@type': 'Person', name}))} : {}),
       ...(post.coverImageUrl ? {image: [post.coverImageUrl]} : {}),
       isPartOf: {'@type': 'Blog', name: 'Portals blog', url: canonical('/blog')},
-      publisher: {'@type': 'Organization', name: 'portals', url: siteUrl},
+      publisher: {'@id': canonical('/#organization')},
       mainEntityOfPage: canonical(`/blog/${slug}`),
     },
     breadcrumbJsonLd([
@@ -93,14 +92,6 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(structuredData)}} />
-      <header className="mx-auto flex w-full max-w-[1600px] items-center justify-between px-sms py-20 text-white">
-        <a href="/" className="t-h3-sans !font-medium">
-          portals
-        </a>
-        <a href="/blog" className="t-p-sans underline underline-offset-4">
-          all articles
-        </a>
-      </header>
       <main className="ui-grid text-white">
         <section className="col-span-full max-w-4xl py-80">
           {post.cluster ? (

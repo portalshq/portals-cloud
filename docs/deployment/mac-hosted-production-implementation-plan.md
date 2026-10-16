@@ -32,10 +32,10 @@ features, including backup/restore. Set a budget before provisioning.
 browser / PX gRPC -- TLS --+-- Pinggy TLS mapping -- Caddy -- Vercel Next.js
                            |                         |-- Auth :8084/:8085
                            |                         `-- Lore TCP :41337
-Vercel webhook -- signed --+-- Pinggy wake endpoint -- delivery worker
+ProductCharacters-owned webhook -- signed --> [separate, optional, gated worker]
 PX QUIC --------- UDP -----+-- Pinggy UDP mapping -- Lore UDP :41337
 
-private: Lore -> Auth ReBAC; worker -> Neon/Lore; Vercel -> Neon
+private: Lore -> Auth ReBAC; optional PC worker -> PC Neon + Lore after its gates; Vercel -> Neon
 durable: Lore -> AWS S3 + DynamoDB (fragments, metadata, mutable, locks)
 ```
 
@@ -86,13 +86,15 @@ before calling environment parity complete.
    overlapping `kid` rotation. Preserve
    KMS/Secrets Manager as the cloud provider. Add config tests and a ZITADEL
    discovery/login integration test.
-2. **Cross-repository authorization:** use a valid tenant-A token against every
-   tenant-B RepositoryService and legacy repository RPC from a clean external
-   client. Expected outcome is `PERMISSION_DENIED` or `NOT_FOUND`, no
-   metadata/content/history/lock side effect, and a denial audit record. Then
-   add the smallest shared enforcement necessary. Do not blindly replace the
-   interceptor: create/list calls may need account authorization rather than a
-   repository ID.
+2. **Repository-isolation verification:** Lore's repository partition is the
+   assumed authorization boundary: a credential may access its repository's
+   full content, revisions, branches, and locks, but not another repository.
+   No path-level ACL is part of this MVP contract. Use a valid tenant-A token
+   against every tenant-B RepositoryService and legacy repository RPC from a
+   clean external client. Expected outcome is `PERMISSION_DENIED` or
+   `NOT_FOUND`, no metadata/content/history/lock side effect, and a denial
+   audit record. This is a production-readiness test, not a planned Lore source
+   change.
 3. **Caddy:** replace the old ALB/h2c deployment assumption with a production
    template. The current production file routes only Auth, so it is incomplete.
    Caddy terminates trusted TLS and proxies HTTP/2 gRPC to loopback h2c. It
@@ -217,5 +219,6 @@ tunnels, identity, or certificates.
 Do not redesign Portals for Product Characters. A separate product can share
 Lore/Auth only with its own OIDC client, product/tenant namespace, repository
 IDs, role mapping, audit product field, and isolated Neon schema or database.
-It must not get a broad Auth database role or rely on names for isolation. Its
-plan has not been supplied, so no compatibility claim is made.
+It must not get a broad Auth database role or rely on names for isolation. The
+separate worker path and its current release blockers are documented in
+[`productcharacters-delivery-worker-deployment.md`](productcharacters-delivery-worker-deployment.md).

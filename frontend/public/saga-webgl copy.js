@@ -44,11 +44,11 @@
 // =============================================================================
 
 const THREE = await import('three');
-const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
-const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js');
+const { GLTFLoader }   = await import('three/addons/loaders/GLTFLoader.js');
+const { DRACOLoader }   = await import('three/addons/loaders/DRACOLoader.js');
 const { EffectComposer } = await import('three/addons/postprocessing/EffectComposer.js');
-const { RenderPass } = await import('three/addons/postprocessing/RenderPass.js');
-const { ShaderPass } = await import('three/addons/postprocessing/ShaderPass.js');
+const { RenderPass }    = await import('three/addons/postprocessing/RenderPass.js');
+const { ShaderPass }    = await import('three/addons/postprocessing/ShaderPass.js');
 const { UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloomPass.js');
 
 
@@ -61,7 +61,7 @@ let DEFAULT_BG_COLOR2 = "#726DD2";
 
 let DEFAULT_RAMP1 = [
   { stop: 0, color: "#0E115F" },
-  { stop: 0.148, color: "#0E115F" },
+  { stop: 0.148, color: "#ffffff" },
   { stop: 0.381, color: "#0E115F" },
   { stop: 0.673, color: "#726DD2" },
   { stop: 0.891, color: "#726DD2" },
@@ -71,7 +71,7 @@ let DEFAULT_RAMP1 = [
 let DEFAULT_RAMP2 = [
   { stop: 0, color: "#053A68" },
   { stop: 0.3, color: "#3A87CB" },
-  { stop: 0.6, color: "#aab5c3" },
+  { stop: 0.6, color: "#bbc4cf" },
   { stop: 0.8, color: "#4470cc" },
   { stop: 1, color: "#6162cd" },
 ];
@@ -124,7 +124,7 @@ const SECTION_RAMPS = [
     ramp2: [
       { stop: 0, color: "#053A68" },
       { stop: 0.3, color: "#3A87CB" },
-      { stop: 0.6, color: "#aab5c3" },
+      { stop: 0.6, color: "#bbc4cf" },
       { stop: 0.8, color: "#4470cc" },
       { stop: 1, color: "#6162cd" },
     ],
@@ -161,7 +161,7 @@ const SECTION_RAMPS = [
     ramp2: [
       { stop: 0, color: "#053A68" },
       { stop: 0.3, color: "#3A87CB" },
-      { stop: 0.6, color: "#aab5c3" },
+      { stop: 0.6, color: "#bbc4cf" },
       { stop: 0.8, color: "#4470cc" },
       { stop: 1, color: "#6162cd" },
     ],
@@ -261,7 +261,7 @@ function generateGradientTexture(stops, width = 1024) {
     const t = width > 1 ? i / (width - 1) : 0;
     const c = interpolateColor(sorted, t);
     const idx = 4 * i;
-    data[idx] = Math.round(255 * c.r);
+    data[idx]     = Math.round(255 * c.r);
     data[idx + 1] = Math.round(255 * c.g);
     data[idx + 2] = Math.round(255 * c.b);
     data[idx + 3] = 255;
@@ -289,7 +289,7 @@ function blendTextures(fromTex, toTex, mix) {
   const out = new Uint8Array(a.length);
   const t = smoothstep(0, 1, mix);
   for (let i = 0; i < a.length; i += 4) {
-    out[i] = Math.round(a[i] + (b[i] - a[i]) * t);
+    out[i]     = Math.round(a[i]     + (b[i]     - a[i])     * t);
     out[i + 1] = Math.round(a[i + 1] + (b[i + 1] - a[i + 1]) * t);
     out[i + 2] = Math.round(a[i + 2] + (b[i + 2] - a[i + 2]) * t);
     out[i + 3] = 255;
@@ -331,7 +331,7 @@ class Timer {
     if (!document.hidden) this._curr = performance.now() - this._start;
   }
 
-  getDelta() { return this._delta / 1000; }
+  getDelta()   { return this._delta / 1000; }
   getElapsed() { return this._elapsed / 1000; }
 
   update(now) {
@@ -606,7 +606,7 @@ void main() {
 const CHROMATIC_ABERRATION = {
   uniforms: {
     tDiffuse: { value: null },
-    uFactor: { value: 0.05 },
+    uFactor:  { value: 0.05 },
   },
   vertexShader: FULLSCREEN_VS,
   fragmentShader: `
@@ -629,12 +629,12 @@ void main() {
 
 const COLOR_GRADING = {
   uniforms: {
-    tDiffuse: { value: null },
-    uCurvePoint: { value: new THREE.Vector2(GRADE_CURVE_X, GRADE_CURVE_Y) },
+    tDiffuse:        { value: null },
+    uCurvePoint:     { value: new THREE.Vector2(GRADE_CURVE_X, GRADE_CURVE_Y) },
     uLuminanceNoise: { value: 0.08 },
-    uChromaNoise: { value: 0.01 },
-    uBrightness: { value: 0.02 },
-    uBlurTexel: { value: new THREE.Vector2() },
+    uChromaNoise:    { value: 0.01 },
+    uBrightness:     { value: 0.02 },
+    uBlurTexel:      { value: new THREE.Vector2() },
   },
   vertexShader: FULLSCREEN_VS,
   fragmentShader: `
@@ -733,12 +733,12 @@ class SagaEngine {
     };
 
     this.backgroundUniforms = {
-      uColor1: { value: this.backgroundColors.color1 },
-      uColor2: { value: this.backgroundColors.color2 },
-      uColor1To: { value: this.backgroundColors.color1.clone() },
-      uColor2To: { value: this.backgroundColors.color2.clone() },
+      uColor1:        { value: this.backgroundColors.color1 },
+      uColor2:        { value: this.backgroundColors.color2 },
+      uColor1To:      { value: this.backgroundColors.color1.clone() },
+      uColor2To:      { value: this.backgroundColors.color2.clone() },
       uBackgroundMix: { value: 0 },
-      uTime: { value: 0 },
+      uTime:          { value: 0 },
     };
 
     this.backgroundMat = new THREE.ShaderMaterial({
@@ -748,18 +748,18 @@ class SagaEngine {
     });
 
     this.meshUniforms = {
-      uMiddleColor: { value: new THREE.Color("#B6F2FF") },
-      uColor1: { value: new THREE.Color("#B6F2FF") },
-      uColor2: { value: new THREE.Color("#274fff") },
-      uColorRamp1: { value: this.colorRamp1.texture },
-      uColorRamp1To: { value: this.colorRamp1.texture },
+      uMiddleColor:   { value: new THREE.Color("#B6F2FF") },
+      uColor1:        { value: new THREE.Color("#B6F2FF") },
+      uColor2:        { value: new THREE.Color("#274fff") },
+      uColorRamp1:    { value: this.colorRamp1.texture },
+      uColorRamp1To:  { value: this.colorRamp1.texture },
       uColorRamp1Mix: { value: 0 },
-      uColorRamp2: { value: this.colorRamp2.texture },
-      uColorRamp2To: { value: this.colorRamp2.texture },
+      uColorRamp2:    { value: this.colorRamp2.texture },
+      uColorRamp2To:  { value: this.colorRamp2.texture },
       uColorRamp2Mix: { value: 0 },
-      uTime: { value: 0 },
-      uHueShift: { value: 0 },
-      uSaturation: { value: 1 },
+      uTime:          { value: 0 },
+      uHueShift:      { value: 0 },
+      uSaturation:    { value: 1 },
     };
 
     this.meshMat = new THREE.ShaderMaterial({
@@ -1222,8 +1222,8 @@ class ScrollSystem {
     const all = getVisibleWebGLMarkers();
     for (const el of all) {
       const type = el.getAttribute("data-webgl-marker");
-      if (type === "scrollFrom") this.scrollFromEls.push(el);
-      else if (type === "scrollTo") this.scrollToEls.push(el);
+      if (type === "scrollFrom")      this.scrollFromEls.push(el);
+      else if (type === "scrollTo")   this.scrollToEls.push(el);
     }
   }
 
@@ -1258,7 +1258,7 @@ class ScrollSystem {
       // Final fallback: all ui-grid elements
       this.subBlocks = inner.querySelectorAll('.ui-grid');
     }
-
+    
     // Add overview-sub-block class to identified elements
     this.subBlocks.forEach((block, i) => {
       block.classList.add('overview-sub-block');

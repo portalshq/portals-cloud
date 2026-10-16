@@ -13,6 +13,7 @@ node_modules/
 coverage/
 target/
 infra/pulumi/bin/
+infra/mac-bootstrap/ssh-activity.log
 
 # Compose runtime
 .compose-data/

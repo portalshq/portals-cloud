@@ -26,14 +26,19 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       // Canonical IA: /assessment is canonical, /workflow/* are legacy.
-      {source: '/workflow/assessment', destination: '/assessment', permanent: true},
-      {source: '/workflow/assessment/:path*', destination: '/assessment', permanent: true},
-      {source: '/production-memory/brief', destination: '/resources/production-memory-brief', permanent: true},
-      {source: '/production-memory/brief/:path*', destination: '/resources/production-memory-brief', permanent: true},
-      {source: '/ai-production-workflow-risks', destination: '/use-cases', permanent: true},
+      { source: '/workflow/assessment', destination: '/assessment', permanent: true },
+      { source: '/workflow/assessment/:path*', destination: '/assessment', permanent: true },
+      { source: '/resources/production-memory/brief', destination: '/production-memory#download', permanent: true },
+      { source: '/resources/production-memory/brief/:path*', destination: '/production-memory#download', permanent: true },
+      { source: '/resources/production-memory-brief/:path*', destination: '/production-memory#download', permanent: true },
+      { source: '/production-memory-brief/:path*', destination: '/production-memory#download', permanent: true },
+      { source: '/production-memory/brief', destination: '/production-memory#download', permanent: true },
+      { source: '/production-memory/brief/:path*', destination: '/production-memory#download', permanent: true },
+      { source: '/ai-production-workflow-risks', destination: '/use-cases', permanent: true },
+      { source: '/workflow/ai-production-workflow-risks', destination: '/use-cases', permanent: true },
       // Canonical IA: /pilot is canonical, /paid-pilot/* are legacy.
-      {source: '/paid-pilot', destination: '/pilot', permanent: true},
-      {source: '/paid-pilot/:path*', destination: '/pilot/:path*', permanent: true},
+      { source: '/paid-pilot', destination: '/pilot', permanent: true },
+      { source: '/paid-pilot/:path*', destination: '/pilot/:path*', permanent: true },
     ]
   },
   async rewrites() {

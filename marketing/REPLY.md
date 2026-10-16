@@ -15,7 +15,7 @@ that's the one that costs the most quietly.
 how many people carry the context for an average production — is it one, or spread across a few?
 If they ask what this is
 They say: what do you do exactly?
-portals is a production repository for AI-native creative teams.
+portals is production memory for AI-native creative teams.
 every asset your team generates gets a permanent record — what it is,
 how it was made, and every version it passed through.
 when a project ships, that knowledge stays.

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 import { AssessmentForm } from '@/components/leads/AssessmentForm'
 import { CTAButton } from '@/components/CTAButton'
@@ -8,19 +7,16 @@ import { getKnownLeadContext } from '@/lib/leads/profile'
 import { SagaWebGLEngine } from '@/lib/SagaWebGLEngine'
 import Faq from '@/components/FAQ'
 import { getFaqsByCategories } from '@/lib/faqs'
+import {canonical, marketingMetadata} from '@/lib/seo'
 
-const assessmentUrl = new URL(
-  '/assessment',
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works',
-).toString()
-const assessmentImageUrl = new URL(
-  '/assessment/opengraph-image',
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works',
-).toString()
+const assessmentUrl = canonical('/assessment')
+const assessmentImageUrl = canonical('/assessment/opengraph-image')
 
-export const metadata: Metadata = {
-  title: 'AI Creative Production Workflow Assessment | portals',
-  description: 'Assess your creative production workflows. Find the workflow gaps in approval, context, handoffs, and reproducibility. Fix creative production costs with production memory.',
+export const metadata: Metadata = marketingMetadata({
+  title: 'AI Creative Workflow Assessment | portals',
+  description: 'Assess your AI creative production workflow in four minutes. Find gaps in approved asset retrieval, version history, context, handoffs, continuity, and reproducibility.',
+  path: '/assessment',
+  image: assessmentImageUrl,
   keywords: [
     'AI creative production workflow assessment',
     'AI production workflow assessment',
@@ -35,22 +31,7 @@ export const metadata: Metadata = {
     'AI character consistency workflow',
     'creative production handoff',
   ],
-  alternates: { canonical: assessmentUrl },
-  openGraph: {
-    type: 'website',
-    url: assessmentUrl,
-    siteName: 'portals',
-    title: 'AI Creative Production Workflow Assessment | portals',
-    description: 'Assess your creative production workflows. Find the workflow gaps in approval, context, handoffs, and reproducibility. Fix creative production costs with production memory.',
-    images: [{ url: assessmentImageUrl, width: 1200, height: 630, alt: 'portals AI creative production workflow assessment' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'AI Creative Production Workflow Assessment | portals',
-    description: 'Assess your creative production workflows. Find the workflow gaps in approval, context, handoffs, and reproducibility. Fix creative production costs with production memory.',
-    images: [assessmentImageUrl],
-  },
-}
+})
 
 export const dynamic = 'force-dynamic'
 
@@ -87,22 +68,22 @@ const faqs = getFaqsByCategories(['assessment'])
 
 export default async function WorkflowAssessmentPage() {
   const context = await getKnownLeadContext()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://portals.works'
+  const siteUrl = canonical('/')
   const structuredData = [
     {
       '@context': 'https://schema.org',
       '@type': 'WebPage',
       name: 'AI Creative Production Workflow Assessment',
-      url: `${siteUrl}/assessment`,
+      url: assessmentUrl,
       description: metadata.description,
-      isPartOf: { '@type': 'WebSite', name: 'portals', url: siteUrl },
+      isPartOf: { '@id': canonical('/#website') },
     },
     {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'portals', item: siteUrl },
-        { '@type': 'ListItem', position: 2, name: 'AI Creative Production Workflow Assessment', item: `${siteUrl}/assessment` },
+        { '@type': 'ListItem', position: 2, name: 'AI Creative Workflow Assessment', item: assessmentUrl },
       ],
     },
     {
@@ -132,14 +113,6 @@ export default async function WorkflowAssessmentPage() {
         data-webgl-marker="scrollTo"
         data-webgl-position="0.96"
       />
-      <header className="absolute inset-x-0 top-0 z-(--z-header)">
-        <div className="flex h-Header-h items-center justify-between px-sms">
-          <Link href="/" className="t-h3-sans !font-medium text-white">
-            portals
-          </Link>
-        </div>
-      </header>
-
       <div className="relative z-10">
         <section className="relative flex min-h-screen items-center overflow-hidden">
           <div className="ui-grid relative z-10 w-full gap-y-fluid-[30,52] py-fluid-[76,106] pt-[max(var(--spacing-Header-h),16svh)] text-white">
@@ -147,18 +120,18 @@ export default async function WorkflowAssessmentPage() {
               <h1 className="mt-20 max-w-[10em] t-d2-sans">
                 reduce the hidden costs of AI production
               </h1>
-              <p className="mt-28 max-w-[38em] t-p-serif text-white">
-                take a quick assessment to measure how your team preserves approved work, production context, team handoffs, and continuity.
+              <p className="mt-28 max-w-[32em] t-p-serif text-white">
+                measure how your team manages production context, handles team handoffs, and maintains continuity.
               </p>
               <p className="mt-20 max-w-[32em] t-p-sans text-white">
-                for film and animation studios, content and brand agencies, in-house marketing teams, and game and entertainment companies.
+                built for film and animation studios, content and brand agencies, in-house marketing teams, and game companies.
               </p>
-              <p className="mt-20 max-w-[42em] t-p-sm-sans text-white">
-                complete in four minutes. you’ll receive an evaluation of where your production workflow may be creating avoidable cost, rework, and delays—and where portals will improve operating efficiency.
+              <p className="mt-20 max-w-[32em] t-p-sm-sans text-white">
+                complete in four minutes — identify where your production workflow is creating avoidable cost, rework, and delays — and where portals can improve operating efficiency.
                 <br /><br />
-                after reviewing your results, you can build a customized pilot plan and evaluate the potential cost savings, productivity gains, and return on investment from improving the workflow with portals.
+                then quantify the cost savings, productivity gains, and ROI, and build a tailored 21-day pilot plan.*
                 <br /><br />
-                scoping and receiving your pilot plan is free. a pilot is applied only if you approve the plan and proceed with the 21-day production pilot.
+                *your pilot plan is free to build. a fee applies only if you approve the plan and proceed with the production pilot.
               </p>
             </div>
             <nav

@@ -28,7 +28,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@v4.0.0
       - name: Build AMD64 Lore image
         id: build
         run: |
@@ -38,8 +38,9 @@ jobs:
       - name: Sign immutable digest
         env:
           IMAGE: ${{ steps.build.outputs.image }}
-          COSIGN_BUNDLE: ${{ runner.temp }}/lore.sigstore.json
-        run: cosign sign --yes --bundle "$COSIGN_BUNDLE" "$IMAGE"
+        run: cosign sign --yes "$IMAGE"
+      - name: Install receipt writer dependencies
+        run: npm ci --prefix infra/pulumi --omit=dev --ignore-scripts
       - name: Verify and promote Docker Hub receipt
         env:
           IMAGE: ${{ steps.build.outputs.image }}
@@ -48,7 +49,6 @@ jobs:
           PACKAGING_COMMIT: ${{ steps.build.outputs.packaging_commit }}
           BUILD_ID: ${{ steps.build.outputs.build_id }}
           LORE_VERSION: ${{ inputs.version || github.ref_name }}
-          COSIGN_BUNDLE: ${{ runner.temp }}/lore.sigstore.json
           COSIGN_CERTIFICATE_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/lore-dockerhub-release.yml@${{ github.ref }}
         run: |
           LORE_VERSION="${LORE_VERSION#v}"
@@ -58,6 +58,5 @@ jobs:
         with:
           name: lore-dockerhub-evidence
           path: |
-            ${{ runner.temp }}/lore.sigstore.json
             infra/lore/versions.yaml
             infra/lore/verified-dockerhub-images.json

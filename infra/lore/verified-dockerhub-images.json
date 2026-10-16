@@ -1,4 +1,53 @@
 {
   "schemaVersion": 1,
-  "receipts": {}
+  "receipts": {
+    "portalshq/lore@sha256:1c7e86d5e30c28905891783bc190a79e92ed5a42693dfa1bc1cc4c577fd45380": {
+      "service": "lore",
+      "platform": "linux/amd64",
+      "indexDigest": "sha256:1c7e86d5e30c28905891783bc190a79e92ed5a42693dfa1bc1cc4c577fd45380",
+      "platformDigest": "sha256:e2a410fe5e1b1e1198dad54230bdd3f50c32699ba67cb32c90d6922904505505",
+      "baseImage": "portalshq/lore@sha256:1f4aee42cfe023c6b865f7e5ce62800e95bfb42392728e3113a3b26fc75a1c78",
+      "sourceCommit": "f717f97c7efffb53674d6c10cae94bd994b0c7e9",
+      "packagingCommit": "034fc2cb9b45113f5171c482957f7dec7045c752",
+      "buildId": "20260926-210642-cc0e8993",
+      "signature": {
+        "identity": "https://github.com/portalshq/portals-cloud/.github/workflows/lore-dockerhub-release.yml@refs/heads/release/lore-dockerhub-0.8.4-portals.10",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "verifiedFromRegistry": true
+      },
+      "sbomReference": "portalshq/lore@sha256:1c7e86d5e30c28905891783bc190a79e92ed5a42693dfa1bc1cc4c577fd45380#sbom",
+      "provenanceReference": "portalshq/lore@sha256:1c7e86d5e30c28905891783bc190a79e92ed5a42693dfa1bc1cc4c577fd45380#provenance",
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.74.0",
+        "completedAt": "2026-09-27T14:49:42.309Z"
+      },
+      "verifiedAt": "2026-09-27T14:49:42.309Z"
+    },
+    "portalshq/lore@sha256:d204cee28f0966017f9622822b235e5630bdd6163ffbbc9d70c1bed2ff8fe4e4": {
+      "service": "lore",
+      "platform": "linux/amd64",
+      "indexDigest": "sha256:d204cee28f0966017f9622822b235e5630bdd6163ffbbc9d70c1bed2ff8fe4e4",
+      "platformDigest": "sha256:59d966e287af269dbeee8d4f9714503ac2464253504d747fe37df3d51a27e457",
+      "baseImage": "portalshq/lore@sha256:24ede89d03a0075c1ed67e44ee4394d1e4ae8eaad30863c28b2d90648ea2251c",
+      "sourceCommit": "f717f97c7efffb53674d6c10cae94bd994b0c7e9",
+      "packagingCommit": "ccfba1ce79984627cef17fcd26cf9aaaea5828f8",
+      "buildId": "20261001-185752-756af231",
+      "signature": {
+        "identity": "https://github.com/portalshq/portals-cloud/.github/workflows/lore-dockerhub-release.yml@refs/heads/release/lore-dockerhub-0.8.4-portals.10",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "verifiedFromRegistry": true
+      },
+      "sbomReference": "portalshq/lore@sha256:d204cee28f0966017f9622822b235e5630bdd6163ffbbc9d70c1bed2ff8fe4e4#sbom",
+      "provenanceReference": "portalshq/lore@sha256:d204cee28f0966017f9622822b235e5630bdd6163ffbbc9d70c1bed2ff8fe4e4#provenance",
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.75.0",
+        "completedAt": "2026-10-01T20:57:12.735Z"
+      },
+      "verifiedAt": "2026-10-01T20:57:12.735Z"
+    }
+  }
 }
