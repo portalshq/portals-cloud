@@ -20,7 +20,7 @@ Load every relevant generated package module below; these are composable guidanc
 
 - [capabilities-redirect.md](references/package-agents/capabilities-redirect.md) - `@portalshq/capabilities-redirect` `0.0.5`
 - [contracts.md](references/package-agents/contracts.md) - `@portalshq/contracts` `0.0.5`
-- [identity.md](references/package-agents/identity.md) - `@portalshq/capability-identity` `0.1.3`
+- [identity.md](references/package-agents/identity.md) - `@portalshq/capability-identity` `0.2.0`
 - [monetization.md](references/package-agents/monetization.md) - `@portalshq/monetization` `0.2.0`
 - [platform-billing.md](references/package-agents/platform-billing.md) - `@portalshq/platform-billing` `0.0.5`
 - [policy.md](references/package-agents/policy.md) - `@portalshq/policy` `0.0.5`
@@ -31,7 +31,7 @@ Load every relevant generated package module below; these are composable guidanc
 - [runtime-core.md](references/package-agents/runtime-core.md) - `@portalshq/runtime-core` `0.0.9`
 - [sdk.md](references/package-agents/sdk.md) - `@portalshq/sdk` `0.0.5`
 - [text-image-delivery.md](references/package-agents/text-image-delivery.md) - `@portalshq/capability-text-image-delivery` `0.1.3`
-- [video-delivery.md](references/package-agents/video-delivery.md) - `@portalshq/capability-video-delivery` `0.1.9`
+- [video-delivery.md](references/package-agents/video-delivery.md) - `@portalshq/capability-video-delivery` `0.1.10`
 
 Use `references/channel-registry.schema.json` when creating or editing a channel registry. It accepts only environment-variable references for sensitive configuration and supports optional YouTube and Twitch live-chat settings. If a channel declares PX entities and PX tooling is configured, load the PX resolver/update skills to work with them; the Portals resolver package alone is only an application boundary.
 

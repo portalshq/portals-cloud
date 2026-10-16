@@ -4,7 +4,7 @@ Generated from `docs/package-agents/` and current package manifests. Load every 
 
 - [capabilities-redirect.md](./capabilities-redirect.md) - `@portalshq/capabilities-redirect` `0.0.5`
 - [contracts.md](./contracts.md) - `@portalshq/contracts` `0.0.5`
-- [identity.md](./identity.md) - `@portalshq/capability-identity` `0.1.3`
+- [identity.md](./identity.md) - `@portalshq/capability-identity` `0.2.0`
 - [monetization.md](./monetization.md) - `@portalshq/monetization` `0.2.0`
 - [platform-billing.md](./platform-billing.md) - `@portalshq/platform-billing` `0.0.5`
 - [policy.md](./policy.md) - `@portalshq/policy` `0.0.5`
@@ -15,4 +15,4 @@ Generated from `docs/package-agents/` and current package manifests. Load every 
 - [runtime-core.md](./runtime-core.md) - `@portalshq/runtime-core` `0.0.9`
 - [sdk.md](./sdk.md) - `@portalshq/sdk` `0.0.5`
 - [text-image-delivery.md](./text-image-delivery.md) - `@portalshq/capability-text-image-delivery` `0.1.3`
-- [video-delivery.md](./video-delivery.md) - `@portalshq/capability-video-delivery` `0.1.9`
+- [video-delivery.md](./video-delivery.md) - `@portalshq/capability-video-delivery` `0.1.10`
