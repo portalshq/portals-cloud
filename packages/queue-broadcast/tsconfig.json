@@ -4,7 +4,6 @@
     "rootDir": "src",
     "outDir": "dist",
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
       "@portalshq/capability-video-delivery": ["../video-delivery/dist/index.d.ts"]
     }
