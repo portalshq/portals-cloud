@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { registry, repository, trustArgs, validatePack } from "./package-release.mjs";
+import { registry, repository, trustArgs, validatePack, packages } from "./package-release.mjs";
+import { releasePackages } from "./release-packages.mjs";
 import { setupTrust } from "./setup-npm-trust.mjs";
 
 function fixture() {
@@ -73,4 +74,21 @@ test("rejects unintended files, incorrect repository and recursive publishing", 
   delete pkg.manifest.scripts;
   pkg.manifest.repository.url = "git+https://github.com/wrong/repository.git";
   assert.throws(() => validatePack(pkg, pack), /repository metadata/);
+});
+
+test("release scope selects only real packages and never returns nothing", () => {
+  const selected = releasePackages();
+  const known = new Set(packages().map(({ directory }) => directory));
+  assert.ok(selected.length > 0, "a release must always build at least one package");
+  for (const { directory } of selected) {
+    assert.ok(known.has(directory), `${directory} is not a publishable package`);
+  }
+  assert.ok(selected.length <= packages().length);
+});
+
+test("release scope never selects private or missing directories", () => {
+  for (const { directory, manifest } of releasePackages()) {
+    assert.ok(!manifest.private, `${directory} is private`);
+    assert.ok(directory.startsWith("packages/"), `${directory} is outside packages/`);
+  }
 });
