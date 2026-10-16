@@ -15,4 +15,4 @@ Generated from `docs/package-agents/` and current package manifests. Load every 
 - [runtime-core.md](./runtime-core.md) - `@portalshq/runtime-core` `0.0.9`
 - [sdk.md](./sdk.md) - `@portalshq/sdk` `0.0.5`
 - [text-image-delivery.md](./text-image-delivery.md) - `@portalshq/capability-text-image-delivery` `0.1.3`
-- [video-delivery.md](./video-delivery.md) - `@portalshq/capability-video-delivery` `0.1.8`
+- [video-delivery.md](./video-delivery.md) - `@portalshq/capability-video-delivery` `0.1.9`

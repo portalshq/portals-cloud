@@ -8,15 +8,14 @@ export const registry = "https://registry.npmjs.org/";
 export const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 
 export function packages() {
-  return ["packages", "packages/stubs"].flatMap((parent) =>
-    readdirSync(resolve(root, parent), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && entry.name !== "stubs")
-      .map((entry) => {
-        const directory = `${parent}/${entry.name}`;
-        const manifest = JSON.parse(readFileSync(resolve(root, directory, "package.json"), "utf8"));
-        return { directory, manifest };
-      }),
-  ).filter(({ manifest }) => !manifest.private)
+  return readdirSync(resolve(root, "packages"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const directory = `packages/${entry.name}`;
+      const manifest = JSON.parse(readFileSync(resolve(root, directory, "package.json"), "utf8"));
+      return { directory, manifest };
+    })
+    .filter(({ manifest }) => !manifest.private)
     .sort((a, b) => a.manifest.name.localeCompare(b.manifest.name));
 }
 

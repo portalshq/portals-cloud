@@ -31,7 +31,7 @@ Load every relevant generated package module below; these are composable guidanc
 - [runtime-core.md](references/package-agents/runtime-core.md) - `@portalshq/runtime-core` `0.0.9`
 - [sdk.md](references/package-agents/sdk.md) - `@portalshq/sdk` `0.0.5`
 - [text-image-delivery.md](references/package-agents/text-image-delivery.md) - `@portalshq/capability-text-image-delivery` `0.1.3`
-- [video-delivery.md](references/package-agents/video-delivery.md) - `@portalshq/capability-video-delivery` `0.1.8`
+- [video-delivery.md](references/package-agents/video-delivery.md) - `@portalshq/capability-video-delivery` `0.1.9`
 
 Use `references/channel-registry.schema.json` when creating or editing a channel registry. It accepts only environment-variable references for sensitive configuration and supports optional YouTube and Twitch live-chat settings. If a channel declares PX entities and PX tooling is configured, load the PX resolver/update skills to work with them; the Portals resolver package alone is only an application boundary.
 
@@ -39,7 +39,7 @@ For interaction-heavy UI, also load `../apple-design/SKILL.md`. Preserve the app
 
 ## Platform Boundaries
 
-- Treat `capability-identity` and `capability-text-image-delivery` as unavailable runtime capabilities until their non-stub implementations ship.
+- Treat `capability-text-image-delivery` as unavailable until its non-stub implementation ships.
 - Keep origin/control credentials, catalog pricing, Stripe secrets, webhook verification, authorization, moderation, and persistence server-side.
 - Do not infer hosting, live/VOD policy, entitlement grants, queue durability, admission control, or PX data resolution from a package interface alone. Follow the loaded module's **Do not assume** section.
 - For multi-instance realtime delivery, provide a durable broker-backed fanout implementation. Do not rely on an in-memory bus for production.

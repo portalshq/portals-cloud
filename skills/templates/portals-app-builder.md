@@ -26,7 +26,7 @@ For interaction-heavy UI, also load `../apple-design/SKILL.md`. Preserve the app
 
 ## Platform Boundaries
 
-- Treat `capability-identity` and `capability-text-image-delivery` as unavailable runtime capabilities until their non-stub implementations ship.
+- Treat `capability-text-image-delivery` as unavailable until its non-stub implementation ships.
 - Keep origin/control credentials, catalog pricing, Stripe secrets, webhook verification, authorization, moderation, and persistence server-side.
 - Do not infer hosting, live/VOD policy, entitlement grants, queue durability, admission control, or PX data resolution from a package interface alone. Follow the loaded module's **Do not assume** section.
 - For multi-instance realtime delivery, provide a durable broker-backed fanout implementation. Do not rely on an in-memory bus for production.
