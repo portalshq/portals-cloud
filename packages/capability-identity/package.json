@@ -4,25 +4,31 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/portalshq/portals-cloud.git",
-    "directory": "packages/stubs/identity"
+    "directory": "packages/capability-identity"
   },
   "description": "Federated audience identity, persistent across every channel — current and future, platform-provided and developer-created.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@portalshq/contracts": "*"
+    "@grpc/grpc-js": "^1.11.3",
+    "@grpc/proto-loader": "^0.7.13"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.15.5",
+    "pg": "^8.16.3",
+    "vitest": "^3.2.7"
   },
   "publishConfig": {
     "access": "public",
