@@ -1,5 +1,11 @@
 # @portalshq/capability-identity
 
+## 0.2.0
+
+### Minor Changes
+
+- bacf537: Promote identity from stub to usable: verified access-token resolution, PostgreSQL-backed cross-channel interaction history stamped with the transaction clock, and bounded identifiers and reads.
+
 ## 0.1.3
 
 ### Patch Changes
