@@ -2,7 +2,8 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { npm, packages, root, validatePack } from "./package-release.mjs";
 
-for (const pkg of packages()) {
+const selected = process.argv.slice(2);
+for (const pkg of packages().filter(({ directory }) => selected.length === 0 || selected.includes(directory))) {
   const result = spawnSync(npm, ["pack", "--dry-run", "--json", "--ignore-scripts"], {
     cwd: resolve(root, pkg.directory), encoding: "utf8",
   });

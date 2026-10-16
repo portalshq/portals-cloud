@@ -20,8 +20,8 @@
     "prepare": "test -d .git && test -x node_modules/.bin/husky && husky || echo 'Skipping Husky (Not a local Git repo)'",
     "changeset": "changeset",
     "release:version": "changeset version && npm install --package-lock-only --ignore-scripts",
-    "release:build": "turbo run build --filter='./packages/*'",
-    "release:check": "turbo run lint test --filter='./packages/*' && node --test scripts/package-release.test.mjs && node scripts/check-package-packs.mjs",
+    "release:build": "node scripts/release-packages.mjs build",
+    "release:check": "node scripts/release-packages.mjs check",
     "release:trust": "node scripts/setup-npm-trust.mjs",
     "release": "npm run release:build && npm run release:check && changeset publish",
     "local-version-script": "npm run release:version",
@@ -33,7 +33,10 @@
     "husky": "^9.1.7",
     "@changesets/cli": "^2.27.0",
     "turbo": "^2.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "typescript": "$typescript"
   },
   "packageManager": "npm@12.0.2"
 }
