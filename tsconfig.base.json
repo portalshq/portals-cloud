@@ -9,7 +9,6 @@
     "outDir": "dist",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "downlevelIteration": true
+    "forceConsistentCasingInFileNames": true
   }
 }
