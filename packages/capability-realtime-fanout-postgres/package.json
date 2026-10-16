@@ -1,0 +1,25 @@
+{
+  "name": "@portalshq/capability-realtime-fanout-postgres",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@portalshq/capability-realtime-fanout": "^0.1.8",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.9.3"
+  }
+}
