@@ -597,9 +597,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-http-client"
-version = "1.4.2"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bd25384a4e437aa8d8f339afad4b69e786b936a7cb10db668a7aaf66717b1a8"
+checksum = "51c89cc3f1f281d659a67a519a1b5c6d445b5ce09fa7e5aee40c2c2707e9509d"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-runtime-api",
@@ -616,7 +616,7 @@ dependencies = [
  "hyper-util",
  "pin-project-lite",
  "rustls 0.21.12",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "rustls-native-certs",
  "rustls-pki-types",
  "tokio",
@@ -683,9 +683,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-runtime-api"
-version = "1.18.0"
+version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb0deb40a69de59f7809251cfe1ab16de135f42c49d222d1202b4d0ce19720f"
+checksum = "c0730c16f91124c6a2abb4932c77e299288b3dd9f967ea2e9ec48cc6731e87a4"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-runtime-api-macros",
@@ -2522,7 +2522,7 @@ dependencies = [
  "http 1.4.2",
  "hyper 1.10.1",
  "hyper-util",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "rustls-native-certs",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -3651,7 +3651,7 @@ dependencies = [
  "quinn-proto",
  "quinn-udp",
  "rustc-hash",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "socket2 0.6.5",
  "thiserror 2.0.18",
  "tokio",
@@ -3661,9 +3661,9 @@ dependencies = [
 
 [[package]]
 name = "quinn-proto"
-version = "0.11.16"
+version = "0.11.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f4bfc015262b9df63c8845072ce59068853ff5872180c2ce2f13038b970e560"
+checksum = "0e750cca55fe4f0439a15d0bb529da9651e79993e8e72c61a899a36d462befbe"
 dependencies = [
  "bytes",
  "getrandom 0.4.3",
@@ -3672,7 +3672,7 @@ dependencies = [
  "rand_pcg",
  "ring",
  "rustc-hash",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "rustls-pki-types",
  "slab",
  "thiserror 2.0.18",
@@ -3941,7 +3941,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -4045,9 +4045,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.45"
+version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "aws-lc-rs",
  "once_cell",
@@ -4463,7 +4463,7 @@ dependencies = [
  "memchr",
  "once_cell",
  "percent-encoding",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -4872,7 +4872,7 @@ version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61"
 dependencies = [
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "tokio",
 ]
 
