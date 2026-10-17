@@ -16,6 +16,12 @@ export interface VideoDeliveryPlayerProps extends Omit<React.VideoHTMLAttributes
   externalPlayer?: ComponentType<ExternalVideoPlayerProps>;
   renderOverlay?: (observation: PlaybackObservation) => ReactNode;
   onPlaybackObservation?: (observation: PlaybackObservation) => void;
+  /** Reactor token for WebRTC mode (optional - if provided, uses WebRTC instead of HLS) */
+  reactorToken?: string;
+  /** Reactor session ID for WebRTC mode (optional - creates new session if not provided) */
+  reactorSessionId?: string;
+  /** Reactor model name for WebRTC mode */
+  reactorModelName?: string;
 }
 
 /** Base Portals player; applications provide presentation and optional external video rendering. */
@@ -26,16 +32,30 @@ export function VideoDeliveryPlayer({
   externalPlayer: ExternalPlayer,
   renderOverlay,
   onPlaybackObservation,
+  reactorToken,
+  reactorSessionId,
+  reactorModelName,
   ...videoProps
 }: VideoDeliveryPlayerProps): React.ReactElement {
   const media = useRef<HTMLVideoElement | null>(null);
   const observationCallback = useRef(onPlaybackObservation);
   const [observation, setObservation] = useState<PlaybackObservation>({ state: "idle", attempt: 0 });
   const [heldFrame, setHeldFrame] = useState<string>();
+  const [useReactor, setUseReactor] = useState(false);
 
   observationCallback.current = onPlaybackObservation;
 
+  // Determine if we should use Reactor WebRTC
+  const shouldUseReactor = Boolean(reactorToken && reactorModelName);
+
   useEffect(() => {
+    setUseReactor(shouldUseReactor);
+  }, [shouldUseReactor]);
+
+  // HLS mode (existing logic)
+  useEffect(() => {
+    if (useReactor) return; // Skip HLS if using Reactor
+
     const element = media.current;
     if (!element) return;
     const controller = new HlsPlaybackController({
@@ -54,7 +74,7 @@ export function VideoDeliveryPlayer({
     return () => {
       controller.destroy();
     };
-  }, [playback.playbackManifestUrl, playback.sessionId, maxReconnectAttempts, reconnectDelayMs, ExternalPlayer]);
+  }, [useReactor, playback.playbackManifestUrl, playback.sessionId, maxReconnectAttempts, reconnectDelayMs, ExternalPlayer]);
 
   useEffect(() => {
     const element = media.current;
@@ -63,6 +83,35 @@ export function VideoDeliveryPlayer({
   }, [playback.captionTracks, ExternalPlayer]);
 
   const sharedProps = { ...videoProps, "data-video-delivery-player": playback.sessionId };
+  
+  // Reactor WebRTC mode
+  if (useReactor && shouldUseReactor) {
+    return React.createElement(
+      ReactorWebRTCWrapper,
+      {
+        token: reactorToken!,
+        sessionId: reactorSessionId,
+        modelName: reactorModelName!,
+        mediaRef: media,
+        onStatusChange: (status) => {
+          const stateMap: Record<string, PlaybackObservation["state"]> = {
+            connecting: "loading",
+            ready: "playing",
+            disconnected: "idle",
+            failed: "error",
+          };
+          setObservation({ state: stateMap[status] || "idle", attempt: 0 });
+          observationCallback.current?.({ state: stateMap[status] || "idle", attempt: 0 });
+        },
+        onError: (error) => {
+          setObservation({ state: "error", attempt: 0, error });
+          observationCallback.current?.({ state: "error", attempt: 0, error });
+        },
+      }
+    );
+  }
+
+  // HLS mode (existing)
   return React.createElement(
     React.Fragment,
     null,
@@ -85,4 +134,46 @@ function captureFrame(media: HTMLVideoElement): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Reactor WebRTC wrapper component.
+ *
+ * This is a placeholder that indicates Reactor SDK integration.
+ * Production implementation requires @reactor-team/js-sdk to be installed.
+ */
+interface ReactorWebRTCWrapperProps {
+  token: string;
+  sessionId?: string;
+  modelName: string;
+  mediaRef: React.RefObject<HTMLVideoElement>;
+  onStatusChange: (status: string) => void;
+  onError: (error: Error) => void;
+}
+
+function ReactorWebRTCWrapper({
+  token,
+  sessionId,
+  modelName,
+  mediaRef,
+  onStatusChange,
+  onError,
+}: ReactorWebRTCWrapperProps): React.ReactElement {
+  // Note: This requires @reactor-team/js-sdk to be installed
+  // The production implementation would wrap ReactorProvider and ReactorView
+  
+  console.warn("[VideoDeliveryPlayer] Reactor WebRTC mode requested but @reactor-team/js-sdk not installed. Falling back to placeholder.");
+  
+  onStatusChange("disconnected");
+  
+  return React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      height: "100%",
+      background: "#000",
+      color: "#fff",
+    },
+  }, "Reactor WebRTC requires @reactor-team/js-sdk to be installed");
 }
