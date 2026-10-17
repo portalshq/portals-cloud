@@ -92,3 +92,9 @@ test("release scope never selects private or missing directories", () => {
     assert.ok(directory.startsWith("packages/"), `${directory} is outside packages/`);
   }
 });
+
+test("package discovery follows workspace exclusions", () => {
+  const discovered = new Set(packages().map(({ directory }) => directory));
+  assert.ok(!discovered.has("packages/platform-billing"));
+  assert.ok(!discovered.has("packages/policy"));
+});

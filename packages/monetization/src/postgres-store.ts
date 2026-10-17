@@ -302,13 +302,20 @@ export class PostgresEntitlementStore implements EntitlementStore {
       // enough, and both commit — spending the last unit twice. Serializing here
       // costs throughput on a low-frequency path and buys correctness.
       const candidates = await client.query(
-        `SELECT id, scope, remaining FROM monetization_entitlements
+        `SELECT id, scope, remaining,
+           to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.US') AS created_order
+         FROM monetization_entitlements
          WHERE consumer_id = $1 AND kind = $2 AND remaining > 0
            AND (expires_at IS NULL OR expires_at >= now())
-         ORDER BY created_at FOR UPDATE`,
+         ORDER BY id FOR UPDATE`,
         [consumerId, kind],
       );
-      const applicable = candidates.rows.filter((row: QueryResultRow) => grantAppliesAt(row.scope as EntitlementScope, site));
+      // Lock by id, as interaction credit holds/refunds do, then spend oldest first.
+      // Keeping lock acquisition separate from spend order avoids cross-module deadlocks.
+      const applicable = candidates.rows
+        .filter((row: QueryResultRow) => grantAppliesAt(row.scope as EntitlementScope, site))
+        .sort((a: QueryResultRow, b: QueryResultRow) =>
+          a.created_order < b.created_order ? -1 : a.created_order > b.created_order ? 1 : 0);
       const available = applicable.reduce((total: number, row: QueryResultRow) => total + Number(row.remaining), 0);
       if (available < n) {
         await client.query("ROLLBACK");

@@ -34,3 +34,10 @@ const { url } = await monetization.createCheckout({
 - Destination charges make the platform the losses collector. Configure and review dispute reversal policy (`reverseTransferForDispute`) before production.
 - A settlement without `sessionId` cannot match session-scoped entitlement rules. Alert on a non-zero `withoutSession` drain result.
 - This package is tenant-keyed. It is not for platform B2B subscriptions; use `@portalshq/platform-billing` for those.
+
+### Lock ordering with interaction credit holds
+
+`PostgresEntitlementStore.consume` locks grants by ID and then consumes the oldest
+matching grants first. The interaction orchestrator uses the same grant lock order
+for reservations, captures and refunds. Deploy these package updates together when
+sharing a PostgreSQL entitlement database.
