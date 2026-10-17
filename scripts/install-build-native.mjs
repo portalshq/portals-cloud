@@ -1,6 +1,6 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -46,4 +46,4 @@ export function installBuildNatives() {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) installBuildNatives();
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) installBuildNatives();
