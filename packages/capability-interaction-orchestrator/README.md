@@ -2,9 +2,14 @@
 
 **Reusable interaction orchestration for Portals:** input windows, submission gateway, arbitration engine, moderation gateway, billing controller, and event publisher.
 
-## Status: Phase 1 (Stub Package)
+## Status: Phase 1 (Stub Package) - NOT Production-Ready
 
 This is currently a **stub package** providing TypeScript interfaces and type definitions. Implementations throw "not implemented" errors. Full implementation coming in Phase 2.
+
+**Production Readiness:**
+- **Phase 1 (Current):** NOT production-ready - stubs only
+- **Phase 2:** Production-ready for basic use cases (FIFO, E-rated, prepaid credits)
+- **Phase 3:** Production-ready for all use cases (all policies, all ratings, pluggable moderation)
 
 ## Overview
 
@@ -125,6 +130,13 @@ Based on DC Comics rating system:
 - PostgreSQL persistence layer
 - Tests for implemented components
 - Migration guide for replacing existing guides.ts
+
+**Production-ready for:**
+- Always-open queues (like current guides.ts)
+- FIFO arbitration
+- E-rated content
+- Prepaid credit billing
+- Basic SSE event publishing
 
 **Estimated effort:** 60 hours
 
@@ -263,15 +275,341 @@ CREATE TABLE game_show_windows (
 # Build
 npm run build
 
-# Test
-npm test
-
 # Type check
 npm run typecheck
 
-# Lint
-npm run lint
+# Test (Phase 2+)
+npm test
+
+# Test with coverage (Phase 2+)
+npm run test:coverage
 ```
+
+## Database Setup
+
+Apply the core schema to your PostgreSQL database:
+
+```bash
+psql $DATABASE_URL -f node_modules/@portalshq/capability-interaction-orchestrator/sql/001_interaction_orchestrator_core.sql
+```
+
+For Bears Live App migration, see the migration section below.
+
+## Migration from guides.ts to Interaction Orchestrator
+
+### Current State (guides.ts)
+
+The existing `guides.ts` in Bears Live App provides:
+- Simple FIFO queue for paid prompts
+- 1 credit per prompt via `@portalshq/monetization`
+- Basic validation and text model moderation
+- Implicit always-open window (no explicit window management)
+- Single arbitration policy (all eligible prompts used)
+
+### Migration Path
+
+**Phase 1 (Current):**
+- Apply core schema to Bears database
+- Keep existing `guides.ts` unchanged
+- No functional changes
+
+**Phase 2:**
+1. Rename `guides.ts` to `interaction-orchestrator-client.ts`
+2. Import `WindowManager`, `SubmissionGateway`, etc. from new package
+3. Create an always-open window:
+   ```typescript
+   const window = await windowManager.createWindow({
+     worldId: channelId,
+     branchId: "canonical",
+     baseCommitHash: currentCommit,
+     conflictKey: channelId,
+     allowedInputKinds: ["custom_prompt"],
+     arbitrationPolicy: "fifo",
+     billingPolicy: "prepaid_credits",
+     maxSubmissionsPerUser: 1,
+     maxSelectedInputs: 5,
+     opensAt: new Date().toISOString(),
+     closesAt: null,  // Always-open
+     contentRating: "E",
+   });
+   ```
+4. Replace `submitGuide()` with `submissionGateway.submitIntent()`
+5. Replace `takePendingGuides()` with window closure and arbitration
+6. Integrate moderation gateway with existing text model moderation
+7. Test with existing payment flow
+
+**Phase 3:**
+- Add voting windows for game-show modes
+- Add host selection for curated events
+- Add parallel branches for remixes
+- Add billing variants (pay-if-selected, pay-to-publish)
+
+## Example: Always-Open Paid Prompt Queue
+
+This example shows how to replace the current `guides.ts` with the Interaction Orchestrator:
+
+```typescript
+import {
+  WindowManager,
+  SubmissionGateway,
+  ArbitrationEngine,
+  ModerationGateway,
+  BillingController,
+  EventPublisher,
+  type CreateWindowInput,
+  type SubmitIntentInput,
+} from "@portalshq/capability-interaction-orchestrator";
+import { createHash, randomUUID } from "node:crypto";
+import type pg from "pg";
+
+// Initialize components (in Phase 2, these will be real implementations)
+const windowManager = new WindowManager(pool);
+const submissionGateway = new SubmissionGateway(pool);
+const arbitrationEngine = new ArbitrationEngine();
+const moderationGateway = new ModerationGateway();
+const billingController = new BillingController(monetizationStore);
+const eventPublisher = new EventPublisher(fanoutBus);
+
+// Create always-open window for paid prompts
+async function createPromptWindow(channelId: string): Promise<string> {
+  const windowId = randomUUID();
+  const window = await windowManager.createWindow({
+    worldId: channelId,
+    branchId: "canonical",
+    baseCommitHash: currentCommit,
+    conflictKey: channelId,
+    allowedInputKinds: ["custom_prompt"],
+    arbitrationPolicy: "fifo",
+    billingPolicy: "prepaid_credits",
+    maxSubmissionsPerUser: 1,
+    maxSelectedInputs: 5,
+    opensAt: new Date().toISOString(),
+    closesAt: null, // Always-open
+    contentRating: "E",
+    moderationPolicyVersion: "1.0",
+    rulesetVersion: "1.0",
+  });
+  return window.id;
+}
+
+// Submit a paid prompt
+async function submitPaidPrompt(
+  channelId: string,
+  userId: string,
+  prompt: string,
+): Promise<Submission> {
+  const windowId = getOrCreateWindowId(channelId);
+  
+  const submission = await submissionGateway.submitIntent({
+    windowId,
+    actorId: userId,
+    idempotencyKey: createHash(userId + prompt).digest('hex'),
+    kind: "custom_prompt",
+    payload: { prompt },
+  });
+  
+  return submission;
+}
+
+// Take prompts for next generation (replaces takePendingGuides)
+async function takePromptsForGeneration(
+  channelId: string,
+  limit: number = 5,
+): Promise<Submission[]> {
+  const windowId = getWindowId(channelId);
+  const submissions = await submissionGateway.listSubmissions(windowId, "eligible");
+  
+  // Resolve via FIFO arbitration
+  const resolution = await arbitrationEngine.resolve(
+    await windowManager.getWindow(windowId),
+    submissions.slice(0, limit),
+  );
+  
+  // Get selected submissions
+  const selected = await Promise.all(
+    resolution.selectedSubmissionIds.map(id => submissionGateway.getSubmission(id))
+  );
+  
+  return selected.filter((s): s is Submission => s !== null);
+}
+```
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│           Interaction Orchestrator Package                  │
+│                   (In-Process Only)                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────┐        ┌──────────────────┐          │
+│  │ Window Manager   │        │Submission Gateway│          │
+│  │ - Lifecycle      │        │ - Validation     │          │
+│  │ - Triggers       │        │ - Idempotency    │          │
+│  │ - State Machine  │        │ - Admission      │          │
+│  │ - setInterval    │        │                  │          │
+│  └────────┬─────────┘        └────────┬─────────┘          │
+│           │                            │                     │
+│           └────────────┬───────────────┘                     │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │         Moderation Gateway              │               │
+│  │ - Admission validation (built-in)       │               │
+│  │ - Content safety (rating-based)         │               │
+│  │ - Custom validators (pluggable)         │               │
+│  │ - E/T/T+/M rating system                │               │
+│  └────────────────────┬────────────────────┘               │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │      Arbitration Engine                  │               │
+│  │ - FIFO                                    │               │
+│  │ - Plurality voting                        │               │
+│  │ - First accepted                          │               │
+│  │ - Ranked selection                        │               │
+│  │ - Batch composition                       │               │
+│  │ - Parallel branches                       │               │
+│  │ - Host selection                          │               │
+│  │ - Configurable per window                 │               │
+│  └────────────────────┬────────────────────┘               │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │      Billing Controller                  │               │
+│  │ - Quote generation                       │               │
+│  │ - Credit reservation                      │               │
+│  │ - Authorization/capture                   │               │
+│  │ - Settlement                             │               │
+│  │ - Refund handling                        │               │
+│  │ - Integration with @portalshq/monetization│
+│  └────────────────────┬────────────────────┘               │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │      Event Publisher                     │               │
+│  │ - SSE events                             │               │
+│  │ - Outbox pattern                         │               │
+│  │ - Replay support                         │               │
+│  │ - Integration with fanout-postgres       │               │
+│  └─────────────────────────────────────────┘               │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Data Flow Diagram
+
+```
+User Input
+    │
+    ▼
+┌─────────────┐
+│ HTTP POST   │
+└──────┬──────┘
+       │
+       ▼
+┌──────────────────┐
+│ Submission       │
+│ Gateway          │
+│ - Validate       │
+│ - Idempotency    │
+│ - Check window   │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Moderation       │
+│ Gateway          │
+│ - Admission      │
+│ - Content safety │
+│ - World rules    │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Billing           │
+│ Controller       │
+│ - Quote          │
+│ - Authorize      │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Submission       │
+│ Stored (DB)      │
+└──────────────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Window Close      │
+│ (setInterval)    │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Arbitration       │
+│ Engine           │
+│ - Select inputs   │
+│ - Apply policy   │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Resolution       │
+│ Created (DB)      │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Billing Capture  │
+│ (if selected)    │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Model Execution  │
+│ (App-owned)      │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Event Publisher  │
+│ - Outbox         │
+│ - SSE            │
+└──────────────────┘
+```
+
+## Error Handling
+
+All components should implement comprehensive error handling:
+
+- **Window Manager:** Handle invalid state transitions, missing windows
+- **Submission Gateway:** Handle idempotency conflicts, closed windows, validation failures
+- **Arbitration Engine:** Handle empty submissions, policy errors
+- **Moderation Gateway:** Handle moderation service failures, rating violations
+- **Billing Controller:** Handle authorization failures, payment errors
+- **Event Publisher:** Handle fanout failures, retry with backoff
+
+## Logging
+
+Components should use structured logging with context:
+
+```typescript
+console.log(`[interaction-orchestrator] window=${windowId} state=${state} action=${action}`);
+console.error(`[interaction-orchestrator] window=${windowId} error=${error.message}`);
+```
+
+## Testing
+
+Phase 2 will include comprehensive test coverage:
+
+- Unit tests for each component
+- Integration tests with monetization package
+- Integration tests with fanout-postgres package
+- Database migration tests
+- End-to-end workflow tests
+
+Target: 95% code coverage
+
+## License
+
+MIT
 
 ## License
 
