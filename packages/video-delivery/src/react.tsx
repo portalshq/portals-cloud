@@ -159,21 +159,109 @@ function ReactorWebRTCWrapper({
   onStatusChange,
   onError,
 }: ReactorWebRTCWrapperProps): React.ReactElement {
-  // Note: This requires @reactor-team/js-sdk to be installed
-  // The production implementation would wrap ReactorProvider and ReactorView
-  
-  console.warn("[VideoDeliveryPlayer] Reactor WebRTC mode requested but @reactor-team/js-sdk not installed. Falling back to placeholder.");
-  
-  onStatusChange("disconnected");
-  
-  return React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      height: "100%",
-      background: "#000",
-      color: "#fff",
-    },
-  }, "Reactor WebRTC requires @reactor-team/js-sdk to be installed");
+  // Use dynamic import to avoid bundling Reactor SDK if not needed
+  // The @reactor-team/js-sdk is an optional peer dependency
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [reactorInstance, setReactorInstance] = useState<any>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    let reactor: any = null;
+
+    async function loadReactorSDK() {
+      try {
+        // Try to import Reactor SDK (optional peer dependency)
+        // @ts-ignore - Optional peer dependency
+        const reactorModule = await import("@reactor-team/js-sdk");
+        const { Reactor } = reactorModule;
+        
+        if (mounted) {
+          setIsLoaded(true);
+          onStatusChange("connecting");
+          
+          // Get the video element
+          const videoElement = mediaRef.current;
+          if (!videoElement) {
+            throw new Error("Video element not available");
+          }
+
+          // Create Reactor instance
+          reactor = new Reactor({
+            modelName: modelName,
+          });
+          
+          // Connect to Reactor
+          await reactor.connect(token, {
+            sessionId: sessionId, // Adopt existing session if provided
+            autoResumeTracks: true,
+          });
+          
+          if (mounted) {
+            setReactorInstance(reactor);
+            onStatusChange("ready");
+            console.log("[VideoDeliveryPlayer] Reactor connected successfully to session:", sessionId || "new session");
+          }
+        }
+      } catch (error) {
+        if (mounted) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          setLoadError(err);
+          onError(err);
+          onStatusChange("failed");
+          console.warn("[VideoDeliveryPlayer] Reactor SDK error:", err.message);
+        }
+      }
+    }
+
+    loadReactorSDK();
+
+    return () => {
+      mounted = false;
+      // Disconnect from Reactor on cleanup
+      if (reactor) {
+        reactor.disconnect().catch((err: Error) => {
+          console.warn("[VideoDeliveryPlayer] Reactor disconnect error:", err);
+        });
+      }
+    };
+  }, [token, sessionId, modelName, mediaRef, onStatusChange, onError]);
+
+  if (loadError) {
+    return React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        background: "#000",
+        color: "#fff",
+        textAlign: "center",
+        padding: "20px",
+      },
+    }, `Reactor WebRTC: ${loadError.message}`);
+  }
+
+  if (!isLoaded) {
+    return React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        background: "#000",
+        color: "#fff",
+      },
+    }, "Loading Reactor WebRTC...");
+  }
+
+  // Video element for Reactor stream
+  // The Reactor SDK will attach the media stream to this element
+  return React.createElement("video", {
+    ref: mediaRef,
+    autoPlay: true,
+    playsInline: true,
+    muted: false,
+    style: { width: "100%", height: "100%", objectFit: "contain" },
+  });
 }

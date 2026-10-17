@@ -103,18 +103,37 @@ export class ReactorSessionManager {
   /**
    * Send a command to Reactor.
    *
-   * In production, this would use Reactor SDK's send_command method.
+   * NOTE: Reactor commands are sent via WebRTC data channel, not HTTP API.
+   * The Node.js backend cannot send commands directly without WebRTC.
+   * 
+   * Production architecture:
+   * 1. Backend mints tokens via mintToken()
+   * 2. Backend provides token and sessionId to frontend
+   * 3. Frontend uses Reactor SDK to connect via WebRTC
+   * 4. Frontend sends commands via SDK's sendCommand()
+   * 
+   * This method throws because server-side command sending is not supported by Reactor.
+   * Use the token and sessionId to enable frontend command sending.
    */
   async sendCommand(command: string, params: Record<string, unknown>): Promise<void> {
     if (this.state !== "connected" || !this.sessionId) {
       throw new Error("Not connected to Reactor session");
     }
 
-    // In production, would call:
-    // await reactor.send_command(command, params)
+    // Reactor commands require WebRTC data channel
+    // Backend cannot send commands without WebRTC connection
+    // Frontend must use Reactor SDK to send commands
+    console.error(
+      `[ReactorSessionManager] Server-side command sending not supported by Reactor. ` +
+      `Command: ${command}, Session: ${this.sessionId}. ` +
+      `Frontend must use Reactor SDK's sendCommand() with token from backend.`
+    );
     
-    // Notify callback
-    this.options.onCommand?.(command, params);
+    throw new Error(
+      "Reactor commands must be sent from the frontend via Reactor SDK WebRTC connection. " +
+      "Backend provides token and session ID; frontend connects and sends commands. " +
+      "This is a Reactor architectural constraint: commands use WebRTC data channel, not HTTP."
+    );
   }
 
   /**

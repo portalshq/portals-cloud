@@ -10,7 +10,10 @@
         ],
         "types": [
             "node"
-        ]
+        ],
+        "downlevelIteration": false,
+        "moduleResolution": "bundler",
+        "noResolve": false
     },
     "include": [
         "src"
