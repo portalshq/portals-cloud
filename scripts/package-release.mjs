@@ -64,7 +64,7 @@ export function validatePack({ directory, manifest }, pack) {
     if (!files.has(entry.replace(/^\.\//, ""))) fail(`missing packed entry point ${entry}; build first`);
   }
   for (const file of files) {
-    if (!file.startsWith("dist/") && !file.startsWith("sql/") && !/^(package\.json|readme(?:\..*)?|licen[cs]e(?:\..*)?|changelog(?:\..*)?)$/i.test(file)) {
+    if (!file.startsWith("dist/") && !file.startsWith("sql/") && !/^docs\/(?:[^/]+\/)*[^/]+\.md$/i.test(file) && !/^(package\.json|readme(?:\..*)?|licen[cs]e(?:\..*)?|changelog(?:\..*)?)$/i.test(file)) {
       fail(`unexpected packed file ${file}`);
     }
   }
