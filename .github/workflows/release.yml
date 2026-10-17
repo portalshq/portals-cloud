@@ -34,8 +34,8 @@ jobs:
           package-manager-cache: false
       - run: npm install --global npm@11
       - run: npm ci
-      - name: Install Rollup Linux native binary
-        run: node scripts/install-rollup-linux-native.mjs
+      - name: Recover locked Linux build-tool binaries
+        run: node scripts/install-build-native.mjs
       - run: npm run release:build
       - run: npm run release:check
 
@@ -69,8 +69,8 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Install Rollup Linux native binary
-        run: node scripts/install-rollup-linux-native.mjs
+      - name: Recover locked Linux build-tool binaries
+        run: node scripts/install-build-native.mjs
 
       # The Changesets Action automates the PR creation, tagging, and execution
       - name: Run Changeset Engine

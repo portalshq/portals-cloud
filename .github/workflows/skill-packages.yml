@@ -42,8 +42,8 @@ jobs:
           node-version: 22
       - run: npm ci
       # npm ci does not install rollup's platform binary on Linux.
-      - name: Install Rollup Linux native binary
-        run: node scripts/install-rollup-linux-native.mjs
+      - name: Recover locked Linux build-tool binaries
+        run: node scripts/install-build-native.mjs
       - run: npm test -w @portalshq/capability-identity
         env:
           IDENTITY_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres

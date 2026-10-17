@@ -70,9 +70,9 @@ is desired. The workflow itself only runs the release job for this repository's
    GitHub release records.
 
 Release-related pull requests run the same build and package checks in the
-Release Engine workflow without publishing. Main publication waits for this validation. The Rollup native-binary repair installs
-into a temporary prefix and copies only the matching binary package; it never runs
-a workspace-wide dependency resolution after `npm ci`.
+Release Engine workflow without publishing. Main publication waits for this validation. Native recovery fetches exact Rollup, Rolldown, and OXC binary tarballs from the
+lockfile and copies each into its owning tool instance, including nested versions.
+It never runs workspace dependency resolution after `npm ci`.
 
 For local verification, run `npm run release:build && npm run release:check`.
 This includes `npm pack --dry-run` for every public package and checks the JS,
