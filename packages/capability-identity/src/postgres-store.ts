@@ -1,6 +1,6 @@
 import {
   INACTIVE_ACCOUNT_ERROR,
-  type AudienceIdentity, type ChannelHistoryEntry, type ChannelInteraction, type IdentityStore,
+  type AudienceIdentity, type ChannelHistoryEntry, type ChannelInteraction, type SyncableIdentityStore,
 } from "./identity-provider.js";
 
 /** Minimal shape of `pg.Pool`, so the published types need no pg typings. */
@@ -8,8 +8,23 @@ export interface QueryRunner {
   query(text: string, values?: unknown[]): Promise<{ rowCount: number | null; rows: Array<Record<string, unknown>> }>;
 }
 
-export class PostgresIdentityStore implements IdentityStore {
+/**
+ * Application-specific identity store.
+ *
+ * This store is for app-specific user data (application_users table).
+ * For central database user data, use CentralIdentityStore.
+ */
+export class ApplicationIdentityStore implements SyncableIdentityStore {
   constructor(private readonly pool: QueryRunner) {}
+
+  /** Profile refresh only: account creation requires application-owned identity fields. */
+  async syncFromAuthGateway(userId: string, displayName: string): Promise<void> {
+    const result = await this.pool.query(
+      "UPDATE application_users SET display_name = $2, updated_at = now() WHERE id = $1",
+      [userId, displayName],
+    );
+    if (!result.rowCount) throw new Error("Application account must be provisioned before profile sync.");
+  }
 
   async getIdentity(userId: string): Promise<AudienceIdentity | undefined> {
     const result = await this.pool.query(
@@ -21,8 +36,8 @@ export class PostgresIdentityStore implements IdentityStore {
   }
 
   /**
-   * The active-account check and the write are one statement, so a suspension
-   * can never land between them. GREATEST keeps the newest interaction when
+   * The active-account check and write share one PostgreSQL statement snapshot.
+   * GREATEST keeps the newest interaction when
    * concurrent transactions commit out of order.
    */
   async recordInteraction(userId: string, interaction: ChannelInteraction): Promise<void> {
@@ -47,6 +62,12 @@ export class PostgresIdentityStore implements IdentityStore {
     return result.rows.map(historyFromRow);
   }
 }
+
+/**
+ * Legacy PostgresIdentityStore - renamed to ApplicationIdentityStore for clarity.
+ * Kept for backward compatibility.
+ */
+export const PostgresIdentityStore = ApplicationIdentityStore;
 
 function historyFromRow(row: Record<string, unknown>): ChannelHistoryEntry {
   return {
