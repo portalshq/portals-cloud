@@ -35,9 +35,7 @@ jobs:
       - run: npm install --global npm@11
       - run: npm ci
       - name: Install Rollup Linux native binary
-        run: |
-          ROLLUP_VERSION="$(node -p "require('./node_modules/rollup/package.json').version")"
-          npm install --ignore-scripts --no-save --package-lock=false "@rollup/rollup-linux-x64-gnu@${ROLLUP_VERSION}"
+        run: node scripts/install-rollup-linux-native.mjs
       - run: npm run release:build
       - run: npm run release:check
 
@@ -72,9 +70,7 @@ jobs:
         run: npm ci
 
       - name: Install Rollup Linux native binary
-        run: |
-          ROLLUP_VERSION="$(node -p "require('./node_modules/rollup/package.json').version")"
-          npm install --ignore-scripts --no-save --package-lock=false "@rollup/rollup-linux-x64-gnu@${ROLLUP_VERSION}"
+        run: node scripts/install-rollup-linux-native.mjs
 
       # The Changesets Action automates the PR creation, tagging, and execution
       - name: Run Changeset Engine
