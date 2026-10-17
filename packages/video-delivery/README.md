@@ -48,17 +48,21 @@ import { VideoDeliveryPlayer } from "@portalshq/capability-video-delivery/react"
 
 The Reactor WebRTC wrapper:
 - Dynamically imports `@reactor-team/js-sdk` when Reactor mode is activated
-- Provides placeholder for Reactor SDK integration (signaling, WebRTC connection)
+- Creates Reactor instance with provided model name
+- Connects to Reactor via WebRTC using the provided token
+- Supports session adoption via `sessionId` option
+- Automatically disconnects on component unmount
 - Maps Reactor connection states to VideoDeliveryPlayer observation states
 - Falls back gracefully if Reactor SDK is not installed
 
 **Current Status:**
 - ✅ React component structure with Reactor props
 - ✅ Dynamic import of Reactor SDK (optional peer dependency)
-- ⚠️ Reactor SDK integration: Placeholder (actual SDK usage to be implemented)
-- ⚠️ Signaling protocol: Not implemented (SDK handles this)
+- ✅ Production-ready Reactor SDK integration (connect, disconnect, error handling)
+- ✅ Session adoption support (connect to existing session)
+- ✅ Automatic cleanup on unmount
 
-**Recommended:** Install `@reactor-team/js-sdk` in your application to enable Reactor WebRTC mode. The component provides the structure for SDK integration; the actual Reactor API calls depend on SDK version and documentation.
+**Recommended:** Install `@reactor-team/js-sdk` in your application to enable Reactor WebRTC mode. The component provides production-ready SDK integration with proper lifecycle management.
 
 ## Usage notes
 
