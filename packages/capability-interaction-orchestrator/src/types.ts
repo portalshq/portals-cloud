@@ -240,6 +240,14 @@ export interface Resolution {
   /** Resulting commit hash */
   resultingCommitHash?: string;
 
+  /** Video provider session ID (if video generation) */
+  videoProviderSessionId?: string;
+  /** Video provider interaction (to send to VideoProvider) */
+  videoProviderInteraction?: {
+    type: "prompt" | "command" | "mutation" | "vote" | "branch";
+    payload: Record<string, unknown>;
+  };
+
   /** App-specific metadata (JSONB extension) */
   appMetadata: Record<string, unknown>;
 }

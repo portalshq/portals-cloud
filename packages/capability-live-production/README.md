@@ -2,12 +2,154 @@
 
 **Reusable agent module:** [integration guide](../../docs/package-agents/live-production.md)
 
-Coordinates scheduled narrative material with staged queue delivery through `reconcile(channelId)`. Includes Reactor Session Manager for persistent backend connections to Reactor for multi-client real-time streaming.
+Coordinates scheduled narrative material with staged queue delivery through `reconcile(channelId)`. Includes Video Provider abstraction for multi-provider video generation (FAL, Reactor, OpenRouter) and Reactor Session Manager for persistent backend connections.
 
 ## Exports
 
 - Root: `LiveProduction`, `createLiveProduction`, production types
+- `VideoProvider`, `createVideoProvider`, video provider types
 - `ReactorSessionManager`, `createReactorSessionManager` - Reactor session management
+
+## Video Provider Abstraction
+
+The `VideoProvider` interface is a deep module: small interface (4 methods), deep implementation (provider-specific complexity hidden). This is the seam between Interaction Orchestrator and video generation providers.
+
+### Interface
+
+```ts
+interface VideoProvider {
+  startSession(config: VideoSessionConfig): Promise<VideoSessionHandle>;
+  sendInteraction(sessionId: string, interaction: VideoInteraction): Promise<void>;
+  stopSession(sessionId: string): Promise<void>;
+  getSessionStatus(sessionId: string): Promise<VideoSessionStatus>;
+}
+```
+
+### Usage
+
+```ts
+import { createVideoProvider, type VideoProvider } from "@portalshq/capability-live-production";
+
+// Create provider based on config
+const provider = createVideoProvider({
+  type: "reactor",
+  modelName: "reactor/helios",
+  apiKey: process.env.REACTOR_API_KEY,
+});
+
+// Start session
+const handle = await provider.startSession({
+  channelId: "channel-123",
+  providerConfig: {
+    type: "reactor",
+    modelName: "reactor/helios",
+    apiKey: process.env.REACTOR_API_KEY,
+  },
+});
+
+// Send interaction
+await provider.sendInteraction(handle.sessionId, {
+  type: "prompt",
+  payload: {
+    type: "prompt",
+    prompt: "A bear walking in the forest",
+  },
+});
+
+// Check status
+const status = await provider.getSessionStatus(handle.sessionId);
+
+// Stop session
+await provider.stopSession(handle.sessionId);
+```
+
+### Supported Providers
+
+- **Reactor** - WebRTC video generation, real-time streaming
+- **FAL** - HTTP video generation, HLS staging
+- **OpenRouter** - Text generation (for non-video workflows)
+
+### Architecture
+
+```
+Interaction Orchestrator
+         ↓
+  VideoProvider Interface (seam)
+         ↓
+    ┌────┴────┬──────────┬──────────┐
+    ↓         ↓          ↓          ↓
+ Reactor     FAL    OpenRouter    (future)
+ Provider   Provider    Provider
+```
+
+### Design Principles
+
+- **Deep module:** Small interface (4 methods), deep implementation (provider-specific complexity hidden)
+- **Clean seam:** Testable through interface, provider-specific details hidden
+- **Accept dependencies:** No internal instantiation, configuration passed in
+- **Return results:** No side effects, explicit return values
+- **Leverage:** One interface used across N providers
+- **Locality:** Provider-specific logic contained in adapters
+
+### Provider Configuration
+
+#### Reactor
+```ts
+{
+  type: "reactor",
+  modelName: "reactor/helios",
+  apiKey: "rk_...",
+  apiUrl?: "https://api.reactor.inc",
+  maxSessionDurationSeconds?: 3600,
+  sessionId?: "existing-session-id", // for session adoption
+}
+```
+
+#### FAL
+```ts
+{
+  type: "fal",
+  modelName: "fal-ai/fast-sdxl",
+  apiKey: "fal_...",
+  queueName?: "hls-queue-name",
+}
+```
+
+#### OpenRouter
+```ts
+{
+  type: "openrouter",
+  modelName: "anthropic/claude-3.5-sonnet",
+  apiKey: "sk-or-...",
+}
+```
+
+### Interaction Types
+
+- **prompt** - Text-to-video generation
+- **command** - Direct command to model
+- **mutation** - Modify existing content
+- **vote** - Voting mechanism
+- **branch** - Narrative branching
+
+### Integration with Interaction Orchestrator
+
+The Interaction Orchestrator sends resolved interactions to the VideoProvider:
+
+```ts
+// Interaction Orchestrator resolves command
+const resolved = await arbitrator.resolve(submission);
+
+// Send to video provider
+await videoProvider.sendInteraction(sessionId, {
+  type: "command",
+  payload: {
+    type: "command",
+    command: resolved.command,
+    params: resolved.params,
+  },
+});
+```
 
 ## Reactor Session Manager
 

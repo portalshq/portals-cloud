@@ -55,3 +55,4 @@ export function createLiveProduction(dependencies: {
 }
 
 export * from "./reactor-session-manager.js";
+export * from "./video-provider.js";

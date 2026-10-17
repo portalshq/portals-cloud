@@ -4,7 +4,7 @@
  * Reusable interaction orchestration for Portals: input windows, submission gateway,
  * arbitration engine, moderation gateway, billing controller, and event publisher.
  *
- * This is Phase 1 (Stub Package). Full implementation coming in Phase 2.
+ * This is Phase 1 (Stub Package) with Phase 2 partial implementation (Arbitration Engine + Execution Bridge).
  *
  * ## Installation
  *
@@ -34,15 +34,16 @@
  * // windowManager.createWindow(...) will throw "not implemented - Phase 2"
  * ```
  *
- * ## Phase 2 Implementation
+ * ## Phase 2 Implementation (Partial)
  *
- * Phase 2 will provide production-ready implementations of:
- * - Window Manager (in-process window closer)
- * - Submission Gateway (validation, idempotency, admission)
- * - Arbitration Engine (FIFO policy)
- * - Moderation Gateway (E-rated, rule-based)
- * - Billing Controller (monetization integration)
- * - Event Publisher (fanout-postgres integration)
+ * Phase 2 provides production-ready implementations of:
+ * - Arbitration Engine (FIFO policy) - DONE
+ * - Execution Bridge (connects to Video Provider) - DONE
+ * - Window Manager (in-process window closer) - TODO
+ * - Submission Gateway (validation, idempotency, admission) - TODO
+ * - Moderation Gateway (E-rated, rule-based) - TODO
+ * - Billing Controller (monetization integration) - TODO
+ * - Event Publisher (fanout-postgres integration) - TODO
  *
  * ## Phase 3 Implementation
  *
@@ -60,7 +61,22 @@ export * from "./types.js";
 // Export stub implementations
 export { StubWindowManager, type WindowManager } from "./window-manager.js";
 export { StubSubmissionGateway, type SubmissionGateway } from "./submission-gateway.js";
-export { StubArbitrationEngine, type ArbitrationEngine, type ArbitrationPolicy } from "./arbitration-engine.js";
+export { 
+  ArbitrationEngine, 
+  StubArbitrationEngine, 
+  type IArbitrationEngine, 
+  type ArbitrationPolicy 
+} from "./arbitration-engine.js";
 export { StubModerationGateway, type ModerationGateway, type ModerationValidator } from "./moderation-gateway.js";
 export { StubBillingController, type BillingController } from "./billing-controller.js";
 export { StubEventPublisher, type EventPublisher } from "./event-publisher.js";
+
+// Export Execution Bridge (Phase 2 - production-ready)
+export { 
+  ExecutionBridge, 
+  createExecutionBridge, 
+  type IExecutionBridge, 
+  type ExecutionBridgeConfig,
+  type IVideoProvider,
+  type VideoInteraction,
+} from "./execution-bridge.js";
