@@ -16,6 +16,12 @@ export interface VideoDeliveryPlayerProps extends Omit<React.VideoHTMLAttributes
   externalPlayer?: ComponentType<ExternalVideoPlayerProps>;
   renderOverlay?: (observation: PlaybackObservation) => ReactNode;
   onPlaybackObservation?: (observation: PlaybackObservation) => void;
+  /** Reactor token for WebRTC mode (optional - if provided, uses WebRTC instead of HLS) */
+  reactorToken?: string;
+  /** Reactor session ID for WebRTC mode (optional - creates new session if not provided) */
+  reactorSessionId?: string;
+  /** Reactor model name for WebRTC mode */
+  reactorModelName?: string;
 }
 
 /** Base Portals player; applications provide presentation and optional external video rendering. */
@@ -26,16 +32,30 @@ export function VideoDeliveryPlayer({
   externalPlayer: ExternalPlayer,
   renderOverlay,
   onPlaybackObservation,
+  reactorToken,
+  reactorSessionId,
+  reactorModelName,
   ...videoProps
 }: VideoDeliveryPlayerProps): React.ReactElement {
   const media = useRef<HTMLVideoElement | null>(null);
   const observationCallback = useRef(onPlaybackObservation);
   const [observation, setObservation] = useState<PlaybackObservation>({ state: "idle", attempt: 0 });
   const [heldFrame, setHeldFrame] = useState<string>();
+  const [useReactor, setUseReactor] = useState(false);
 
   observationCallback.current = onPlaybackObservation;
 
+  // Determine if we should use Reactor WebRTC
+  const shouldUseReactor = Boolean(reactorToken && reactorModelName);
+
   useEffect(() => {
+    setUseReactor(shouldUseReactor);
+  }, [shouldUseReactor]);
+
+  // HLS mode (existing logic)
+  useEffect(() => {
+    if (useReactor) return; // Skip HLS if using Reactor
+
     const element = media.current;
     if (!element) return;
     const controller = new HlsPlaybackController({
@@ -54,7 +74,7 @@ export function VideoDeliveryPlayer({
     return () => {
       controller.destroy();
     };
-  }, [playback.playbackManifestUrl, playback.sessionId, maxReconnectAttempts, reconnectDelayMs, ExternalPlayer]);
+  }, [useReactor, playback.playbackManifestUrl, playback.sessionId, maxReconnectAttempts, reconnectDelayMs, ExternalPlayer]);
 
   useEffect(() => {
     const element = media.current;
@@ -63,6 +83,35 @@ export function VideoDeliveryPlayer({
   }, [playback.captionTracks, ExternalPlayer]);
 
   const sharedProps = { ...videoProps, "data-video-delivery-player": playback.sessionId };
+  
+  // Reactor WebRTC mode
+  if (useReactor && shouldUseReactor) {
+    return React.createElement(
+      ReactorWebRTCWrapper,
+      {
+        token: reactorToken!,
+        sessionId: reactorSessionId,
+        modelName: reactorModelName!,
+        mediaRef: media,
+        onStatusChange: (status) => {
+          const stateMap: Record<string, PlaybackObservation["state"]> = {
+            connecting: "loading",
+            ready: "playing",
+            disconnected: "idle",
+            failed: "error",
+          };
+          setObservation({ state: stateMap[status] || "idle", attempt: 0 });
+          observationCallback.current?.({ state: stateMap[status] || "idle", attempt: 0 });
+        },
+        onError: (error) => {
+          setObservation({ state: "error", attempt: 0, error });
+          observationCallback.current?.({ state: "error", attempt: 0, error });
+        },
+      }
+    );
+  }
+
+  // HLS mode (existing)
   return React.createElement(
     React.Fragment,
     null,
@@ -85,4 +134,134 @@ function captureFrame(media: HTMLVideoElement): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Reactor WebRTC wrapper component.
+ *
+ * This is a placeholder that indicates Reactor SDK integration.
+ * Production implementation requires @reactor-team/js-sdk to be installed.
+ */
+interface ReactorWebRTCWrapperProps {
+  token: string;
+  sessionId?: string;
+  modelName: string;
+  mediaRef: React.RefObject<HTMLVideoElement>;
+  onStatusChange: (status: string) => void;
+  onError: (error: Error) => void;
+}
+
+function ReactorWebRTCWrapper({
+  token,
+  sessionId,
+  modelName,
+  mediaRef,
+  onStatusChange,
+  onError,
+}: ReactorWebRTCWrapperProps): React.ReactElement {
+  // Use dynamic import to avoid bundling Reactor SDK if not needed
+  // The @reactor-team/js-sdk is an optional peer dependency
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [reactorInstance, setReactorInstance] = useState<any>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    let reactor: any = null;
+
+    async function loadReactorSDK() {
+      try {
+        // Try to import Reactor SDK (optional peer dependency)
+        // @ts-ignore - Optional peer dependency
+        const reactorModule = await import("@reactor-team/js-sdk");
+        const { Reactor } = reactorModule;
+        
+        if (mounted) {
+          setIsLoaded(true);
+          onStatusChange("connecting");
+          
+          // Get the video element
+          const videoElement = mediaRef.current;
+          if (!videoElement) {
+            throw new Error("Video element not available");
+          }
+
+          // Create Reactor instance
+          reactor = new Reactor({
+            modelName: modelName,
+          });
+          
+          // Connect to Reactor
+          await reactor.connect(token, {
+            sessionId: sessionId, // Adopt existing session if provided
+            autoResumeTracks: true,
+          });
+          
+          if (mounted) {
+            setReactorInstance(reactor);
+            onStatusChange("ready");
+            console.log("[VideoDeliveryPlayer] Reactor connected successfully to session:", sessionId || "new session");
+          }
+        }
+      } catch (error) {
+        if (mounted) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          setLoadError(err);
+          onError(err);
+          onStatusChange("failed");
+          console.warn("[VideoDeliveryPlayer] Reactor SDK error:", err.message);
+        }
+      }
+    }
+
+    loadReactorSDK();
+
+    return () => {
+      mounted = false;
+      // Disconnect from Reactor on cleanup
+      if (reactor) {
+        reactor.disconnect().catch((err: Error) => {
+          console.warn("[VideoDeliveryPlayer] Reactor disconnect error:", err);
+        });
+      }
+    };
+  }, [token, sessionId, modelName, mediaRef, onStatusChange, onError]);
+
+  if (loadError) {
+    return React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        background: "#000",
+        color: "#fff",
+        textAlign: "center",
+        padding: "20px",
+      },
+    }, `Reactor WebRTC: ${loadError.message}`);
+  }
+
+  if (!isLoaded) {
+    return React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        background: "#000",
+        color: "#fff",
+      },
+    }, "Loading Reactor WebRTC...");
+  }
+
+  // Video element for Reactor stream
+  // The Reactor SDK will attach the media stream to this element
+  return React.createElement("video", {
+    ref: mediaRef,
+    autoPlay: true,
+    playsInline: true,
+    muted: false,
+    style: { width: "100%", height: "100%", objectFit: "contain" },
+  });
 }

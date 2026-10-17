@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,15 +8,37 @@ export const registry = "https://registry.npmjs.org/";
 export const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 
 export function packages() {
-  return readdirSync(resolve(root, "packages"), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => {
-      const directory = `packages/${entry.name}`;
-      const manifest = JSON.parse(readFileSync(resolve(root, directory, "package.json"), "utf8"));
-      return { directory, manifest };
-    })
+  const workspacePatterns = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")).workspaces;
+  const directories = [];
+  for (const entry of readdirSync(resolve(root, "packages"), { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const directory = `packages/${entry.name}`;
+    if (existsSync(resolve(root, directory, "package.json"))) directories.push(directory);
+    for (const child of readdirSync(resolve(root, directory), { withFileTypes: true })) {
+      const nested = `${directory}/${child.name}`;
+      if (child.isDirectory() && existsSync(resolve(root, nested, "package.json"))) directories.push(nested);
+    }
+  }
+  return directories
+    .filter((directory) => isWorkspace(directory, workspacePatterns))
+    .map((directory) => ({
+      directory,
+      manifest: JSON.parse(readFileSync(resolve(root, directory, "package.json"), "utf8")),
+    }))
     .filter(({ manifest }) => !manifest.private)
     .sort((a, b) => a.manifest.name.localeCompare(b.manifest.name));
+}
+
+function isWorkspace(directory, patterns) {
+  const matches = (pattern) => {
+    const expression = pattern.split("/").map((segment) =>
+      segment === "*" ? "[^/]+" : segment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    ).join("/");
+    return new RegExp(`^${expression}$`).test(directory);
+  };
+  const included = patterns.some((pattern) => !pattern.startsWith("!") && matches(pattern));
+  const excluded = patterns.some((pattern) => pattern.startsWith("!") && matches(pattern.slice(1)));
+  return included && !excluded;
 }
 
 export function trustArgs(name) {

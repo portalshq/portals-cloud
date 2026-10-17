@@ -1,0 +1,56 @@
+{
+  "name": "@portalshq/capability-interaction-orchestrator",
+  "version": "0.1.0",
+  "description": "Reusable interaction orchestration for Portals: input windows, submission gateway, arbitration engine, moderation gateway, billing controller, and event publisher",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "sql"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "portals",
+    "interaction",
+    "orchestration",
+    "arbitration",
+    "moderation",
+    "billing"
+  ],
+  "author": "Portals",
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.16.3",
+    "@portalshq/monetization": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.7",
+    "@vitest/coverage-v8": "^3.2.7",
+    "@types/pg": "^8.15.5",
+    "@electric-sql/pglite": "^0.3.16"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud.git",
+    "directory": "packages/capability-interaction-orchestrator"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
