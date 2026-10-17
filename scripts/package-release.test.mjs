@@ -108,3 +108,21 @@ test("allows packaged Markdown guides and rejects private or executable document
     assert.throws(() => validatePack(pkg, { ...pack, files: [...pack.files, { path }] }), /unexpected packed file/);
   }
 });
+
+
+test("native recovery preserves nested tool versions and ignores unrelated optional dependencies", async () => {
+  const { linuxBuildNatives } = await import("./install-build-native.mjs");
+  assert.deepEqual(linuxBuildNatives({
+    "node_modules/rollup": { optionalDependencies: { "@rollup/rollup-linux-x64-gnu": "4.63.1", "@rollup/rollup-darwin-arm64": "4.63.1" } },
+    "node_modules/rolldown": { optionalDependencies: { "@rolldown/binding-linux-x64-gnu": "1.2.0" } },
+    "node_modules/vite/node_modules/rolldown": { optionalDependencies: { "@rolldown/binding-linux-x64-gnu": "1.1.5" } },
+    "node_modules/example": { optionalDependencies: { "@example/linux-x64-gnu": "1.0.0" } },
+  }), [
+    { directory: "node_modules/rollup", name: "@rollup/rollup-linux-x64-gnu", version: "4.63.1" },
+    { directory: "node_modules/rolldown", name: "@rolldown/binding-linux-x64-gnu", version: "1.2.0" },
+    { directory: "node_modules/vite/node_modules/rolldown", name: "@rolldown/binding-linux-x64-gnu", version: "1.1.5" },
+  ]);
+  assert.throws(() => linuxBuildNatives({ "node_modules/rollup": {
+    optionalDependencies: { "@rollup/rollup-linux-x64-gnu": "latest" },
+  } }), /Unpinned/);
+});
