@@ -98,3 +98,13 @@ test("package discovery follows workspace exclusions", () => {
   assert.ok(!discovered.has("packages/platform-billing"));
   assert.ok(!discovered.has("packages/policy"));
 });
+
+
+test("allows packaged Markdown guides and rejects private or executable documentation assets", () => {
+  const { pkg, pack } = fixture();
+  pack.files.push({ path: "docs/integration-guide.md" }, { path: "docs/setup/database.md" });
+  validatePack(pkg, pack);
+  for (const path of ["docs/.env", "docs/setup.js", "docs/token.json", "src/index.ts"]) {
+    assert.throws(() => validatePack(pkg, { ...pack, files: [...pack.files, { path }] }), /unexpected packed file/);
+  }
+});

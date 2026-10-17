@@ -1,6 +1,15 @@
 name: Release Engine
 
 on:
+  pull_request:
+    paths:
+      - "packages/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.base.json"
+      - "turbo.json"
+      - ".github/workflows/release.yml"
   push:
     branches:
       - main
@@ -14,7 +23,26 @@ permissions:
   contents: read
 
 jobs:
+  validate:
+    name: Validate release packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm install --global npm@11
+      - run: npm ci
+      - name: Install Rollup Linux native binary
+        run: |
+          ROLLUP_VERSION="$(node -p "require('./node_modules/rollup/package.json').version")"
+          npm install --ignore-scripts --no-save --package-lock=false "@rollup/rollup-linux-x64-gnu@${ROLLUP_VERSION}"
+      - run: npm run release:build
+      - run: npm run release:check
+
   release:
+    needs: validate
     name: Track, Version, and Publish
     if: github.repository == 'portalshq/portals-cloud' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
