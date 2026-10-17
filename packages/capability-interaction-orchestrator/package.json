@@ -1,0 +1,46 @@
+{
+  "name": "@portalshq/capability-interaction-orchestrator",
+  "version": "0.1.0",
+  "description": "Reusable interaction orchestration for Portals: input windows, submission gateway, arbitration engine, moderation gateway, billing controller, and event publisher",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "sql"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "portals",
+    "interaction",
+    "orchestration",
+    "arbitration",
+    "moderation",
+    "billing"
+  ],
+  "author": "Portals",
+  "license": "MIT",
+  "dependencies": {
+    "@portalshq/monetization": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@portalshq/monetization": "workspace:*"
+  }
+}
