@@ -1,6 +1,6 @@
 {
   "name": "@portalshq/capability-interaction-orchestrator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Reusable interaction orchestration for Portals: input windows, submission gateway, arbitration engine, moderation gateway, billing controller, and event publisher",
   "type": "module",
   "main": "./dist/index.js",
@@ -34,7 +34,7 @@
   "license": "MIT",
   "dependencies": {
     "pg": "^8.16.3",
-    "@portalshq/monetization": "^0.2.0"
+    "@portalshq/monetization": "^0.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
