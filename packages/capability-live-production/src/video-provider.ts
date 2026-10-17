@@ -216,18 +216,21 @@ export type SessionState =
  * - sendInteraction throws if session is not in ready state
  * - stopSession is idempotent (safe to call multiple times)
  * - getSessionStatus returns current state of session
+ * - getVideoBuffer returns video data for HTTP-based providers (throws for stream-based providers)
  *
  * Error modes:
  * - startSession: throws if provider config is invalid or provider is unavailable
  * - sendInteraction: throws if session not found, not ready, or interaction invalid
  * - stopSession: throws if session not found
  * - getSessionStatus: throws if session not found
+ * - getVideoBuffer: throws if session not found, video not ready, or provider doesn't support buffer retrieval
  *
  * Performance characteristics:
  * - startSession: may take 1-10 seconds (provider session initialization)
  * - sendInteraction: typically < 1 second (command submission)
  * - stopSession: typically < 1 second (session cleanup)
  * - getSessionStatus: typically < 100ms (status query)
+ * - getVideoBuffer: varies by provider (instant if cached, otherwise full generation time)
  */
 export interface VideoProvider {
   /**
@@ -275,6 +278,18 @@ export interface VideoProvider {
    * @throws if session not found
    */
   getSessionStatus(sessionId: string): Promise<VideoSessionStatus>;
+
+  /**
+   * Get the video buffer for a session (HTTP-based providers only).
+   *
+   * Returns the generated video as a buffer for providers that support it (e.g., FAL).
+   * Stream-based providers (e.g., Reactor WebRTC) throw an error since they don't produce buffers.
+   *
+   * @param sessionId - Session identifier from startSession
+   * @returns Video buffer
+   * @throws if session not found, video not ready, or provider doesn't support buffer retrieval
+   */
+  getVideoBuffer?(sessionId: string): Promise<Buffer>;
 }
 
 /**
@@ -543,14 +558,50 @@ class FalVideoProvider implements VideoProvider {
       stateSince: session.stateSince,
       providerStatus: {
         modelName: session.modelName,
+        hasVideo: Boolean(session.videoBuffer),
       },
     };
   }
 
+  async getVideoBuffer(sessionId: string): Promise<Buffer> {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+    if (!session.videoBuffer) {
+      throw new Error(`Video not ready for session: ${sessionId}`);
+    }
+    return session.videoBuffer;
+  }
+
   private async sendPrompt(session: FalSessionData, prompt: string, params?: Record<string, unknown>): Promise<void> {
-    // In production, this would call FAL's API
-    console.log(`[FalVideoProvider] Sending prompt to session ${session.sessionId}:`, prompt, params);
-    // TODO: Implement actual FAL API call
+    // FAL uses HTTP API via @fal-ai/client (optional peer dependency)
+    const { fal } = await import("@fal-ai/client");
+    fal.config({ credentials: session.apiKey });
+
+    const input: Record<string, unknown> = {
+      prompt,
+      aspect_ratio: params?.aspectRatio ?? "16:9",
+      duration: params?.duration ?? 8,
+      generate_audio: false,
+    };
+
+    const result = await fal.subscribe(session.modelName, { input });
+    const url = (result.data as { video?: { url?: string }; video_url?: string } | undefined)?.video?.url ??
+      (result.data as { video_url?: string } | undefined)?.video_url;
+
+    if (!url) {
+      throw new Error("FAL video generation returned no video URL");
+    }
+
+    // Download video and store in session data for later retrieval
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`FAL video download failed with HTTP ${response.status}`);
+    }
+    const videoBuffer = Buffer.from(await response.arrayBuffer());
+    session.videoBuffer = videoBuffer;
+    session.videoUrl = url;
   }
 
   private generateSessionId(): string {
@@ -569,6 +620,8 @@ interface FalSessionData {
   state: SessionState;
   stateSince: Date;
   metadata: Record<string, unknown>;
+  videoBuffer?: Buffer;
+  videoUrl?: string;
 }
 
 /**

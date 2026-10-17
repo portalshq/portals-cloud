@@ -11,7 +11,9 @@
         "types": [
             "node"
         ],
-        "downlevelIteration": false
+        "downlevelIteration": false,
+        "moduleResolution": "bundler",
+        "noResolve": false
     },
     "include": [
         "src"

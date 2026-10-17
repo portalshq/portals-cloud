@@ -216,15 +216,25 @@ Frontend clients can connect to the backend's Reactor session using:
 
 ### Current Status
 
-The Reactor Session Manager provides:
-- Token minting interface
-- Session ID management
-- Heartbeat for session keeping
-- Command interface (callback-based)
+**VideoProvider Abstraction:**
+- ✅ Deep module interface (4 methods)
+- ✅ FAL adapter: Production-ready with video buffer retrieval via `getVideoBuffer()`
+- ✅ Reactor adapter: Token minting implemented, session management, placeholder command sending
+- ✅ OpenRouter adapter: Stub for future text generation workflows
+- ✅ Factory function for provider selection
 
-Full Reactor integration requires:
-- Reactor SDK installation (Python or JavaScript)
-- WebRTC connection handling
-- Signaling protocol implementation
+**Reactor Session Manager:**
+- ✅ Token minting interface
+- ✅ Session ID management
+- ✅ Heartbeat for session keeping
+- ⚠️ Command interface: Placeholder (logs commands, does not call Reactor API)
 
-For production Reactor WebRTC connections in React applications, use `@reactor-team/js-sdk` directly in the frontend.
+**Reactor integration gaps:**
+- Command sending requires Reactor's command API endpoint (documented in Reactor docs)
+- WebRTC connection handling is browser-side (frontend player handles this)
+- For production Reactor WebRTC connections in React applications, use `@reactor-team/js-sdk` directly in the frontend
+
+**FAL integration:**
+- ✅ Production-ready HTTP API calls via @fal-ai/client (optional peer dependency)
+- ✅ Video generation and download
+- ✅ Video buffer retrieval via `getVideoBuffer()` for server-side staging

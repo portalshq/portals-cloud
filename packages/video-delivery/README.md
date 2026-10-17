@@ -21,34 +21,44 @@ await delivery.stop();
 
 ## WebRTC Player for Reactor
 
-The `WebRTCPlayer` class provides low-latency WebRTC playback for Reactor live streaming. This is a stub implementation that defines the interface; full implementation requires Reactor's WebRTC signaling protocol.
+The `VideoDeliveryPlayer` React component supports both HLS playback and Reactor WebRTC streaming. Reactor mode is activated by providing `reactorToken`, `reactorSessionId`, and `reactorModelName` props.
 
-**Note:** For production Reactor WebRTC connections, use the official `@reactor-team/js-sdk` package. The WebRTCPlayer in this package is provided as a stub for potential custom implementations.
+**Note:** Reactor WebRTC requires the `@reactor-team/js-sdk` package to be installed (optional peer dependency). The component dynamically imports the SDK when Reactor mode is requested.
 
-```ts
-import { WebRTCPlayer } from "@portalshq/capability-video-delivery";
+```tsx
+import { VideoDeliveryPlayer } from "@portalshq/capability-video-delivery/react";
 
-const player = new WebRTCPlayer({
-  media: videoElement,
-  signaling: {
-    apiUrl: "https://api.reactor.inc",
-    sessionId: "reactor-session-id-from-backend",
-    token: "reactor-jwt-token",
-    modelName: "reactor/helios",
-  },
-  onObservation: (obs) => console.log("WebRTC state:", obs.state),
-});
+// HLS mode (default)
+<VideoDeliveryPlayer
+  playback={playbackSession}
+  onPlaybackObservation={(obs) => console.log("State:", obs.state)}
+/>
 
-await player.connect();
+// Reactor WebRTC mode
+<VideoDeliveryPlayer
+  playback={playbackSession}
+  reactorToken={reactorJwtToken}
+  reactorSessionId={reactorSessionId}
+  reactorModelName="reactor/helios"
+  onPlaybackObservation={(obs) => console.log("State:", obs.state)}
+/>
 ```
 
-**Current Status:** Stub implementation. Full implementation requires:
-- Reactor signaling protocol implementation
-- SDP offer/answer exchange
-- ICE candidate handling
-- Data channel for commands
+### Reactor Integration
 
-**Recommended:** Use `@reactor-team/js-sdk` for Reactor WebRTC connections instead of this stub.
+The Reactor WebRTC wrapper:
+- Dynamically imports `@reactor-team/js-sdk` when Reactor mode is activated
+- Provides placeholder for Reactor SDK integration (signaling, WebRTC connection)
+- Maps Reactor connection states to VideoDeliveryPlayer observation states
+- Falls back gracefully if Reactor SDK is not installed
+
+**Current Status:**
+- ✅ React component structure with Reactor props
+- ✅ Dynamic import of Reactor SDK (optional peer dependency)
+- ⚠️ Reactor SDK integration: Placeholder (actual SDK usage to be implemented)
+- ⚠️ Signaling protocol: Not implemented (SDK handles this)
+
+**Recommended:** Install `@reactor-team/js-sdk` in your application to enable Reactor WebRTC mode. The component provides the structure for SDK integration; the actual Reactor API calls depend on SDK version and documentation.
 
 ## Usage notes
 
