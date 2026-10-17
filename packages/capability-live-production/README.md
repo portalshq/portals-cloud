@@ -151,6 +151,8 @@ await videoProvider.sendInteraction(sessionId, {
 });
 ```
 
+**Note:** This integration is currently not implemented in the Bears app. The Bears app calls VideoProvider directly from the production layer. Integration with Interaction Orchestrator will be implemented in Phase 2 of the Interaction Orchestrator package.
+
 ## Reactor Session Manager
 
 The `ReactorSessionManager` class maintains an authoritative Reactor WebRTC session for multi-client real-time streaming. This is designed for persistent backend services (not serverless).
@@ -217,22 +219,29 @@ Frontend clients can connect to the backend's Reactor session using:
 ### Current Status
 
 **VideoProvider Abstraction:**
-- ✅ Deep module interface (4 methods)
+- ✅ Deep module interface (4 methods + optional getVideoBuffer)
 - ✅ FAL adapter: Production-ready with video buffer retrieval via `getVideoBuffer()`
-- ✅ Reactor adapter: Token minting implemented, session management, placeholder command sending
-- ✅ OpenRouter adapter: Stub for future text generation workflows
+- ✅ Reactor adapter: Token minting implemented, session management
+- ⚠️ Reactor adapter: Command sending NOT IMPLEMENTED - Reactor commands require WebRTC data channel, not HTTP API
+- ⚠️ OpenRouter adapter: Stub (TODO: implement with OpenAI SDK)
 - ✅ Factory function for provider selection
 
 **Reactor Session Manager:**
 - ✅ Token minting interface
 - ✅ Session ID management
 - ✅ Heartbeat for session keeping
-- ⚠️ Command interface: Placeholder (logs commands, does not call Reactor API)
+- ⚠️ Command interface: NOT IMPLEMENTED - Reactor commands require WebRTC data channel
 
-**Reactor integration gaps:**
-- Command sending requires Reactor's command API endpoint (documented in Reactor docs)
-- WebRTC connection handling is browser-side (frontend player handles this)
-- For production Reactor WebRTC connections in React applications, use `@reactor-team/js-sdk` directly in the frontend
+**Reactor integration constraints:**
+- **Commands:** Reactor commands (via `sendCommand()`) are sent through WebRTC data channel, not HTTP API
+- **Server-side limitation:** Node.js backend cannot send commands without WebRTC connection
+- **Production architecture:**
+  1. Backend mints session-scoped tokens via HTTP API
+  2. Backend provides token and session ID to frontend
+  3. Frontend uses `@reactor-team/js-sdk` to connect via WebRTC
+  4. Frontend sends commands via SDK's `sendCommand()` method
+- **Server-side video generation:** Reactor does not support server-side clip generation (WebRTC-only)
+- **Use FAL for server-side batch generation**
 
 **FAL integration:**
 - ✅ Production-ready HTTP API calls via @fal-ai/client (optional peer dependency)

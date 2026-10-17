@@ -88,6 +88,10 @@ export interface VideoSessionHandle {
   metadata: Record<string, unknown>;
   /** Provider-specific data (opaque to caller) */
   providerData: Record<string, unknown>;
+  /** Reactor token (only present for Reactor provider) */
+  reactorToken?: string;
+  /** Reactor session ID (only present for Reactor provider) */
+  reactorSessionId?: string;
 }
 
 /**
@@ -290,6 +294,11 @@ export interface VideoProvider {
    * @throws if session not found, video not ready, or provider doesn't support buffer retrieval
    */
   getVideoBuffer?(sessionId: string): Promise<Buffer>;
+
+  /**
+   * Cleanup resources (optional, for providers with background tasks).
+   */
+  destroy?(): void;
 }
 
 /**
@@ -324,9 +333,23 @@ export function createVideoProvider(providerConfig: ProviderConfig): VideoProvid
 class ReactorVideoProvider implements VideoProvider {
   private readonly config: ReactorProviderConfig;
   private readonly sessions = new Map<string, ReactorSessionData>();
+  private readonly cleanupInterval: ReturnType<typeof setInterval>;
+  private readonly SESSION_TTL_MS = 3600000; // 1 hour TTL
 
   constructor(config: ReactorProviderConfig) {
     this.config = config;
+    // Clean up expired sessions every 5 minutes
+    this.cleanupInterval = setInterval(() => this.cleanupExpiredSessions(), 300000);
+  }
+
+  private cleanupExpiredSessions(): void {
+    const now = Date.now();
+    for (const [sessionId, session] of this.sessions.entries()) {
+      if (now - session.stateSince.getTime() > this.SESSION_TTL_MS) {
+        console.log(`[ReactorVideoProvider] Cleaning up expired session: ${sessionId}`);
+        this.sessions.delete(sessionId);
+      }
+    }
   }
 
   async startSession(config: VideoSessionConfig): Promise<VideoSessionHandle> {
@@ -360,6 +383,8 @@ class ReactorVideoProvider implements VideoProvider {
       providerType: "reactor",
       metadata: config.metadata ?? {},
       providerData: { token, apiUrl },
+      reactorToken: token,
+      reactorSessionId: sessionId,
     };
   }
 
@@ -372,16 +397,25 @@ class ReactorVideoProvider implements VideoProvider {
       throw new Error(`Session not ready: ${sessionId} (state: ${session.state})`);
     }
 
-    // Send interaction to Reactor based on type
-    if (interaction.type === "command") {
-      const payload = interaction.payload as CommandPayload;
-      await this.sendCommand(session, payload.command, payload.params);
-    } else if (interaction.type === "prompt") {
-      const payload = interaction.payload as PromptPayload;
-      await this.sendCommand(session, "set_prompt", { prompt: payload.prompt, ...payload.params });
-    } else {
-      throw new Error(`Unsupported interaction type for Reactor: ${interaction.type}`);
-    }
+    // Reactor commands are sent via WebRTC data channel, not HTTP API
+    // The Node.js backend cannot send commands directly without WebRTC
+    // Production architecture:
+    // 1. Backend mints tokens
+    // 2. Backend provides token and sessionId to frontend
+    // 3. Frontend uses Reactor SDK to connect via WebRTC
+    // 4. Frontend sends commands via SDK's sendCommand()
+    
+    console.error(
+      `[ReactorVideoProvider] Server-side command sending not supported by Reactor. ` +
+      `Interaction: ${interaction.type}, Session: ${sessionId}. ` +
+      `Frontend must use Reactor SDK's sendCommand() with token from backend.`
+    );
+    
+    throw new Error(
+      "Reactor commands must be sent from the frontend via Reactor SDK WebRTC connection. " +
+      "Backend provides token and session ID; frontend connects and sends commands. " +
+      "This is a Reactor architectural constraint: commands use WebRTC data channel, not HTTP."
+    );
   }
 
   async stopSession(sessionId: string): Promise<void> {
@@ -396,6 +430,15 @@ class ReactorVideoProvider implements VideoProvider {
 
     // Remove from sessions map
     this.sessions.delete(sessionId);
+  }
+
+  /**
+   * Stop cleanup interval (call when shutting down)
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
   }
 
   async getSessionStatus(sessionId: string): Promise<VideoSessionStatus> {
@@ -450,13 +493,6 @@ class ReactorVideoProvider implements VideoProvider {
     return data.jwt;
   }
 
-  private async sendCommand(session: ReactorSessionData, command: string, params: Record<string, unknown>): Promise<void> {
-    // In production, this would call Reactor's command API
-    // For now, we log the command (placeholder)
-    console.log(`[ReactorVideoProvider] Sending command to session ${session.sessionId}:`, command, params);
-    // TODO: Implement actual Reactor command API call
-  }
-
   private generateSessionId(): string {
     return `reactor_session_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
   }
@@ -486,9 +522,25 @@ interface ReactorSessionData {
 class FalVideoProvider implements VideoProvider {
   private readonly config: FalProviderConfig;
   private readonly sessions = new Map<string, FalSessionData>();
+  private readonly cleanupInterval: ReturnType<typeof setInterval>;
+  private readonly SESSION_TTL_MS = 3600000; // 1 hour TTL
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAY_MS = 1000;
 
   constructor(config: FalProviderConfig) {
     this.config = config;
+    // Clean up expired sessions every 5 minutes
+    this.cleanupInterval = setInterval(() => this.cleanupExpiredSessions(), 300000);
+  }
+
+  private cleanupExpiredSessions(): void {
+    const now = Date.now();
+    for (const [sessionId, session] of this.sessions.entries()) {
+      if (now - session.stateSince.getTime() > this.SESSION_TTL_MS) {
+        console.log(`[FalVideoProvider] Cleaning up expired session: ${sessionId}`);
+        this.sessions.delete(sessionId);
+      }
+    }
   }
 
   async startSession(config: VideoSessionConfig): Promise<VideoSessionHandle> {
@@ -546,6 +598,15 @@ class FalVideoProvider implements VideoProvider {
     this.sessions.delete(sessionId);
   }
 
+  /**
+   * Stop cleanup interval (call when shutting down)
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+  }
+
   async getSessionStatus(sessionId: string): Promise<VideoSessionStatus> {
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -586,22 +647,45 @@ class FalVideoProvider implements VideoProvider {
       generate_audio: false,
     };
 
-    const result = await fal.subscribe(session.modelName, { input });
-    const url = (result.data as { video?: { url?: string }; video_url?: string } | undefined)?.video?.url ??
-      (result.data as { video_url?: string } | undefined)?.video_url;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
+      try {
+        // Use Promise.race for timeout
+        const resultPromise = fal.subscribe(session.modelName, { input });
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("FAL video generation timeout")), 60000)
+        );
+        
+        const result = await Promise.race([resultPromise, timeoutPromise]) as { data: unknown };
+        
+        const url = (result.data as { video?: { url?: string }; video_url?: string } | undefined)?.video?.url ??
+          (result.data as { video_url?: string } | undefined)?.video_url;
 
-    if (!url) {
-      throw new Error("FAL video generation returned no video URL");
-    }
+        if (!url) {
+          throw new Error("FAL video generation returned no video URL");
+        }
 
-    // Download video and store in session data for later retrieval
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`FAL video download failed with HTTP ${response.status}`);
+        // Download video and store in session data for later retrieval
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`FAL video download failed with HTTP ${response.status}`);
+        }
+        const videoBuffer = Buffer.from(await response.arrayBuffer());
+        session.videoBuffer = videoBuffer;
+        session.videoUrl = url;
+        
+        return; // Success
+      } catch (error) {
+        lastError = error;
+        console.warn(`[FalVideoProvider] Video generation attempt ${attempt + 1}/${this.MAX_RETRIES} failed:`, error);
+        if (attempt < this.MAX_RETRIES - 1) {
+          const delay = this.RETRY_DELAY_MS * Math.pow(2, attempt);
+          console.log(`[FalVideoProvider] Retrying in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
     }
-    const videoBuffer = Buffer.from(await response.arrayBuffer());
-    session.videoBuffer = videoBuffer;
-    session.videoUrl = url;
+    throw lastError;
   }
 
   private generateSessionId(): string {
@@ -635,9 +719,23 @@ interface FalSessionData {
 class OpenRouterVideoProvider implements VideoProvider {
   private readonly config: OpenRouterProviderConfig;
   private readonly sessions = new Map<string, OpenRouterSessionData>();
+  private readonly cleanupInterval: ReturnType<typeof setInterval>;
+  private readonly SESSION_TTL_MS = 3600000; // 1 hour TTL
 
   constructor(config: OpenRouterProviderConfig) {
     this.config = config;
+    // Clean up expired sessions every 5 minutes
+    this.cleanupInterval = setInterval(() => this.cleanupExpiredSessions(), 300000);
+  }
+
+  private cleanupExpiredSessions(): void {
+    const now = Date.now();
+    for (const [sessionId, session] of this.sessions.entries()) {
+      if (now - session.stateSince.getTime() > this.SESSION_TTL_MS) {
+        console.log(`[OpenRouterVideoProvider] Cleaning up expired session: ${sessionId}`);
+        this.sessions.delete(sessionId);
+      }
+    }
   }
 
   async startSession(config: VideoSessionConfig): Promise<VideoSessionHandle> {
@@ -694,6 +792,15 @@ class OpenRouterVideoProvider implements VideoProvider {
     this.sessions.delete(sessionId);
   }
 
+  /**
+   * Stop cleanup interval (call when shutting down)
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+  }
+
   async getSessionStatus(sessionId: string): Promise<VideoSessionStatus> {
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -711,9 +818,24 @@ class OpenRouterVideoProvider implements VideoProvider {
   }
 
   private async sendPrompt(session: OpenRouterSessionData, prompt: string): Promise<void> {
-    // In production, this would call OpenRouter's API
+    // OpenRouter is compatible with OpenAI SDK
+    // Use OpenAI SDK with OpenRouter base URL
+    // This is optional - if SDK is not installed, this will fail
+    // For now, we only log the prompt (OpenRouter integration requires optional peer dependency)
     console.log(`[OpenRouterVideoProvider] Sending prompt to session ${session.sessionId}:`, prompt);
-    // TODO: Implement actual OpenRouter API call
+    
+    // In production with OpenAI SDK installed:
+    // const openai = await import("openai");
+    // const client = new openai.OpenAI({
+    //   apiKey: session.apiKey,
+    //   baseURL: "https://openrouter.ai/api/v1",
+    // });
+    // await client.chat.completions.create({
+    //   model: session.modelName,
+    //   messages: [{ role: "user", content: prompt }],
+    // });
+    
+    throw new Error("OpenRouter integration requires OpenAI SDK to be installed as optional peer dependency.");
   }
 
   private generateSessionId(): string {

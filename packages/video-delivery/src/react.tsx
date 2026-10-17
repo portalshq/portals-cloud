@@ -163,15 +163,18 @@ function ReactorWebRTCWrapper({
   // The @reactor-team/js-sdk is an optional peer dependency
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<Error | null>(null);
+  const [reactorInstance, setReactorInstance] = useState<any>(null);
 
   useEffect(() => {
     let mounted = true;
+    let reactor: any = null;
 
     async function loadReactorSDK() {
       try {
         // Try to import Reactor SDK (optional peer dependency)
         // @ts-ignore - Optional peer dependency
-        await import("@reactor-team/js-sdk");
+        const reactorModule = await import("@reactor-team/js-sdk");
+        const { Reactor } = reactorModule;
         
         if (mounted) {
           setIsLoaded(true);
@@ -183,18 +186,22 @@ function ReactorWebRTCWrapper({
             throw new Error("Video element not available");
           }
 
-          // Use Reactor SDK to connect
-          // Note: The exact API depends on Reactor SDK version
-          // This is a placeholder for the actual implementation
-          console.log("[VideoDeliveryPlayer] Reactor SDK loaded, connecting to session:", sessionId || "new session");
+          // Create Reactor instance
+          reactor = new Reactor({
+            modelName: modelName,
+          });
           
-          // In production, this would:
-          // 1. Create ReactorProvider with the token
-          // 2. Initialize ReactorView with the model name
-          // 3. Connect to the session
-          // 4. Attach the media stream to the video element
+          // Connect to Reactor
+          await reactor.connect(token, {
+            sessionId: sessionId, // Adopt existing session if provided
+            autoResumeTracks: true,
+          });
           
-          onStatusChange("ready");
+          if (mounted) {
+            setReactorInstance(reactor);
+            onStatusChange("ready");
+            console.log("[VideoDeliveryPlayer] Reactor connected successfully to session:", sessionId || "new session");
+          }
         }
       } catch (error) {
         if (mounted) {
@@ -202,7 +209,7 @@ function ReactorWebRTCWrapper({
           setLoadError(err);
           onError(err);
           onStatusChange("failed");
-          console.warn("[VideoDeliveryPlayer] Reactor SDK not available:", err.message);
+          console.warn("[VideoDeliveryPlayer] Reactor SDK error:", err.message);
         }
       }
     }
@@ -211,6 +218,12 @@ function ReactorWebRTCWrapper({
 
     return () => {
       mounted = false;
+      // Disconnect from Reactor on cleanup
+      if (reactor) {
+        reactor.disconnect().catch((err: Error) => {
+          console.warn("[VideoDeliveryPlayer] Reactor disconnect error:", err);
+        });
+      }
     };
   }, [token, sessionId, modelName, mediaRef, onStatusChange, onError]);
 
@@ -243,6 +256,7 @@ function ReactorWebRTCWrapper({
   }
 
   // Video element for Reactor stream
+  // The Reactor SDK will attach the media stream to this element
   return React.createElement("video", {
     ref: mediaRef,
     autoPlay: true,
