@@ -1,5 +1,19 @@
 # @portalshq/capability-identity
 
+## 0.2.1
+
+- Implement typed explicit auth-gateway sync with subject matching and clear unsupported-store errors.
+- Refresh existing application profiles without inventing required private identity fields;
+  provision central profiles while preserving existing suspension, issuer, email, and preferences.
+- Bundle the canonical proto in the built package, add configurable proto paths and RPC deadlines,
+  preserve gRPC status errors, and close connections idempotently.
+- Ship atomic, concurrency-serialized central provisioning and non-destructive legacy upgrades.
+  Align preference reads and history conflict keys with the actual central schema.
+- Add real gRPC transport, isolated PostgreSQL, sync/error, migration upgrade/rollback, and
+  public-export tests. Enforce 95% runtime-source coverage thresholds.
+- Document deployment, migrations, the full interface, troubleshooting, and custom-store ownership.
+  No bears-live-app migration is performed.
+
 ## 0.2.0
 
 ### Minor Changes
