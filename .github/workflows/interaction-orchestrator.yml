@@ -1,0 +1,57 @@
+name: Interaction Orchestrator
+
+on:
+  pull_request:
+    paths:
+      - "packages/capability-interaction-orchestrator/**"
+      - "packages/monetization/**"
+      - "package-lock.json"
+      - ".github/workflows/interaction-orchestrator.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/capability-interaction-orchestrator/**"
+      - "packages/monetization/**"
+      - "package-lock.json"
+      - ".github/workflows/interaction-orchestrator.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: interaction_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      INTERACTION_TEST_MODE: non-production
+      INTERACTION_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/interaction_test
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Install Rollup Linux native binary
+        run: |
+          ROLLUP_VERSION="$(node -p "require('./node_modules/rollup/package.json').version")"
+          npm install --ignore-scripts --no-save --package-lock=false "@rollup/rollup-linux-x64-gnu@${ROLLUP_VERSION}"
+      - run: npm run build --workspace=packages/monetization
+      - run: npm run build --workspace=packages/capability-interaction-orchestrator
+      - run: npm run typecheck --workspace=packages/capability-interaction-orchestrator
+      - run: npm test --workspace=packages/monetization
+      - run: npm run test:coverage --workspace=packages/capability-interaction-orchestrator
+      - run: git diff --check

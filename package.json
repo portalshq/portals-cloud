@@ -12,7 +12,6 @@
     "packages/*",
     "!packages/platform-billing",
     "!packages/policy",
-    "packages/stubs/*",
     "lib/*"
   ],
   "scripts": {
@@ -23,8 +22,8 @@
     "prepare": "test -d .git && test -x node_modules/.bin/husky && husky || echo 'Skipping Husky (Not a local Git repo)'",
     "changeset": "changeset",
     "release:version": "changeset version && npm install --package-lock-only --ignore-scripts",
-    "release:build": "turbo run build --filter='./packages/*' --filter='./packages/stubs/*'",
-    "release:check": "turbo run lint test --filter='./packages/*' --filter='./packages/stubs/*' && node --test scripts/package-release.test.mjs && node scripts/check-package-packs.mjs",
+    "release:build": "turbo run build --filter='./packages/*'",
+    "release:check": "turbo run lint test --filter='./packages/*' && node --test scripts/package-release.test.mjs && node scripts/check-package-packs.mjs",
     "release:trust": "node scripts/setup-npm-trust.mjs",
     "release": "npm run release:build && npm run release:check && changeset publish",
     "local-version-script": "npm run release:version",
