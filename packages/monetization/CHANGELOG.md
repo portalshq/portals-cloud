@@ -1,5 +1,16 @@
 # @portalshq/monetization
 
+## 0.2.1
+
+### Patch Changes
+
+- 6dcac72: Replace interaction orchestration stubs with a transactional PostgreSQL lifecycle,
+  seven arbitration policies, rating-based input/output moderation, credit holds and
+  refunds, durable event replay, and idempotent execution dispatch. Apply the additive
+  002 migration after the core and monetization schemas. Monetization now acquires
+  grant locks in the same order as interaction billing while preserving oldest-first
+  consumption.
+
 ## 0.2.0
 
 ### Major Changes
@@ -13,6 +24,7 @@
   launches one or more applications and holds one connected account, so a tenant
   running three channels onboards once and is paid once. `channelId` remains on
   the purchase as attribution for per-application rollup.
+
   - `ChannelBillingProfile` → `TenantBillingProfile`, keyed on `tenantId`.
   - `ChannelPurchase` → `Purchase`, with `tenantId`, optional `sessionId`, and
     `settledAt` added.

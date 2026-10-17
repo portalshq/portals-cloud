@@ -1,6 +1,6 @@
 {
   "name": "@portalshq/monetization",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Audience-to-creator monetization for Portals: Stripe Connect destination charges, entitlements, ledger, and transactional outbox. Keyed on tenant, not channel.",
   "repository": {
     "type": "git",
