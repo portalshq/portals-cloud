@@ -69,10 +69,18 @@ is desired. The workflow itself only runs the release job for this repository's
    publishes versions missing from npm. Changesets produces package tags and
    GitHub release records.
 
+Release-related pull requests run the same build and package checks in the
+Release Engine workflow without publishing. Main publication waits for this validation. Native recovery fetches exact Rollup, Rolldown, and OXC binary tarballs from the
+lockfile and copies each into its owning tool instance, including nested versions.
+It never runs workspace dependency resolution after `npm ci`.
+
 For local verification, run `npm run release:build && npm run release:check`.
 This includes `npm pack --dry-run` for every public package and checks the JS,
 declaration, CLI, and export entry points, package identity, repository metadata,
-and allowed tarball contents. It does not publish.
+and allowed tarball contents. Packages may ship built `dist/` files, SQL migrations,
+Markdown guides under `docs/`, and standard root manifest/readme/license/changelog files.
+Other documentation assets (including credentials and executable files) remain rejected.
+It does not publish.
 
 Use **Actions → Release Engine → Run workflow → main** to retry after fixing
 trust or another failure. Already-published versions are skipped. Changesets
