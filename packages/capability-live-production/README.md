@@ -219,14 +219,12 @@ Frontend clients can connect to the backend's Reactor session using:
 ### Current Status
 
 **VideoProvider Abstraction:**
-- ✅ Deep module interface (4 methods + optional getVideoBuffer + optional destroy)
-- ✅ FAL adapter: Production-ready with video buffer retrieval, retries, and timeout
-- ✅ Reactor adapter: Token minting implemented, session management, session cleanup
+- ✅ Deep module interface (4 methods + optional getVideoBuffer)
+- ✅ FAL adapter: Production-ready with video buffer retrieval via `getVideoBuffer()`
+- ✅ Reactor adapter: Token minting implemented, session management
 - ⚠️ Reactor adapter: Command sending NOT IMPLEMENTED - Reactor commands require WebRTC data channel, not HTTP API
-- ⚠️ OpenRouter adapter: Stub (requires OpenAI SDK optional peer dependency)
+- ⚠️ OpenRouter adapter: Stub (TODO: implement with OpenAI SDK)
 - ✅ Factory function for provider selection
-- ✅ Session cleanup with TTL (1 hour) for all adapters
-- ✅ Test coverage: 24 tests passing
 
 **Reactor Session Manager:**
 - ✅ Token minting interface
@@ -249,5 +247,3 @@ Frontend clients can connect to the backend's Reactor session using:
 - ✅ Production-ready HTTP API calls via @fal-ai/client (optional peer dependency)
 - ✅ Video generation and download
 - ✅ Video buffer retrieval via `getVideoBuffer()` for server-side staging
-- ✅ Retry logic (3 attempts with exponential backoff)
-- ✅ Timeout handling (60 second timeout)
