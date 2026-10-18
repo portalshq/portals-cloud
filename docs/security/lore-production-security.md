@@ -422,6 +422,12 @@ rejects a running pin without that receipt. Public ingress additionally
 requires a verified cosign signature. Unfixed critical/high findings are not
 silently ignored; they require remediation or an explicit reviewed exception.
 
+Docker Hub Lore images use `verified-dockerhub-images.json`, written by
+`verify-and-promote-dockerhub-lore.sh`. The pin/receipt consistency check selects
+that registry-specific ledger for `portalshq/lore` and the ECR ledger for the
+other images. It requires the exact digest and matching service; an ECR receipt
+cannot stand in for Docker Hub evidence.
+
 `infra/lore/versions.yaml` is the release bill of materials, not a list of
 "latest" versions. `lore.image` is the Lore server image. The active
 `control-plane.image` is the private Auth Gateway image; the old
