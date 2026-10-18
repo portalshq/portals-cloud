@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TAG="${1:?usage: verify-and-promote-px-release.sh <vX.Y.Z>}"
-REPOSITORY="${PX_GITHUB_REPOSITORY:-portalshq/narrativeengine}"
+REPOSITORY="${PX_GITHUB_REPOSITORY:-portalshq/px}"
 [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || { echo "invalid Px release tag" >&2; exit 2; }
 command -v gh >/dev/null || { echo "gh is required" >&2; exit 2; }
 command -v cosign >/dev/null || { echo "cosign is required" >&2; exit 2; }

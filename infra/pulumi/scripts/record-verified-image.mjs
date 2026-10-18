@@ -32,7 +32,7 @@ if (!allowedServices.has(service) ||
 const scriptDir = path.dirname(new URL(import.meta.url).pathname);
 const repoRoot = path.resolve(scriptDir, "../../..");
 const versionsFile = path.join(repoRoot, "infra/lore/versions.yaml");
-const receiptsFile = path.join(repoRoot, "infra/lore/verified-ecr-images.json");
+const receiptsFile = path.join(repoRoot, "infra/lore/verified-images.json");
 const now = new Date().toISOString();
 
 const versions = readYamlDocument(versionsFile);

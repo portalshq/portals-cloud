@@ -656,3 +656,12 @@ parameters are not a production deployment contract:
 - Updated `ControlPlaneServiceArgs` interface with new configuration options
 - Added environment variables for JWT auth, idempotency, and metrics to ECS task definition
 - All new features are configurable via Pulumi stack configuration
+
+# Short-lived authentication
+
+Auth access JWTs default to 15 minutes. Configure
+`AUTH_ACCESS_TOKEN_TTL_SECONDS=900` (valid range 60–3600); repository authorization
+JWTs stay at five minutes. Migration 007 adds key-bound rotating refresh
+sessions. Deploy compatible Lore clients before enabling the new release;
+existing API-key sessions need one new login. See the
+[renewal release and acceptance gates](../infra/mac-bootstrap/SHORT-LIVED-AUTH.md).

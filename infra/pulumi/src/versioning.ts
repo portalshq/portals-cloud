@@ -20,6 +20,20 @@ export interface PxClientPin {
   artifactManifestSha256: string;
   signatureBundleUrl: string;
   loreClientVersion: string;
+  verification?: {
+    verifiedAt: string;
+    pxSourceCommit: string;
+    pxReleaseTag: string;
+    pxSecurityContract: string;
+    pxArtifactManifestSha256: string;
+    loreClientVersion: string;
+    loreClientSourceCommit: string;
+    loreClientArtifactManifestSha256: string;
+    pxSignatureVerified: boolean;
+    pxChecksumsVerified: boolean;
+    loreSignatureVerified: boolean;
+    loreChecksumsVerified: boolean;
+  };
 }
 
 export interface LoreClientPin {
@@ -100,11 +114,7 @@ function resolveVersionsFile(): string {
 }
 
 function resolveVerificationFile(): string {
-  return path.join(path.dirname(resolveVersionsFile()), "verified-ecr-images.json");
-}
-
-function resolveReleaseVerificationFile(): string {
-  return path.join(path.dirname(resolveVersionsFile()), "verified-releases.json");
+  return path.join(path.dirname(resolveVersionsFile()), "verified-images.json");
 }
 
 function stringAt(value: unknown, name: string): string {
@@ -233,18 +243,16 @@ export function assertPublicReleaseApproved(release: ReleasePins): void {
 
 /** Require a receipt produced by cryptographic Px and Lore artifact checks. */
 export function assertPxReleaseVerified(px: PxClientPin, loreClient: LoreClientPin): void {
-  const file = resolveReleaseVerificationFile();
-  if (!fs.existsSync(file)) throw new Error(`Px has no release-verification receipt at ${file}`);
-  const document = JSON.parse(fs.readFileSync(file, "utf8"));
-  const receipt = document?.schemaVersion === 1 ? document?.releases?.["px-client"] : undefined;
-  const valid = receipt?.version === px.version && receipt?.sourceCommit === px.sourceCommit &&
-    receipt?.releaseTag === px.releaseTag && receipt?.securityContract === px.securityContract &&
-    receipt?.artifactManifestSha256 === px.artifactManifestSha256 &&
+  const receipt = px.verification;
+  const valid = receipt?.pxSourceCommit === px.sourceCommit &&
+    receipt?.pxReleaseTag === px.releaseTag &&
+    receipt?.pxSecurityContract === px.securityContract &&
+    receipt?.pxArtifactManifestSha256 === px.artifactManifestSha256 &&
     receipt?.loreClientVersion === loreClient.version &&
     receipt?.loreClientSourceCommit === loreClient.sourceCommit &&
     receipt?.loreClientArtifactManifestSha256 === loreClient.artifactManifestSha256 &&
     receipt?.pxSignatureVerified === true && receipt?.pxChecksumsVerified === true &&
-    receipt?.loreSignatureVerified === true &&
+    receipt?.loreSignatureVerified === true && receipt?.loreChecksumsVerified === true &&
     typeof receipt?.verifiedAt === "string" && receipt.verifiedAt.length > 0;
   if (!valid) throw new Error("Px/Lore client pins have no matching cryptographic verification receipt");
 }
@@ -267,21 +275,11 @@ export function assertPinsHaveReceipts(pins: VersionPins): void {
     ["control-plane", pins.controlPlaneImageUri],
     ...(pins.backendImageUri ? [["backend", pins.backendImageUri] as const] : []),
   ] as const) {
-    // Docker Hub Lore evidence belongs to its own registry-specific ledger.
-    const dockerHub = service === "lore" && image.startsWith("portalshq/lore@");
-    const receiptFile = dockerHub
-      ? path.join(path.dirname(resolveVersionsFile()), "verified-dockerhub-images.json")
-      : file;
-    const ledger = dockerHub && fs.existsSync(receiptFile)
-      ? JSON.parse(fs.readFileSync(receiptFile, "utf8"))
-      : dockerHub ? undefined : document;
-    const receipt = ledger?.schemaVersion === (dockerHub ? 1 : 2)
-      ? ledger?.receipts?.[image]
-      : undefined;
-    if (!receipt || receipt.service !== service) {
+    const receipt = document?.receipts?.[image];
+    if (!receipt) {
       throw new Error(
-        `${service} pin ${image} has no matching receipt in ${receiptFile}; ` +
-          `run infra/pulumi/scripts/${dockerHub ? "verify-and-promote-dockerhub-lore.sh" : "verify-and-promote-image.sh"}`,
+        `${service} pin ${image} has no matching receipt in ${file}; ` +
+          "run infra/pulumi/scripts/verify-and-promote-image.sh",
       );
     }
   }
@@ -292,7 +290,7 @@ export function readVersionPins(): VersionPins {
   const file = resolveVersionsFile();
   if (!fs.existsSync(file)) throw new Error(`versions.yaml not found (looked for ${file})`);
   const doc = YAML.parse(fs.readFileSync(file, "utf8"));
-  if (doc?.schema_version !== 2) throw new Error(`versions.yaml schema_version must be 2 in ${file}`);
+  if (doc?.schema_version !== 3) throw new Error(`versions.yaml schema_version must be 3 in ${file}`);
 
   const px = doc?.["px-client"];
   const loreClient = doc?.["lore-client"];
@@ -319,6 +317,22 @@ export function readVersionPins(): VersionPins {
       artifactManifestSha256: stringAt(px?.artifact_manifest_sha256, "px-client.artifact_manifest_sha256"),
       signatureBundleUrl: stringAt(px?.signature_bundle_url, "px-client.signature_bundle_url"),
       loreClientVersion: stringAt(px?.lore_client_version, "px-client.lore_client_version"),
+      ...(px?.verification ? {
+        verification: {
+          verifiedAt: stringAt(px.verification.verified_at, "px-client.verification.verified_at"),
+          pxSourceCommit: stringAt(px.verification.px?.source_commit, "px-client.verification.px.source_commit"),
+          pxReleaseTag: stringAt(px.verification.px?.release_tag, "px-client.verification.px.release_tag"),
+          pxSecurityContract: stringAt(px.verification.px?.security_contract, "px-client.verification.px.security_contract"),
+          pxArtifactManifestSha256: stringAt(px.verification.px?.artifact_manifest_sha256, "px-client.verification.px.artifact_manifest_sha256"),
+          loreClientVersion: stringAt(px.verification.lore_client?.version, "px-client.verification.lore_client.version"),
+          loreClientSourceCommit: stringAt(px.verification.lore_client?.source_commit, "px-client.verification.lore_client.source_commit"),
+          loreClientArtifactManifestSha256: stringAt(px.verification.lore_client?.artifact_manifest_sha256, "px-client.verification.lore_client.artifact_manifest_sha256"),
+          pxSignatureVerified: px.verification.px?.signature_verified === true,
+          pxChecksumsVerified: px.verification.px?.checksums_verified === true,
+          loreSignatureVerified: px.verification.lore_client?.signature_verified === true,
+          loreChecksumsVerified: px.verification.lore_client?.checksums_verified === true,
+        },
+      } : {}),
     },
     loreClient: {
       version: stringAt(loreClient?.version, "lore-client.version"),
