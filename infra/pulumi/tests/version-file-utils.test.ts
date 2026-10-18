@@ -20,7 +20,7 @@ test("version-file writers reject malformed input and never write empty files", 
     assert.throws(() => utilities.readJsonObject(jsonFile), /invalid JSON/);
     assert.throws(() => utilities.atomicWriteFile(jsonFile, ""), /empty content/);
 
-    const document = YAML.parseDocument("schema_version: 2\nlore:\n  image: old\n");
+    const document = YAML.parseDocument("schema_version: 3\nlore:\n  image: old\n");
     document.setIn(["lore", "image"], "registry.example/lore@sha256:abc");
     utilities.atomicWriteYaml(yamlFile, document);
     utilities.atomicWriteJson(jsonFile, { schemaVersion: 2, receipts: {} });
@@ -37,7 +37,11 @@ test("all production BOM and receipt files are non-empty and parse cleanly", () 
   const versionsFile = path.join(repositoryRoot, "infra/lore/versions.yaml");
   const versions = YAML.parseDocument(fs.readFileSync(versionsFile, "utf8"));
   assert.equal(versions.errors.length, 0);
-  for (const filename of ["verified-ecr-images.json", "verified-releases.json"]) {
+  for (const filename of [
+    "verified-dockerhub-images.json",
+    "verified-ecr-images.json",
+    "verified-releases.json",
+  ]) {
     const contents = fs.readFileSync(path.join(repositoryRoot, "infra/lore", filename), "utf8");
     assert.notEqual(contents.trim(), "");
     assert.equal(typeof JSON.parse(contents), "object");

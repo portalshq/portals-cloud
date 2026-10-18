@@ -2,3 +2,8 @@
 # In the Pinggy dashboard, reserve and validate a persistent TLS passthrough
 # mapping to 127.0.0.1:8443. Then put its foreground command in the private
 # release file as PINGGY_TCP_COMMAND. It must preserve TLS/SNI and HTTP/2.
+# Verify Pinggy's SSH host-key fingerprint through a trusted Pinggy channel,
+# then add the verified gateway key to portals-svc's known_hosts. Remove any
+# generated `StrictHostKeyChecking=no`. Final command must include
+# `-o StrictHostKeyChecking=yes` and
+# `-o UserKnownHostsFile=/Users/portals-svc/.ssh/known_hosts`.

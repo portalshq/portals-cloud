@@ -18,8 +18,8 @@ if (!["get", "set"].includes(action) || !writablePins.has(pinKey) ||
 }
 
 const versions = readYamlDocument(versionsFile);
-if (versions.getIn(["schema_version"]) !== 2 || versions.getIn([service, field]) === undefined) {
-  throw new Error(`cannot find ${service}.${field} in schema-v2 ${versionsFile}`);
+if (versions.getIn(["schema_version"]) !== 3 || versions.getIn([service, field]) === undefined) {
+  throw new Error(`cannot find ${service}.${field} in schema-v3 ${versionsFile}`);
 }
 
 if (action === "get") {

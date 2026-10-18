@@ -5,7 +5,29 @@ the detailed [production security guide](lore-production-security.md) and does
 not contain credentials, private keys, account passwords, or mutable image
 tags.
 
-For detailed build instructions including local and cloud build options, see the [Build Guide](BUILD_GUIDE.md).
+For detailed build instructions including local and cloud build options, see the [Build Guide](../BUILD_GUIDE.md).
+
+## Current Mac/Docker Hub release path
+
+The current runtime is the Mac-hosted Auth/Lore/Caddy stack with Docker Hub
+image digests. Use [PX/Lore BOM promotion and verification](px-lore-bom-promotion.md)
+for the unified client BOM and separate image ledger, the automatic
+PX-to-Cloud dispatch-and-wait
+commands, PR-check/merge requirements, known workflow limitations, and fetching
+the merged release into a clean checkout. A dispatched or successful
+artifact-verification workflow does not complete production acceptance.
+
+Use the Mac [production acceptance suite](../../infra/mac-bootstrap/PRODUCTION-ACCEPTANCE.md)
+and [acceptance access handoff](../../infra/mac-bootstrap/ACCEPTANCE-ACCESS.md)
+for live browser/PX/QUIC/provider/recovery evidence and the access needed to
+execute those tests. The service changeover script is documented in
+[the Mac release runbook](../../infra/mac-bootstrap/RELEASE-20261014.md).
+Reuse already verified images unless a source/configuration change requires
+new artifacts.
+
+The AWS/ECR/ALB/Cognito foundation and publishing instructions below describe
+the earlier deployment environment. They are retained for that environment;
+they are not the bootstrap sequence for the current Mac deployment.
 
 ## First: what needs a new release?
 
@@ -182,7 +204,7 @@ This ensures:
    and generates a unique build tag.
 
 5. Review the resulting changes to `infra/lore/versions.yaml` and
-   `infra/lore/verified-ecr-images.json`, then commit them with the release source.
+   `infra/lore/verified-images.json`, then commit them with the release source.
    The expected repositories are `portals-prod/lore` and
    `portals-prod/auth-gateway`, each referenced as `@sha256:...`.
 

@@ -1,5 +1,12 @@
 # Release Workflow
 
+This page describes npm package publishing through Changesets. Production
+PX/Lore binaries, image promotion and deployment use the separate
+[production release procedure](docs/security/production-release-procedure.md)
+and [PX/Lore BOM CI workflow](docs/security/px-lore-bom-promotion.md). Those
+documents cover artifact verification, waiting for the identified CI run and
+PR checks, reviewed BOM/receipt promotion, and deployment acceptance.
+
 ### Command 1: Documenting a Change (During a Pull Request)
 Whenever an engineer writes code that needs to be published, they run this in their feature branch before pushing:
 

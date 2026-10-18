@@ -21,7 +21,7 @@ if (!match || !/^[a-f0-9]{40}$/.test(sourceCommit ?? "") ||
 const scriptDir = path.dirname(new URL(import.meta.url).pathname);
 const versionsFile = path.resolve(scriptDir, "../../lore/versions.yaml");
 const versions = readYamlDocument(versionsFile);
-if (versions.getIn(["schema_version"]) !== 2 ||
+if (versions.getIn(["schema_version"]) !== 3 ||
     versions.getIn(["lore-client", "source_repository"]) !== "https://github.com/portalshq/lore" ||
     versions.getIn(["lore-client", "upstream_repository"]) !== "https://github.com/EpicGames/lore" ||
     !/^[a-f0-9]{40}$/.test(versions.getIn(["lore-client", "upstream_commit"]) ?? "")) {
@@ -37,5 +37,15 @@ versions.setIn(["lore-client", "installer_sha256"], installerSha256);
 versions.setIn(["lore-client", "artifact_manifest_url"], `${releaseBaseUrl}/SHA256SUMS`);
 versions.setIn(["lore-client", "artifact_manifest_sha256"], manifestSha256);
 versions.setIn(["lore-client", "signature_bundle_url"], `${releaseBaseUrl}/SHA256SUMS.sigstore.json`);
+versions.setIn(["lore-client", "verification"], {
+  verified_at: new Date().toISOString(),
+  verifier: "portalshq/portals-cloud/infra/pulumi/scripts/verify-and-promote-lore-client-release.sh",
+  source_commit: sourceCommit,
+  artifact_manifest_sha256: manifestSha256,
+  installer_sha256: installerSha256,
+  signature_bundle_url: `${releaseBaseUrl}/SHA256SUMS.sigstore.json`,
+  signature_verified: true,
+  checksums_verified: true,
+});
 atomicWriteYaml(versionsFile, versions);
 console.log(`Lore client ${version} promoted from ${sourceCommit}; upstream pin unchanged`);

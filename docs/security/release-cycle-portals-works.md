@@ -20,7 +20,7 @@ issues log below is append-only._
 | ACM `.works` certificate | **ISSUED** 2026-08-22T14:52Z (`32f56a6f…`, NotAfter 2027-03-07); both validation domains SUCCESS |
 | Service DNS | `lore`/`auth.portals.works` → prod ALB, DNS-only, live; `auth-gateway-rebac` Service Connect `VIP:8087` verified (UrcAuthApi via `https://auth.portals.works:443` → `:8084`, RebacApi via `http://auth-gateway-rebac:8087` → `127.255.0.1:8087`) |
 | Source migration | Complete in all three repos (gateway audience const, lore `0.8.4-portals.8` `47333fc` incl. `fix(rebac):8087` `3694edb` + `fix(auth):https` `f4ebbe5`, Px `0.5.15` `676fa44`); `cargo check -p lore-server` green, compile+tests green |
-| Receipt ledger | **v2 shipped**; Px `v0.5.15` (`676fa44`) and Lore `v0.8.4-portals.8` (`47333fc`/`f4ebbe5`) promoted — `infra/lore/versions.yaml` `lore@sha256:72bc9186…` `Verified OK` (cosign+Trivy 0 high), `verified-ecr-images.json` receipt bound |
+| Receipt ledger | **v2 shipped**; Px `v0.5.15` (`676fa44`) and Lore `v0.8.4-portals.8` (`47333fc`/`f4ebbe5`) promoted — `infra/lore/versions.yaml` `lore@sha256:72bc9186…` `Verified OK` (cosign+Trivy 0 high), `verified-images.json` receipt bound |
 | OIDC | Provider + `portals-github-release` role live; `image-release.yml` wired; Lore `release.yml` `v0.8.4-portals.8` **completed success** (6/6 jobs) |
 | Egress hardening (#7) | `EgressControls` live; Lore SG `8087→100.64.0.0/10` (VIP) + `8087→VPC` + `443→0.0.0.0/0` (JWKS/ALB) + `53→VPC`; temporary `80→0.0.0.0/0` **removed 2026-08-25** |
 | Alarm contacts | SNS topic + `eng@portals.works` sub **CONFIRMED** 2026-08-23 |
@@ -75,15 +75,16 @@ Every release follows the same loop:
    (`REQUIRE_SIGNATURE=true`, `COSIGN_KEY=awskms:///alias/portals-artifact-signing`).
 4. **Promote** — only `verify-and-promote-*` scripts may change pins. They
    verify scans/attestations/signatures/Sigstore bundles first, then
-   atomically update `infra/lore/versions.yaml` plus its receipts.
+   atomically update `infra/lore/versions.yaml` plus the image digest ledger
+   when a server image changes. PX/Lore client evidence is embedded in the BOM.
 5. **Gated deploy** — `pulumi preview --diff` review, then `pulumi up`, with
    all release assertions false until their evidence exists; assertions are
    enabled only in the fixed order of §5.
 6. **Verify** — store-aware readiness, authenticated E2E matrix, external
    surface probe (`verify-external-surface.sh`), alarm and backup checks.
 
-**Never hand-edit** `infra/lore/versions.yaml`, `infra/lore/verified-ecr-images.json`,
-or `infra/lore/verified-releases.json`. These files are written exclusively by
+**Never hand-edit** `infra/lore/versions.yaml` or `infra/lore/verified-images.json`.
+These files are written exclusively by
 the promotion scripts; a manual digest edit bypasses scan/sign/receipt binding,
 and Pulumi will either refuse the pin or trust an unverified one. Hand-editing
 them is a release-gate bypass, not a convenience.
@@ -129,9 +130,9 @@ Do not start a phase until its dependency's verification has passed.
 | 4a | Lore server image build + publish | Release engineer | export non-secret env (below); `infra/lore/scripts/docker-buildx-lore.sh vX.Y.Z` | 5–15 m | Phases 1–2; artifact-signing key exists | script writes verified digest/receipt; ECR + Trivy zero critical/high; SBOM/provenance decode; `cosign verify` passes; unique build tag generated (format: `{version}-build-{timestamp}-{git-sha}`) |
 | 4b | Auth Gateway image build + publish | Release engineer | same env exports; `control-plane/scripts/publish-auth-gateway.sh` | 5–15 m | Phases 1–2; artifact-signing key exists | same as 4a; release version auto-extracted from `versions.yaml`; unique build tag generated |
 | 5a | Promote Lore CLI release | Release engineer | `infra/pulumi/scripts/verify-and-promote-lore-client-release.sh vX.Y.Z` | 3–8 m | Phase 3 | `versions.yaml` `lore-client` entry updated by script; checksums verified; submodule gitlink untouched |
-| 5b | Promote server images ×2 | Release engineer | `infra/pulumi/scripts/verify-and-promote-image.sh` for `lore`, then for `auth-gateway` (service, digest, platform, expected source/protocol/packaging commits) | 3–8 m each | Phases 4a–4b | `verified-ecr-images.json` receipts bound to exact index + platform digests |
-| 5c | Promote Px release | Release engineer | `infra/pulumi/scripts/verify-and-promote-px-release.sh vX.Y.Z` (Px CI pipeline itself runs 15–30 m before this) | 15–30 m total | Phase 5a (Px dependency must match promoted lore client) | Sigstore bundles + all checksums verified; `versions.yaml` `px-client` entry + `verified-releases.json` receipt written |
-| 6 | Commit release BOM | Release engineer | `git add infra/lore/versions.yaml infra/lore/verified-ecr-images.json infra/lore/verified-releases.json && git commit` | minutes | Phases 5a–5c | diff contains only script-written pins/releases; committed with release source |
+| 5b | Promote server images ×2 | Release engineer | `infra/pulumi/scripts/verify-and-promote-image.sh` for `lore`, then for `auth-gateway` (service, digest, platform, expected source/protocol/packaging commits) | 3–8 m each | Phases 4a–4b | `verified-images.json` receipts bound to exact index + platform digests |
+| 5c | Promote Px release | Automated on PX publication | PX `cli-release` dispatches `.github/workflows/promote-px-release.yml`, which verifies signed assets and opens a BOM PR | PX release plus verification run | Phase 5a (PX dependency must match promoted Lore client) | The PX caller waits for verification and PR creation; `versions.yaml` contains selected pins and embedded client evidence |
+| 6 | Review and merge release BOM | Release engineer/reviewer | Review generated PR; required checks and approval; merge | minutes | Phase 5c | one Git commit contains script-written pins and embedded PX/Lore client evidence |
 | 7 | Pulumi config/up (contained deploy) | Platform operator | `cd infra/pulumi`; set desired counts and switches (below); `pulumi preview --diff`; `pulumi up` | 5–15 m | Phase 6 | preview creates/enables nothing public; host-mode canaries healthy; no `dev` stack destruction |
 | 8 | JWKS bootstrap | Platform operator | see JWKS bootstrap ordering below | 15–45 m incl. applies | Phase 7 | live JWKS at `https://auth.portals.works/.well-known/jwks.json` contains expected `kid`; private Lore fetched that `kid` |
 | 9 | Release gates set | Reviewer + platform operator | `pulumi config set authGatewayReady true`; `pulumi config set securityReviewDate YYYY-MM-DD` (≤90 d old); `pulumi config set releaseGateApproved true`; confirm `release.status: approved` in BOM | review-dependent | Phase 8 + E2E matrix passed + §8 checklist | every assertion evidenced in the change record; date backed by a real review |

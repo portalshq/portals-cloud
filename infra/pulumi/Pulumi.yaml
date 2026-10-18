@@ -9,6 +9,12 @@ config:
   environment:
     description: Environment name (dev, staging, prod)
     default: dev
+  legacyLoreDataEnabled:
+    description: Keep Lore storage in this stack during migration; set false in a fresh platform stack that consumes lore-data outputs.
+    default: true
+  loreDataStackReference:
+    description: Pulumi stack reference, e.g. DigitalCreationsCo/portals-lore-data/prod, required when legacyLoreDataEnabled is false.
+    default: ""
   vpcCidr:
     description: VPC CIDR block
     default: "10.0.0.0/16"
