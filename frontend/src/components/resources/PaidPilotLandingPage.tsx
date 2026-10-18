@@ -12,6 +12,7 @@ import {
 import { CTAButton } from '@/components/CTAButton'
 import { SmoothAnchor } from '@/components/SmoothAnchor'
 import { PilotScopeForm } from '@/components/leads/PilotScopeForm'
+import { Badge } from '@/components/ui/badge'
 import type { KnownLeadContext } from '@/lib/leads/contracts'
 import type {
   DocumentSection,
@@ -215,12 +216,12 @@ function Objective({ document }: { document: ResourceDocument }) {
         </div>
         <div className="col-span-full lg:col-span-10 lg:col-start-14">
           <p className="t-p-lg-serif text-white">Test whether your team can continue approved work with less reconstruction, fewer wrong-input generations, and clearer handoffs.</p>
-          <div className="mt-24 rounded lg:rounded-[10px] border bg-white/10 px-16 py-8 backdrop-blur-[20px] flex items-start gap-x-16 t-p-sans leading-[1.2em]">
+          <Badge className="mt-24 flex items-start gap-x-16 t-p-sans leading-[1.2em]">
             <span className="flex h-[1.364em] items-center">
               <span className="size-8 shrink-0 bg-current" />
             </span>
             Test one defined workflow using real production work. Agree the scope and success measures before kickoff.
-          </div>
+          </Badge>
           <div className="mt-24 space-y-16 t-p-sans text-white">
             <p>{PRIMARY_PILOT_SUCCESS_TEST}</p>
           </div>

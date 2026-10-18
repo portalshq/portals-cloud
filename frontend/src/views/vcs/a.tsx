@@ -2,6 +2,7 @@
 
 import { CTAButton } from '@/components/CTAButton';
 import { ProductionLineage } from '@/components/ProductionLineage';
+import { Badge } from '@/components/ui/badge';
 import {
   PACKAGE_SPEC_SLUGS,
   findPackageSpecification,
@@ -108,6 +109,11 @@ const problemCards = [
 
 const comparisonRows = [
   {
+    metric: 'Client asks for twelve more like this',
+    without: 'Hours to days of rediscovery work',
+    withPortals: 'delivered from approved work, in days',
+  },
+  {
     metric: 'Find the approved version',
     without: 'Guessed from filenames and Slack history',
     withPortals: 'in seconds, with sign-off intact',
@@ -116,11 +122,6 @@ const comparisonRows = [
     metric: 'Recreate a shipped asset',
     without: 'Rebuilt from scratch, often imperfectly',
     withPortals: 'reused directly — no rebuild',
-  },
-  {
-    metric: 'Client asks for twelve more like this',
-    without: 'Hours to days of rediscovery work',
-    withPortals: 'delivered from approved work, in days',
   },
   {
     metric: 'Knowledge when someone leaves',
@@ -257,13 +258,15 @@ function ListColumn({ item }: { item: OverviewItem }) {
   return (
     <ul className="saga-overview-list space-y-8">
       {item.list.map((text) => (
-        <li key={text} className="rounded-[10px] border bg-white/10 px-16 py-8 backdrop-blur-[20px]">
-          <div className="flex items-start gap-x-16 t-p-sans leading-[1.2em]">
-            <span className="flex h-[1.364em] items-center">
-              <span className="size-8 shrink-0 bg-current" />
-            </span>
-            <span>{text}</span>
-          </div>
+        <li key={text}>
+          <Badge>
+            <div className="flex items-start gap-x-16 t-p-sans leading-[1.2em]">
+              <span className="flex h-[1.364em] items-center">
+                <span className="size-8 shrink-0 bg-current" />
+              </span>
+              <span>{text}</span>
+            </div>
+          </Badge>
         </li>
       ))}
     </ul>
@@ -710,23 +713,26 @@ function measureLineageLayout(track: HTMLElement): LineageLayout | null {
 function ProblemSection() {
   return (
     <section className="saga-problem-section relative z-10" data-header-theme="light">
-      <div className="ui-grid gap-y-fluid-[30,52] pb-fluid-[76,106] md:py-fluid-[76,106] md:mt-140 md:mb-80 text-white lg:min-h-screen lg:content-center">
+      <div className="ui-grid gap-y-fluid-[30,52] pb-fluid-[76,106] md:py-fluid-[76,106] md:mt-140 md:mb-80 text-white lg:content-center">
         {/* <div className="col-span-full lg:col-span-6">
           <SectionKicker>the problem</SectionKicker>
         </div> */}
-        <div className="relative z-10 col-span-full space-y-34 lg:col-span-16">
+        <div className="relative z-10 col-span-full space-y-34 content-center lg:col-span-16 lg:min-h-[80vh]">
           <h2 className="t-d2-sans max-w-[13.8em] text-balance">
             When a client asks for twelve more assets, does your team start from scratch, or build from history?
           </h2>
-          <p className="t-p-lg-serif max-w-[30em] text-balance leading-[1.25]">
+          <p className="t-p-lg-serif max-w-[32em] text-balance leading-[1.25]">
             Your teams generate thousands of images, videos, and iterations daily.
-            When a project ships, the history walks out the door — so the next brief pays for the same discovery, rebuilds, and re-approvals again:
+            When that production history is lost, the next brief pays for the same discovery, rebuilds, and re-approvals again.
           </p>
         </div>
-        <div className="col-span-full grid grid-cols-1 lg:grid-cols-3">
+        <h3 className="col-span-full t-d2-sans max-w-[28em] text-balance">
+          portals automatically detects and organizes production assets and their associated documents.
+        </h3>
+        <div className="col-span-full grid grid-cols-1 lg:grid-cols-3 space-y-[4px]">
           {problemCards.map((card, index) => (
             <div key={card.title}>
-              <article className={`min-h-194 h-full p-24 rounded-sm text-white flex flex-col ${index % 2 === 1 ? 'bg-white/10' : ''}`}>
+              <article className={`min-h-194 h-full p-24 rounded-sm text-white flex flex-col ${index % 2 === 1 ? 'bg-white/10' : 'bg-white/10 lg:bg-transparent'}`}>
                 <div className="mb-20 flex items-center gap-x-8">
                   <span className="size-8 bg-white" />
                   <span className="t-m2">{card.label}</span>
@@ -785,9 +791,8 @@ function SolutionSection() {
     <section data-header-theme="light">
       <div className="ui-grid items-center gap-y-fluid-[30,52] py-fluid-[76,106] text-white min-h-screen">
         <div className="col-span-full space-y-36 mx-auto max-w-[90%] lg:max-w-[160.58ch]">
-          <h2 className="t-d2-sans mx-auto w-fit">
-            the production memory
-            <br />
+          <h2 className="t-d2-sans mx-auto w-fit text-center text-balance">
+            The production memory for <br/>
             AI{`\u2011`}native creative teams
           </h2>
           <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
@@ -799,7 +804,7 @@ function SolutionSection() {
           <div className="flex justify-center">
             {/* <CTAButton href={"/ai-production-workflow-risks"}>Explore use cases</CTAButton> */}
             <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
-              Assess production workflow
+              Assess my production workflow
             </CTAButton>
           </div>
         </div>
@@ -810,13 +815,13 @@ function SolutionSection() {
 
 function ComparisonSection() {
   return (
-    <section data-header-theme="light">
+    <section data-header-theme="light" className="min-h-screen lg:h-auto items-center content-center">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full">
           <h2 className="t-d2-sans max-w-[12.58em]">What changes when your production has a memory?</h2>
         </div>
         <div className="hidden md:block col-span-full">
-          <div className="grid-cols-[1fr_1fr_1.2fr] t-m2 text-white/80 grid">
+          <div className="grid-cols-[1fr_1fr_1.2fr] t-m2 grid">
             <div className="p-16 col-span-2" />
             {/* <div className="p-16 lowercase">without portals</div> */}
             <div className="p-16 text-white lowercase">with portals</div>
@@ -824,7 +829,7 @@ function ComparisonSection() {
           {comparisonRows.map((row, index) => (
             <div key={row.metric} className={`grid grid-cols-1 border-t border-white/50 grid-cols-[1fr_.6fr] lg:grid-cols-[1fr_1fr_1.2fr] lowercase ${index === comparisonRows.length - 1 ? 'border-b' : ''}`}>
               <div className="p-16 t-p-sans lg:col-span-2 text-white w-[26ch] bg-transparent">{row.metric}</div>
-              {/* <div className="border-white/50 p-16 t-p-sans text-white/80 border-t-0 border-l">
+              {/* <div className="border-white/50 p-16 t-p-sans text-white border-t-0 border-l">
                 <span className="mb-8 block t-m2 lg:hidden !lowercase">without portals</span>
                 {row.without}
               </div> */}
@@ -841,7 +846,7 @@ function ComparisonSection() {
               <div className="inline-flex p-16 t-p-sans col-span-full text-white">{row.metric} {row.withPortals}</div>
             </div>
           ))}
-          <div className='flex pt-30 justify-end items-end'><CTAButton href="/production-memory">Explore production memory</CTAButton></div>
+          <div className='flex pt-30 items-end'><CTAButton href="/production-memory">Explore production memory</CTAButton></div>
         </div>
       </div>
     </section>
@@ -865,7 +870,7 @@ function CapabilitiesSection() {
         </div>
         <div className='col-span-full'>
           <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
-            Assess production workflow
+            Assess my production workflow
           </CTAButton>
         </div>
       </div>
@@ -989,7 +994,7 @@ function AudienceSection() {
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-2">
           {audiences.map((audience) => (
-            <article key={audience.title} className="py-24 lg:px-24">
+            <article key={audience.title} className="py-24 lg:px-16">
               <h3 className="t-h3-sans mb-16">{audience.title}</h3>
               <p className="t-p-sans text-white">{audience.text}</p>
             </article>
@@ -1244,14 +1249,15 @@ export function VCS({
         <div className="relative flex min-h-screen items-center text-white">
           <div className="ui-grid flex-1 gap-y-sms py-sms">
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
-              <h4 className="t-global-cta_heading max-w-[13em] text-balance">Stop losing the history of your best work.<br /> Start building on it.</h4>
-              <p className="t-p-lg-serif max-w-[25em] md:w-auto text-white text-left">
+              <h4 className="t-global-cta_heading max-w-[13em] text-balance">
+                Stop losing the history of your best work.<br /> Start building on it.</h4>
+              <p className="t-p-lg-serif text-white text-left max-w-[25em] md:w-auto mx-auto">
                 Ship repeat campaigns faster, cut rebuild and re-approval costs, and keep every asset provable from prompt to final with a complete lifecycle that works with your existing tools.
               </p>
               <div className="flex items-center gap-16">
                 <CTAButton href={"/use-cases"} appearance="plain">Explore use cases</CTAButton>
                 <CTAButton href="/assessment" analyticsLabel="Assess Your Workflow" analyticsIntent="assessment">
-                  Assess production workflow
+                  Assess my production workflow
                 </CTAButton>
               </div>
             </div>

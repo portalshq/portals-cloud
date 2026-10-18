@@ -1,7 +1,7 @@
 import type {Metadata} from 'next'
 import {getPackageSpecifications} from '@/lib/package-specifications'
 import {marketingMetadata, softwareApplicationJsonLd} from '@/lib/seo'
-import {VCS} from '@/views/vcs-current/a'
+import {VCS} from '@/views/vcs/a'
 
 export const metadata: Metadata = marketingMetadata({
   title: 'AI Creative Production Repository & Memory | portals',
