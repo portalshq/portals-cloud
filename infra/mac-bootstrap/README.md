@@ -5,6 +5,16 @@ host is Intel, so the deployment needs `linux/amd64`. Auth Gateway now has a
 multi-architecture Docker Hub build; ARM64 is available for a future host, but
 does not replace release verification for the Intel image.
 
+For the current release/BOM reconciliation, production test coverage, QUIC
+requirements, provider checks, and remaining recovery gates, use the canonical
+[PRODUCTION-ACCEPTANCE.md](PRODUCTION-ACCEPTANCE.md). The dated status below is
+historical; later host and tunnel evidence is recorded in that acceptance log.
+
+The [acceptance access handoff](ACCEPTANCE-ACCESS.md) lists the one-time host,
+provider and fixture access needed to finish the live tests independently.
+The [PX/Lore BOM CI procedure](../../docs/security/px-lore-bom-promotion.md)
+explains dispatch, waiting, PR validation and the shared release commit.
+
 ## Current deployment status — 2026-10-02
 
 - **Done:** Auth Gateway image pushed to Docker Hub as
@@ -50,6 +60,120 @@ scripts/run-pinggy.sh       # TCP and UDP
 scripts/run-pinggy.sh tcp   # TCP/TLS only
 scripts/run-pinggy.sh udp   # UDP/QUIC only
 ```
+
+## Remote operations access boundary
+
+The Mac's remote-operations gate is intentionally restricted to fixed actions.
+It consists of:
+
+- A forced-command SSH key in `portals-svc`'s `authorized_keys`, restricted to
+  `/Users/portals-svc/portals/infra/mac-bootstrap/scripts/remote-ops-gate.sh`.
+  The key has OpenSSH's `restrict` option, so it cannot open a shell, forward
+  ports, or allocate a TTY. The helper accepts only `status`, `preflight`, and
+  the fixed-purpose `repair-lore-auth-discovery` action.
+- `/private/etc/sudoers.d/portals-remote-ops-gate`, which lets `andresb` run
+  exactly those three helper invocations as `portals-svc` without a password.
+  It grants no general sudo or root command.
+
+### Durable acceptance operations as the service account
+
+The restricted gate cannot yet run deployment, fixtures and tunnel management.
+On 2026-10-18, direct SSH to `portals-svc` accepted the existing authorized key,
+then the Mac closed the connection before completing authentication. A new key
+alone would not address that account-level failure. The staged fixed-action
+extension adds exact sudoers entries for release plans, Auth/Lore changeovers,
+and the isolated Auth key-lifecycle fixture. It accepts no arbitrary shell text,
+paths, image names or secret values. Its executable is root-owned under
+`/private/etc/portals-ops`; it verifies the installed action script checksums
+before running them as `portals-svc`. Root sudo remains password-protected.
+
+The local source is
+[`scripts/remote-acceptance-gate.sh`](scripts/remote-acceptance-gate.sh) and
+[`scripts/install-remote-acceptance-gate.sh`](scripts/install-remote-acceptance-gate.sh).
+Both were staged and syntax-checked on `andresb` with these SHA-256 values:
+
+```text
+808898b370cb6259dc5b8c9fa8f0282d928d74d22544181cd1f3b8fa6fce01ff  /Users/Shared/portals-remote-acceptance-gate-20261018.sh
+f7ea37d7e6100510563e14c47436be42e78743c13934d7acd3fb630a1b62f96e  /Users/Shared/portals-install-remote-acceptance-gate-20261018.sh
+```
+
+One Mac administrator password entry is required to install the root-owned
+gate and its exact sudoers rule. Cached noninteractive sudo was checked and is
+not currently available. From the client Mac:
+
+```sh
+ssh -tt andresb 'test "$(LC_ALL=C shasum -a 256 /Users/Shared/portals-install-remote-acceptance-gate-20261018.sh | awk "{print \$1}")" = "f7ea37d7e6100510563e14c47436be42e78743c13934d7acd3fb630a1b62f96e" && sudo -v && sudo /bin/sh /Users/Shared/portals-install-remote-acceptance-gate-20261018.sh'
+```
+
+After `REMOTE_ACCEPTANCE_GATE_INSTALLED`, test the read-only deployment plan:
+
+```sh
+ssh -T -o BatchMode=yes andresb 'sudo -n -u portals-svc /private/etc/portals-ops/remote-acceptance-gate.sh deploy-auth-plan'
+```
+
+Allowed actions are `deploy-auth-plan`, `deploy-lore-plan`, `deploy-auth`,
+`deploy-lore` and `auth-fixture-test`. The fixture action creates a disposable
+Auth principal and keys, checks issuance/rotation/revocation, and disables the
+principal; audit records remain. Deployment actions use the approved BOM and
+verified image receipts, check health and restore the prior image on failure.
+The gate is pinned to the installed deployer and Auth test script hashes;
+future changes to those scripts require a reviewed gate update. This extension
+does not yet manage Pinggy tunnels, PX fixtures, provider restores, or client
+DNS routing. Record every SSH action and its sanitized result in the ignored
+`ssh-activity.log`.
+
+The status, preflight, and repair actions were verified on the Mac on
+2026-10-17. Status reports container state, preflight validates the release
+manifest, and the repair action only sets Lore's Auth discovery endpoint to
+the fixed production hostname, verifies the pinned Lore image, preserves the
+prior config if a change is required, recreates Lore, and checks health and
+live `EnvironmentGet`. The gate cannot update DNS or run authenticated PX
+acceptance. Any additional deployment-capable extension must be an explicitly
+reviewed fixed-purpose operation with strict validation and rollback; it must
+not accept arbitrary shell text, secret values, image names, or filesystem
+paths. Installing a new extension requires Mac administrator authorization.
+
+The repository and Mac host now contain the installed
+`repair-lore-auth-discovery` operation.
+It only sets `LORE__ENVIRONMENT__ENDPOINT__AUTH_URL` to the fixed production
+Auth name, verifies the pinned Lore image, preserves the prior config, runs
+release validation, recreates Lore, and requires both container health and a
+successful live `EnvironmentGet`. It accepts no arguments. The EnvironmentGet
+proto is bundled at
+[`probes/environment-v1.proto`](probes/environment-v1.proto), byte-for-byte
+matching the checked-out Lore source. The installer stages and validates this
+file itself; it does not depend on the Mac Lore submodule containing the proto.
+If the checkout has no probes/ directory, the installer creates that exact
+directory after rejecting symlinks and conflicting paths.
+
+The earlier installer attempts stopped safely before modifying the host:
+first because they incorrectly required the proto in the Mac Lore submodule,
+then because the Mac checkout lacked the probes directory. The corrected
+installer bundles the proto and creates the directory safely. Its pinned
+non-secret inputs must be staged in
+`/Users/Shared` on `andresb`. One-time installation requires a Mac
+administrator password. Verify the installer hash and then run:
+
+```sh
+ssh -tt andresb 'test "$(shasum -a 256 /Users/Shared/install-lore-discovery-gate-20261017.sh | awk "{print \$1}")" = "363d068b6ea65787f7062f623b6f5f4f0e434ea5e8730f650340da9af923e0b5" && sudo -v && sudo /bin/sh /Users/Shared/install-lore-discovery-gate-20261017.sh'
+```
+
+After it reports `LORE_DISCOVERY_GATE_INSTALLED`, the fixed operation is
+invoked without a password through the new exact sudoers entry:
+
+```sh
+ssh -tt andresb 'sudo -n -u portals-svc /Users/portals-svc/portals/infra/mac-bootstrap/scripts/remote-ops-gate.sh repair-lore-auth-discovery'
+```
+
+It reports `LORE_AUTH_DISCOVERY_REPAIR=PASS` only after release validation,
+same-digest Lore recreation, container health, and live Auth discovery all
+pass. On 2026-10-17 the installer completed and the repair returned
+`changed=no backup=not-needed`: the configured Auth discovery value already
+matched `ucs-auth://auth.portals.works`. Lore was still recreated on the pinned
+digest and its live `EnvironmentGet` was verified. A follow-up status showed
+Lore and Auth healthy, Caddy running, and release preflight passing. This
+verifies service discovery and container readiness, not external PX, QUIC,
+OIDC, or recovery acceptance.
 
 The ProductCharacters delivery worker is outside Portals' MVP and runs no
 container here. Portals retains its Vercel CRM cron; no Mac CRM scheduler,
@@ -129,8 +253,18 @@ the CRM credentials required by the selected connector, and the verified lead
 webhook secret. Deploy them only through Vercel's encrypted project settings;
 never place them in Mac files.
 
-From `frontend`, set a temporary local `LEADS_DATABASE_URL` pointing to the
-production Neon database, then run and record:
+Run migrations only against a disposable Neon branch created from the intended
+production branch. Do not point the current migration runner at production:
+`frontend/scripts/migrate-leads.ts` replays every SQL file on every invocation,
+has no applied-migration ledger, and at least
+`frontend/migrations/014_rename_kickoff_to_launch.sql` is not repeatable. The
+file ordering also includes duplicate `006_` and `013_` prefixes. First add a
+tracked, transactional migration runner and prove it against a fresh branch
+and a branch that already has the current schema. Until then, migration
+completion and production readiness are unverified.
+
+Once that runner is fixed, set the local `LEADS_DATABASE_URL` to the disposable
+branch only, then run and record:
 
 ```bash
 npm ci
@@ -138,8 +272,11 @@ npm run migrate:leads
 npm run test:leads
 ```
 
-This migration script applies every ordered SQL file idempotently. Verify the
-tables in Neon and a real, authenticated cron request before proceeding.
+Verify migration ledger state, required tables and constraints on the test
+branch, then exercise invitation and CRM behavior there. A Vercel cron test
+also needs a production-like deployment environment; do not use the production
+cron endpoint with test writes unless it is explicitly configured for isolated
+test data.
 
 ### 3. Prepare identity and Auth Gateway
 
@@ -387,3 +524,9 @@ failure causes an outage.
 - [scripts/run-pinggy.sh](scripts/run-pinggy.sh) and
   [scripts/test-run-pinggy.mjs](scripts/test-run-pinggy.mjs) — selectable
   TCP/UDP tunnel modes, default paired supervision, and runner regression test.
+- [scripts/test-check-external.mjs](scripts/test-check-external.mjs) — verifies
+  the probe dispatcher is TLS-portable on macOS and fails closed.
+- [scripts/run-production-regressions.mjs](scripts/run-production-regressions.mjs)
+  — runs the safe local regression set and prints a JSON report; it always
+  marks production readiness false until the live-provider acceptance gates
+  in [PRODUCTION-ACCEPTANCE.md](PRODUCTION-ACCEPTANCE.md) have their own evidence.

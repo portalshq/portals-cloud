@@ -8,9 +8,12 @@ const required = [
   'AUTH_ENV_FILE',
   'AUTH_SECRET_DIR',
   'LORE_ENV_FILE',
+  'LORE_AWS_ENV_FILE',
   'CADDY_ENV_FILE',
   'CADDY_CERT_DIR',
   'LORE_QUIC_CERT_DIR',
+  'LORE_QUIC_HOST',
+  'LORE_QUIC_PORT',
 ]
 const missing = required.filter((name) => !process.env[name])
 if (missing.length) throw new Error(`missing release inputs: ${missing.join(', ')}`)
@@ -85,6 +88,13 @@ for (const domain of ['AUTH_DOMAIN', 'LORE_DOMAIN']) {
   if (!new RegExp(`\\{\\$${domain}\\}`).test(caddy)) throw new Error(`Caddy must use ${domain}`)
   if (!new RegExp(`^${domain}=.+`, 'm').test(caddyEnv)) throw new Error(`Caddy env must define ${domain}`)
 }
+const authDomain = caddyEnv.match(/^AUTH_DOMAIN=(.+)$/m)?.[1]
+const loreDomain = caddyEnv.match(/^LORE_DOMAIN=(.+)$/m)?.[1]
+if (loreEnv.match(/^LORE__ENVIRONMENT__ENDPOINT__AUTH_URL=(.+)$/m)?.[1] !== `ucs-auth://${authDomain}`) throw new Error('Lore advertised Auth discovery endpoint must match AUTH_DOMAIN')
+if (!/^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(process.env.LORE_QUIC_HOST)) throw new Error('LORE_QUIC_HOST must be a DNS hostname')
+const quicPort = Number(process.env.LORE_QUIC_PORT)
+if (!Number.isInteger(quicPort) || quicPort < 1 || quicPort > 65535) throw new Error('LORE_QUIC_PORT must be a valid UDP port')
+if (loreEnv.match(/^LORE__ENVIRONMENT__ENDPOINT__STORAGE_URL=(.+)$/m)?.[1] !== `quics://${process.env.LORE_QUIC_HOST}:${quicPort}`) throw new Error('Lore must advertise the certificate-verified QUIC storage hostname and actual public UDP port')
 if (caddy.includes('auto_https disable')) throw new Error('Caddy TLS cannot be disabled in production')
 if (!caddy.includes('/run/secrets/caddy/fullchain.pem') || !caddy.includes('/run/secrets/caddy/privkey.pem')) throw new Error('Caddy must require provisioned TLS certificates')
 if (!compose.includes('127.0.0.1:8443:443')) throw new Error('Caddy TLS must be exposed only through the loopback Pinggy target')

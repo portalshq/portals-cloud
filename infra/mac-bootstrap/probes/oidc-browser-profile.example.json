@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "disposableTestIdentity": true,
+  "authGrpcTarget": "auth.portals.works:443",
+  "authHttpBase": "https://auth.portals.works",
+  "authIssuer": "https://auth.portals.works",
+  "oidcIssuer": "__REPLACE_EXACT_ZITADEL_ISSUER__",
+  "oidcClientId": "__REPLACE_EXACT_ZITADEL_CLIENT_ID__",
+  "oidcRedirectUri": "https://auth.portals.works/callback",
+  "expectedSubject": "__REPLACE_TEST_USER_ZITADEL_SUBJECT__",
+  "expectedAccessTokenTtlSeconds": 900
+}

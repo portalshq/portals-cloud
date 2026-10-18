@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.portals.certificate-renewal</string>
+  <key>ProgramArguments</key><array><string>/Users/portals-svc/portals/infra/mac-bootstrap/scripts/issue-wildcard-certificate.sh</string></array>
+  <key>EnvironmentVariables</key><dict>
+    <key>ACME_CONTACT_EMAIL</key><string>andreas@portals.works</string>
+    <key>CF_DNS_API_TOKEN_FILE</key><string>/Users/portals-svc/secrets/cloudflare-dns-token</string>
+    <key>CADDY_CERT_DIR</key><string>/Users/portals-svc/secrets/caddy-certs</string>
+    <key>ACME_STATE_DIR</key><string>/Users/portals-svc/secrets/acme</string>
+    <key>DOCKER_HOST</key><string>unix:///Users/andresb/.docker/run/docker.sock</string>
+    <key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/Users/Shared/portals-tools/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>StartCalendarInterval</key><dict>
+    <key>Hour</key><integer>4</integer>
+    <key>Minute</key><integer>20</integer>
+  </dict>
+  <key>ThrottleInterval</key><integer>3600</integer>
+  <key>StandardOutPath</key><string>/Users/portals-svc/Library/Logs/portals-certificate-renewal.log</string>
+  <key>StandardErrorPath</key><string>/Users/portals-svc/Library/Logs/portals-certificate-renewal.err.log</string>
+</dict></plist>
