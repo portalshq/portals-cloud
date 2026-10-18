@@ -120,15 +120,8 @@ export class ReactorSessionManager {
       throw new Error("Not connected to Reactor session");
     }
 
-    // Reactor commands require WebRTC data channel
-    // Backend cannot send commands without WebRTC connection
-    // Frontend must use Reactor SDK to send commands
-    console.error(
-      `[ReactorSessionManager] Server-side command sending not supported by Reactor. ` +
-      `Command: ${command}, Session: ${this.sessionId}. ` +
-      `Frontend must use Reactor SDK's sendCommand() with token from backend.`
-    );
-    
+    // Do not log command content: prompts or other command payloads may contain
+    // customer data. The frontend SDK must send commands over the WebRTC channel.
     throw new Error(
       "Reactor commands must be sent from the frontend via Reactor SDK WebRTC connection. " +
       "Backend provides token and session ID; frontend connects and sends commands. " +
