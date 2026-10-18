@@ -263,7 +263,7 @@ function ListColumn({ item }: { item: OverviewItem }) {
     <ul className="saga-overview-list space-y-8">
       {item.list.map((text) => (
         <li key={text}>
-          <Badge className="border">
+          <Badge className="border px-16 py-8">
             <div className="flex items-start gap-x-16 t-p-sans leading-[1.2em]">
               <span className="flex h-[1.364em] items-center">
                 <span className="size-8 shrink-0 bg-current" />
@@ -1021,7 +1021,25 @@ function PricingSection({
     packageSpecifications,
     PACKAGE_SPEC_SLUGS.studioPilot,
   );
-  const pilotTier = pilotSpec ? pricingTierFromSpec(pilotSpec) : undefined;
+  const pilotTier: PricingTier = pilotSpec ? pricingTierFromSpec(pilotSpec) : {
+    slug: 'studio-pilot',
+    name: 'Studio Pilot',
+    price: '$5,000',
+    originalPrice: undefined,
+    discountPercentage: undefined,
+    period: 'one-time',
+    subtitle: 'For studios managing concurrent campaigns, episodic, animation, or game pipelines.',
+    banner: undefined,
+    features: [
+      'Up to 24 production members',
+      '21-day pilot period',
+      '100% of the pilot fee credited toward your annual agreement when you sign before the pilot ends',
+      'Standard integrations',
+      'Guided onboarding',
+    ],
+    cta: 'Scope a pilot',
+    micro: 'The Q4 discounted pilot price and its expiry are rendered by the existing offer module wherever it renders today.',
+  } as PricingTier;
   const pricingTiers = [
     PACKAGE_SPEC_SLUGS.productionTeam,
     PACKAGE_SPEC_SLUGS.studio,
@@ -1066,7 +1084,7 @@ function PricingSection({
             <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
               <h3 className="t-h3-sans mb-20 flex items-center gap-x-12">
                 <span>{tier.name}</span>
-                {tier.banner && <Badge className="border-0">{tier.banner}</Badge>}
+                {tier.banner && <Badge>{tier.banner}</Badge>}
               </h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-h3-sans">{tier.price}</span>

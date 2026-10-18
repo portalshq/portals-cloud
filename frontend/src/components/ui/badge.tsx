@@ -9,7 +9,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          'rounded-[10px] bg-white/10 px-6 py-4 backdrop-blur-[20px] text-white border',
+          'rounded-[10px] bg-white/10 px-1.5 py-1 backdrop-blur-[20px] text-white border-0',
         secondary:
           'whitespace-nowrap rounded-md border bg-secondary text-secondary-foreground px-2.5 py-0.5 text-xs font-semibold',
         destructive:
