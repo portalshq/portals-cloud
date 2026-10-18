@@ -10,6 +10,7 @@
 
 import { blurEnterDurationMs, blurEnterEasing, blurExitDurationMs, blurExitEasing, overviewMotionStyle, OverviewTransitionStage } from "@/types/overview";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 const lineageOutputs = [
     { src: '/images/vcs/components/preserve-portrait-01.png', label: 'portrait crop' },
@@ -423,15 +424,15 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
                         alt="Selected approved campaign portrait on a bordered photo print"
                         style={{ transform: `rotate(${selectedRotationDeg}deg) scale(${selectedScale})` }}
                     />
-                    {labels && <span className="lineage-node-label">selected version</span>}
+                    {labels && <Badge className="lineage-node-label">selected version</Badge>}
                     {labels && (
                         <div className="lineage-provenance">
-                            <span className="lineage-provenance-label">
+                            <Badge className="lineage-provenance-label flex-col text-right">
                                 <span className="lineage-provenance-path">campaign/character/elize</span>
                                 <span className="lineage-provenance-meta">revision: 4</span>
                                 <span className="lineage-provenance-meta">model: gpt-image-2</span>
                                 <span className="lineage-provenance-prompt">prompt: cream skin-toned woman with dark windswept hair...</span>
-                            </span>
+                            </Badge>
                         </div>
                     )}
                 </div>
@@ -451,7 +452,7 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
                             {row.map((output) => (
                                 <div className="lineage-output" key={output.label}>
                                     <img src={output.src} alt={`${output.label} from the same campaign model`} />
-                                    {labels && <span className="lineage-output-label">{output.label}</span>}
+                                    {labels && <Badge className="lineage-output-label">{output.label}</Badge>}
                                 </div>
                             ))}
                         </div>
@@ -474,7 +475,7 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
                 </div>
                 <div className={`lineage-node lineage-campaign-outputs ${4 < stage ? 'is-past' : ''}`} data-node="campaign-outputs" style={nodeMotionStyle(4)} aria-hidden={!lineageNodeVisible(4)}>
                     <img src="/images/vcs/components/version-stack.png" alt="Campaign output versions arranged as an archival photo stack" />
-                    {labels && <span className="lineage-node-label">campaign outputs</span>}
+                    {labels && <Badge className="lineage-node-label">campaign outputs</Badge>}
                 </div>
             </div>
 
@@ -526,8 +527,6 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
         }
         .lineage-node-label, .lineage-edge-label, .lineage-output-label {
           position: absolute; z-index: 2; white-space: nowrap;
-          border: 0; border-radius: 10px; background: rgba(255,255,255,.1);
-          padding: 4px 6px; color: white; backdrop-filter: blur(20px);
           font-family: var(--font-die-grotesk-b); font-size: clamp(6px, .65vw, 9px); font-weight: 400; line-height: 1.05;
         }
         .lineage-node-label { bottom: 6px; left: 50%; translate: -50% 0; }
@@ -568,21 +567,16 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
           z-index: 3;
         }
         .lineage-provenance-label {
-          display: flex;
+          display: inline-flex;
           flex-direction: column;
           gap: 1px;
-          padding: 4px 6px;
-          background: rgba(255,255,255,.1);
-          border: 0;
-          border-radius: 10px;
-          backdrop-filter: blur(20px);
-          color: white;
           font-family: var(--font-die-grotesk-b);
           font-size: clamp(6px, .65vw, 9px);
           font-weight: 400;
           line-height: 1.05;
           white-space: nowrap;
           text-align: right;
+          align-items: center;
         }
         /* After the base rule (it previously came before it and lost). */
         @media (max-width: 63.99rem) {
