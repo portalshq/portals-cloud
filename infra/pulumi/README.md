@@ -109,7 +109,8 @@ CI also runs npm/RustSec dependency audits and CodeQL security-extended
 analysis. Those source gates complement, rather than replace, ECR scanning and
 signature/SBOM verification of the exact promoted manifest digest.
 
-`infra/lore/versions.yaml` is the sole release bill of materials. It has four
+`infra/lore/versions.yaml` is the selected release BOM and the single source
+for PX/Lore client verification evidence. It has four
 active release entries: the independently signed Lore client, the Lore server
 image, the control plane implemented by the Auth Gateway image, and the signed
 Px binary release that references the exact Lore client version. The legacy
@@ -125,7 +126,7 @@ commit and release artifacts while deliberately leaving the Epic upstream pin
 and Lore submodule gitlink unchanged. `verify-and-promote-px-release.sh` then
 verifies GitHub-OIDC Sigstore bundles, every Px artifact checksum, and requires
 Px's Lore dependency to match that independent top-level entry before changing
-the Px entry and its matching `verified-releases.json` receipt. Public
+the Px entry and its embedded verification evidence in the same YAML document. Public
 ingress additionally requires `release.status: approved` and one matching
 security contract across Px, Lore, and the control plane.
 
@@ -215,7 +216,7 @@ The `scripts/` directory contains utilities for secure release verification and 
 Records a verified Lore client release to `infra/lore/versions.yaml`. This script is called by `verify-and-promote-lore-client-release.sh` after successful verification. It updates the Lore client version, source commit, installer SHA256, artifact manifest URLs, and signature bundle information in the versions file.
 
 ### record-px-release.mjs
-Records a verified Px release to `infra/lore/versions.yaml` and creates a verification receipt in `infra/lore/verified-releases.json`. This script is called by `verify-and-promote-px-release.sh` after successful verification. It validates that the Px release's Lore dependency matches the independently promoted Lore client entry before updating the Px version and creating a cryptographic receipt of the verification.
+Records a verified Px release and its embedded verification evidence in `infra/lore/versions.yaml`. This script is called by `verify-and-promote-px-release.sh` after successful verification. It validates that the Px release's Lore dependency matches the independently promoted Lore client entry before updating pins and evidence together.
 
 ### verify-and-promote-image.sh
 Verifies a Docker image for production deployment by checking ECR scan results, running Trivy vulnerability scanning, validating SBOM/provenance attestations, and optionally verifying cosign signatures. After all checks pass, it calls `record-verified-image.mjs` to atomically update the image pin in `infra/lore/versions.yaml` with the verified digest. Requires service name, image digest, platform, and expected source/protocol/packaging commits.
@@ -224,7 +225,7 @@ Verifies a Docker image for production deployment by checking ECR scan results, 
 Downloads a Lore client release from GitHub, verifies its GitHub-OIDC Sigstore signature bundles, validates all artifact checksums against SHA256SUMS, and promotes the verified release to `infra/lore/versions.yaml`. This script operates independently of Px and does not modify the Lore submodule gitlink or release status. Requires a Lore release tag (e.g., `v0.8.4-portals.5`).
 
 ### verify-and-promote-px-release.sh
-Downloads a Px release from GitHub, verifies its GitHub-OIDC Sigstore signature bundles for both SHA256SUMS and release-metadata.json, validates all artifact checksums, and cross-checks that Px's Lore dependency matches the independently promoted Lore client release. After successful verification, it updates the Px entry in `infra/lore/versions.yaml` and creates a verification receipt. Requires a Px release tag (e.g., `v0.5.10`).
+Downloads a Px release from GitHub, verifies its GitHub-OIDC Sigstore signature bundles for both SHA256SUMS and release-metadata.json, validates all artifact checksums, and cross-checks that Px's Lore dependency matches the independently promoted Lore client release. After successful verification, it updates the Px entry and embedded evidence in `infra/lore/versions.yaml`. PX publication dispatches the central workflow automatically; see `docs/security/px-lore-bom-promotion.md`.
 
 ### scan-repository-secrets.sh
 Scans the repository for accidentally committed secrets and credentials. It checks for AWS access keys (patterns like `AKIA[0-9A-Z]{16}`), private keys (RSA/EC/OPENSSH), and obsolete deployment TLS keys. This script should be run in CI/CD pipelines to prevent secrets from being committed to the repository.

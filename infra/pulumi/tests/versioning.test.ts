@@ -16,14 +16,14 @@ const sha = (character: string): string => character.repeat(40);
 const digest = (character: string): string => `sha256:${character.repeat(64)}`;
 
 function manifest(overrides = ""): string {
-  return `schema_version: 2
+  return `schema_version: 3
 release:
   version: "0.2.0"
   status: "contained"
   security_contract: "lore-auth-v1"
 px-client:
   version: "0.5.8"
-  source_repository: "https://github.com/portalshq/narrativeengine.git"
+  source_repository: "https://github.com/portalshq/px.git"
   source_commit: "${sha("a")}"
   release_tag: "v0.5.8"
   security_contract: "legacy"
@@ -160,51 +160,47 @@ test("public release requires approved, compatible, signed client metadata", () 
     }),
     /contracts do not match/,
   );
+  assert.throws(
+    () => assertPublicReleaseApproved({
+      ...release,
+      pxClient: { ...release.pxClient, loreClientVersion: "0.8.4-portals.10" },
+    }),
+    /Px client release is not commit-, checksum-, signature-, and Lore-client-pinned/,
+    "the BOM must fail closed when PX's embedded Lore pin differs from the selected Lore release",
+  );
 });
 
-test("Px release receipt must match both Px and Lore cryptographic evidence", () => {
-  const px = approvedRelease().pxClient;
-  const loreClient = approvedRelease().loreClient;
-  const receipt = {
-    schemaVersion: 1,
-    releases: {
-      "px-client": {
-        version: px.version,
-        sourceCommit: px.sourceCommit,
-        releaseTag: px.releaseTag,
-        securityContract: px.securityContract,
-        artifactManifestSha256: px.artifactManifestSha256,
-        loreClientVersion: loreClient.version,
-        loreClientSourceCommit: loreClient.sourceCommit,
-        loreClientArtifactManifestSha256: loreClient.artifactManifestSha256,
-        pxSignatureVerified: true,
-        pxChecksumsVerified: true,
-        loreSignatureVerified: true,
-        verifiedAt: "2026-08-13T00:00:00Z",
-      },
-    },
+test("embedded Px verification evidence must match both selected client pins", () => {
+  const release = approvedRelease();
+  const px = release.pxClient;
+  const loreClient = release.loreClient;
+  px.verification = {
+    verifiedAt: "2026-08-13T00:00:00Z",
+    pxSourceCommit: px.sourceCommit,
+    pxReleaseTag: px.releaseTag,
+    pxSecurityContract: px.securityContract,
+    pxArtifactManifestSha256: px.artifactManifestSha256,
+    loreClientVersion: loreClient.version,
+    loreClientSourceCommit: loreClient.sourceCommit,
+    loreClientArtifactManifestSha256: loreClient.artifactManifestSha256,
+    pxSignatureVerified: true,
+    pxChecksumsVerified: true,
+    loreSignatureVerified: true,
+    loreChecksumsVerified: true,
   };
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "portals-releases-"));
-  const dir = path.join(tmp, "infra", "lore");
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "versions.yaml"), manifest());
-  fs.writeFileSync(path.join(dir, "verified-releases.json"), JSON.stringify(receipt));
-  const previous = process.cwd();
-  process.chdir(tmp);
-  try {
-    assert.doesNotThrow(() => assertPxReleaseVerified(px, loreClient));
-    assert.throws(
-      () => assertPxReleaseVerified({ ...px, sourceCommit: sha("f") }, loreClient),
-      /no matching cryptographic verification receipt/,
-    );
-    assert.throws(
-      () => assertPxReleaseVerified(px, { ...loreClient, sourceCommit: sha("f") }),
-      /no matching cryptographic verification receipt/,
-    );
-  } finally {
-    process.chdir(previous);
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
+  assert.doesNotThrow(() => assertPxReleaseVerified(px, loreClient));
+  assert.throws(
+    () => assertPxReleaseVerified({ ...px, sourceCommit: sha("f") }, loreClient),
+    /no matching cryptographic verification receipt/,
+  );
+  assert.throws(
+    () => assertPxReleaseVerified(px, { ...loreClient, sourceCommit: sha("f") }),
+    /no matching cryptographic verification receipt/,
+  );
+  assert.throws(
+    () => assertPxReleaseVerified(px, { ...loreClient, version: "0.8.5-portals.2" }),
+    /no matching cryptographic verification receipt/,
+  );
 });
 
 test("public image evidence must match signature and clean source commits", () => {
@@ -327,12 +323,18 @@ test("legacy-schema ledgers remain readable during v2 migration (warn)", () => {
   });
 });
 
-test("every versions.yaml pin resolves to a receipt once the v2 ledger exists", () => {
-  let pins;
-  try {
-    pins = readVersionPins();
-  } catch {
-    return; // versions.yaml not resolvable from this working directory
-  }
-  assertPinsHaveReceipts(pins);
+test("every selected image pin must have an entry in the digest ledger", () => {
+  const imageReceipts = {
+    schemaVersion: 2,
+    receipts: {
+      [`registry.test/lore@${digest("b")}`]: { service: "lore" },
+      [`registry.test/auth@${digest("c")}`]: { service: "control-plane" },
+      [`registry.test/backend@${digest("e")}`]: { service: "backend" },
+    },
+  };
+  withFiles(manifest(), imageReceipts, () => {
+    const pins = readVersionPins();
+    assert.doesNotThrow(() => assertPinsHaveReceipts(pins));
+    assert.throws(() => assertPinsHaveReceipts({ ...pins, loreImageUri: `registry.test/lore@${digest("f")}` }), /no matching receipt/);
+  });
 });

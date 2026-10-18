@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { atomicWriteJson, atomicWriteYaml, readJsonObject, readYamlDocument } from "./version-file-utils.mjs";
+import { atomicWriteYaml, readYamlDocument } from "./version-file-utils.mjs";
 
 const [metadataFile, releaseBaseUrl, verifiedLoreSourceCommit] = process.argv.slice(2);
 if (!metadataFile || !/^https:\/\//.test(releaseBaseUrl ?? "") ||
@@ -35,10 +34,9 @@ if (metadata.schema_version !== 1 || !semverPattern.test(metadata.version ?? "")
 
 const scriptDir = path.dirname(new URL(import.meta.url).pathname);
 const versionsFile = path.resolve(scriptDir, "../../lore/versions.yaml");
-const receiptsFile = path.resolve(scriptDir, "../../lore/verified-releases.json");
 const versions = readYamlDocument(versionsFile);
-if (versions.getIn(["schema_version"]) !== 2) {
-  throw new Error("versions.yaml schema_version must be 2");
+if (versions.getIn(["schema_version"]) !== 3) {
+  throw new Error("versions.yaml schema_version must be 3");
 }
 const loreClient = versions.getIn(["lore-client"]);
 if (!loreClient ||
@@ -55,6 +53,7 @@ if (!loreClient ||
   );
 }
 versions.setIn(["px-client", "version"], metadata.version);
+versions.setIn(["px-client", "source_repository"], "https://github.com/portalshq/px.git");
 versions.setIn(["px-client", "source_commit"], metadata.source_commit);
 versions.setIn(["px-client", "release_tag"], metadata.release_tag);
 versions.setIn(["px-client", "security_contract"], metadata.security_contract);
@@ -62,28 +61,28 @@ versions.setIn(["px-client", "artifact_manifest_url"], `${releaseBaseUrl}/SHA256
 versions.setIn(["px-client", "artifact_manifest_sha256"], metadata.artifact_manifest_sha256);
 versions.setIn(["px-client", "signature_bundle_url"], `${releaseBaseUrl}/SHA256SUMS.sigstore.json`);
 versions.setIn(["px-client", "lore_client_version"], metadata.lore_client_version);
-const receipts = fs.existsSync(receiptsFile)
-  ? readJsonObject(receiptsFile)
-  : { schemaVersion: 1, releases: {} };
-if (receipts.schemaVersion !== 1 || receipts.releases === null ||
-    Array.isArray(receipts.releases) || typeof receipts.releases !== "object") {
-  throw new Error(`unsupported release receipt schema in ${receiptsFile}`);
-}
-receipts.releases["px-client"] = {
-  version: metadata.version,
-  sourceCommit: metadata.source_commit,
-  releaseTag: metadata.release_tag,
-  securityContract: metadata.security_contract,
-  artifactManifestSha256: metadata.artifact_manifest_sha256,
-  loreClientVersion: metadata.lore_client_version,
-  loreClientSourceCommit: verifiedLoreSourceCommit,
-  loreClientArtifactManifestSha256: metadata.lore_client_artifact_manifest_sha256,
-  pxSignatureVerified: true,
-  pxChecksumsVerified: true,
-  loreSignatureVerified: true,
-  verifiedAt: new Date().toISOString(),
-};
-// Keep the BOM from ever pointing at a release whose receipt was not written.
-atomicWriteJson(receiptsFile, receipts);
+versions.setIn(["px-client", "verification"], {
+  verified_at: new Date().toISOString(),
+  verifier: "portalshq/portals-cloud/.github/workflows/promote-px-release.yml",
+  px: {
+    source_commit: metadata.source_commit,
+    release_tag: metadata.release_tag,
+    security_contract: metadata.security_contract,
+    artifact_manifest_sha256: metadata.artifact_manifest_sha256,
+    signature_bundle_url: `${releaseBaseUrl}/SHA256SUMS.sigstore.json`,
+    signature_verified: true,
+    checksums_verified: true,
+  },
+  lore_client: {
+    version: metadata.lore_client_version,
+    source_commit: verifiedLoreSourceCommit,
+    artifact_manifest_sha256: metadata.lore_client_artifact_manifest_sha256,
+    signature_bundle_url: metadata.lore_client_signature_bundle_url,
+    signature_verified: true,
+    checksums_verified: true,
+  },
+});
+// The selected versions and the evidence that verified them now share one
+// atomic, reviewable YAML document.
 atomicWriteYaml(versionsFile, versions);
 console.log(`Px ${metadata.version} promoted from ${metadata.source_commit}`);
