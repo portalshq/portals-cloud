@@ -37,7 +37,7 @@ test("all production BOM and receipt files are non-empty and parse cleanly", () 
   const versionsFile = path.join(repositoryRoot, "infra/lore/versions.yaml");
   const versions = YAML.parseDocument(fs.readFileSync(versionsFile, "utf8"));
   assert.equal(versions.errors.length, 0);
-  for (const filename of ["verified-images.json", "verified-releases.json"]) {
+  for (const filename of ["verified-ecr-images.json", "verified-releases.json"]) {
     const contents = fs.readFileSync(path.join(repositoryRoot, "infra/lore", filename), "utf8");
     assert.notEqual(contents.trim(), "");
     assert.equal(typeof JSON.parse(contents), "object");
