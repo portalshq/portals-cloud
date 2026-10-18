@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "name": "production-network-auth",
+  "pxBinary": "/absolute/path/to/verified/px",
+  "loreBinary": "/absolute/path/to/verified/lore",
+  "expectedPxVersion": "0.9.8",
+  "expectedLoreVersion": "0.8.4-portals.11",
+  "remoteUrl": "grpcs://lore.portals.works",
+  "renewal": {"accessTokenTtlSeconds": 900, "cycles": 2},
+  "quic": {
+    "required": true,
+    "expectedStorageUrl": "quics://lore.portals.works:__REPLACE_CURRENT_UDP_PORT__",
+    "grpcurlBin": "/absolute/path/to/grpcurl",
+    "environmentProtoRoot": "/absolute/path/to/cloud/infra/mac-bootstrap/probes",
+    "environmentTarget": "lore.portals.works:443"
+  },
+  "identities": [
+    {
+      "name": "owner-a",
+      "apiKeyEnv": "PORTALS_TEST_OWNER_A_KEY",
+      "expectedSubject": "__REPLACE_TEST_SUBJECT_A__",
+      "allowedRepository": "grpcs://lore.portals.works/__REPLACE_REPOSITORY_A__",
+      "deniedRepository": "grpcs://lore.portals.works/__REPLACE_REPOSITORY_B__",
+      "allowedPxUri": "px://__REPLACE_REPOSITORY_A__/__REPLACE_EXISTING_MANIFEST__",
+      "deniedPxUri": "px://__REPLACE_REPOSITORY_B__/__REPLACE_EXISTING_MANIFEST__",
+      "expectedQuicFiles": [{"path": "data/readiness.txt", "sha256": "__REPLACE_SHA256_OF_KNOWN_QUIC_FIXTURE_FILE__"}]
+    },
+    {
+      "name": "owner-b",
+      "apiKeyEnv": "PORTALS_TEST_OWNER_B_KEY",
+      "expectedSubject": "__REPLACE_TEST_SUBJECT_B__",
+      "allowedRepository": "grpcs://lore.portals.works/__REPLACE_REPOSITORY_B__",
+      "deniedRepository": "grpcs://lore.portals.works/__REPLACE_REPOSITORY_A__",
+      "allowedPxUri": "px://__REPLACE_REPOSITORY_B__/__REPLACE_EXISTING_MANIFEST__",
+      "deniedPxUri": "px://__REPLACE_REPOSITORY_A__/__REPLACE_EXISTING_MANIFEST__",
+      "expectedQuicFiles": [{"path": "data/readiness.txt", "sha256": "__REPLACE_SHA256_OF_KNOWN_QUIC_FIXTURE_FILE__"}]
+    }
+  ]
+}

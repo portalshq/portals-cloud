@@ -14,8 +14,9 @@ mkdir "$tmp/recovery"
 find "$source_dir" -maxdepth 1 -type f \( -name '*.json' -o -name '*.yaml' -o -name '*.yml' \) -exec cp -p {} "$tmp/recovery/" \;
 test -n "$(find "$tmp/recovery" -type f -print -prune)" || { echo 'no recovery manifests found' >&2; exit 1; }
 
-tar -C "$tmp" -czf - recovery \
-  | openssl enc -aes-256-cbc -pbkdf2 -salt -pass "file:$key_file" -out "$destination"
+tar -C "$tmp" -czf "$tmp/recovery.tar.gz" recovery
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+node "$DIR/backup-crypto.mjs" encrypt "$tmp/recovery.tar.gz" "$destination" "$key_file"
 chmod 600 "$destination"
 openssl dgst -sha256 -r "$destination" > "$destination.sha256"
 chmod 600 "$destination.sha256"

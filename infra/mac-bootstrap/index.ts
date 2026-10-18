@@ -21,6 +21,7 @@ const manifest = {
   secretFiles: {
     authEnv: config.get('authEnvFile') ?? '/Users/portals-svc/secrets/auth.env',
     loreEnv: config.get('loreEnvFile') ?? '/Users/portals-svc/secrets/lore.env',
+    loreAwsEnv: config.get('loreAwsEnvFile') ?? '/Users/portals-svc/.config/portals/lore-aws.env',
     caddyEnv: config.get('caddyEnvFile') ?? '/Users/portals-svc/secrets/caddy.env',
   },
   backup: {

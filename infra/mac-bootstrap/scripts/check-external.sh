@@ -13,20 +13,25 @@ set -eu
 command -v curl >/dev/null || { echo 'curl is required' >&2; exit 1; }
 command -v grpcurl >/dev/null || { echo 'grpcurl is required' >&2; exit 1; }
 command -v nc >/dev/null || { echo 'nc is required' >&2; exit 1; }
-command -v openssl >/dev/null || { echo 'openssl is required' >&2; exit 1; }
 
-check_cert() {
+check_tls_host() {
   host=$1
-  openssl s_client -connect "${host}:443" -servername "$host" </dev/null 2>/dev/null \
-    | openssl x509 -noout -checkhost "$host" >/dev/null 2>&1 || {
-      echo "TLS certificate hostname check failed for $host" >&2
+  # curl performs normal CA-chain and hostname verification. Do not use
+  # openssl x509 -checkhost here: the system LibreSSL shipped with some macOS
+  # releases does not implement that option.
+  curl --silent --show-error --connect-timeout 10 --max-time 15 \
+    --output /dev/null "https://${host}/" || {
+      echo "TLS verification failed for ${host}" >&2
       exit 1
     }
 }
 
-curl --fail --silent --show-error "https://${AUTH_DOMAIN}/.well-known/jwks.json" >/dev/null
-check_cert "$AUTH_DOMAIN"
-check_cert "$LORE_DOMAIN"
+curl --fail --silent --show-error --connect-timeout 10 --max-time 15 \
+  "https://${AUTH_DOMAIN}/.well-known/jwks.json" >/dev/null || {
+    echo "Auth JWKS/TLS check failed for ${AUTH_DOMAIN}" >&2
+    exit 1
+  }
+check_tls_host "$LORE_DOMAIN"
 
 # Service reflection and a UDP socket probe do not prove authenticated protocol access.
 # Each pinned-client probe must run against the public endpoint and fail non-zero on denial.
