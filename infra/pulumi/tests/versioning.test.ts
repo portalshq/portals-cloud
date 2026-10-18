@@ -71,7 +71,7 @@ function withFiles(versions: string, receipt: unknown | undefined, fn: () => voi
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "versions.yaml"), versions);
   if (receipt !== undefined) {
-    fs.writeFileSync(path.join(dir, "verified-images.json"), JSON.stringify(receipt));
+    fs.writeFileSync(path.join(dir, "verified-ecr-images.json"), JSON.stringify(receipt));
   }
   const previous = process.cwd();
   process.chdir(tmp);
@@ -335,4 +335,28 @@ test("every versions.yaml pin resolves to a receipt once the v2 ledger exists", 
     return; // versions.yaml not resolvable from this working directory
   }
   assertPinsHaveReceipts(pins);
+});
+
+test("Docker Hub Lore resolves only its exact service-bound registry receipt", () => {
+  const image = `portalshq/lore@${digest("b")}`;
+  const versions = manifest().replace(`registry.test/lore@${digest("b")}`, image);
+  const ecr = { schemaVersion: 2, receipts: {
+    [`registry.test/auth@${digest("c")}`]: { service: "control-plane" },
+    [`registry.test/backend@${digest("e")}`]: { service: "backend" },
+    [image]: { service: "lore" }, // The wrong registry ledger must not satisfy Lore.
+  } };
+  withFiles(versions, ecr, () => {
+    const pins = readVersionPins();
+    assert.throws(() => assertPinsHaveReceipts(pins), /verified-dockerhub-images/);
+    const file = path.join(process.cwd(), "infra/lore/verified-dockerhub-images.json");
+    const write = (receipt: unknown) => fs.writeFileSync(file, JSON.stringify(receipt));
+    write({ schemaVersion: 1, receipts: { [image]: { service: "lore" } } });
+    assert.doesNotThrow(() => assertPinsHaveReceipts(pins));
+    write({ schemaVersion: 1, receipts: { [image]: { service: "backend" } } });
+    assert.throws(() => assertPinsHaveReceipts(pins), /no matching receipt/);
+    write({ schemaVersion: 2, receipts: { [image]: { service: "lore" } } });
+    assert.throws(() => assertPinsHaveReceipts(pins), /no matching receipt/);
+    write({ schemaVersion: 1, receipts: { [`portalshq/lore@${digest("a")}`]: { service: "lore" } } });
+    assert.throws(() => assertPinsHaveReceipts(pins), /no matching receipt/);
+  });
 });

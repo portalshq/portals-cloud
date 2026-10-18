@@ -10,9 +10,6 @@
     "channels",
     "frontend",
     "packages/*",
-    "!packages/platform-billing",
-    "!packages/policy",
-    "packages/stubs/*",
     "lib/*"
   ],
   "scripts": {
@@ -20,17 +17,18 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "prepare": "test -d .git && test -x node_modules/.bin/husky && husky || echo 'Skipping Husky (Not a local Git repo)'",
+    "prepare": "test -e .git && test -x node_modules/.bin/husky && husky || echo 'Skipping Husky (Not a local Git repo)'",
     "changeset": "changeset",
     "release:version": "changeset version && npm install --package-lock-only --ignore-scripts",
-    "release:build": "turbo run build --filter='./packages/*' --filter='./packages/stubs/*'",
-    "release:check": "turbo run lint test --filter='./packages/*' --filter='./packages/stubs/*' && node --test scripts/package-release.test.mjs && node scripts/check-package-packs.mjs",
+    "release:build": "turbo run build --filter='./packages/*'",
+    "release:check": "turbo run lint test --filter='./packages/*' && node --test scripts/package-release.test.mjs scripts/precommit.test.mjs && node scripts/check-package-packs.mjs",
     "release:trust": "node scripts/setup-npm-trust.mjs",
     "release": "npm run release:build && npm run release:check && changeset publish",
     "local-version-script": "npm run release:version",
     "local-publish-script": "npm run release",
     "skills:build": "node scripts/build-skills.mjs",
-    "skills:check": "node scripts/build-skills.mjs --check"
+    "skills:check": "node scripts/build-skills.mjs --check",
+    "precommit": "node scripts/precommit.mjs"
   },
   "devDependencies": {
     "husky": "^9.1.7",

@@ -17,6 +17,7 @@ Each package has a small, standalone module in [`../docs/package-agents/`](../do
 | HLS playback, captions, browser/React player | [`@portalshq/capability-video-delivery`](./video-delivery) | usable |
 | Server-side Queue Broadcast producer | [`@portalshq/capability-queue-broadcast`](./queue-broadcast) | usable |
 | Redirect visitors to a live channel | [`@portalshq/capabilities-redirect`](./capabilities-redirect) | usable; in-memory registry |
+| Moderated interaction windows, selection, credit holds and event replay | [`@portalshq/capability-interaction-orchestrator`](./capability-interaction-orchestrator) | implemented; requires PostgreSQL + monetization grants |
 | Audience-to-creator payments and entitlements | [`@portalshq/monetization`](./monetization) | usable; requires PostgreSQL + Stripe setup |
 | Tenant metering, invoicing, platform B2B Stripe flows | [`@portalshq/platform-billing`](./platform-billing) | usable with operational gaps |
 | Shared rake and royalty calculations | [`@portalshq/policy`](./policy) | calculation-only |

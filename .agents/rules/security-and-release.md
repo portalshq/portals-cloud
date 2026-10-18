@@ -9,5 +9,5 @@ Load only the doc you need. Each link is a standalone topic; do not preload the 
 * **Identity & networking** — `docs/security/aws-deployment-identity.md`, `docs/security/egress-risk-acceptance.md`, `docs/security/BUILD_GUIDE.md` — loaded only when touching IAM/OIDC or VPC egress.
 
 Guardrails:
-* Never hand-edit `infra/lore/versions.yaml`, `infra/lore/verified-images.json`, `infra/lore/verified-releases.json` — they are written only by `verify-and-promote-*` scripts (`release-cycle: Never hand-edit`).
+* Never hand-edit `infra/lore/versions.yaml`, `infra/lore/verified-ecr-images.json`, `infra/lore/verified-releases.json` — they are written only by `verify-and-promote-*` scripts (`release-cycle: Never hand-edit`).
 * `publicIngressEnabled` order is `authGatewayReady` → `securityControlsEnabled` → `releaseGateApproved` → `publicIngressEnabled` last (`lore-production-security`, `release-cycle:6`).

@@ -4,7 +4,7 @@
 # repo:DigitalCreationsCo/portals-cloud:ref:refs/tags/v*). Runs the same
 # publisher/promoter scripts used for manual releases: clean-tree enforced,
 # ECR+Trivy scans, SBOM/provenance checks, cosign signing via
-# alias/portals-artifact-signing, then versions.yaml + verified-images.json
+# alias/portals-artifact-signing, then versions.yaml + verified-ecr-images.json
 # updates. Reviewer commits the resulting BOM changes.
 #
 # Staged per docs/security/release-cycle-portals-works.md §5: publication-only.
@@ -66,4 +66,4 @@ jobs:
 
       - name: Summarize BOM diff for reviewer
         run: |
-          git --no-pager diff -- infra/lore/versions.yaml infra/lore/verified-images.json || true
+          git --no-pager diff -- infra/lore/versions.yaml infra/lore/verified-ecr-images.json || true

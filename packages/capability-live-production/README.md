@@ -251,3 +251,10 @@ Frontend clients can connect to the backend's Reactor session using:
 - ✅ Video buffer retrieval via `getVideoBuffer()` for server-side staging
 - ✅ Retry logic (3 attempts with exponential backoff)
 - ✅ Timeout handling (60 second timeout)
+
+
+### Building from source
+
+The optional FAL adapter requires `@fal-ai/client` at runtime when selected.
+The SDK is also a development dependency so TypeScript can check its lazy import
+in clean builds; consumers using other adapters do not have to install it.
