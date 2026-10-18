@@ -93,40 +93,40 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(structuredData)}} />
       <main className="ui-grid text-white">
-        <section className="col-span-full max-w-4xl py-80">
-          {post.cluster ? (
-            <p className="t-p-sans uppercase tracking-[.16em] text-white/45">blog / {post.cluster}</p>
-          ) : null}
-          <h1 className="t-d2-sans mt-24">{post.title}</h1>
-          <p className="t-p-lg-serif mt-32 text-white/80">{post.definition}</p>
-          <p className="t-p-sans mt-24 text-white/45">
+        <section className="col-span-full min-h-[96vh] max-w-4xl py-80">
+          <h1 className="t-d1-sans mt-24">{post.title}</h1>
+          <p className="t-p-lg-serif mt-32 text-white">{post.definition}</p>
+          <p className="t-p-sm-sans mt-24 text-white">
             {[
-              published,
-              updated ? `Updated ${updated}` : null,
-              authorNames?.join(', '),
+              `Published ${published}`,
+              // updated ? `Updated ${updated}` : null,
+              // authorNames?.join(', '),
             ].filter(Boolean).join(' · ')}
           </p>
           <div className="mt-40 flex flex-wrap gap-16">
-            <CTAButton href="/assessment">Assess production workflow</CTAButton>
             <CTAButton href="/production-memory" appearance="plain">
               What is production memory
             </CTAButton>
+            <CTAButton href="/assessment">Assess my production workflow</CTAButton>
           </div>
         </section>
-        {post.keyTakeaways?.length ? (
-          <section className="col-span-full max-w-4xl border-t border-white/15 py-40" aria-label="Key takeaways">
-            <h2 className="t-h3-sans">Key takeaways</h2>
-            <ul className="mt-24 list-disc space-y-12 pl-24 text-white/75">
+
+        <article className="col-span-full rounded-[2rem] bg-white">
+          <div className="text-background max-w-4xl p-40 mx-auto">
+          <ResourceBody value={post.body} />
+          {post.keyTakeaways?.length ? (
+            <section className="col-span-full max-w-4xl border-t border-white/15 py-40" aria-label="Key takeaways">
+            <h2 className="text-2xl font-medium">Key takeaways</h2>
+            <ul className="mt-12 list-disc space-y-12 pl-24">
               {post.keyTakeaways.map((takeaway) => (
-                <li key={takeaway} className="t-p-sans leading-[1.55]">
+                <li key={takeaway} className="leading-[1.55]">
                   {takeaway}
                 </li>
               ))}
             </ul>
           </section>
         ) : null}
-        <article className="col-span-full max-w-4xl border-t border-white/15 py-40">
-          <ResourceBody value={post.body} />
+        </div>
         </article>
         {post.faqs?.length ? (
           <section className="col-span-full max-w-4xl border-t border-white/15 py-40" aria-label="Frequently asked questions">
@@ -135,14 +135,14 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
               {post.faqs.map((faq) => (
                 <div key={faq.question}>
                   <h3 className="t-p-sans font-medium text-white">{faq.question}</h3>
-                  <p className="t-p-sans mt-12 leading-[1.6] text-white/70">{faq.answer}</p>
+                  <p className="t-p-sans mt-12 leading-[1.6] text-white">{faq.answer}</p>
                 </div>
               ))}
             </div>
           </section>
         ) : null}
         <section className="col-span-full border-t border-white/15 py-fluid-[76,106]">
-          <h2 className="t-d2-sans">Keep reading</h2>
+          <h2 className=" px-20 t-d2-sans text-balance">More on {post.cluster?.replace("-", " ")}</h2>
           <div className="mt-32 grid gap-2 md:grid-cols-3">
             {relatedFallback.map((item) => (
               <a
@@ -151,7 +151,7 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
                 className="bg-white/10 p-24 hover:bg-white/15"
               >
                 <h3 className="t-h3-sans">{item.title}</h3>
-                <p className="t-p-sans mt-16 text-white/60">{item.excerpt}</p>
+                <p className="t-p-sans mt-16 text-white">{item.excerpt}</p>
               </a>
             ))}
           </div>

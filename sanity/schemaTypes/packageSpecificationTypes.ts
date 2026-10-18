@@ -210,6 +210,11 @@ export const packageSpecification = defineType({
       rows: 3,
     }),
     defineField({
+      name: 'banner',
+      title: 'Pricing banner',
+      type: 'string',
+    }),
+    defineField({
       name: 'price',
       title: 'Price',
       type: 'packagePrice',

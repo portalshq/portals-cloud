@@ -13,6 +13,7 @@
         ],
         "downlevelIteration": false,
         "moduleResolution": "bundler",
+        "ignoreDeprecations": "6.0",
         "noResolve": false
     },
     "include": [

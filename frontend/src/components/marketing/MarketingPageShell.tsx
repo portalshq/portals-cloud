@@ -28,14 +28,14 @@ export function MarketingPageShell({
   return (
     <>
       <main className="text-white">
-        <section className="mx-auto max-w-6xl ui-grid min-h-[97vh] items-center py-80">
+        <section className="max-w-6xl ui-grid min-h-[67vh] items-center py-80">
           <div className="col-span-full ">
             {eyebrow ? <p className="t-p-sans mb-24">{eyebrow}</p> : null}
-            <h1 className="t-d2-sans max-w-5xl">{title}</h1>
-            {lede ? <p className="t-p-lg-serif mt-32 max-w-3xl text-white/80">{lede}</p> : null}
-            {sub ? <p className="t-p-sans mt-24 max-w-2xl text-white/65">{sub}</p> : null}
+            <h1 className="t-d1-sans text-balance">{title}</h1>
+            {lede ? <p className="t-p-lg-serif mt-40 text-balance text-white">{lede}</p> : null}
+            {sub ? <p className="t-p-sans mt-32 max-w-2xl text-white">{sub}</p> : null}
             {primaryCta || secondaryCta ? (
-              <div className="mt-40 flex flex-wrap gap-16">
+              <div className="mt-32 flex flex-wrap gap-16">
                 {secondaryCta ? (
                   <CTAButton href={secondaryCta.href} appearance="plain" analyticsLabel={secondaryCta.label}>
                     {secondaryCta.label}

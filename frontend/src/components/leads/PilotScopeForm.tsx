@@ -871,8 +871,8 @@ export function PilotScopeForm({
           </LeadSelectField>
         </LeadField>
         {offerTerms ? (
-          <p className="sm:col-span-2 t-p-sm-sans text-white/70" role="note">
-            This offer applies: {offerTerms.pilotPriceLabel} pilot fee, {offerTerms.pilotDurationDays}-day pilot, and {offerTerms.annualCreditLabel} first-year deployment credit{offerTerms.acceptanceDeadlineLabel ? ` when the agreement is signed by ${offerTerms.acceptanceDeadlineLabel}` : ''}.
+          <p className="sm:col-span-2 t-p-sm-sans" role="note">
+            You've been offered a {offerTerms.pilotPriceLabel} pilot fee, {offerTerms.pilotDurationDays}-day pilot, and {offerTerms.annualCreditLabel} first-year deployment credit{offerTerms.acceptanceDeadlineLabel ? ` when the agreement is signed by ${offerTerms.acceptanceDeadlineLabel}` : ''}.
           </p>
         ) : null}
       </div>

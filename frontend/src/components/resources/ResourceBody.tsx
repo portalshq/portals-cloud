@@ -6,20 +6,20 @@ import {resolvePackageSpecValue} from '@/lib/package-specifications'
 const components: PortableTextComponents = {
   block: {
     normal: ({children}) => (
-      <p className="text-base leading-[1.6] text-white/72">{children}</p>
+      <p className="text-base leading-[1.6]">{children}</p>
     ),
     h2: ({children}) => (
-      <h3 className="mt-12 text-2xl font-medium tracking-tight text-white">
+      <h3 className="mt-12 text-2xl font-medium tracking-tight">
         {children}
       </h3>
     ),
     h3: ({children}) => (
-      <h4 className="mt-9 text-xl font-medium tracking-tight text-white">
+      <h4 className="mt-9 text-xl font-medium tracking-tight">
         {children}
       </h4>
     ),
     blockquote: ({children}) => (
-      <blockquote className="my-8 border-l border-white/30 pl-6 text-xl leading-[1.5] text-white/88">
+      <blockquote className="my-8 border-l border-white/30 pl-6 text-xl leading-[1.5]">
         {children}
       </blockquote>
     ),
@@ -27,12 +27,12 @@ const components: PortableTextComponents = {
 
   list: {
     bullet: ({children}) => (
-      <ul className="my-6 list-disc space-y-2 pl-6 text-white/72">
+      <ul className="my-6 list-disc space-y-2 pl-6">
         {children}
       </ul>
     ),
     number: ({children}) => (
-      <ol className="my-6 list-decimal space-y-2 pl-6 text-white/72">
+      <ol className="my-6 list-decimal space-y-2 pl-6">
         {children}
       </ol>
     ),
@@ -45,11 +45,11 @@ const components: PortableTextComponents = {
 
   marks: {
     strong: ({children}) => (
-      <strong className="font-medium text-white">{children}</strong>
+      <strong className="font-medium">{children}</strong>
     ),
     em: ({children}) => <em>{children}</em>,
     code: ({children}) => (
-      <code className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-sm text-white">
+      <code className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-base">
         {children}
       </code>
     ),
@@ -78,7 +78,7 @@ const components: PortableTextComponents = {
       )
 
       return (
-        <span className="font-medium text-white">
+        <span className="font-medium">
           {resolved || children}
         </span>
       )
@@ -89,26 +89,26 @@ const components: PortableTextComponents = {
     calloutBlock: ({value}) => (
       <aside className="my-8 border border-white/15 bg-white/[0.04] p-6">
         {value.title ? (
-          <p className="mb-2 text-sm font-medium uppercase tracking-[0.15em] text-white/55">
+          <p className="mb-2 font-medium uppercase tracking-[0.15em]">
             {value.title}
           </p>
         ) : null}
-        <p className="leading-[1.55] text-white/82">{value.text}</p>
+        <p className="leading-[1.55]">{value.text}</p>
       </aside>
     ),
 
     formulaBlock: ({value}) => (
       <figure className="my-8 border-y border-white/15 py-6">
         {value.label ? (
-          <figcaption className="mb-3 text-sm uppercase tracking-[0.15em] text-white/50">
+          <figcaption className="mb-3 uppercase tracking-[0.15em]">
             {value.label}
           </figcaption>
         ) : null}
-        <pre className="whitespace-pre-wrap font-mono text-base leading-[1.55] text-white">
+        <pre className="whitespace-pre-wrap font-mono text-base leading-[1.55]">
           {value.expression}
         </pre>
         {value.note ? (
-          <p className="mt-3 text-sm leading-[1.5] text-white/55">{value.note}</p>
+          <p className="mt-3 leading-[1.5]">{value.note}</p>
         ) : null}
       </figure>
     ),
@@ -116,7 +116,7 @@ const components: PortableTextComponents = {
     checklistBlock: ({value}) => (
       <section className="my-8">
         {value.title ? (
-          <h3 className="mb-4 text-lg font-medium text-white">
+          <h3 className="mb-4 font-medium">
             {value.title}
           </h3>
         ) : null}
@@ -128,7 +128,7 @@ const components: PortableTextComponents = {
             ) => (
               <li
                 key={item._key ?? `${item.text}-${index}`}
-                className="flex gap-3 text-white/72"
+                className="flex gap-3"
               >
                 <span aria-hidden="true">
                   {item.checked ? '■' : '□'}
@@ -143,11 +143,11 @@ const components: PortableTextComponents = {
 
     quoteBlock: ({value}) => (
       <figure className="my-12">
-        <blockquote className="text-2xl leading-[1.35] tracking-tight text-white">
+        <blockquote className="leading-[1.35] tracking-tight">
           &ldquo;{value.quote}&rdquo;
         </blockquote>
         {value.attribution ? (
-          <figcaption className="mt-4 text-sm text-white/50">
+          <figcaption className="mt-4">
             {value.attribution}
           </figcaption>
         ) : null}
@@ -157,7 +157,7 @@ const components: PortableTextComponents = {
     metricGridBlock: ({value}) => (
       <section className="my-8">
         {value.title ? (
-          <h3 className="mb-5 text-lg font-medium text-white">
+          <h3 className="mb-5 font-medium">
             {value.title}
           </h3>
         ) : null}
@@ -176,10 +176,10 @@ const components: PortableTextComponents = {
                 key={item._key ?? `${item.label}-${index}`}
                 className="bg-black p-5"
               >
-                <p className="text-2xl text-white">{item.value}</p>
-                <p className="mt-1 text-sm text-white/70">{item.label}</p>
+                <p className="text-2xl">{item.value}</p>
+                <p className="mt-1">{item.label}</p>
                 {item.note ? (
-                  <p className="mt-3 text-sm leading-[1.5] text-white/45">
+                  <p className="mt-3 leading-[1.5]">
                     {item.note}
                   </p>
                 ) : null}
@@ -199,20 +199,20 @@ const components: PortableTextComponents = {
       return (
         <aside className="my-8 border border-white/15 bg-white/[0.04] p-5">
           {value.title ? (
-            <h3 className="mb-3 text-lg font-medium text-white">
+            <h3 className="mb-3 text-lg font-medium">
               {value.title}
             </h3>
           ) : null}
           <dl>
-            <dt className="text-sm uppercase text-white/50">
+            <dt className="uppercase">
               {value.label || value.packageSpecification?.name}
             </dt>
-            <dd className="mt-2 text-2xl text-white">
+            <dd className="mt-2">
               {resolved || value.packageSpecification?.name}
             </dd>
           </dl>
           {value.note ? (
-            <p className="mt-3 text-sm leading-[1.5] text-white/55">
+            <p className="mt-3 leading-[1.5]">
               {value.note}
             </p>
           ) : null}
@@ -223,12 +223,12 @@ const components: PortableTextComponents = {
     dataTableBlock: ({value}) => (
       <figure className="my-8">
         {value.title ? (
-          <h3 className="mb-4 text-lg font-medium text-white">
+          <h3 className="mb-4 text-lg font-medium">
             {value.title}
           </h3>
         ) : null}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm">
+          <table className="w-full border-collapse text-left">
             <tbody>
               {value.rows?.map(
                 (
@@ -237,7 +237,7 @@ const components: PortableTextComponents = {
                 ) => (
                   <tr
                     key={row._key ?? rowIndex}
-                    className="border-b border-white/12"
+                    className="border-b border-white/50"
                   >
                     {row.cells.map((cell, cellIndex) => {
                       const Cell =
@@ -245,7 +245,7 @@ const components: PortableTextComponents = {
                       return (
                         <Cell
                           key={`${rowIndex}-${cellIndex}`}
-                          className="px-3 py-3 text-white/72 first:pl-0"
+                          className="px-3 py-3 first:pl-0"
                         >
                           {cell}
                         </Cell>
@@ -258,7 +258,7 @@ const components: PortableTextComponents = {
           </table>
         </div>
         {value.caption ? (
-          <figcaption className="mt-3 text-sm text-white/45">
+          <figcaption className="mt-3">
             {value.caption}
           </figcaption>
         ) : null}
@@ -273,7 +273,7 @@ const components: PortableTextComponents = {
           className="h-auto w-full"
         />
         {value.caption ? (
-          <figcaption className="mt-3 text-sm leading-[1.5] text-white/45">
+          <figcaption className="mt-3 leading-[1.5]">
             {value.caption}
           </figcaption>
         ) : null}

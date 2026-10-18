@@ -142,13 +142,13 @@ function WhatsInside({
 }
 
 export function UseCasesHub({ useCases }: { useCases: UseCaseDocument[] }) {
-  return <><main className="ui-grid text-white"><section className="col-span-full h-[80vh] max-w-6xl py-80">
-    <h1 className="t-d1-serif mt-24 max-w-5xl">AI Creative Production Memory Use Cases</h1>
-    <p className="t-p-sans mt-32 max-w-3xl text-white">Explore the operational moments where fragmented context becomes expensive—and where portals helps teams retrieve, reuse, extend, and compound creative work.</p>
+  return <><main className="ui-grid text-white"><section className="col-span-full content-center h-[92vh] py-80 max-w-5xl">
+    <h1 className="t-d2-serif mt-24 text-balance">AI Creative Production Memory Use Cases</h1>
+    <p className="t-p-sans mt-32 text-white text-balance">Explore the operational moments where fragmented context becomes expensive—and where portals helps teams retrieve, reuse, extend, and compound creative work.</p>
     <div className="mt-40 flex flex-wrap gap-16">
       <CTAButton href="#use-cases" appearance="plain">Explore use cases</CTAButton>
       <CTAButton href="/production-memory">About production memory</CTAButton></div></section>
-    <section id="use-cases" className="col-span-full py-fluid-[76,106]">
+    <section id="use-cases" className="col-span-full pt-0 py-fluid-[76,106]">
       <div className="grid gap-[2px] md:grid-cols-2">
-        {useCases.map(({ title, outcome, slug }, i) => <a key={slug} href={`/use-cases/${slug}`} className="group flex flex-col bg-white/10 p-32 transition-all duration-100 hover:bg-white/15"><span className="t-p-sm-sans text-white">{String(i + 1).padStart(2, '0')}</span><h2 className="t-h3-sans mt-40">{title}</h2><p className="t-p-sans mt-16">{outcome}</p><span className="mt-auto pt-32 inline-block t-p-sans decoration-2 underline-offset-4 group-hover:underline">read more <span className="inline-block transition-transform duration-[220ms] group-hover:translate-x-5">→</span></span></a>)}</div></section></main></>
+        {useCases.map(({ title, outcome, slug }, i) => <a key={slug} href={`/use-cases/${slug}`} className="group flex flex-col bg-white/15 p-32 transition-all duration-100 hover:bg-white/10"><span className="t-p-sm-sans text-white">{String(i + 1).padStart(2, '0')}</span><h2 className="t-h3-sans mt-40">{title}</h2><p className="t-p-sans mt-16">{outcome}</p><span className="mt-auto pt-32 inline-block t-p-sm-sans decoration-2 underline-offset-4 group-hover:underline">read more</span></a>)}</div></section></main></>
 }
