@@ -267,11 +267,21 @@ export function assertPinsHaveReceipts(pins: VersionPins): void {
     ["control-plane", pins.controlPlaneImageUri],
     ...(pins.backendImageUri ? [["backend", pins.backendImageUri] as const] : []),
   ] as const) {
-    const receipt = document?.receipts?.[image];
-    if (!receipt) {
+    // Docker Hub Lore evidence belongs to its own registry-specific ledger.
+    const dockerHub = service === "lore" && image.startsWith("portalshq/lore@");
+    const receiptFile = dockerHub
+      ? path.join(path.dirname(resolveVersionsFile()), "verified-dockerhub-images.json")
+      : file;
+    const ledger = dockerHub && fs.existsSync(receiptFile)
+      ? JSON.parse(fs.readFileSync(receiptFile, "utf8"))
+      : dockerHub ? undefined : document;
+    const receipt = ledger?.schemaVersion === (dockerHub ? 1 : 2)
+      ? ledger?.receipts?.[image]
+      : undefined;
+    if (!receipt || receipt.service !== service) {
       throw new Error(
-        `${service} pin ${image} has no matching receipt in ${file}; ` +
-          "run infra/pulumi/scripts/verify-and-promote-image.sh",
+        `${service} pin ${image} has no matching receipt in ${receiptFile}; ` +
+          `run infra/pulumi/scripts/${dockerHub ? "verify-and-promote-dockerhub-lore.sh" : "verify-and-promote-image.sh"}`,
       );
     }
   }
