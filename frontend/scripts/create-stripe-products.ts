@@ -36,7 +36,7 @@ async function createStripeProducts() {
 
   console.log(`✓ Production Team Annual: Product ID=${productionTeamProduct.id}, Price ID=${productionTeamPrice.id}`)
 
-  // 2. Production Team Onboarding - $2,500 one-time
+  // 2. Production Team Onboarding - $1,000 one-time
   console.log('\nCreating Production Team Onboarding product...')
   const onboardingProduct = await stripe.products.create({
     name: 'Production Team Onboarding',
@@ -48,13 +48,13 @@ async function createStripeProducts() {
 
   const onboardingPrice = await stripe.prices.create({
     product: onboardingProduct.id,
-    unit_amount: 250000, // $2,500 in cents
+    unit_amount: 100000, // $1,000 in cents
     currency: 'usd',
   })
 
   console.log(`✓ Production Team Onboarding: Product ID=${onboardingProduct.id}, Price ID=${onboardingPrice.id}`)
 
-  // 3. Studio Annual - $30,000/year
+  // 3. Studio Annual - $28,800/year
   console.log('\nCreating Studio Annual product...')
   const studioAnnualProduct = await stripe.products.create({
     name: 'Studio Annual',
@@ -66,7 +66,7 @@ async function createStripeProducts() {
 
   const studioAnnualPrice = await stripe.prices.create({
     product: studioAnnualProduct.id,
-    unit_amount: 3000000, // $30,000 in cents
+    unit_amount: 2880000, // $28,800 in cents
     currency: 'usd',
     recurring: {
       interval: 'year',
@@ -93,6 +93,27 @@ async function createStripeProducts() {
 
   console.log(`✓ Studio Pilot: Product ID=${studioPilotProduct.id}, Price ID=${studioPilotPrice.id}`)
 
+  // 5. Production Team Add-on Seat - $1,800/year
+  console.log('\nCreating Production Team Add-on Seat product...')
+  const addOnSeatProduct = await stripe.products.create({
+    name: 'Production Team Add-on Seat',
+    description: 'Additional seat for Production Team (billed annually)',
+    metadata: {
+      product_type: 'add-on-seat',
+    },
+  })
+
+  const addOnSeatPrice = await stripe.prices.create({
+    product: addOnSeatProduct.id,
+    unit_amount: 180000, // $1,800 in cents
+    currency: 'usd',
+    recurring: {
+      interval: 'year',
+    },
+  })
+
+  console.log(`✓ Production Team Add-on Seat: Product ID=${addOnSeatProduct.id}, Price ID=${addOnSeatPrice.id}`)
+
   // Output environment variables
   console.log('\n' + '='.repeat(60))
   console.log('Add these environment variables to your .env file:')
@@ -105,6 +126,8 @@ async function createStripeProducts() {
   console.log(`STRIPE_PRICE_STUDIO_ID=${studioAnnualPrice.id}`)
   console.log(`STRIPE_PRODUCT_STUDIO_PILOT_ID=${studioPilotProduct.id}`)
   console.log(`STRIPE_PRICE_STUDIO_PILOT_ID=${studioPilotPrice.id}`)
+  console.log(`STRIPE_PRODUCT_ADD_ON_SEAT_ID=${addOnSeatProduct.id}`)
+  console.log(`STRIPE_PRICE_ADD_ON_SEAT_ID=${addOnSeatPrice.id}`)
   console.log('='.repeat(60))
   console.log('\n✅ All Stripe Products and Prices created successfully!')
 }

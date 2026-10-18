@@ -530,6 +530,7 @@ export function contactFields(submission: StoredSubmission): Record<string, unkn
     stakeholder_involved: answers.stakeholderInvolved,
     production_owner: answers.productionOwner,
     production_owner_email: answers.productionOwnerEmail,
+    pilot_tier: answers.pilotTier,
     approval_path: answers.approvalPath,
     primary_objection: answers.primaryObjection,
     objection_detail: answers.objectionDetail,

@@ -52,6 +52,7 @@
     {"key":"stakeholder_involved","label":"Stakeholder involved","modalities":["contact"],"type":"boolean"},
     {"key":"production_owner","label":"Production owner","modalities":["contact"],"type":"string"},
     {"key":"production_owner_email","label":"Production owner email","modalities":["contact"],"type":"string"},
+    {"key":"pilot_tier","label":"Pilot tier","modalities":["contact","account"],"type":"string","inputKind":"select","allowedValues":["studio","enterprise"]},
     {"key":"approval_path","label":"Approval path","modalities":["contact"],"type":"string"},
     {"key":"primary_objection","label":"Primary objection","modalities":["contact"],"type":"string"},
     {"key":"objection_detail","label":"Objection detail","modalities":["contact"],"type":"textarea"},

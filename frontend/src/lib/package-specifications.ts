@@ -6,13 +6,49 @@ import {
 import { sanityClient, sanityDocumentClient } from '@/sanity/lib/client'
 
 export const PACKAGE_SPEC_SLUGS = {
-  paidPilot: 'paid-pilot',
+  studioPilot: 'studio-pilot',
   productionTeam: 'production-team',
   studio: 'studio',
   enterprise: 'enterprise',
 } as const
 
 type PackageLimitKey = keyof NonNullable<PackageSpecification['limits']>
+
+export function packageAnnualAmount(
+  specification: PackageSpecification | undefined,
+): number | null {
+  return specification?.price?.annualAmount || null
+}
+
+export function packageOnboardingFee(
+  specification: PackageSpecification | undefined,
+): number | null {
+  return specification?.price?.onboardingFee || null
+}
+
+export function packageAddOnSeatPrice(
+  specification: PackageSpecification | undefined,
+): number | null {
+  return specification?.price?.addOnSeatPrice || null
+}
+
+export function packageAddOnSeatMax(
+  specification: PackageSpecification | undefined,
+): number | null {
+  return specification?.limits?.addOnSeatsMax?.numericValue || null
+}
+
+export function packageInstallmentsAvailable(
+  specification: PackageSpecification | undefined,
+): boolean {
+  return specification?.price?.installmentsAvailable || false
+}
+
+export function packageInstallmentSchedule(
+  specification: PackageSpecification | undefined,
+): NonNullable<PackageSpecification['price']>['installmentSchedule'] | null {
+  return specification?.price?.installmentSchedule || null
+}
 
 export function findPackageSpecification(
   specifications: PackageSpecification[] | undefined,
@@ -25,13 +61,21 @@ export function packagePriceLabel(
   specification: PackageSpecification | undefined,
 ): string {
   const price = specification?.price
-  return price?.displayValue || '$5,000'
+  if (!price?.displayValue) {
+    console.warn('Package specification missing price display value', specification?.slug)
+    return ''
+  }
+  return price.displayValue
 }
 
 export function packageOriginalPriceLabel(
   specification: PackageSpecification | undefined,
 ): string {
-  return specification?.price?.displayValue || '$5,000'
+  const price = specification?.price
+  if (!price?.discount?.discountDisplayValue) {
+    return ''
+  }
+  return price.discount.discountDisplayValue
 }
 
 export function packageDiscountPercentage(
@@ -62,17 +106,12 @@ export function packageLimitLabel(
   specification: PackageSpecification | undefined,
   key: PackageLimitKey,
 ): string {
-  const defaultValues: Partial<Record<PackageLimitKey, string>> = {
-    productionTeams: '1',
-    activeWorkflows: '1',
-    historicalProjects: '1',
-    participants: 'up to 5',
-    productionMembers: '5',
-    activeRepositories: '3',
-    workspaces: 'multiple',
-    reviewersGuests: 'unlimited',
+  const limit = specification?.limits?.[key]?.displayValue
+  if (!limit) {
+    console.warn('Package specification missing limit', specification?.slug, key)
+    return ''
   }
-  return specification?.limits?.[key]?.displayValue || defaultValues[key] || ''
+  return limit
 }
 
 export function packageMilestoneLabel(
@@ -80,16 +119,14 @@ export function packageMilestoneLabel(
   labelIncludes: string,
 ): string {
   const needle = labelIncludes.toLowerCase()
-  const defaultValues: Record<string, string> = {
-    'pilot period': '21 days',
-    'first value': '48 hours',
-    'annual-credit decision window': '14 days',
+  const milestone = specification?.milestones?.find((milestone) =>
+    milestone.label.toLowerCase().includes(needle),
+  )?.displayValue
+  if (!milestone) {
+    console.warn('Package specification missing milestone', specification?.slug, labelIncludes)
+    return ''
   }
-  return (
-    specification?.milestones?.find((milestone) =>
-      milestone.label.toLowerCase().includes(needle),
-    )?.displayValue || defaultValues[needle] || ''
-  )
+  return milestone
 }
 
 export function resolvePackageSpecValue(

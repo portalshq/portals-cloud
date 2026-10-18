@@ -715,10 +715,10 @@ function ProblemSection() {
           <SectionKicker>the problem</SectionKicker>
         </div> */}
         <div className="relative z-10 col-span-full space-y-34 lg:col-span-16">
-          <h2 className="t-d2-sans max-w-[13.8em]">
-            When a client asks for twelve more assets, does your team build from history, or start from scratch?
+          <h2 className="t-d2-sans max-w-[13.8em] text-balance">
+            When a client asks for twelve more assets, does your team start from scratch, or build from history?
           </h2>
-          <p className="t-p-lg-serif max-w-[38em] leading-[1.25]">
+          <p className="t-p-lg-serif max-w-[30em] text-balance leading-[1.25]">
             Your teams generate thousands of images, videos, and iterations daily.
             When a project ships, the history walks out the door — so the next brief pays for the same discovery, rebuilds, and re-approvals again:
           </p>
@@ -1010,7 +1010,7 @@ function PricingSection({
 }) {
   const pilotSpec = findPackageSpecification(
     packageSpecifications,
-    PACKAGE_SPEC_SLUGS.paidPilot,
+    PACKAGE_SPEC_SLUGS.studioPilot,
   );
   const pilotTier = pilotSpec ? pricingTierFromSpec(pilotSpec) : undefined;
   const pricingTiers = [

@@ -165,6 +165,12 @@ const termsOfService = {
       'You may not use Portals to create, store, or distribute content that is unlawful, abusive, exploitative, deceptive, or otherwise prohibited by applicable law or written Portals policy.',
       'Portals may suspend or restrict access to protect the service, customers, users, providers, or the public.',
     ]),
+    section('Fair use', 'fair-use', [
+      'Portals is designed for reasonable, human-driven production workflows by creative teams. Use should reflect the intended purpose of preserving and reusing approved versions and production context.',
+      'Abusive or automated misuse is prohibited, including automated content generation at scale, unauthorized API access, scraping, or actions that substantially exceed typical production team patterns.',
+      'Portals reserves the right to limit, suspend, or terminate access that appears abusive, automated, or inconsistent with reasonable use, regardless of whether specific numeric limits are communicated.',
+      'Fair use is not a numeric allowance, metered entitlement, or service-level agreement. It is a qualitative standard that reserves our right to protect the service and other customers.',
+    ]),
     section('Security and privacy posture', 'security-and-privacy-posture', [
       'Portals takes commercially reasonable measures to secure the service and expects encrypted transport, infrastructure-supported encryption at rest, logical organization isolation, permission boundaries, and operational security review.',
       'Portals does not claim SOC 2, ISO 27001, HIPAA, PCI DSS, FedRAMP, GDPR certification, dedicated environments, private cloud, customer-managed keys, or fixed recovery objectives unless confirmed in a current written agreement or certification document.',

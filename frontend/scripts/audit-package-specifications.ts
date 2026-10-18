@@ -36,6 +36,14 @@ const forbiddenPatterns = [
   /\$5,000\b/,
   /\$750\b/,
   /\$2,500\b/,
+  /\$2,400\b/,
+  /\$1,000\b/,
+  /\$150\b/,
+  /\$1,800\b/,
+  /\$9,000\b/,
+  /\$28,800\b/,
+  /\$30,000\b/,
+  /\$45,000\b/,
   /\b21 days\b/i,
   /\b48 hours\b/i,
   /\b14 days\b/i,
@@ -45,7 +53,9 @@ const forbiddenPatterns = [
   /\b5 production members\b/i,
   /\b3 active production repositories\b/i,
   /\b20 production members\b/i,
+  /\b24 production members\b/i,
   /\b15 active production repositories\b/i,
+  /\b25\+ production members\b/i,
 ]
 
 function shouldSkip(filePath: string): boolean {

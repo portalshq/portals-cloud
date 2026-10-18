@@ -28,24 +28,24 @@ export const stripeProducts = {
     interval: 'year' as const,
   },
 
-  // Production Team Onboarding - $2,500 one-time
+  // Production Team Onboarding - $1,000 one-time
   productionTeamOnboarding: {
     productId: process.env.STRIPE_PRODUCT_ONBOARDING_ID || '',
     priceId: process.env.STRIPE_PRICE_ONBOARDING_ID || '',
     name: 'Production Team Onboarding',
     description: 'Standard onboarding for Production Team',
-    amount: 250000, // $2,500 in cents
+    amount: 100000, // $1,000 in cents
     currency: 'usd',
     type: 'one_time' as const,
   },
 
-  // Studio Annual - $30,000/year
+  // Studio Annual - $28,800/year
   studioAnnual: {
     productId: process.env.STRIPE_PRODUCT_STUDIO_ID || '',
     priceId: process.env.STRIPE_PRICE_STUDIO_ID || '',
     name: 'Studio Annual',
     description: 'Annual Studio subscription',
-    amount: 3000000, // $30,000 in cents
+    amount: 2880000, // $28,800 in cents
     currency: 'usd',
     type: 'recurring' as const,
     interval: 'year' as const,
@@ -60,6 +60,18 @@ export const stripeProducts = {
     amount: 500000, // $5,000 in cents
     currency: 'usd',
     type: 'one_time' as const,
+  },
+
+  // Production Team Add-on Seat - $1,800/year
+  productionTeamAddOnSeat: {
+    productId: process.env.STRIPE_PRODUCT_ADD_ON_SEAT_ID || '',
+    priceId: process.env.STRIPE_PRICE_ADD_ON_SEAT_ID || '',
+    name: 'Production Team Add-on Seat',
+    description: 'Additional seat for Production Team (billed annually)',
+    amount: 180000, // $1,800 in cents
+    currency: 'usd',
+    type: 'recurring' as const,
+    interval: 'year' as const,
   },
 } as const
 

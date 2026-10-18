@@ -83,7 +83,7 @@ test('a returning qualified applicant keeps edits, skips discovery, and submits 
     act(async () =>
       root.render(
         React.createElement(PilotScopeForm, {
-          specSummary: '$3,900 / 21 days',
+          specSummary: 'Studio pilot / 21 days',
           context: {
             known: true,
             profileId: 'owned',
@@ -99,7 +99,7 @@ test('a returning qualified applicant keeps edits, skips discovery, and submits 
             answerValues: values,
           },
           annualOptions: [
-            {slug: 'studio', name: 'Studio', priceLabel: '$30,000 annually'},
+            {slug: 'studio', name: 'Studio', priceLabel: 'Studio annual pricing from CMS'},
           ],
         })
       )

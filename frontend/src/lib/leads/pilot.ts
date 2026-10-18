@@ -753,24 +753,15 @@ export function buildCommercialSnapshot(
   const annualCredit = opts.offer
     ? `${opts.offer.annualCreditLabel} annual deployment credit under the ${opts.offer.annualCreditRedemptionPolicy}.`
     : `The $${priceAmount.toLocaleString()} pilot fee will be credited if the annual order form is signed by ${iso(creditDeadline) || 'the stated deadline'}.`
-  const annualOption =
-    annualSlug === 'studio' && !annualSpec
-      ? {
-        slug: 'studio',
-        name: 'portals Studio',
-        priceLabel: '$30,000 annually',
-        annualTotal: 30000,
+  const annualOption = annualSpec
+    ? {
+        slug: annualSpec.slug,
+        name: annualSpec.name,
+        priceLabel: annualSpec.price?.displayValue || annualSpec.name,
+        annualTotal,
         creditNote: annualCredit,
       }
-      : annualSpec
-        ? {
-          slug: annualSpec.slug,
-          name: annualSpec.name,
-          priceLabel: annualSpec.price?.displayValue || annualSpec.name,
-          annualTotal,
-          creditNote: annualCredit,
-        }
-        : undefined
+    : undefined
 
   return {
     priceLabel,
@@ -807,7 +798,7 @@ export function buildCommercialSnapshot(
 
 export function computeUnresolved(
   answers: PilotAnswers,
-  opts: { startDate?: string; route?: PilotRoute },
+  opts: { startDate?: string; route?: PilotRoute; pilotPriceLabel?: string },
 ): UnresolvedItem[] {
   const unresolved: UnresolvedItem[] = []
   if (!opts.startDate) {
@@ -838,9 +829,10 @@ export function computeUnresolved(
     })
   }
   if (!answers.approvalPath || answers.approvalPath === 'not-established') {
+    const pilotPrice = opts.pilotPriceLabel || 'the pilot'
     unresolved.push({
       key: 'approval',
-      label: 'Confirm the $5,000 approval path',
+      label: `Confirm the ${pilotPrice} approval path`,
       resolution: 'Confirm who can approve and fund the pilot.',
       href: '#scope',
     })
