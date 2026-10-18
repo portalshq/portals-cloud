@@ -49,10 +49,6 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - name: Install Rollup Linux native binary
-        run: |
-          ROLLUP_VERSION="$(node -p "require('./node_modules/rollup/package.json').version")"
-          npm install --ignore-scripts --no-save --package-lock=false "@rollup/rollup-linux-x64-gnu@${ROLLUP_VERSION}"
       - name: Recover locked Linux build-tool binaries
         run: node scripts/install-build-native.mjs
       - run: npm run build --workspace=packages/monetization
