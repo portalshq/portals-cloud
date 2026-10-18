@@ -439,9 +439,9 @@ The Px release job also refuses to publish until that Lore client release has
 a pinned binary `SHA256SUMS` digest and Sigstore bundle. Pinning only the Lore
 installer script is not sufficient because an altered release tarball could
 still report the expected version. Pulumi also requires the exact Px/Lore
-metadata and resolved Lore release-tag source commit to match
-`verified-releases.json`, which is written only after both Sigstore identities
-and all downloaded checksums are verified.
+metadata and resolved Lore release-tag source commit to match the embedded
+`px-client.verification` evidence in `versions.yaml`, written only after both
+Sigstore identities and all downloaded checksums are verified.
 
 Production publishers refuse dirty source trees. They label images with the
 full source/protocol/packaging commits, require those labels in BuildKit
