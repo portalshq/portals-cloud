@@ -3,7 +3,7 @@ import * as aws from "@pulumi/aws";
 import { PlatformNetwork } from "./src/components/PlatformNetwork";
 import { PlatformCluster } from "./src/components/PlatformCluster";
 import { PlatformDataStore } from "./src/components/PlatformDataStore";
-import { PlatformStorage } from "./src/components/PlatformStorage";
+import { LoreDataStore } from "./src/components/LoreDataStore";
 import { LoadBalancers } from "./src/components/LoadBalancers";
 import { LoreService } from "./src/components/LoreService";
 import { AuthFoundation } from "./src/components/AuthFoundation";
@@ -26,6 +26,14 @@ import {
 const config = new pulumi.Config();
 const projectName = config.require("projectName");
 const environment = config.require("environment");
+const legacyLoreDataEnabled = config.getBoolean("legacyLoreDataEnabled") ?? true;
+const loreDataStackReferenceName = config.get("loreDataStackReference") || undefined;
+if (!legacyLoreDataEnabled && !loreDataStackReferenceName) {
+  throw new Error("loreDataStackReference is required when legacyLoreDataEnabled is false");
+}
+const loreDataStackReference = !legacyLoreDataEnabled && loreDataStackReferenceName
+  ? new pulumi.StackReference(loreDataStackReferenceName)
+  : undefined;
 const awsRegion = new pulumi.Config("aws").require("region");
 const publicIngressEnabled = config.getBoolean("publicIngressEnabled") ?? false;
 const jwksPublicationEnabled = config.getBoolean("jwksPublicationEnabled") ?? false;
@@ -343,7 +351,8 @@ const ec2Compute = new EC2Compute(`${projectName}-ec2-compute`, {
   manualTerminationDenyUserName,
 });
 
-// Create Platform Data Store (RDS for Control Plane + DynamoDB for Lore)
+// Control-plane configuration database only. Lore's data is isolated in its
+// own component and can also be provisioned through the dedicated lore-data project.
 const platformDataStore = new PlatformDataStore(`${projectName}-datastore`, {
   vpcId: platformNetwork.vpc.id,
   publicSubnetIds: pulumi.all(platformNetwork.publicSubnets.map(s => s.id)),
@@ -370,12 +379,35 @@ if (lowCostRdsSnapshotsEnabled) {
   });
 }
 
-// Create Platform Storage (S3 for Lore chunks)
-const platformStorage = new PlatformStorage(`${projectName}-storage`, {
-  projectName,
-  environment,
-  recoveryControlsEnabled,
-});
+// Existing stacks keep their local storage definitions (with URN aliases) so
+// previews do not silently forget old-account resources. A fresh platform
+// stack can instead consume the dedicated lore-data stack's outputs.
+const localLoreDataStore = legacyLoreDataEnabled
+  ? new LoreDataStore(`${projectName}-storage`, {
+    projectName,
+    environment,
+    recoveryControlsEnabled,
+    bucketName: `${projectName}-${environment}-lore-chunks`,
+    preserveLegacyTableUrns: true,
+    createTaskAccessPolicy: false,
+  })
+  : undefined;
+const loreDataOutput = (key: string, localValue?: pulumi.Output<string>): pulumi.Output<string> => {
+  if (localLoreDataStore) {
+    if (!localValue) throw new Error(`Missing local Lore data output ${key}`);
+    return localValue;
+  }
+  return loreDataStackReference!.getOutput(key) as pulumi.Output<string>;
+};
+const loreChunksBucketName = loreDataOutput("loreChunksBucketName", localLoreDataStore?.chunksBucket.bucket);
+const loreChunksBucketArn = loreDataOutput("loreChunksBucketArn", localLoreDataStore?.chunksBucket.arn);
+const loreFragmentsTableName = loreDataOutput("loreFragmentsTableName", localLoreDataStore?.fragmentsTable.name);
+const loreMetadataTableName = loreDataOutput("loreMetadataTableName", localLoreDataStore?.metadataTable.name);
+const loreMutableTableName = loreDataOutput("loreMutableTableName", localLoreDataStore?.mutableTable.name);
+const loreLocksTableName = loreDataOutput("loreLocksTableName", localLoreDataStore?.locksTable.name);
+const loreTaskAccessPolicyArn = !legacyLoreDataEnabled
+  ? loreDataOutput("loreTaskAccessPolicyArn")
+  : undefined;
 
 // Repositories exist while services are contained so images can be built,
 // scanned, signed, and pinned before any task or public listener is created.
@@ -532,12 +564,13 @@ if (loreServiceDesiredCount > 0) {
     memory: loreTaskMemory,
     cpuArchitecture: loreCpuArchitecture,
     loreServerImageUri,
-    s3BucketName: platformStorage.loreChunksBucket.bucket,
-    s3BucketArn: platformStorage.loreChunksBucket.arn,
-    fragmentsTableName: platformDataStore.fragmentsTable.name,
-    metadataTableName: platformDataStore.metadataTable.name,
-    mutableTableName: platformDataStore.mutableTable.name,
-    locksTableName: platformDataStore.locksTable.name,
+    s3BucketName: loreChunksBucketName,
+    s3BucketArn: loreChunksBucketArn,
+    fragmentsTableName: loreFragmentsTableName,
+    metadataTableName: loreMetadataTableName,
+    mutableTableName: loreMutableTableName,
+    locksTableName: loreLocksTableName,
+    taskStoragePolicyArn: loreTaskAccessPolicyArn,
     awsRegion,
     jwksEndpoint: loreJwksEndpoint,
     jwtIssuer: loreJwtIssuer,
@@ -583,13 +616,11 @@ export const albDnsName = loadBalancers.alb.dnsName;
 export const vpcId = platformNetwork.vpc.id;
 export const clusterArn = platformCluster.cluster.arn;
 export { controlPlaneImageUri };
-export const loreChunksBucketName = platformStorage.loreChunksBucket.bucket;
-export const loreChunksBucketArn = platformStorage.loreChunksBucket.arn;
-export const loreFragmentsTableName = platformDataStore.fragmentsTable.name;
-export const loreFragmentsTableArn = platformDataStore.fragmentsTable.arn;
-export const loreMetadataTableName = platformDataStore.metadataTable.name;
-export const loreMutableTableName = platformDataStore.mutableTable.name;
-export const loreLocksTableName = platformDataStore.locksTable.name;
+export { loreChunksBucketName, loreChunksBucketArn, loreFragmentsTableName, loreMetadataTableName, loreMutableTableName, loreLocksTableName };
+export const loreFragmentsTableArn = localLoreDataStore?.fragmentsTable.arn ?? loreDataOutput("loreFragmentsTableArn");
+export const loreMetadataTableArn = localLoreDataStore?.metadataTable.arn ?? loreDataOutput("loreMetadataTableArn");
+export const loreMutableTableArn = localLoreDataStore?.mutableTable.arn ?? loreDataOutput("loreMutableTableArn");
+export const loreLocksTableArn = localLoreDataStore?.locksTable.arn ?? loreDataOutput("loreLocksTableArn");
 export const cognitoUserPoolId = authFoundation?.userPool.id ?? pulumi.output("");
 export const cognitoClientId = authFoundation?.userPoolClient.id ?? pulumi.output("");
 export const jwtSigningKeyArn = authFoundation?.signingKey.arn ?? pulumi.output("");

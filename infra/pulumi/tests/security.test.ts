@@ -164,7 +164,12 @@ test("image promotion is scan-gated and public release also requires a signature
   assert.match(recorder, /versions\.setIn\(\["backend", "image"\], ""\)/);
   assert.match(recorder, /atomicWriteJson\(receiptsFile, receipts\)[\s\S]*atomicWriteYaml\(versionsFile, versions\)/);
   assert.match(releaseRecorder, /readYamlDocument\(versionsFile\)/);
-  assert.match(releaseRecorder, /atomicWriteJson\(receiptsFile, receipts\)[\s\S]*atomicWriteYaml\(versionsFile, versions\)/);
+  // Px and its Lore client are promoted as a tested pair. Their pins and the
+  // signature/checksum evidence live together in the BOM, written atomically.
+  assert.match(releaseRecorder, /versions\.setIn\(\["px-client", "verification"\]/);
+  assert.match(releaseRecorder, /versions\.setIn\(\["px-client", "lore_client_version"\]/);
+  assert.match(releaseRecorder, /atomicWriteYaml\(versionsFile, versions\)/);
+  assert.doesNotMatch(releaseRecorder, /atomicWriteJson\(/);
   assert.match(versionPinWriter, /readYamlDocument\(versionsFile\)/);
   assert.match(versionPinWriter, /atomicWriteYaml\(versionsFile, versions\)/);
   assert.match(lorePublisher, /EXPECTED_BASE_IMAGE="\$\{BASE_PIN\}"/);
@@ -232,12 +237,12 @@ test("PostgreSQL verifies the RDS certificate chain and hostname", () => {
 
 test("recovery controls protect every durable store independent of stack label", () => {
   const database = read("src/components/PlatformDataStore.ts");
-  const storage = read("src/components/PlatformStorage.ts");
+  const storage = read("src/components/LoreDataStore.ts");
   const edge = read("src/components/LoadBalancers.ts");
   assert.match(database, /deletionProtection:\s*args\.recoveryControlsEnabled/);
   assert.match(database, /backupRetentionPeriod:\s*args\.recoveryControlsEnabled \? args\.databaseBackupRetentionDays : 1/);
   assert.match(database, /skipFinalSnapshot:\s*!args\.recoveryControlsEnabled/);
-  assert.equal((database.match(/pointInTimeRecovery:\s*\{\s*enabled:\s*true/g) ?? []).length, 4);
+  assert.equal((storage.match(/pointInTimeRecovery:\s*\{\s*enabled:\s*true/g) ?? []).length, 4);
   assert.match(storage, /forceDestroy:\s*false/);
   assert.match(storage, /versioningConfiguration:\s*\{ status:\s*"Enabled" \}/);
   assert.match(edge, /enableDeletionProtection:\s*args\.deletionProtectionEnabled/);
@@ -249,6 +254,23 @@ test("recovery controls protect every durable store independent of stack label",
   assert.match(backup, /memorySize:\s*128/);
   assert.match(backup, /architectures:\s*\["arm64"\]/);
   assert.match(program, /databaseBackupRetentionDays < 7 && !lowCostRdsSnapshotsEnabled/);
+});
+
+test("Lore data is isolated behind a target-account-guarded stack", () => {
+  const dataStore = read("src/components/LoreDataStore.ts");
+  const dataProgram = read("lore-data/index.ts");
+  const dataConfig = read("lore-data/Pulumi.prod.yaml");
+  assert.equal((dataStore.match(/new aws\.dynamodb\.Table/g) ?? []).length, 4);
+  assert.match(dataStore, /createTaskAccessPolicy/);
+  assert.match(dataStore, /aliases:\s*legacyAlias\(logicalName\)/);
+  assert.match(dataProgram, /expectedAwsAccountId/);
+  assert.match(dataProgram, /got \$\{actualAccountId\}/);
+  const parsedDataConfig = YAML.parse(dataConfig);
+  const expectedAccountId = parsedDataConfig.config["portals-lore-data:expectedAwsAccountId"];
+  const bucketName = parsedDataConfig.config["portals-lore-data:bucketName"];
+  assert.match(expectedAccountId, /^\d{12}$/);
+  assert.equal(bucketName, `portals-prod-lore-chunks-${expectedAccountId}`);
+  assert.match(dataConfig, /us-east-2/);
 });
 
 test("WAF common HTTP inspection does not parse binary gRPC bodies", () => {
