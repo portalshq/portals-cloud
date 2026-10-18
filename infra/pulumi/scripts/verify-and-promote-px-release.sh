@@ -1,13 +1,30 @@
 #!/usr/bin/env bash
-# Download a Px release, verify its GitHub-OIDC Sigstore bundles and every
-# artifact checksum, then update versions.yaml. This never approves the whole
-# platform release; E2E/security gates do that separately.
+# Verify PX's GitHub-OIDC signatures, checksums, metadata, and Lore pin. Local
+# mode gates publication; default mode downloads the release and records its
+# verified BOM evidence. Runtime acceptance remains a separate release gate.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TAG="${1:?usage: verify-and-promote-px-release.sh <vX.Y.Z>}"
-REPOSITORY="${PX_GITHUB_REPOSITORY:-portalshq/narrativeengine}"
+TAG="${1:?usage: verify-and-promote-px-release.sh <vX.Y.Z> [--artifacts-dir DIR] [--verify-only]}"
+shift
+REPOSITORY="${PX_GITHUB_REPOSITORY:-portalshq/px}"
 [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || { echo "invalid Px release tag" >&2; exit 2; }
+ARTIFACTS_DIR=""
+VERIFY_ONLY=false
+while (($#)); do
+  case "$1" in
+    --artifacts-dir)
+      (($# >= 2)) || { echo "--artifacts-dir requires a path" >&2; exit 2; }
+      ARTIFACTS_DIR="$2"
+      shift 2
+      ;;
+    --verify-only)
+      VERIFY_ONLY=true
+      shift
+      ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
 command -v gh >/dev/null || { echo "gh is required" >&2; exit 2; }
 command -v cosign >/dev/null || { echo "cosign is required" >&2; exit 2; }
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
@@ -23,7 +40,16 @@ sha256_file() {
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
-gh release download "${TAG}" --repo "${REPOSITORY}" --dir "${WORK}"
+if [[ "${VERIFY_ONLY}" == true && -z "${ARTIFACTS_DIR}" ]]; then
+  echo "--verify-only requires --artifacts-dir" >&2
+  exit 2
+fi
+if [[ -n "${ARTIFACTS_DIR}" ]]; then
+  [[ -d "${ARTIFACTS_DIR}" ]] || { echo "artifact directory does not exist" >&2; exit 2; }
+  cp -R "${ARTIFACTS_DIR}/." "${WORK}/"
+else
+  gh release download "${TAG}" --repo "${REPOSITORY}" --dir "${WORK}"
+fi
 
 IDENTITY="https://github.com/${REPOSITORY}/.github/workflows/cli-release.yml@refs/tags/${TAG}"
 ISSUER="https://token.actions.githubusercontent.com"
@@ -45,6 +71,11 @@ EXPECTED_MANIFEST="sha256:$(sha256_file "${WORK}/SHA256SUMS")"
   || { echo "Px metadata does not bind SHA256SUMS" >&2; exit 1; }
 [[ "$(jq -r '.release_tag' "${WORK}/release-metadata.json")" == "${TAG}" ]] \
   || { echo "Px metadata tag mismatch" >&2; exit 1; }
+PX_SOURCE_COMMIT="$(gh api "repos/${REPOSITORY}/commits/${TAG}" --jq .sha)"
+[[ "${PX_SOURCE_COMMIT}" =~ ^[a-f0-9]{40}$ ]] \
+  || { echo "Px release tag did not resolve to a full source commit" >&2; exit 1; }
+[[ "$(jq -r '.source_commit' "${WORK}/release-metadata.json")" == "${PX_SOURCE_COMMIT}" ]] \
+  || { echo "Px release metadata source commit does not match its tag" >&2; exit 1; }
 
 LORE_MANIFEST_URL="$(jq -r '.lore_client_artifact_manifest_url' "${WORK}/release-metadata.json")"
 LORE_BUNDLE_URL="$(jq -r '.lore_client_signature_bundle_url' "${WORK}/release-metadata.json")"
@@ -67,6 +98,11 @@ cosign verify-blob --bundle "${WORK}/lore-SHA256SUMS.sigstore.json" \
 LORE_SOURCE_COMMIT="$(gh api "repos/portalshq/lore/commits/v${LORE_VERSION}" --jq .sha)"
 [[ "${LORE_SOURCE_COMMIT}" =~ ^[a-f0-9]{40}$ ]] \
   || { echo "Lore release tag did not resolve to a full source commit" >&2; exit 1; }
+
+if [[ "${VERIFY_ONLY}" == true ]]; then
+  echo "PX_RELEASE_ARTIFACT_VERIFICATION=PASS tag=${TAG} source_commit=${PX_SOURCE_COMMIT} lore_version=${LORE_VERSION}"
+  exit 0
+fi
 
 BASE_URL="https://github.com/${REPOSITORY}/releases/download/${TAG}"
 node "${SCRIPT_DIR}/record-px-release.mjs" \
