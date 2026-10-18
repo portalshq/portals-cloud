@@ -40,6 +40,17 @@ Lore uses TCP/gRPC and UDP/QUIC on `41337`; its health port (`41339`) remains
 loopback-only. Caddy terminates public TLS and routes Auth HTTP/gRPC and Lore
 gRPC. It never proxies Lore QUIC or the Vercel application.
 
+The Pinggy runner accepts `tcp` or `udp` to start only that mapping. With no
+argument it starts both and stops the pair if either child exits so launchd can
+restart them together. Use the no-argument form for normal service operation;
+the single-mapping modes are for targeted tunnel checks:
+
+```sh
+scripts/run-pinggy.sh       # TCP and UDP
+scripts/run-pinggy.sh tcp   # TCP/TLS only
+scripts/run-pinggy.sh udp   # UDP/QUIC only
+```
+
 The ProductCharacters delivery worker is outside Portals' MVP and runs no
 container here. Portals retains its Vercel CRM cron; no Mac CRM scheduler,
 worker wake endpoint, or legacy one-minute timer is required.
@@ -373,3 +384,6 @@ failure causes an outage.
   and digest check.
 - [scripts/check-external.sh](scripts/check-external.sh) — public acceptance
   probe.
+- [scripts/run-pinggy.sh](scripts/run-pinggy.sh) and
+  [scripts/test-run-pinggy.mjs](scripts/test-run-pinggy.mjs) — selectable
+  TCP/UDP tunnel modes, default paired supervision, and runner regression test.
