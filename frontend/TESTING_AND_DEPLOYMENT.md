@@ -123,7 +123,7 @@ http://localhost:3000/workflow/assessment?how_did_you_hear=linkedin&what_brought
    - Event: `checkout.session.completed`
    - Copy the signing secret into `STRIPE_WEBHOOK_SECRET` (separate secret per environment).
 3. Confirm the daily cron in `vercel.json` (`0 0 * * *` → `/api/internal/leads/retry`) is enabled and that Vercel sends the `CRON_SECRET` bearer header; the route 401s without a matching hash. New room events also request an in-process outbox run, while the daily cron remains the durable retry path for the free Vercel plan.
-4. Confirm the Sanity production dataset publishes the `paid-pilot` document and Studio price specs. The commercial snapshot synthesizes the $30,000 Studio annual option when specs are missing, but real specs should be preferred.
+4. Confirm the Sanity production dataset publishes the `paid-pilot` document and Studio price specs. The commercial snapshot synthesizes the $28,800 Studio annual option when specs are missing, but real specs should be preferred.
 5. Sanity check the production config gate: `productionConfigurationError` in `app/api/leads/route.ts` responds 503 with the list of missing variables until the environment is complete.
 
 ## Post-deploy verification

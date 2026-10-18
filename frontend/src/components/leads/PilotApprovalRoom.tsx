@@ -982,7 +982,7 @@ export function PilotApprovalRoom({
             </label>
           ) : null}
           <div className="flex flex-wrap gap-10">
-            <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>Pay the ${pilot.proposal?.priceAmount || 5000} pilot fee</button>
+            <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>Pay the {pilot.proposal?.priceLabel || 'pilot fee'}</button>
             <button onClick={() => void onInvoice()} disabled={busy} className={plainButtonClasses}>Pay by invoice / ACH</button>
             {pilot.state === 'signed' ? <button onClick={() => void onKickoff()} disabled={busy} className={plainButtonClasses}>Reserve launch</button> : null}
           </div>

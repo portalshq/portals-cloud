@@ -216,9 +216,13 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
 }
 
 function pricingTierHref(tier: PricingTier): string {
-  return tier.slug === PACKAGE_SPEC_SLUGS.productionTeam
-    ? '/assessment'
-    : scopeAPilotMailto;
+  if (tier.slug === PACKAGE_SPEC_SLUGS.productionTeam) {
+    return '/assessment';
+  }
+  if (tier.slug === PACKAGE_SPEC_SLUGS.studio || tier.slug === PACKAGE_SPEC_SLUGS.enterprise) {
+    return '/pilot';
+  }
+  return scopeAPilotMailto;
 }
 
 function NumberLabel({ index, className = "" }: { index: number; className?: string }) {
@@ -1062,7 +1066,7 @@ function PricingSection({
             <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
               <h3 className="t-h3-sans mb-20 flex items-center gap-x-12">
                 <span>{tier.name}</span>
-                {tier.banner && <Badge className="t-m2 !border-0">{tier.banner}</Badge>}
+                {tier.banner && <Badge className="!border-0">{tier.banner}</Badge>}
               </h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-h3-sans">{tier.price}</span>

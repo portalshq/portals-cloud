@@ -218,7 +218,7 @@ export const pilotControlledOptionLists = {
 } as const
 
 const controlledChoice = <T extends readonly string[]>(options: T) =>
-  z.enum(options).optional().default('')
+  z.enum(options).optional()
 
 export const pilotControlledFields = {
   pilotTier: controlledChoice(['studio', 'enterprise']),

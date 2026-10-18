@@ -398,7 +398,7 @@ test('security decisions mark SSO as an exception when required', () => {
   assert.equal(training?.decision, 'confirm')
 })
 
-test('commercial snapshot synthesizes the studio annual option without specs', () => {
+test('commercial snapshot omits the annual option when specs are missing', () => {
   const snapshot = buildCommercialSnapshot(
     {...eligible, annualDeploymentOption: 'studio'},
     [],
@@ -411,9 +411,7 @@ test('commercial snapshot synthesizes the studio annual option without specs', (
   assert.equal(snapshot.termEnd, '2026-08-30')
   assert.equal(snapshot.decisionDate, '2026-08-31')
   assert.equal(snapshot.creditDeadline, '2026-09-14')
-  assert.equal(snapshot.annualOption?.slug, 'studio')
-  assert.equal(snapshot.annualOption?.annualTotal, 30000)
-  assert.match(String(snapshot.annualOption?.creditNote), /credited if the annual order form/)
+  assert.equal(snapshot.annualOption, undefined)
 })
 
 test('commercial snapshot omits the annual option when not chosen', () => {
