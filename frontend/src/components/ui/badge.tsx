@@ -3,18 +3,18 @@ import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const badgeVariants = cva(
-  'inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2' +
+  'inline-flex items-center transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2' +
     ' hover-elevate ',
   {
     variants: {
       variant: {
         default:
-          'rounded-[10px] border bg-white/10 px-16 py-8 backdrop-blur-[20px]',
+          'rounded-[10px] bg-white/10 px-16 py-8 backdrop-blur-[20px]',
         secondary:
-          'whitespace-nowrap rounded-md border-transparent bg-secondary text-secondary-foreground px-2.5 py-0.5 text-xs font-semibold',
+          'whitespace-nowrap rounded-md border bg-secondary text-secondary-foreground px-2.5 py-0.5 text-xs font-semibold',
         destructive:
-          'whitespace-nowrap rounded-md border-transparent bg-destructive text-destructive-foreground shadow-xs px-2.5 py-0.5 text-xs font-semibold',
-        outline: 'whitespace-nowrap rounded-md text-foreground border [border-color:var(--badge-outline)] px-2.5 py-0.5 text-xs font-semibold',
+          'whitespace-nowrap rounded-md border bg-destructive text-destructive-foreground shadow-xs px-2.5 py-0.5 text-xs font-semibold',
+        outline: 'whitespace-nowrap rounded-md border text-foreground [border-color:var(--badge-outline)] px-2.5 py-0.5 text-xs font-semibold',
       },
     },
     defaultVariants: {

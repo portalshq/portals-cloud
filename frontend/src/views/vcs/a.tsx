@@ -259,7 +259,7 @@ function ListColumn({ item }: { item: OverviewItem }) {
     <ul className="saga-overview-list space-y-8">
       {item.list.map((text) => (
         <li key={text}>
-          <Badge>
+          <Badge className="!border">
             <div className="flex items-start gap-x-16 t-p-sans leading-[1.2em]">
               <span className="flex h-[1.364em] items-center">
                 <span className="size-8 shrink-0 bg-current" />
@@ -1061,8 +1061,8 @@ function PricingSection({
           {pricingTiers.map((tier) => (
             <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
               <h3 className="t-h3-sans mb-20 flex items-center gap-x-12">
-                {tier.banner && <Badge className="t-m2">{tier.banner}</Badge>}
                 <span>{tier.name}</span>
+                {tier.banner && <Badge className="t-m2 !border-0">{tier.banner}</Badge>}
               </h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-h3-sans">{tier.price}</span>

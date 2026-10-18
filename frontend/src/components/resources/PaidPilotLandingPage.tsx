@@ -216,7 +216,7 @@ function Objective({ document }: { document: ResourceDocument }) {
         </div>
         <div className="col-span-full lg:col-span-10 lg:col-start-14">
           <p className="t-p-lg-serif text-white">Test whether your team can continue approved work with less reconstruction, fewer wrong-input generations, and clearer handoffs.</p>
-          <Badge className="mt-24 flex items-start gap-x-16 t-p-sans leading-[1.2em]">
+          <Badge className="mt-24 flex items-start gap-x-16 t-p-sans leading-[1.2em] !border">
             <span className="flex h-[1.364em] items-center">
               <span className="size-8 shrink-0 bg-current" />
             </span>
