@@ -260,7 +260,10 @@ test('pilot_request through POST delivers the approval-room email to the submitt
   const queued = await takeDueOutbox()
   const pilotEmail = queued.find((row) => row.action_type === 'pilot_email')
   assert.ok(pilotEmail, 'a pilot_email outbox action is queued')
-  assert.equal(pilotEmail.action_key, `${pilot.id}:pilot_email:reviewing:`)
+  assert.equal(
+    pilotEmail.action_key,
+    `${pilot.id}:pilot_email:reviewing::event:revision:1:reviewing`,
+  )
 
   await processLeadOutbox(20)
 

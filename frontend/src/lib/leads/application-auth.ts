@@ -630,7 +630,9 @@ export async function pilotMembershipWithAccountRole(pilotId: string, userId: st
   customerAccountId: string | null
 }> {
   if (leadsDryRun()) {
-    const pilotRole = memoryStore().pilotMemberships.get(pilotMemberKey(pilotId, userId, "owner")) || null
+    // Mirror the database query: a user can hold any active pilot role, and
+    // the most privileged one is the role used for access checks.
+    const pilotRole = highestPilotMembershipRole(await pilotMembershipRoles(pilotId, userId))
     if (!pilotRole) return { pilotRole: null, accountRole: null, customerAccountId: null }
     const pilot = await getPilotById(pilotId)
     if (!pilot?.customerAccountId) return { pilotRole, accountRole: null, customerAccountId: null }
