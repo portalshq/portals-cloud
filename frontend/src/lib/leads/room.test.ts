@@ -153,16 +153,15 @@ test('a payment session id finds the pilot record', async () => {
   assert.equal(await getPilotByPaymentSession('cs_test_missing'), null)
 })
 
-test('creating a pilot seeds proposed reviewers from the answers', async () => {
+test('creating a pilot seeds only the production owner; other reviewers are invited in-room', async () => {
   const pilot = await createEligiblePilot()
   assert.deepEqual(
     pilot.reviewers.map((reviewer) => reviewer.role),
-    ['production_owner', 'economic_buyer', 'technical_evaluator', 'signer'],
+    ['production_owner'],
   )
   assert.ok(pilot.reviewers.every((reviewer) => reviewer.status === 'proposed'))
   assert.ok(pilot.reviewers.every((reviewer) => reviewer.versionSeen === 1))
-  const signer = pilot.reviewers.find((reviewer) => reviewer.role === 'signer')
-  assert.equal(signer?.email, 'ava@studio.example')
+  assert.equal(pilot.reviewers[0]?.email, 'ava@studio.example')
   assert.equal(pilot.version, 1)
   assert.equal(pilot.draft?.baseVersion, 1)
   assert.equal(pilot.revisions[0]?.version, 1)
@@ -181,10 +180,18 @@ test('version bumps leave stale reviewers flagged for reconfirmation', async () 
 
 test('reviewer decisions persist status and change requests', async () => {
   const pilot = await createEligiblePilot()
-  const buyer = pilot.reviewers.find((reviewer) => reviewer.role === 'economic_buyer')
-  assert.ok(buyer)
+  const buyer = {
+    id: crypto.randomUUID(),
+    role: 'economic_buyer' as const,
+    name: 'Jordan Lee',
+    email: 'jordan@studio.example',
+    status: 'proposed' as const,
+    versionSeen: pilot.version,
+    notes: [],
+  }
+  await updatePilot(pilot.id, {reviewers: [...pilot.reviewers, buyer]})
   const updated = await updatePilot(pilot.id, {
-    reviewers: pilot.reviewers.map((reviewer) =>
+    reviewers: [...pilot.reviewers, buyer].map((reviewer) =>
       reviewer.id === buyer.id
         ? {...reviewer, status: 'reviewed', reviewedAt: new Date().toISOString(), requestedChanges: true, versionSeen: pilot.version}
         : reviewer,
