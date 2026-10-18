@@ -118,7 +118,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
               <Link
                 href={`/use-cases/${item.slug}`}
                 key={item.slug}
-                className="group flex flex-col bg-white/10 p-24 rounded-sm hover:bg-white/15"
+                className="group flex flex-col bg-white/15 p-24 rounded-sm hover:bg-white/10"
               >
                 <h3 className="t-h3-sans">{item.title}</h3>
                 <p className="t-p-sans mt-16">{item.outcome}</p>

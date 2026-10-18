@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { EventPublisher } from "../src/index.js";
 import { InMemoryFanoutBus } from "../../realtime-fanout/src/fanout-bus.js";
+import { createPostgresFanoutBus } from "../../capability-realtime-fanout-postgres/src/postgres-fanout-bus.js";
 import { database } from "./database.js";
 
 describe("durable event publication and replay", () => {
@@ -100,11 +101,27 @@ describe("durable event publication and replay", () => {
     const thrown = publisher.subscribe("throws");
     await expect(thrown.throw!(new Error("cancel"))).rejects.toThrow("cancel");
   });
+  it("uses actual fanout-postgres transport and releases polling on stream return", async () => {
+    await db.pool.query(
+      "CREATE TABLE fanout_messages(id bigserial PRIMARY KEY,topic text NOT NULL,payload jsonb NOT NULL)"
+    );
+    const fanout = createPostgresFanoutBus(db.pool);
+    const publisher = new EventPublisher(fanout, db.repository, 10);
+    const world = crypto.randomUUID();
+    const stream = publisher.subscribe(world, 0);
+    const pending = stream.next();
+    await publisher.publish(event(world));
+    await publisher.drainOutbox();
+    expect((await pending).value?.worldId).toBe(world);
+    await stream.return!();
+    await fanout.close();
+    expect(
+      (await db.pool.query("SELECT count(*)::int AS n FROM fanout_messages"))
+        .rows[0].n
+    ).toBeGreaterThan(0);
+  });
   it("recovers expired dispatcher claims and rejects invalid cursors and configuration", async () => {
     const world = crypto.randomUUID();
-    await db.pool.query(
-      "UPDATE interaction_outbox SET published_at=clock_timestamp(), claimed_until=NULL, claim_token=NULL WHERE published_at IS NULL"
-    );
     await db.repository.publishEvent(event(world));
     const first = await db.repository.claimOutbox();
     expect(first.events.length).toBeGreaterThan(0);

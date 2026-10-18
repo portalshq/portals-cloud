@@ -278,7 +278,7 @@ function PilotCTASection({ document }: { document: ResourceDocument }) {
                 analyticsLabel="Assess Your AI Creative Production Workflow"
                 analyticsIntent="assessment"
               >
-                Assess production workflow
+                Assess my production workflow
               </CTAButton>
             </div>
           ) : null}

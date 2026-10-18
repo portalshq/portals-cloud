@@ -192,6 +192,7 @@ type PricingTier = {
   discountPercentage?: number | null;
   period: string;
   subtitle?: string;
+  banner?: string;
   features: string[];
   cta: string;
   micro?: string;
@@ -206,6 +207,7 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
     discountPercentage: specification.price?.discount?.percentage,
     period: specification.price?.periodLabel || '',
     subtitle: specification.subtitle,
+    banner: specification.banner,
     features: packagePricingFeatures(specification),
     cta: specification.ctaLabel || 'Scope a pilot',
     micro: specification.microcopy,
@@ -888,17 +890,17 @@ const pxFoundations: { title: React.ReactNode; text: React.ReactNode }[] = [
 
 function PxSection() {
   return (
-    <section data-header-theme="light">
-      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <h2 className="t-d2-sans max-w-[13.8em] col-span-full lg:row-start-1">Powered by open data foundations for AI production</h2>
-        <div className="col-span-full space-y-24 lg:row-start-2 lg:col-span-11">
-          <p className="t-p-lg-serif max-w-[38em] md:text-justify leading-[1.25]">
-            portals builds on <span className="t-p-lg-sans font-bold">px</span>, giving production teams shared control over persistent data objects: characters, locations, worlds, and their representations across tools and formats.
+    <section data-header-theme="light" className="max-w-[1200px] mx-auto">
+      <div className="ui-grid !grid-cols-3 gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+        <h2 className="t-d2-sans col-span-full lg:row-start-1">Powered by open data foundations for AI production</h2>
+        <div className="col-span-full space-y-24 lg:row-start-2 lg:col-span-2">
+          <p className="t-p-lg-serif md:text-justify leading-[1.25]">
+            portals builds on px, giving production teams shared control over persistent data objects: characters, locations, worlds, and their representations across tools and formats.
           </p>
-          <p className="t-p-lg-sans max-w-[30em] md:text-justify">Create an asset once. Give it an identity. Build a world from it.</p>
+          <p className="t-p-lg-sans max-w-[30em] md:text-justify">Create an asset once. Give it an identity. Build a project from it.</p>
         </div>
 
-        <div className="col-span-full lg:row-start-3 lg:col-span-12 grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px]">
+        <div className="col-span-full lg:row-start-3 lg:col-span-2 grid grid-cols-1 gap-px bg-white/20 rounded-sm backdrop-blur-[12px]">
           {pxFoundations.map((item) => (
             <article key={item.title?.toString()} className="flex flex-col p-24">
               <h3 className="t-h3-sans mb-16">{item.title}</h3>
@@ -906,7 +908,7 @@ function PxSection() {
             </article>
           ))}
         </div>
-        <div className="hidden lg:block col-span-12 lg:col-span-11 xl:col-span-6 lg:col-start-13 xl:col-start-13 lg:row-span-3">
+        <div className="hidden lg:block col-span-1 lg:col-span-1 xl:col-span-1 lg:row-span-3">
           <div className='grid grid-cols-2 gap-px'>
             <img
               src="/images/vcs/components/campaign-contact-sheet-woman-6.png"
@@ -944,10 +946,10 @@ function PxSection() {
             <span>revision 8</span>
           </div>
         </div>
-        <div className="col-span-full lg:row-start-4 lg:col-span-12 flex flex-col gap-30">
-          <p className="t-p-sans text-white"><strong>px</strong> is free and open source for creators and developers building locally.</p>
+        <div className="col-span-full lg:row-start-4 lg:col-span-2 flex flex-col gap-30">
+          <p className="t-p-sans text-white text-balance">px is free and open source for creators and developers building locally.</p>
           <CTAButton href="/px" analyticsLabel="Explore px" analyticsIntent="education">
-            Explore<span className="font-bold">{' '}px</span>
+            Explore px
           </CTAButton>
         </div>
       </div>
@@ -982,12 +984,12 @@ function AudienceSection() {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full lg:col-span-14">
-          <h2 className="t-d2-sans max-w-[13.8em]">For organizations producing high-volume media with AI</h2>
+        <div className="col-span-full">
+          <h2 className="t-d2-sans text-balance">For organizations producing high-volume media with AI</h2>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px lg:grid-cols-2">
           {audiences.map((audience) => (
-            <article key={audience.title} className="p-24">
+            <article key={audience.title} className="py-24 lg:px-24">
               <h3 className="t-h3-sans mb-16">{audience.title}</h3>
               <p className="t-p-sans text-white">{audience.text}</p>
             </article>
@@ -1027,7 +1029,7 @@ function PricingSection({
           <SectionKicker>pricing</SectionKicker>
         </div> */}
         <div className="col-span-full lg:mx-auto">
-          <h2 className="t-d2-sans max-w-[12.58em] lg:text-center">A clear path from adoption to enterprise scale</h2>
+          <h2 className="t-d2-sans max-w-[12.58em] text-balance lg:text-center">A clear path from adoption to enterprise scale</h2>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] lg:mx-auto rounded">
           {pilotTier ? [pilotTier].map((tier) => (
@@ -1053,6 +1055,11 @@ function PricingSection({
         <div className="mt-40 col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
           {pricingTiers.map((tier) => (
             <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
+              {tier.banner && (
+                <p className="mb-16 w-fit border border-white/30 px-12 py-8 t-m2">
+                  {tier.banner}
+                </p>
+              )}
               <h3 className="t-h3-sans mb-20">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-h3-sans">{tier.price}</span>
@@ -1185,7 +1192,7 @@ export function VCS({
             </h1>
             <p className="t-h3-sans max-w-[24.5ch]">ship campaigns faster, cut production costs, and keep every asset traceable from brief to delivery.</p>
             <p className="t-p-sm-sans max-w-[52ch]">
-              Discover the bottlenecks costing you time, output, and margin in 4 minutes · Receive personalized recommendations
+              Discover the bottlenecks costing you time, output, and margin in 4 minutes. Receive personalized recommendations.
             </p>
             <div className="saga-hero-assess grid grid-cols-[max-content_max-content] gap-30">
               <CTAButton
@@ -1237,7 +1244,7 @@ export function VCS({
         <div className="relative flex min-h-screen items-center text-white">
           <div className="ui-grid flex-1 gap-y-sms py-sms">
             <div className="relative z-30 col-span-full flex flex-col items-center gap-y-fluid-[32,40] text-center">
-              <h4 className="t-global-cta_heading max-w-[13em]">Stop losing the history of your best work.<br /> Start building on it.</h4>
+              <h4 className="t-global-cta_heading max-w-[13em] text-balance">Stop losing the history of your best work.<br /> Start building on it.</h4>
               <p className="t-p-lg-serif max-w-[25em] md:w-auto text-white text-left">
                 Ship repeat campaigns faster, cut rebuild and re-approval costs, and keep every asset provable from prompt to final with a complete lifecycle that works with your existing tools.
               </p>

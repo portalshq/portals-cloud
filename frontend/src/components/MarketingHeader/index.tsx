@@ -14,7 +14,7 @@ const staticHeaders: Record<string, PortalsHeaderProps> = {
   '/assessment': { breadcrumb: [{ href: '/assessment', label: 'assessment' }] },
   '/production-memory': { breadcrumb: [{ href: '/production-memory', label: 'production memory' }] },
   '/use-cases': { breadcrumb: [{ href: '/use-cases', label: 'use cases' }], actions: [{ href: '/pilot', label: 'Start a pilot', className: 'fixed top-15 right-sms' }] },
-  '/blog': { breadcrumb: [{ href: '/blog', label: 'blog' }], actions: [productionMemory, assess] },
+  '/blog': { breadcrumb: [{ href: '/blog', label: 'blog' }], actions: [] },
   '/pilot': { breadcrumb: [{ href: '/pilot', label: 'paid pilot' }] },
   '/paid-pilot': { breadcrumb: [{ href: '/pilot', label: 'paid pilot' }] },
   '/security-and-architecture': { breadcrumb: [{ href: '/security-and-architecture', label: 'security' }], actions: [{ href: '#controls', label: 'security brief / 2026', appearance: 'plain' }] },

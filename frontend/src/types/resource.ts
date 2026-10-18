@@ -26,6 +26,7 @@ export type PackageSpecification = {
   slug: string
   sortOrder: number
   subtitle?: string
+  banner?: string
   price?: {
     displayValue: string
     amount?: number

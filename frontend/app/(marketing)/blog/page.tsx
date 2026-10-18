@@ -51,31 +51,33 @@ export default async function Page() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <MarketingPageShell
-        title="AI creative production, explained as infrastructure."
-        lede="Production memory, asset provenance, lineage, versioning, reproducibility, and creative operations — written as citable references, not hot takes."
-        sub="Start with production memory, then follow the cluster. Every article ends in the workflow assessment or paid pilot."
-        primaryCta={{ href: '/assessment', label: 'Assess production workflow' }}
+        title="AI Creative Production Blog"
+        lede="Cited references on production memory in creative operations, not hot takes."
+        primaryCta={{ href: '/assessment', label: 'Assess my production workflow' }}
         secondaryCta={{ href: '/production-memory', label: 'What is production memory' }}
       >
-        <div className="ui-grid pb-fluid-[76,106] text-white">
-          <div className="col-span-full grid gap-2">
+        <div className="max-w-6xl mx-auto ui-grid py-fluid-[76,106] pt-0 text-white">
+          <div className="col-span-full grid gap-[4px]">
             {posts.map((post) => {
               const date = formatDate(post.publishedAt)
               return (
                 <a
                   key={post.slug}
                   href={`/blog/${post.slug}`}
-                  className="bg-white/10 duration-200 hover:bg-white/15 p-32 rounded-sm transition-all"
+                  className="bg-white/10 duration-200 hover:bg-white/15 p-32 rounded-sm transition-all group"
                 >
                   <div className='max-w-5xl mx-auto'>
                     {post.cluster ? (
-                      <p className="t-p-sans uppercase tracking-[.16em] text-white/45">{post.cluster}</p>
+                      <p className="t-p-sm-sans uppercase text-base tracking-[0.05em] text-white">{post.cluster.replace("-", " ")}</p>
                     ) : null}
-                    <h2 className="t-h3-sans mt-20">{post.title}</h2>
-                    <p className="t-p-sans mt-16">{post.excerpt}</p>
-                    <p className="t-p-sans mt-24">
-                      {[date, post.tags?.[0]].filter(Boolean).join(' · ')}
+                    <h2 className="t-h3-sans mt-12">{post.title}</h2>
+                    <p className="t-p-sm-sans mt-16">
+                      {date} <span className="ml-5 group-hover:underline decoration-2 underline-offset-4">Read more</span>
                     </p>
+                    <p className="t-p-sm-sans mt-24">{post.excerpt}</p>
+                    {/* <p className="t-p-sm-sans mt-12">
+                      {[...(post.tags || [])].filter(Boolean).join(' · ')}
+                    </p> */}
                   </div>
                 </a>
               )
@@ -87,10 +89,10 @@ export default async function Page() {
             </p>
           ) : null}
           <div className="col-span-full mt-56 flex flex-wrap gap-16 border-t border-white/15 pt-40">
-            <CTAButton href="/assessment">Assess production workflow</CTAButton>
             <CTAButton href="/use-cases" appearance="plain">
               Explore use cases
             </CTAButton>
+            <CTAButton href="/assessment">Assess production workflow</CTAButton>
           </div>
         </div>
       </MarketingPageShell>

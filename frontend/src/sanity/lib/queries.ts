@@ -10,6 +10,7 @@ export const PACKAGE_SPECIFICATION_FIELDS = /* groq */ `
   "slug": slug.current,
   sortOrder,
   subtitle,
+  banner,
   price,
   limits,
   features,
@@ -252,7 +253,7 @@ export const BLOG_POSTS_QUERY = defineQuery(/* groq */ `
     _type == "blogPostDocument"
     && status == "published"
     && defined(slug.current)
-  ] | order(priority asc, publishedAt desc) {
+  ] | order(publishedAt desc, priority asc) {
     ${BLOG_CARD_FIELDS}
   }
 `)

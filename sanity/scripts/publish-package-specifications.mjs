@@ -156,6 +156,7 @@ const specs = [
     name: 'Studio',
     slug: {_type: 'slug', current: 'studio'},
     sortOrder: 30,
+    banner: 'Best value',
     subtitle:
       'For studios managing concurrent campaigns, episodic, animation, or game pipelines.',
     price: {
