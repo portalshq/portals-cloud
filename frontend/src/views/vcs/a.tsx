@@ -727,7 +727,7 @@ function ProblemSection() {
           </p>
         </div>
         <h3 className="col-span-full t-d2-sans max-w-[28em] text-balance">
-          portals automatically detects and organizes production assets and their associated documents.
+          automatically detect and organize production assets and their associated documents.
         </h3>
         <div className="col-span-full grid grid-cols-1 lg:grid-cols-3 space-y-[4px]">
           {problemCards.map((card, index) => (
@@ -1060,12 +1060,10 @@ function PricingSection({
         <div className="mt-40 col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
           {pricingTiers.map((tier) => (
             <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
-              {tier.banner && (
-                <p className="mb-16 w-fit border border-white/30 px-12 py-8 t-m2">
-                  {tier.banner}
-                </p>
-              )}
-              <h3 className="t-h3-sans mb-20">{tier.name}</h3>
+              <h3 className="t-h3-sans mb-20 flex items-center gap-x-12">
+                {tier.banner && <Badge className="t-m2">{tier.banner}</Badge>}
+                <span>{tier.name}</span>
+              </h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-h3-sans">{tier.price}</span>
                 <span className="t-m2 !lowercase">{tier.period}</span>
@@ -1095,7 +1093,6 @@ export function VCS({
   packageSpecifications: PackageSpecification[];
 }) {
   const heroHeadingRef = useRef<HTMLHeadingElement>(null);
-  const headerBrandRef = useRef<HTMLAnchorElement>(null);
   const mobileRepositoryCopyRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
@@ -1104,12 +1101,10 @@ export function VCS({
 
     const update = () => {
       frame = 0;
-      const brand = headerBrandRef.current;
       const heading = heroHeadingRef.current;
       const copy = mobileRepositoryCopyRef.current;
 
       if (!mobileQuery.matches) {
-        if (brand) brand.style.transform = '';
         if (copy) copy.style.transform = '';
         return;
       }
@@ -1130,12 +1125,6 @@ export function VCS({
           const stickyLift = Math.min(Math.max(release - sectionTop, 0), release - finish);
           copy.style.transform = `translate3d(0, calc(-50% + ${stickyLift}px - ${lift}px), 0)`;
         }
-      }
-
-      if (brand && heading) {
-        const brandRestingBottom = 24 + brand.offsetHeight;
-        const brandPush = Math.min(0, heading.getBoundingClientRect().top - brandRestingBottom);
-        brand.style.transform = `translate3d(0, ${brandPush}px, 0)`;
       }
     };
 
@@ -1160,23 +1149,6 @@ export function VCS({
     <main className="relative z-(--z-main)">
       <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollFrom" data-webgl-position="0" data-webgl-easing="easeInOut" />
 
-      <header
-        className="saga-front-header pointer-events-none w-full absolute md:!fixed inset-x-0 top-0 z-(--z-header)"
-      >
-        <div className="flex h-Header-h items-center px-sms">
-          <div className="pointer-events-auto flex flex-1 items-center justify-between gap-x-sgs">
-            <a ref={headerBrandRef} className="saga-front-header-brand" href="/">
-              <span className="t-h3-sans !font-medium">
-                portals
-              </span>
-            </a>
-
-            <nav aria-label="Page" className="hidden shrink-0 items-center gap-x-16 text-white sm:flex">
-              <CTAButton href={scopeAPilotMailto} analyticsLabel="Scope a Pilot" analyticsIntent="pilot_scope">Scope a pilot</CTAButton>
-            </nav>
-          </div>
-        </div>
-      </header>
       <section className="saga-front-hero relative isolate min-h-screen flex items-center overflow-x-clip" data-header-theme="light" data-slice-type="hero" data-slice-variation="default">
         <div className="pointer-events-none z-[-10]" aria-hidden="true">
           <img src="/images/vcs/components/creative-production-hero-woman-portrait-4k-alt-2.png" alt=""
