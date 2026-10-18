@@ -417,7 +417,7 @@ Image publication and image promotion are separate operations. Publication may
 leave an untrusted digest in ECR. Promotion must resolve the configured Fargate
 platform child manifest, require zero critical/high findings from ECR and
 Trivy, decode the attached SBOM and provenance, and bind those results to the
-exact index and platform digests in `infra/lore/verified-images.json`. Pulumi
+exact index and platform digests in `infra/lore/verified-ecr-images.json`. Pulumi
 rejects a running pin without that receipt. Public ingress additionally
 requires a verified cosign signature. Unfixed critical/high findings are not
 silently ignored; they require remediation or an explicit reviewed exception.

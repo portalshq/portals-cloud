@@ -182,7 +182,7 @@ This ensures:
    and generates a unique build tag.
 
 5. Review the resulting changes to `infra/lore/versions.yaml` and
-   `infra/lore/verified-images.json`, then commit them with the release source.
+   `infra/lore/verified-ecr-images.json`, then commit them with the release source.
    The expected repositories are `portals-prod/lore` and
    `portals-prod/auth-gateway`, each referenced as `@sha256:...`.
 

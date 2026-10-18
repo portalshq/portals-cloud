@@ -100,7 +100,7 @@ function resolveVersionsFile(): string {
 }
 
 function resolveVerificationFile(): string {
-  return path.join(path.dirname(resolveVersionsFile()), "verified-images.json");
+  return path.join(path.dirname(resolveVersionsFile()), "verified-ecr-images.json");
 }
 
 function resolveReleaseVerificationFile(): string {

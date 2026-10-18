@@ -100,7 +100,7 @@ require `REQUIRE_SIGNATURE=true` and a dedicated `COSIGN_KEY` reference: they
 sign the resolved immutable digest first, then require clean ECR and Trivy
 critical/high results, decode the attestations, and only then update both
 `infra/lore/versions.yaml` and the digest-bound receipt in
-`infra/lore/verified-images.json`. Pulumi refuses a running pin without a
+`infra/lore/verified-ecr-images.json`. Pulumi refuses a running pin without a
 matching receipt and refuses public ingress until its cosign signature is
 verified. Mutable architecture/nightly tags may aid publishing but are never
 accepted by the service-count gate.

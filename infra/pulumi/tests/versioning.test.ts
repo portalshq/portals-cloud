@@ -71,7 +71,7 @@ function withFiles(versions: string, receipt: unknown | undefined, fn: () => voi
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "versions.yaml"), versions);
   if (receipt !== undefined) {
-    fs.writeFileSync(path.join(dir, "verified-images.json"), JSON.stringify(receipt));
+    fs.writeFileSync(path.join(dir, "verified-ecr-images.json"), JSON.stringify(receipt));
   }
   const previous = process.cwd();
   process.chdir(tmp);
