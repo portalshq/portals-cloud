@@ -1,7 +1,7 @@
 # This file is the release bill of materials. Production may deploy only the
 # exact compatible set recorded here; publishers update it only after their
 # verification gates pass.
-schema_version: 2
+schema_version: 3
 
 release:
   version: "0.2.0"
@@ -25,7 +25,26 @@ px-client:
   # Px must install this exact top-level Lore client release. Its artifacts
   # and source provenance are recorded once under lore-client below.
   lore_client_version: "0.8.4-portals.9"
-  # NOTE: v0.5.8 lacks Sigstore bundles. New release with lore-auth-v1 support needed.
+  # Migrated from verified-releases.json. This is retained as historical
+  # evidence and does not verify the current .10 Lore client pin.
+  verification:
+    verified_at: "2026-09-10T23:53:30.360Z"
+    verifier: "portalshq/portals-cloud/infra/pulumi/scripts/verify-and-promote-px-release.sh"
+    px:
+      source_commit: "49eeeb5dfd6536389e19ed81f2b42806714b0dc1"
+      release_tag: "v0.8.19"
+      security_contract: "lore-auth-v1"
+      artifact_manifest_sha256: "sha256:1e657a9fc867c82a796511e4bf858974a06f0d97993f3015aa545c1c08bb5f18"
+      signature_bundle_url: "https://github.com/portalshq/narrativeengine/releases/download/v0.8.19/SHA256SUMS.sigstore.json"
+      signature_verified: true
+      checksums_verified: true
+    lore_client:
+      version: "0.8.4-portals.9"
+      source_commit: "ed901a04f154b826a59ce50f8fa33d5bf078aac1"
+      artifact_manifest_sha256: "sha256:dc853999309ec32e2c91acb94f7ef2aad4f080ac4a0f7591d9371d5cd57eb089"
+      signature_bundle_url: "https://github.com/portalshq/lore/releases/download/v0.8.4-portals.9/SHA256SUMS.sigstore.json"
+      signature_verified: true
+      checksums_verified: true
 
   # Lore CLI is a separately published binary dependency of Px. Keep the
   # checked-out submodule pinned to upstream_commit until the minimal security
