@@ -52,24 +52,13 @@ jobs:
       - name: Audit Rust dependencies
         run: |
           cargo install cargo-audit --version 0.22.2 --locked
-          # aws-smithy-http-client retains legacy h2/rustls; rsa has no fixed release.
-          # rustls 0.21 is reachable only through aws-smithy-http-client, which pins
-          # hyper-rustls 0.24. Both advisories below are fixed in rustls 0.23.46,
-          # which the rest of the tree now uses. Drop these when aws-smithy-http-client
-          # moves off hyper-rustls 0.24.
-          cargo audit --file control-plane/Cargo.lock \
-            --ignore RUSTSEC-2026-0258 \
-            --ignore RUSTSEC-2026-0098 \
-            --ignore RUSTSEC-2026-0099 \
-            --ignore RUSTSEC-2026-0104 \
-            --ignore RUSTSEC-2023-0071 \
-            --ignore RUSTSEC-2026-0346 \
-            --ignore RUSTSEC-2026-0349
-          cargo audit --file infra/lore/lore/Cargo.lock
+          sh scripts/audit-rust.sh
 
       - name: Check Lore security implementation
         working-directory: infra/lore/lore
         run: |
+          rustup toolchain uninstall 1.97.0
+          rustup toolchain install 1.97.0 --profile minimal --component clippy --component rustfmt
           cargo fmt --all -- --check
           cargo check -p lore-server
 

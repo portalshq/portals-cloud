@@ -58,6 +58,35 @@ does not require human approval: configure required reviewers in GitHub if that
 is desired. The workflow itself only runs the release job for this repository's
 `main` branch, including manual runs.
 
+## Commit checks
+
+Install dependencies with `npm ci` to install Husky, and initialize source dependencies
+with `git submodule update --init --recursive`. Install `cargo-audit` once:
+`cargo install cargo-audit --version 0.22.2 --locked`.
+
+The sole maintained commit hook is `.husky/pre-commit`; `.husky/_/` contains
+Husky-generated launchers. It calls `npm run precommit` once. The runner:
+
+1. Audits the control-plane and Lore lockfiles once each through
+   `scripts/audit-rust.sh`, shared with Security Gates. Existing control-plane
+   exceptions are preserved; Lore has no exceptions. Missing tools/submodules,
+   unavailable advisory data, or blocking advisories fail the commit.
+2. Checks control-plane Rust formatting.
+3. Builds all 20 `@portalshq` package workspaces in one dependency-ordered Turbo
+   graph, including policy and platform-billing. Turbo may restore verified cache
+   outputs. The old affected-workspace build is removed to avoid a second build.
+4. Runs affected lint tasks, then runs `scripts/build-skills.mjs` once.
+5. Rejects generated skill files that differ from the index (including untracked
+   output). Review and stage those generated changes before retrying; the hook
+   does not silently stage other source edits.
+6. For staged frontend or Sanity changes only, retains PDF generation and stages
+   `generated-assets/`. This requires the frontend's existing local configuration.
+
+`npm run precommit` also runs the checks manually. No pre-push or commit-message
+hook repeats them. CI still independently validates clean checkouts; local hooks
+can be bypassed and are not a substitute for PR checks. Changesets' automated
+version commit disables Husky because its release job already runs validation.
+
 ## Everyday releases
 
 1. Run `npm run changeset`, select changed packages and version bumps, and write

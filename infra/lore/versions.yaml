@@ -32,17 +32,17 @@ px-client:
   # patch is committed to portalshq/lore; source_commit deliberately remains
   # empty while that fork commit and signed release do not yet exist.
 lore-client:
-  version: "0.8.4-portals.10"
+  version: "0.8.4-portals.12"
   source_repository: "https://github.com/portalshq/lore"
-  source_commit: "f717f97c7efffb53674d6c10cae94bd994b0c7e9"
+  source_commit: "9b839a5673eb4148947d575282d2a27d47b24f20"
   upstream_repository: "https://github.com/EpicGames/lore"
   upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
-  release_tag: "v0.8.4-portals.10"
+  release_tag: "v0.8.4-portals.12"
   security_contract: "lore-auth-v1"
   installer_sha256: "8e7cc96d1b9100610af6c1bd15ec2febbcb48d26cc7f19de3862496897810b74"
-  artifact_manifest_url: "https://github.com/portalshq/lore/releases/download/v0.8.4-portals.10/SHA256SUMS"
-  artifact_manifest_sha256: "sha256:7687395bb4f264df31f0da5bd3575085aad93dc4cdc22ddbfaa4f95eeeb2610c"
-  signature_bundle_url: "https://github.com/portalshq/lore/releases/download/v0.8.4-portals.10/SHA256SUMS.sigstore.json"
+  artifact_manifest_url: "https://github.com/portalshq/lore/releases/download/v0.8.4-portals.12/SHA256SUMS"
+  artifact_manifest_sha256: "sha256:11d1199172f50f117affe49a06de517107f4f90e09c406a487af7dc45a24e6f8"
+  signature_bundle_url: "https://github.com/portalshq/lore/releases/download/v0.8.4-portals.12/SHA256SUMS.sigstore.json"
 
 lore:
   # Docker Hub is the single production Lore image record.
