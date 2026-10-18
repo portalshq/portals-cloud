@@ -30,7 +30,7 @@ export default async function MarketingLayout({
 
   return (
     <div className="min-h-[100dvh] flex flex-col text-foreground font-sans">
-      <div className="flex-1 z-(--z-main) flex flex-col">
+      <div data-marketing-page-content className="flex-1 z-(--z-main) flex flex-col">
         <MarketingHeader detailLabels={detailLabels} />
         {children}
       </div>

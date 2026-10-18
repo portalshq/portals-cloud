@@ -18,7 +18,6 @@ use std::{collections::HashMap, sync::Arc};
 
 pub const JWT_AUDIENCES: [&str; 2] = ["lore", "portals.works"];
 
-const AUTHENTICATION_LIFETIME_HOURS: i64 = 8;
 const AUTHORIZATION_LIFETIME_MINUTES: i64 = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,6 +28,8 @@ pub struct ResourcePermission {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub originating_key_id: Option<uuid::Uuid>,
     pub sub: String,
     pub iss: String,
     pub iat: i64,
@@ -63,6 +64,7 @@ pub struct Jwks {
 
 #[derive(Clone)]
 pub struct KmsJwtSigner {
+    access_token_ttl_seconds: i64,
     backend: SignerBackend,
     key_id: String,
     kid: String,
@@ -113,6 +115,7 @@ impl KmsJwtSigner {
             });
         }
         Ok(Self {
+            access_token_ttl_seconds: 900,
             backend: SignerBackend::Kms(kms),
             key_id,
             kid,
@@ -147,6 +150,7 @@ impl KmsJwtSigner {
             }],
         };
         Ok(Self {
+            access_token_ttl_seconds: 900,
             backend: SignerBackend::Local(EncodingKey::from_rsa_pem(private_pem)?),
             key_id: String::new(),
             kid,
@@ -161,6 +165,51 @@ impl KmsJwtSigner {
         &self.jwks
     }
 
+    pub fn with_access_token_ttl(mut self, seconds: i64) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            (60..=3600).contains(&seconds),
+            "access token lifetime must be 60–3600 seconds"
+        );
+        self.access_token_ttl_seconds = seconds;
+        Ok(self)
+    }
+
+    /// Retain public verification keys during sealed-file key rotation. Never
+    /// retain retired private keys in the running container.
+    pub fn with_retired_local_keys(mut self, retired: Jwks) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            matches!(self.backend, SignerBackend::Local(_)),
+            "retired local keys require sealed-file signing"
+        );
+        let decoding_keys = Arc::make_mut(&mut self.decoding_keys);
+        for key in retired.keys {
+            anyhow::ensure!(
+                key.kty == "RSA" && key.alg == "RS256" && key.use_ == "sig",
+                "retired key must be an RSA/RS256 signing public key"
+            );
+            anyhow::ensure!(
+                !key.kid.is_empty() && !decoding_keys.contains_key(&key.kid),
+                "retired key ID is empty or duplicates another key"
+            );
+            let modulus = URL_SAFE_NO_PAD.decode(&key.n)?;
+            let exponent = URL_SAFE_NO_PAD.decode(&key.e)?;
+            let public = RsaPublicKey::new(
+                rsa::BigUint::from_bytes_be(&modulus),
+                rsa::BigUint::from_bytes_be(&exponent),
+            )?;
+            anyhow::ensure!(
+                public.n().bits() >= 2048,
+                "retired RSA key must be at least 2048 bits"
+            );
+            decoding_keys.insert(
+                key.kid.clone(),
+                DecodingKey::from_rsa_components(&key.n, &key.e)?,
+            );
+            self.jwks.keys.push(key);
+        }
+        Ok(self)
+    }
+
     pub async fn authentication_token(
         &self,
         subject: &str,
@@ -169,6 +218,26 @@ impl KmsJwtSigner {
         service_account: bool,
         idp: &str,
     ) -> anyhow::Result<(String, i64)> {
+        self.authentication_token_bound(
+            subject,
+            name,
+            preferred_username,
+            service_account,
+            idp,
+            None,
+        )
+        .await
+    }
+
+    pub async fn authentication_token_bound(
+        &self,
+        subject: &str,
+        name: &str,
+        preferred_username: &str,
+        service_account: bool,
+        idp: &str,
+        originating_key_id: Option<uuid::Uuid>,
+    ) -> anyhow::Result<(String, i64)> {
         self.issue(
             subject,
             name,
@@ -176,7 +245,8 @@ impl KmsJwtSigner {
             service_account,
             idp,
             None,
-            Duration::hours(AUTHENTICATION_LIFETIME_HOURS),
+            Duration::seconds(self.access_token_ttl_seconds),
+            originating_key_id,
         )
         .await
     }
@@ -194,6 +264,7 @@ impl KmsJwtSigner {
             &identity.idp,
             Some(vec![resource]),
             Duration::minutes(AUTHORIZATION_LIFETIME_MINUTES),
+            identity.originating_key_id,
         )
         .await
     }
@@ -207,10 +278,12 @@ impl KmsJwtSigner {
         idp: &str,
         resources: Option<Vec<ResourcePermission>>,
         lifetime: Duration,
+        originating_key_id: Option<uuid::Uuid>,
     ) -> anyhow::Result<(String, i64)> {
         let now = Utc::now();
         let exp = (now + lifetime).timestamp();
         let claims = Claims {
+            originating_key_id,
             sub: subject.into(),
             iss: self.issuer.clone(),
             iat: now.timestamp(),
@@ -336,6 +409,57 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn configurable_access_lifetime_preserves_authorization_lifetime() {
+        let signer = local_signer("dev");
+        assert_eq!(signer.access_token_ttl_seconds, 900);
+        let signer = signer.with_access_token_ttl(60).unwrap();
+        let (token, _) = signer
+            .authentication_token("user", "User", "user@example.test", false, "test")
+            .await
+            .unwrap();
+        let claims = signer.verify_authentication(&token).unwrap();
+        assert_eq!(claims.exp - claims.iat, 60);
+        let resource = ResourcePermission {
+            resource_id: "urc-0123456789abcdef0123456789abcdef".into(),
+            permission: vec!["read".into()],
+        };
+        let (token, _) = signer
+            .authorization_token(&claims, resource.clone())
+            .await
+            .unwrap();
+        let claims = signer
+            .verify_authorization(&token, &resource.resource_id)
+            .unwrap();
+        assert_eq!(claims.exp - claims.iat, 300);
+        let id = uuid::Uuid::new_v4();
+        let (token, _) = signer
+            .authentication_token_bound(
+                "service",
+                "Service",
+                "service@example.test",
+                true,
+                "service-account",
+                Some(id),
+            )
+            .await
+            .unwrap();
+        let bound = signer.verify_authentication(&token).unwrap();
+        assert!(bound.is_service_account);
+        assert_eq!(bound.originating_key_id, Some(id));
+        let (token, _) = signer
+            .authorization_token(&bound, resource.clone())
+            .await
+            .unwrap();
+        assert_eq!(
+            signer
+                .verify_authorization(&token, &resource.resource_id)
+                .unwrap()
+                .originating_key_id,
+            Some(id)
+        );
+    }
+
+    #[tokio::test]
     async fn local_rs256_tokens_enforce_kind_environment_and_resource() {
         let signer = local_signer("dev");
         let (authn, _) = signer
@@ -392,5 +516,46 @@ mod tests {
             "prod".into()
         )
         .is_ok());
+    }
+
+    #[tokio::test]
+    async fn sealed_file_rotation_preserves_old_tokens_and_rejects_duplicate_keys() {
+        let make_signer = |kid: &str| {
+            let key = RsaPrivateKey::new(&mut rand::thread_rng(), 2048).unwrap();
+            let pem = key.to_pkcs8_pem(LineEnding::LF).unwrap();
+            KmsJwtSigner::load_local(
+                pem.as_bytes(),
+                kid.into(),
+                "https://auth.portals.works".into(),
+                "prod".into(),
+            )
+            .unwrap()
+        };
+        let old = make_signer("old");
+        let new = make_signer("new");
+        let (old_token, _) = old
+            .authentication_token("user", "User", "user@example.com", false, "test")
+            .await
+            .unwrap();
+        assert!(new.verify_authentication(&old_token).is_err());
+        let rotated = new
+            .clone()
+            .with_retired_local_keys(old.jwks().clone())
+            .unwrap();
+        assert!(rotated.verify_authentication(&old_token).is_ok());
+        let (new_token, _) = rotated
+            .authentication_token("user", "User", "user@example.com", false, "test")
+            .await
+            .unwrap();
+        assert!(rotated.verify_authentication(&new_token).is_ok());
+        assert!(old.verify_authentication(&new_token).is_err());
+        assert_eq!(rotated.jwks().keys.len(), 2);
+        assert!(new
+            .clone()
+            .with_retired_local_keys(new.jwks().clone())
+            .is_err());
+        let mut malformed = old.jwks().clone();
+        malformed.keys[0].alg = "HS256".into();
+        assert!(new.with_retired_local_keys(malformed).is_err());
     }
 }

@@ -77,6 +77,17 @@ fn subject_type(claims: &Claims) -> &'static str {
 }
 
 async fn require_active(state: &GatewayState, claims: &Claims) -> Result<(), Status> {
+    if let Some(key_id) = claims.originating_key_id {
+        if !claims.is_service_account
+            || !state
+                .store
+                .api_key_active(key_id, &claims.sub)
+                .await
+                .map_err(internal_error)?
+        {
+            return Err(Status::permission_denied("originating API key is inactive"));
+        }
+    }
     if state
         .store
         .principal_active(subject_type(claims), &claims.sub)
@@ -191,6 +202,7 @@ impl UrcAuthApi for AuthService {
             .await
             .map_err(internal_error)?;
         let claims = Claims {
+            originating_key_id: None,
             sub: session.subject_id.clone(),
             iss: self.state.config.jwt_issuer.clone(),
             iat: Utc::now().timestamp(),
@@ -242,42 +254,65 @@ impl UrcAuthApi for AuthService {
         }
         let refresh_token = bearer(request.metadata())?;
         // Never log the raw token — store layer hashes it.
-        let (session, new_refresh) = self
-            .state
-            .store
-            .rotate_refresh_token(refresh_token)
-            .await
-            .map_err(|e| {
-                let msg = e.to_string();
-                if msg.contains("reuse detected") {
-                    // Replay: family already revoked, do not reveal which token.
-                    error!("refresh reuse detected and family revoked");
-                    Status::permission_denied("refresh token reuse detected")
-                } else if msg.contains("expired") {
-                    Status::unauthenticated("refresh token is expired")
-                } else if msg.contains("revoked") || msg.contains("invalid") {
-                    Status::unauthenticated("refresh token is invalid")
-                } else if msg.contains("principal is disabled") {
-                    Status::permission_denied("principal is disabled")
-                } else {
-                    error!(error = %msg, "refresh rotation failed");
-                    Status::unauthenticated("refresh token is invalid")
-                }
-            })?;
+        let rotation = self.state.store.rotate_refresh_token(refresh_token).await;
+        if let Err(error) = &rotation {
+            let unavailable = error.downcast_ref::<sqlx::Error>().is_some();
+            let event = if unavailable {
+                "refresh_unavailable"
+            } else if error.to_string().contains("reuse detected") {
+                "refresh_replay"
+            } else {
+                "refresh_rejected"
+            };
+            self.state
+                .store
+                .record_audit(
+                    event,
+                    None,
+                    None,
+                    if unavailable { "error" } else { "denied" },
+                    serde_json::json!({}),
+                )
+                .await;
+        }
+        let (session, new_refresh) = rotation.map_err(|e| {
+            if e.downcast_ref::<sqlx::Error>().is_some() {
+                return Status::unavailable(
+                    "authentication storage unavailable; login may be required",
+                );
+            }
+            let msg = e.to_string();
+            if msg.contains("reuse detected") {
+                // Replay: family already revoked, do not reveal which token.
+                error!("refresh reuse detected and family revoked");
+                Status::permission_denied("refresh token reuse detected")
+            } else if msg.contains("expired") {
+                Status::unauthenticated("refresh token is expired")
+            } else if msg.contains("revoked") || msg.contains("invalid") {
+                Status::unauthenticated("refresh token is invalid")
+            } else if msg.contains("principal is disabled") {
+                Status::permission_denied("principal is disabled")
+            } else {
+                error!(error = %msg, "refresh rotation failed");
+                Status::unavailable("authentication storage unavailable; login may be required")
+            }
+        })?;
         // Mint a new authentication token for the same principal.
         let (token, exp) = self
             .state
             .signer
-            .authentication_token(
+            .authentication_token_bound(
                 &session.subject_id,
                 &session.display_name,
                 &session.preferred_username,
-                false,
+                session.subject_type == "service_account",
                 &session.idp,
+                session.originating_key_id,
             )
             .await
             .map_err(internal_error)?;
         let claims = Claims {
+            originating_key_id: session.originating_key_id,
             sub: session.subject_id.clone(),
             iss: self.state.config.jwt_issuer.clone(),
             iat: Utc::now().timestamp(),
@@ -286,7 +321,7 @@ impl UrcAuthApi for AuthService {
             env: self.state.config.environment.clone(),
             name: session.display_name.clone(),
             preferred_username: session.preferred_username.clone(),
-            is_service_account: false,
+            is_service_account: session.subject_type == "service_account",
             resources: None,
             groups: None,
             idp: session.idp.clone(),
@@ -397,15 +432,7 @@ impl UrcAuthApi for AuthService {
         let resource_id = &resources[0];
         crate::store::validate_resource(resource_id)
             .map_err(|_| Status::invalid_argument("invalid repository resource"))?;
-        if !self
-            .state
-            .store
-            .principal_active(subject_type(&authn), &authn.sub)
-            .await
-            .map_err(internal_error)?
-        {
-            return Err(Status::permission_denied("principal is disabled"));
-        }
+        require_active(&self.state, &authn).await?;
         let relation = self
             .state
             .store
@@ -454,6 +481,7 @@ impl UrcAuthApi for AuthService {
                     .map_err(|_| Status::unauthenticated("invalid token"))?
             }
         };
+        require_active(&self.state, &claims).await?;
         let mut allowed = Vec::new();
         let mut denied = Vec::new();
         for resource in &request.get_ref().resource_id {
@@ -486,6 +514,7 @@ impl UrcAuthApi for AuthService {
             .signer
             .verify_authentication(bearer(request.metadata())?)
             .map_err(|_| Status::unauthenticated("invalid authentication token"))?;
+        require_active(&self.state, &claims).await?;
         let rows = self
             .state
             .store
@@ -566,6 +595,7 @@ impl UrcAuthApi for AuthService {
             .signer
             .verify_authentication(bearer(request.metadata())?)
             .map_err(|_| Status::unauthenticated("invalid authentication token"))?;
+        require_active(&self.state, &claims).await?;
         if claims.sub != request.get_ref().user_id {
             return Err(Status::permission_denied(
                 "cannot inspect another provider identity",
@@ -613,16 +643,20 @@ impl AuthService {
         let (token, exp) = self
             .state
             .signer
-            .authentication_token(
+            .authentication_token_bound(
                 &principal.subject_id,
                 &principal.display_name,
                 &principal.preferred_username,
                 true,
                 "service-account",
+                Some(crate::store::public_key_id(candidate).map_err(internal_error)?),
             )
             .await
             .map_err(internal_error)?;
         let claims = Claims {
+            originating_key_id: Some(
+                crate::store::public_key_id(candidate).map_err(internal_error)?,
+            ),
             sub: principal.subject_id,
             iss: self.state.config.jwt_issuer.clone(),
             iat: Utc::now().timestamp(),
@@ -636,7 +670,30 @@ impl AuthService {
             groups: None,
             idp: "service-account".into(),
         };
-        Ok(user_token(token, &claims))
+        let (refresh, _) = self
+            .state
+            .store
+            .create_bound_refresh_session(
+                "service_account",
+                &claims.sub,
+                &claims.name,
+                &claims.preferred_username,
+                "service-account",
+                Some(crate::store::public_key_id(candidate).map_err(internal_error)?),
+            )
+            .await
+            .map_err(internal_error)?;
+        self.state
+            .store
+            .record_audit(
+                "token_issued",
+                Some(&claims.sub),
+                Some("service-account"),
+                "success",
+                serde_json::json!({"flow":"api_key"}),
+            )
+            .await;
+        Ok(user_token_with_refresh(token, refresh, &claims))
     }
 }
 
@@ -810,14 +867,12 @@ async fn actor_claims(state: &GatewayState, headers: &HeaderMap) -> Result<Claim
         .signer
         .verify_authentication(token)
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
-    if !state
-        .store
-        .principal_active(subject_type(&claims), &claims.sub)
+    require_active(state, &claims)
         .await
-        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-    {
-        return Err(StatusCode::FORBIDDEN);
-    }
+        .map_err(|error| match error.code() {
+            tonic::Code::Internal | tonic::Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
+            _ => StatusCode::FORBIDDEN,
+        })?;
     Ok(claims)
 }
 
@@ -984,12 +1039,18 @@ pub async fn run(config: GatewayConfig) -> anyhow::Result<()> {
             .jwt_local_private_key_path
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("sealed-file signing key is missing"))?;
-        KmsJwtSigner::load_local(
+        let signer = KmsJwtSigner::load_local(
             &std::fs::read(path)?,
             config.jwt_kid.clone(),
             config.jwt_issuer.clone(),
             config.environment.clone(),
-        )?
+        )?;
+        match &config.jwt_local_retired_jwks_path {
+            Some(path) => {
+                signer.with_retired_local_keys(serde_json::from_slice(&std::fs::read(path)?)?)?
+            }
+            None => signer,
+        }
     } else {
         KmsJwtSigner::load_with_retired(
             aws_sdk_kms::Client::new(&aws),
@@ -1001,6 +1062,7 @@ pub async fn run(config: GatewayConfig) -> anyhow::Result<()> {
         )
         .await?
     };
+    let signer = signer.with_access_token_ttl(config.access_token_ttl_seconds)?;
     let state = GatewayState {
         oauth: CognitoOauth::new(config.clone(), store.clone()),
         config: config.clone(),

@@ -12,7 +12,6 @@
 CREATE TABLE IF NOT EXISTS input_windows (
   id text PRIMARY KEY,
   revision integer NOT NULL DEFAULT 1,
-
   world_id text NOT NULL,
   branch_id text NOT NULL,
   base_commit_hash text NOT NULL,
@@ -114,12 +113,10 @@ CREATE INDEX IF NOT EXISTS resolutions_window_idx ON resolutions(window_id, stat
 CREATE TABLE IF NOT EXISTS moderation_decisions (
   id text PRIMARY KEY,
   submission_id text NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-
   status text NOT NULL CHECK (status IN ('allow', 'reject', 'review', 'transform')),
   reasons jsonb,
   policy_version text NOT NULL,
   reviewed_by text NOT NULL CHECK (reviewed_by IN ('rules', 'model', 'human')),
-
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -134,7 +131,6 @@ CREATE TABLE IF NOT EXISTS interaction_outbox (
   event_type text NOT NULL,
   sequence integer NOT NULL,
   payload jsonb NOT NULL,
-
   published_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );

@@ -71,7 +71,7 @@ const overviewItems: OverviewItem[] = [
       'characters, props, and locations stay addressable and reusable',
       'approved assets reference approved work — never a guess',
     ],
-    textC: ['Approved means approved — verifiable every time.'],
+    textC: ['Approved means verifiable every time.'],
   },
   {
     heading: 'Collaboration',
@@ -484,8 +484,8 @@ function OverviewSection() {
                 </div>
                 <div className="col-span-full space-y-18">
                   <NumberLabel index={scrollIndex} />
-                  <div className="relative -mx-sms h-px bg-white/20">
-                    <div ref={progressLineRef} data-progress-line className="saga-overview-progress-line absolute top-0 left-0 h-px w-full origin-left bg-white" />
+                  <div className="relative -mx-sms h-2 bg-white/20">
+                    <div ref={progressLineRef} data-progress-line className="saga-overview-progress-line absolute top-0 left-0 h-2 w-full origin-left bg-white" />
                   </div>
                 </div>
 
@@ -499,7 +499,7 @@ function OverviewSection() {
                       <div className="saga-overview-subsection-stack grid">
                         {overviewItems.map((item, index) => (
                           <div key={`${item.heading}-a`} data-content-index={index} data-overview-visible={visibleIndex === index && transitionStage !== 'hidden' && transitionStage !== 'exiting'} className="saga-overview-content col-start-1 row-start-1" style={{ ...overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection), ...overviewColumnMotionStyle(visibleIndex === index && transitionStage !== 'hidden' && transitionStage !== 'exiting', scrollDirection) }}>
-                            <Paragraphs lines={item.textA} className="t-p-lg-serif" />
+                            <Paragraphs lines={item.textA} className="t-p-lg-serif text-balance" />
                           </div>
                         ))}
                       </div>
@@ -726,7 +726,7 @@ function ProblemSection() {
         <div className="col-span-full grid grid-cols-1 lg:grid-cols-3">
           {problemCards.map((card, index) => (
             <div key={card.title}>
-              <article className={`min-h-194 h-full p-24 rounded-sm text-white flex flex-col ${index % 2 === 0 ? 'bg-white/10' : ''}`}>
+              <article className={`min-h-194 h-full p-24 rounded-sm text-white flex flex-col ${index % 2 === 1 ? 'bg-white/10' : ''}`}>
                 <div className="mb-20 flex items-center gap-x-8">
                   <span className="size-8 bg-white" />
                   <span className="t-m2">{card.label}</span>
@@ -1034,7 +1034,7 @@ function PricingSection({
         <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] lg:mx-auto rounded">
           {pilotTier ? [pilotTier].map((tier) => (
             <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
-              <h3 className="t-h3-sans mb-20">{tier.name}</h3>
+              <h3 className="t-h3-sans">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
                 <span className="t-m2 !lowercase">{tier.period}</span>
               </div>
@@ -1188,9 +1188,9 @@ export function VCS({
             <h1 ref={heroHeadingRef} className="max-w-[12.725em] text-balance t-d2-sans">
               scale{' '}
               <strong className="t-d2-serif">creative media production</strong>{' '}
-              <br/>without the overhead
+              <br />without the overhead
             </h1>
-            <p className="t-h3-sans max-w-[24.5ch]">ship campaigns faster, cut production costs, and keep every asset traceable from brief to delivery.</p>
+            <p className="t-h3-sans max-w-[24.5ch]">Ship campaigns faster, cut production costs, and keep every asset traceable from concept to delivery.</p>
             <p className="t-p-sm-sans max-w-[52ch]">
               Discover the bottlenecks costing you time, output, and margin in 4 minutes. Receive personalized recommendations.
             </p>
@@ -1211,7 +1211,7 @@ export function VCS({
         <div className="saga-hero-repository saga-hero-repository--desktop col-span-full grid grid-cols-subgrid">
           <div className="md:col-span-8 md:col-start-5 flex justify-center md:justify-end items-end col-span-full">
             <div className="saga-hero-repository-anchor">
-              <div className="saga-hero-repository-copy t-p-sans lowercase!">
+              <div className="saga-hero-repository-copy t-p-sans">
                 <p>
                   the production memory for
                   <br />
@@ -1224,9 +1224,9 @@ export function VCS({
       </section>
 
       <div className="saga-mobile-repository-transition">
-        <p ref={mobileRepositoryCopyRef} className="saga-mobile-repository-copy t-p-sans lowercase!">
+        <p ref={mobileRepositoryCopyRef} className="saga-mobile-repository-copy t-p-sans">
           the production memory for
-            AI{`\u2011`}native creative teams
+          AI{`\u2011`}native creative teams
         </p>
       </div>
 

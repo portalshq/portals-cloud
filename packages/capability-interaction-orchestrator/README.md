@@ -1,248 +1,616 @@
 # @portalshq/capability-interaction-orchestrator
 
-A durable interaction lifecycle for input windows, moderated submissions, selection,
-credit-backed billing, execution handoff and replayable events. PostgreSQL owns
-admission, quotas, idempotency, credit allocations, resolutions and event ordering.
+**Reusable interaction orchestration for Portals:** input windows, submission gateway, arbitration engine, moderation gateway, billing controller, and event publisher.
 
-## Setup
+## Status: Phase 1 (Stub Package) - NOT Production-Ready
 
-Requires Node.js 22+, PostgreSQL, and the `@portalshq/monetization` entitlement schema
-in the **same database**. Apply migrations with errors stopping the transaction:
+This is currently a **stub package** providing TypeScript interfaces and type definitions. Implementations throw "not implemented" errors. Full implementation coming in Phase 2.
 
-```sh
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
-  -f node_modules/@portalshq/monetization/sql/001_monetization.sql \
-  -f node_modules/@portalshq/capability-interaction-orchestrator/sql/001_interaction_orchestrator_core.sql \
-  -f node_modules/@portalshq/capability-interaction-orchestrator/sql/002_durable_lifecycle.sql
+**Production Readiness:**
+- **Phase 1 (Current):** NOT production-ready - stubs only
+- **Phase 2:** Production-ready for basic use cases (FIFO, E-rated, prepaid credits)
+- **Phase 3:** Production-ready for all use cases (all policies, all ratings, pluggable moderation)
+
+## Overview
+
+The Interaction Orchestrator provides reusable infrastructure for managing user interactions in AI-driven entertainment experiences. It handles:
+
+- **Input Windows** - Time-bounded opportunities for user interaction
+- **Submission Gateway** - Validation, idempotency, and admission
+- **Arbitration Engine** - Configurable contention resolution policies
+- **Moderation Gateway** - Rating-based and pluggable content moderation
+- **Billing Controller** - Integration with `@portalshq/monetization`
+- **Event Publisher** - SSE/outbox for frontend signaling
+
+## Installation
+
+```bash
+npm install @portalshq/monetization  # Peer dependency
+npm install @portalshq/capability-interaction-orchestrator
 ```
 
-Deploy the accompanying monetization update together with this package: both use
-ID order for grant locks while consuming the oldest matching credits first.
-The old `Stub*` exports have been removed. The executable classes now require their
-actual dependencies; no implementation silently grants a payment or host approval.
+## Core Concepts
 
-## Lifecycle interface
+### Input Windows
+
+An Input Window represents a time-bounded opportunity for user interaction. Examples:
+- A 30-second audience vote on a plot twist
+- A 1-minute challenge round in a game show
+- An always-open paid prompt queue (set `closesAt` to null)
+
+**Window Lifecycle:**
+```
+scheduled → open → qualifying → resolving → executing → committing → published
+```
+
+**Key Properties:**
+- `worldId` - Channel/world identifier
+- `conflictKey` - Contention scoping (entity, branch, or session)
+- `arbitrationPolicy` - How to resolve contention (FIFO, voting, etc.)
+- `billingPolicy` - How to charge (free, pay-to-submit, etc.)
+- `contentRating` - Moderation threshold (E, T, T+, M)
+- `closesAt` - When window closes (null = always-open)
+
+### Submissions
+
+A Submission is a user's proposed action against a specific target. Multiple submissions may compete for selection via arbitration.
+
+**Key Properties:**
+- `windowId` - Window this submission belongs to
+- `actorId` - User/app identifier
+- `idempotencyKey` - Retry safety
+- `kind` - Type of interaction (vote, prompt, mutation, etc.)
+- `payload` - Submission data
+- `status` - Lifecycle state
+
+### Resolutions
+
+A Resolution represents the outcome of arbitration: which submissions were selected and how they were combined into execution.
+
+**Key Properties:**
+- `selectedSubmissionIds` - IDs of selected submissions
+- `rejectedSubmissionIds` - IDs of rejected submissions
+- `arbitrationPolicy` - Policy used
+- `resultingCommitHash` - Resulting world state
+
+### Arbitration Policies
+
+The package supports 7 arbitration policies, configurable per window:
+
+1. **first_accepted** - Earliest qualifying submission wins (exclusive actions)
+2. **fifo** - Every qualifying input executes in order (paid story creation)
+3. **plurality** - Most votes wins (game shows)
+4. **ranked** - Rank by priority, then tie-break (featured submissions)
+5. **batch** - Combine compatible inputs (live narrative twists)
+6. **parallel_branches** - Every qualified input gets independent result (remix galleries)
+7. **host_selection** - Host manually selects (curated events)
+
+### Content Rating System
+
+Based on DC Comics rating system:
+
+- **E (Everyone)** - All ages, cartoonish action, no profanity/violence/sexual content
+- **T (Teen)** - Ages 12+, mild violence/language/suggestive dialogue
+- **T+ (Teen Plus)** - Ages 15+, moderate profanity, graphic action, mature storylines
+- **M (Mature)** - Ages 17+, heavy sexual themes, nudity, extensive profanity, graphic violence
+
+### Billing Policies
+
+- **free** - No payment required
+- **pay_to_generate** - Payment before generation
+- **pay_to_publish** - Payment after valid preview, before publication
+- **pay_for_guaranteed_slot** - Payment for guaranteed submission/placement
+- **capture_if_selected** - Authorize payment, capture only if selected
+- **prepaid_credits** - Consume prepaid credits
+
+## Phase 1: Stub Package (Current)
+
+**What exists:**
+- TypeScript interfaces and types
+- Stub implementations (throw "not implemented - Phase 2")
+- Core database schema
+- Basic documentation
+
+**What's missing:**
+- Actual implementations
+- Database persistence layer
+- Integration with `@portalshq/monetization`
+- Integration with `@portalshq/capability-realtime-fanout-postgres`
+- Tests
+
+## Phase 2: Core Implementation (Next)
+
+**Will include:**
+- Window Manager (in-process window closer via setInterval)
+- Submission Gateway (validation, idempotency, admission)
+- Arbitration Engine (FIFO policy)
+- Moderation Gateway (E-rated, rule-based validators)
+- Billing Controller (monetization integration)
+- Event Publisher (fanout-postgres integration)
+- PostgreSQL persistence layer
+- Tests for implemented components
+- Migration guide for replacing existing guides.ts
+
+**Production-ready for:**
+- Always-open queues (like current guides.ts)
+- FIFO arbitration
+- E-rated content
+- Prepaid credit billing
+- Basic SSE event publishing
+
+**Estimated effort:** 60 hours
+
+## Phase 3: Full Feature Set
+
+**Will add:**
+- Remaining 6 arbitration policies (plurality, ranked, batch, etc.)
+- T, T+, M rating validators
+- Pluggable moderation interface for custom validators
+- Advanced billing policies
+- Complete documentation and examples
+- 95% test coverage
+
+**Estimated effort:** 44 hours
+
+## Database Schema
+
+### Core Schema (Package-Provided)
+
+The package provides core tables in `sql/001_interaction_orchestrator_core.sql`:
+
+- `input_windows` - Window definitions
+- `submissions` - User submissions
+- `resolutions` - Arbitration outcomes
+- `moderation_decisions` - Moderation results
+- `interaction_outbox` - Event queue
+
+### App Extensions (App-Provided)
+
+Applications can extend core tables via:
+- `app_metadata` JSONB column on all core tables
+- Additional extension tables with foreign keys to core tables
+
+**Example extension:**
+```sql
+-- App-specific extension table
+CREATE TABLE game_show_windows (
+  window_id text PRIMARY KEY REFERENCES input_windows(id),
+  round_number integer NOT NULL,
+  contestant_count integer NOT NULL
+);
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│           Interaction Orchestrator Package                  │
+│                   (In-Process Only)                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────┐        ┌──────────────────┐          │
+│  │ Window Manager   │        │Submission Gateway│          │
+│  │ - Lifecycle      │        │ - Validation     │          │
+│  │ - Triggers       │        │ - Idempotency    │          │
+│  │ - State Machine  │        │ - Admission      │          │
+│  │ - setInterval    │        │                  │          │
+│  └────────┬─────────┘        └────────┬─────────┘          │
+│           │                            │                     │
+│           └────────────┬───────────────┘                     │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │         Moderation Gateway              │               │
+│  │ - Admission validation (built-in)       │               │
+│  │ - Content safety (rating-based)         │               │
+│  │ - Custom validators (pluggable)         │               │
+│  │ - E/T/T+/M rating system                │               │
+│  └────────────────────┬────────────────────┘               │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │      Arbitration Engine                  │               │
+│  │ - FIFO, voting, branches, etc.           │               │
+│  │ - Configurable per window               │               │
+│  └────────────────────┬────────────────────┘               │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │      Billing Controller                  │               │
+│  │ - Quote, authorize, capture              │               │
+│  │ - Integration with @portalshq/monetization│
+│  └────────────────────┬────────────────────┘               │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │      Event Publisher                     │               │
+│  │ - SSE events, outbox                     │               │
+│  │ - Integration with fanout-postgres       │               │
+│  └─────────────────────────────────────────┘               │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Ownership Boundaries
+
+**Package owns:**
+- Window lifecycle
+- Admission gates
+- Arbitration policies
+- Event signaling
+- Core database schema
+
+**Application owns:**
+- Moderation rules (custom validators)
+- World constraints (custom validators)
+- Model execution (production layer)
+- Pricing (monetization catalog)
+- Schema extensions (app_metadata, extension tables)
+- Production layer workers (unchanged)
+
+## Peer Dependencies
+
+- `@portalshq/monetization` - Billing, entitlements, ledger
+
+## Integration with Portals Packages
+
+- `@portalshq/monetization` - Billing Controller integration
+- `@portalshq/capability-realtime-fanout-postgres` - Event Publisher integration
+- `@portalshq/capability-identity` - Actor ID verification
+- `@portalshq/capability-live-production` - Window triggers integration
+- `@portalshq/queue-broadcast` - Media staging integration
+
+## Migration Path for Bears Live App
+
+**Phase 1:** Apply core schema, keep existing `guides.ts` unchanged
+
+**Phase 2:** 
+- Rename `guides.ts` to `interaction-orchestrator-client.ts`
+- Rewrite to use new package
+- Configure as always-open window (no closesAt)
+- Set content rating to "E"
+- Test with existing payment flow
+
+**Phase 3:** Add advanced features (voting, branches, etc.)
+
+## Development
+
+```bash
+# Build
+npm run build
+
+# Type check
+npm run typecheck
+
+# Test (Phase 2+)
+npm test
+
+# Test with coverage (Phase 2+)
+npm run test:coverage
+```
+
+## Database Setup
+
+Apply the core schema to your PostgreSQL database:
+
+```bash
+psql $DATABASE_URL -f node_modules/@portalshq/capability-interaction-orchestrator/sql/001_interaction_orchestrator_core.sql
+```
+
+For Bears Live App migration, see the migration section below.
+
+## Migration from guides.ts to Interaction Orchestrator
+
+### Current State (guides.ts)
+
+The existing `guides.ts` in Bears Live App provides:
+- Simple FIFO queue for paid prompts
+- 1 credit per prompt via `@portalshq/monetization`
+- Basic validation and text model moderation
+- Implicit always-open window (no explicit window management)
+- Single arbitration policy (all eligible prompts used)
+
+### Migration Path
+
+**Phase 1 (Current):**
+- Apply core schema to Bears database
+- Keep existing `guides.ts` unchanged
+- No functional changes
+
+**Phase 2:**
+1. Rename `guides.ts` to `interaction-orchestrator-client.ts`
+2. Import `WindowManager`, `SubmissionGateway`, etc. from new package
+3. Create an always-open window:
+   ```typescript
+   const window = await windowManager.createWindow({
+     worldId: channelId,
+     branchId: "canonical",
+     baseCommitHash: currentCommit,
+     conflictKey: channelId,
+     allowedInputKinds: ["custom_prompt"],
+     arbitrationPolicy: "fifo",
+     billingPolicy: "prepaid_credits",
+     maxSubmissionsPerUser: 1,
+     maxSelectedInputs: 5,
+     opensAt: new Date().toISOString(),
+     closesAt: null,  // Always-open
+     contentRating: "E",
+   });
+   ```
+4. Replace `submitGuide()` with `submissionGateway.submitIntent()`
+5. Replace `takePendingGuides()` with window closure and arbitration
+6. Integrate moderation gateway with existing text model moderation
+7. Test with existing payment flow
+
+**Phase 3:**
+- Add voting windows for game-show modes
+- Add host selection for curated events
+- Add parallel branches for remixes
+- Add billing variants (pay-if-selected, pay-to-publish)
+
+## Example: Always-Open Paid Prompt Queue
+
+This example shows how to replace the current `guides.ts` with the Interaction Orchestrator:
 
 ```typescript
-import { Pool } from 'pg';
 import {
-  InteractionRepository,
-  InteractionOrchestrator,
-} from '@portalshq/capability-interaction-orchestrator';
+  WindowManager,
+  SubmissionGateway,
+  ArbitrationEngine,
+  ModerationGateway,
+  BillingController,
+  EventPublisher,
+  type CreateWindowInput,
+  type SubmitIntentInput,
+} from "@portalshq/capability-interaction-orchestrator";
+import { createHash, randomUUID } from "node:crypto";
+import type pg from "pg";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const repository = new InteractionRepository(pool);
-const interactions = new InteractionOrchestrator(repository);
+// Initialize components (in Phase 2, these will be real implementations)
+const windowManager = new WindowManager(pool);
+const submissionGateway = new SubmissionGateway(pool);
+const arbitrationEngine = new ArbitrationEngine();
+const moderationGateway = new ModerationGateway();
+const billingController = new BillingController(monetizationStore);
+const eventPublisher = new EventPublisher(fanoutBus);
 
-const window = await interactions.windows.createWindow({
-  worldId: 'channel-123',
-  branchId: 'canonical',
-  baseCommitHash: 'current-commit',
-  conflictKey: 'story',
-  allowedInputKinds: ['custom_prompt'],
-  arbitrationPolicy: 'fifo',
-  billingPolicy: 'prepaid_credits',
-  billingTerms: {
-    tenantId: 'creator-tenant',
-    entitlementKind: 'creator-tenant:story_guide',
-    amountCredits: 1,
-    amountCents: 100,
-    currency: 'USD',
-    // Set sessionId only when the actual entitlement scope names a session.
-  },
-  maxSubmissionsPerUser: 1,
-  maxSelectedInputs: 5,
-  opensAt: new Date().toISOString(),
-  closesAt: null,
-  contentRating: 'E',
-});
-await interactions.windows.openWindow(window.id);
+// Create always-open window for paid prompts
+async function createPromptWindow(channelId: string): Promise<string> {
+  const windowId = randomUUID();
+  const window = await windowManager.createWindow({
+    worldId: channelId,
+    branchId: "canonical",
+    baseCommitHash: currentCommit,
+    conflictKey: channelId,
+    allowedInputKinds: ["custom_prompt"],
+    arbitrationPolicy: "fifo",
+    billingPolicy: "prepaid_credits",
+    maxSubmissionsPerUser: 1,
+    maxSelectedInputs: 5,
+    opensAt: new Date().toISOString(),
+    closesAt: null, // Always-open
+    contentRating: "E",
+    moderationPolicyVersion: "1.0",
+    rulesetVersion: "1.0",
+  });
+  return window.id;
+}
 
-const submission = await interactions.submissions.submitIntent({
-  windowId: window.id,
-  actorId: 'authenticated-consumer-id',
-  idempotencyKey: 'request-id-kept-across-retries',
-  kind: 'custom_prompt',
-  payload: { prompt: 'Explore the old lighthouse' },
-});
-if (submission.status !== 'eligible') {
-  // Rejected inputs and inputs awaiting human review do not enter selection.
-  console.log(submission.status);
+// Submit a paid prompt
+async function submitPaidPrompt(
+  channelId: string,
+  userId: string,
+  prompt: string,
+): Promise<Submission> {
+  const windowId = getOrCreateWindowId(channelId);
+  
+  const submission = await submissionGateway.submitIntent({
+    windowId,
+    actorId: userId,
+    idempotencyKey: createHash(userId + prompt).digest('hex'),
+    kind: "custom_prompt",
+    payload: { prompt },
+  });
+  
+  return submission;
+}
+
+// Take prompts for next generation (replaces takePendingGuides)
+async function takePromptsForGeneration(
+  channelId: string,
+  limit: number = 5,
+): Promise<Submission[]> {
+  const windowId = getWindowId(channelId);
+  const submissions = await submissionGateway.listSubmissions(windowId, "eligible");
+  
+  // Resolve via FIFO arbitration
+  const resolution = await arbitrationEngine.resolve(
+    await windowManager.getWindow(windowId),
+    submissions.slice(0, limit),
+  );
+  
+  // Get selected submissions
+  const selected = await Promise.all(
+    resolution.selectedSubmissionIds.map(id => submissionGateway.getSubmission(id))
+  );
+  
+  return selected.filter((s): s is Submission => s !== null);
 }
 ```
 
-`actorId` must come from authenticated application identity. Authorize the caller
-against the window's world before exposing submission, cancellation, review,
-host-selection, refund or event methods over a network. This package is an internal
-module; it does not authenticate HTTP requests. Window configuration, billing terms,
-policy configuration and moderation context come from trusted application code.
-Submission payloads and app metadata cannot set prices, rank or host authority.
+## Architecture Diagram
 
-The server reloads prices for `billing.quote(window, actorId)`; the quote is an
-informational display, not a payment approval. All paid policies settle **credits
-already granted by monetization**. Fiat checkout, Stripe authorization and monetary
-refunds belong to monetization's purchase lifecycle. No synthetic Stripe holds are
-created here.
+```
+┌─────────────────────────────────────────────────────────────┐
+│           Interaction Orchestrator Package                  │
+│                   (In-Process Only)                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────┐        ┌──────────────────┐          │
+│  │ Window Manager   │        │Submission Gateway│          │
+│  │ - Lifecycle      │        │ - Validation     │          │
+│  │ - Triggers       │        │ - Idempotency    │          │
+│  │ - State Machine  │        │ - Admission      │          │
+│  │ - setInterval    │        │                  │          │
+│  └────────┬─────────┘        └────────┬─────────┘          │
+│           │                            │                     │
+│           └────────────┬───────────────┘                     │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │         Moderation Gateway              │               │
+│  │ - Admission validation (built-in)       │               │
+│  │ - Content safety (rating-based)         │               │
+│  │ - Custom validators (pluggable)         │               │
+│  │ - E/T/T+/M rating system                │               │
+│  └────────────────────┬────────────────────┘               │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │      Arbitration Engine                  │               │
+│  │ - FIFO                                    │               │
+│  │ - Plurality voting                        │               │
+│  │ - First accepted                          │               │
+│  │ - Ranked selection                        │               │
+│  │ - Batch composition                       │               │
+│  │ - Parallel branches                       │               │
+│  │ - Host selection                          │               │
+│  │ - Configurable per window                 │               │
+│  └────────────────────┬────────────────────┘               │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │      Billing Controller                  │               │
+│  │ - Quote generation                       │               │
+│  │ - Credit reservation                      │               │
+│  │ - Authorization/capture                   │               │
+│  │ - Settlement                             │               │
+│  │ - Refund handling                        │               │
+│  │ - Integration with @portalshq/monetization│
+│  └────────────────────┬────────────────────┘               │
+│                        │                                      │
+│  ┌────────────────────▼────────────────────┐               │
+│  │      Event Publisher                     │               │
+│  │ - SSE events                             │               │
+│  │ - Outbox pattern                         │               │
+│  │ - Replay support                         │               │
+│  │ - Integration with fanout-postgres       │               │
+│  └─────────────────────────────────────────┘               │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
-Input JSON is limited to 64 KiB and 32 nesting levels; timestamps use ISO UTC with
-`Z`. Prompts/messages require their text field; votes require an option or target ID
-(and both must agree when present); mutations require target IDs and a parameter
-object; object creation requires `payload.object`; branch creation requires a name.
-Configure `allowedInputKinds` to operations implemented by your execution adapter.
+## Data Flow Diagram
 
-### Resolve, execute, commit
+```
+User Input
+    │
+    ▼
+┌─────────────┐
+│ HTTP POST   │
+└──────┬──────┘
+       │
+       ▼
+┌──────────────────┐
+│ Submission       │
+│ Gateway          │
+│ - Validate       │
+│ - Idempotency    │
+│ - Check window   │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Moderation       │
+│ Gateway          │
+│ - Admission      │
+│ - Content safety │
+│ - World rules    │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Billing           │
+│ Controller       │
+│ - Quote          │
+│ - Authorize      │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Submission       │
+│ Stored (DB)      │
+└──────────────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Window Close      │
+│ (setInterval)    │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Arbitration       │
+│ Engine           │
+│ - Select inputs   │
+│ - Apply policy   │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Resolution       │
+│ Created (DB)      │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Billing Capture  │
+│ (if selected)    │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Model Execution  │
+│ (App-owned)      │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Event Publisher  │
+│ - Outbox         │
+│ - SSE            │
+└──────────────────┘
+```
+
+## Error Handling
+
+All components should implement comprehensive error handling:
+
+- **Window Manager:** Handle invalid state transitions, missing windows
+- **Submission Gateway:** Handle idempotency conflicts, closed windows, validation failures
+- **Arbitration Engine:** Handle empty submissions, policy errors
+- **Moderation Gateway:** Handle moderation service failures, rating violations
+- **Billing Controller:** Handle authorization failures, payment errors
+- **Event Publisher:** Handle fanout failures, retry with backoff
+
+## Logging
+
+Components should use structured logging with context:
 
 ```typescript
-// For finite windows, closeWindow first. An always-open queue can resolve directly.
-const resolution = await interactions.resolveWindow(window.id, {
-  idempotencyKey: 'generation-request-id',
-});
-const executable = await interactions.prepareExecution(resolution.id);
-// Pass executable to your execution adapter to generate a private preview/artifact.
-// Keep proposed world changes private until output moderation and commit succeed.
-// Then call commitResolution(resolution.id, proposedOutput, resultingCommitHash).
+console.log(`[interaction-orchestrator] window=${windowId} state=${state} action=${action}`);
+console.error(`[interaction-orchestrator] window=${windowId} error=${error.message}`);
 ```
 
-`resolveWindow` persists selection and losing-input refunds atomically. Selection
-has a window-scoped retry key; reusing it with a different host selection fails.
-Only one selected/executing resolution may exist per window. `prepareExecution`
-checks backing grants and captures selection-dependent credits before execution.
-`commitResolution(id, output, hash)` moderates the complete output, captures deferred
-publication credits and records fulfillment and events together. A non-allow output
-fails the resolution and releases/refunds its credits. For parallel branches, supply
-`{ [selectedSubmissionId]: branchCommitHash }` instead of one hash; the canonical
-head stays unchanged. Output and commit targets must match on a retry.
+## Testing
 
-The owned execution adapter must enforce base-commit conflicts against its world
-store. A hash supplied to this module identifies a private proposed artifact;
-publication happens only after a committed resolution. PostgreSQL transactions do
-not make an external provider call or world-store write atomic.
+Phase 2 will include comprehensive test coverage:
 
-`failResolution(id, reason)` refunds selected work and records failure. Use it after
-an execution failure or expired/revoked hold; retrying a failed resolution requires
-a new submission. `cancelWindow(id)` cancels pending inputs and refunds their credits
-in one transaction, refusing to interrupt an active resolution.
+- Unit tests for each component
+- Integration tests with monetization package
+- Integration tests with fanout-postgres package
+- Database migration tests
+- End-to-end workflow tests
 
-## Selection policies
+Target: 95% code coverage
 
-| Policy | Behavior |
-| --- | --- |
-| `fifo` | Admission order, with ID as the final deterministic tie-break |
-| `first_accepted` | The first eligible input |
-| `plurality` | Distinct actors per option/target, descending vote count, then admission order; selects one representative per winning target |
-| `ranked` | Trusted `arbitrationPolicyConfig.priorities[submissionId]`, then admission order; ignores payload priority |
-| `batch` | Admission order, combining nonoverlapping `targetEntityIds` up to capacity |
-| `parallel_branches` | Admission order up to capacity, one stable branch destination per selected input |
-| `host_selection` | Explicit `selectedSubmissionIds` passed to `resolveWindow`; rejects unknown, duplicate or excessive IDs |
+## License
 
-All policies respect `maxSelectedInputs`. Custom policies must partition the eligible
-inputs exactly once into selected and rejected IDs. The arbitration engine is a
-pure selection module; its `resolutionSequence: 0` is an unpersisted proposal.
-The orchestrator allocates the actual monotonic sequence under the window lock.
+MIT
 
-For always-open FIFO/parallel queues, overflow stays eligible for the next generation
-and is recorded in `appMetadata.deferredSubmissionIds`. Finite-window losers are
-marked `not_selected` and refunded. Prompt/message/vote inputs can follow a moving
-queue head; state-changing inputs with an old base must be cancelled and resubmitted
-after application revalidation. Active per-user quota counts pending, eligible,
-selected and executing inputs; completed/rejected/cancelled inputs free that quota.
-Scheduled windows can coexist, but opening two windows with the same world, branch
-and conflict key fails.
+## License
 
-## Moderation
-
-`ModerationGateway` checks every nested string in JSON input/output. Its defaults
-provide configurable term rules, Unicode normalization, word edges, input length
-200 and output length 32,000. E blocks mild/strong profanity, explicit terms and
-graphic violence terms; T permits mild profanity; T+ permits strong profanity and
-graphic violence; M permits these categories. Blocked/prohibited terms apply at
-every rating. These are text rules, not semantic or image/video classification.
-Install application/model validators for contextual content decisions and non-text
-media inspection. Version your configuration with `moderationPolicyVersion`.
-
-Custom validators cannot bypass the built-in rules. Missing `validateOutput` falls
-back to `validate` with the complete output in a synthetic submission. Validator
-exceptions and malformed decisions stop qualification. `review` and `transform`
-remain in `moderating`; only an explicit trusted
-`submissions.reviewSubmission(id, 'allow' | 'reject', reasons)` completes them.
-Transforms are never silently applied. `contextFor(window)` injects application
-world rules; each request uses its own rating context.
-
-## Billing behavior
-
-| Policy | Admission | Selection/execution | Commit |
-| --- | --- | --- | --- |
-| `free` | Zero-credit reservation | Verify lifecycle | No charge |
-| `prepaid_credits` | Consume credits | Validate backing grants | Fulfill |
-| `pay_to_generate` | Consume credits | Validate backing grants | Fulfill |
-| `pay_for_guaranteed_slot` | Claim capacity and consume credits | Guaranteed FIFO/parallel selection | Fulfill |
-| `capture_if_selected` | Deduct a credit hold from spendable balance | Capture selected holds; release losers | Fulfill |
-| `pay_to_publish` | Deduct a credit hold | Generate a private preview | Capture only on allowed output |
-
-Guaranteed slots require FIFO or parallel selection and cannot overbook capacity.
-Reservations default to one hour; configure `reservationTtlMs` (1 second–24 hours).
-A hold expires no later than its earliest backing grant. Captured prepaid credits
-remain spent while queued. Cancellation, failed execution, non-allow output and
-finite-window loss release/refund exactly once, restoring only surviving unexpired
-original grants. A deleted/refunded purchase's grant is never recreated. Expired
-credits cannot be made spendable by an interaction refund. Deferred captures check
-expiry and revocation again at execution/publication.
-
-## Events and workers
-
-`EventPublisher` accepts `createPostgresFanoutBus(pool)` or `InMemoryFanoutBus` through
-the fanout seam. Set up `fanout_messages` as documented by
-[`capability-realtime-fanout-postgres`](../capability-realtime-fanout-postgres).
-Lifecycle writes enqueue events; call `drainOutbox()` from a worker. Publishing to
-the transport is at least once, with expiring claims and token-checked acknowledgment.
-Failed deliveries stay durable for retry. Each event has a stable ID and a
-transactionally allocated world sequence. Topics use `interaction:${worldId}`.
-
-`subscribe(worldId, afterSequence?, { signal? })` returns an async iterator. With a
-cursor it replays all later events in bounded pages; without one it starts at the
-current head. Fanout messages wake the iterator; the database remains authoritative
-for ordering and deduplication. Polling recovers missed hints. Abort, iterator return
-and exceptions release subscriptions and timers, including a read that is waiting.
-Use `String(event.sequence)` for SSE `id`; validate and authorize `Last-Event-ID`.
-`getEvents` returns at most 100 events per page. The iterator handles pagination.
-
-Run these bounded jobs with error reporting and nonoverlapping invocations:
-
-- `windows.startWindowCloser(5000)` closes due finite windows; always-open queues remain open.
-- `billing.expireReservations()` releases expired, unselected holds in batches of 100.
-- `submissions.resumeSubmission(id)` recovers a durable `received` admission after an outage. Find these through application recovery jobs or `listSubmissions(windowId, 'received')`.
-- `events.drainOutbox()` delivers a bounded outbox batch; repeat while work remains.
-
-Open scheduled windows explicitly at their scheduled time. Finish the active
-always-open queue resolution before explicitly closing its intake. Stop/await the closer,
-abort/return all event iterators, finish in-flight worker jobs and then close the
-caller-owned fanout bus and pool during shutdown. A selected/executing expired hold
-requires `failResolution`; it is never silently reassigned. Use trusted operator
-`billing.refund` for completed work; active resolutions must fail first.
-
-Repository transactions serialize admission/selection per window, world event writes
-per world, and credit mutations in grant-ID order. Keep network calls outside these
-transactions. The exported repository and `*InTransaction` methods are low-level
-integration seams; use `InteractionOrchestrator` for lifecycle operations. Retain
-outbox history for the promised replay period and monitor unpublished age, pending
-qualification age, expiring holds and failed resolutions. This package does not
-silently prune audit/replay data.
-
-## Validation and migration
-
-```sh
-npm run build --workspace=packages/monetization
-npm run build --workspace=packages/capability-interaction-orchestrator
-npm run typecheck --workspace=packages/capability-interaction-orchestrator
-npm run test:coverage --workspace=packages/capability-interaction-orchestrator
-```
-
-Tests use embedded PostgreSQL (PGlite) by default, applying real migrations. To verify
-multiple connections against a scratch PostgreSQL instance, set both
-`INTERACTION_TEST_MODE=non-production` and `INTERACTION_TEST_DATABASE_URL`. Each suite
-creates/drops only its randomly named schema. Coverage thresholds are 95% for lines,
-statements, functions and branches and are enforced in the PostgreSQL CI job.
-
-See the repository's
-[migration guide](https://github.com/portalshq/portals-cloud/blob/main/packages/capability-interaction-orchestrator/docs/bears-live-app-migration.md)
-and [advanced usage](https://github.com/portalshq/portals-cloud/blob/main/packages/capability-interaction-orchestrator/docs/advanced-usage.md).
+MIT

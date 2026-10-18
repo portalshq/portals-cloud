@@ -1,3 +1,5 @@
+import {assessmentQuestions} from './assessment-definition'
+import {stateSignals} from './assessment-diagnostic'
 import {assessmentScore} from './scoring'
 import {companyScoreContext, getPilotById, getPilotBySubmissionId, leadPool, leadsDryRun, type StoredSubmission} from './store'
 import {isPublicEmailDomain, normalizeEmail} from './identity'
@@ -477,6 +479,13 @@ export function contactFields(submission: StoredSubmission): Record<string, unkn
   const attribution = submission.request.attribution
   const scores = submission.scores
   return compact({
+    ...Object.fromEntries(assessmentQuestions.filter((q) => q.id.includes('_')).map((q) => [q.id, answers[q.id]])),
+    assessment_version: answers.assessment_version,
+    operational_fit_score: scores?.diagnostic?.operationalFitScore,
+    commercial_readiness_score: scores?.diagnostic?.commercialReadinessScore,
+    ...Object.fromEntries(stateSignals.flatMap((key) => [[key.toLowerCase(), scores?.diagnostic?.signals[key].active], [`${key.toLowerCase()}_evidence`, scores?.diagnostic?.signals[key].evidence.join(', ')]])),
+    production_state_bottleneck: answers.productionStateBottleneck,
+    production_baseline: answers.productionBaseline,
     lead_intent: attribution.intent || submission.request.submissionType,
     cta_label: attribution.ctaLabel,
     source_page: apolloSourceUrl(attribution.sourcePage),
@@ -499,7 +508,7 @@ export function contactFields(submission: StoredSubmission): Record<string, unkn
     company_type: answers.teamType,
     team_size: answers.teamSize,
     workflow_collaborators: answers.workflowCollaborators,
-    tools_used: typeof answers.toolsUsed === 'string'
+    tools_used: Array.isArray(answers.ai_tools) ? answers.ai_tools.join(', ') : typeof answers.toolsUsed === 'string'
       ? answers.toolsUsed.trim() || undefined
       : undefined,
     approved_version_method: answers.approvedVersionMethod,
@@ -513,8 +522,8 @@ export function contactFields(submission: StoredSubmission): Record<string, unkn
     recurring_workflow: answers.recurringWorkflow,
     asset_volume: answers.assetVolume,
     annual_affected_value: answers.annualAffectedValue,
-    active_workflows: answers.activeWorkflows,
-    active_workflow: answers.activeWorkflow || answers.pilotWorkflow,
+    active_workflows: answers.active_workflows || answers.activeWorkflows,
+    active_workflow: answers.most_urgent_active_workflow || answers.activeWorkflow || answers.pilotWorkflow,
     timeline: answers.timeline || answers.targetStartPeriod,
     current_systems: answers.currentSystems,
     unresolved_question: answers.unresolvedQuestion,

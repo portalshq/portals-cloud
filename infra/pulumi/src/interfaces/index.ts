@@ -41,16 +41,6 @@ export interface PlatformDataStoreArgs {
 }
 
 /**
- * Interface for PlatformStorage component arguments
- * S3 for Lore chunks (Control Plane image lives on Docker Hub)
- */
-export interface PlatformStorageArgs {
-  readonly projectName: string;
-  readonly environment: string;
-  readonly recoveryControlsEnabled: boolean;
-}
-
-/**
  * Interface for LoadBalancers component arguments
  */
 export interface LoadBalancersArgs {
@@ -141,6 +131,8 @@ export interface LoreServiceArgs {
   readonly mutableTableName: pulumi.Output<string>;
   /** DynamoDB lock store table (hash + repositoryBranch + GSIs) */
   readonly locksTableName: pulumi.Output<string>;
+  /** Managed policy ARN exported by lore-data when stacks are split. */
+  readonly taskStoragePolicyArn?: pulumi.Input<string>;
   /** AWS region for plugin configuration */
   readonly awsRegion: string;
   readonly jwksEndpoint: string;

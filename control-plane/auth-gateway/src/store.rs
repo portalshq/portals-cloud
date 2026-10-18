@@ -45,6 +45,7 @@ pub struct Principal {
 
 #[derive(Debug, Clone)]
 pub struct RefreshSession {
+    pub originating_key_id: Option<Uuid>,
     pub family_id: Uuid,
     pub subject_type: String,
     pub subject_id: String,
@@ -85,6 +86,11 @@ impl SecurityStore {
         ))
         .execute(&self.pool)
         .await?;
+        sqlx::raw_sql(include_str!(
+            "../../persistence/migrations/007_bound_refresh_sessions.sql"
+        ))
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -116,6 +122,11 @@ impl SecurityStore {
             .fetch_one(&self.pool)
             .await
             .is_ok()
+    }
+
+    pub async fn api_key_active(&self, key_id: Uuid, subject: &str) -> anyhow::Result<bool> {
+        Ok(sqlx::query_scalar::<_, i32>("SELECT 1 FROM service_account_api_keys WHERE key_id=$1 AND service_account_id=$2 AND revoked_at IS NULL AND expires_at>NOW() AND (rotated_at IS NULL OR overlap_until>NOW())")
+            .bind(key_id).bind(subject).fetch_optional(&self.pool).await?.is_some())
     }
 
     pub async fn start_session(
@@ -432,15 +443,21 @@ impl SecurityStore {
         rotation_family: Option<Uuid>,
     ) -> anyhow::Result<String> {
         validate_subject(service_account_id)?;
-        let expires_at = Utc::now() + Duration::days(lifetime_days);
         anyhow::ensure!(pepper.len() >= 32, "API-key pepper is too short");
         anyhow::ensure!(
             lifetime_days > 0 && lifetime_days <= 90,
             "API-key lifetime must be 1-90 days"
         );
-        let (plaintext, stored) = generate_api_key(pepper, expires_at)?;
         let family = rotation_family.unwrap_or_else(Uuid::new_v4);
         let mut tx = self.pool.begin().await?;
+        // created_at defaults to transaction time. Use that same database clock
+        // and calendar interval so the 90-day CHECK holds at the upper boundary.
+        let expires_at: DateTime<Utc> =
+            sqlx::query_scalar("SELECT NOW() + make_interval(days => $1)")
+                .bind(lifetime_days as i32)
+                .fetch_one(&mut *tx)
+                .await?;
+        let (plaintext, stored) = generate_api_key(pepper, expires_at)?;
         sqlx::query("INSERT INTO service_account_api_keys (key_id,service_account_id,secret_hmac,pepper_version,expires_at,rotation_family) VALUES ($1,$2,$3,$4,$5,$6)")
             .bind(stored.key_id).bind(service_account_id).bind(stored.secret_hmac.as_slice())
             .bind(pepper_version).bind(stored.expires_at).bind(family).execute(&mut *tx).await?;
@@ -462,12 +479,11 @@ impl SecurityStore {
             "invalid API-key rotation settings"
         );
         let mut tx = self.pool.begin().await?;
-        let row = sqlx::query("SELECT service_account_id,rotation_family FROM service_account_api_keys WHERE key_id=$1 AND revoked_at IS NULL AND rotated_at IS NULL AND expires_at > NOW() FOR UPDATE")
-            .bind(old_key_id).fetch_optional(&mut *tx).await?.ok_or_else(|| anyhow::anyhow!("API key is inactive or already rotated"))?;
+        let row = sqlx::query("SELECT service_account_id,rotation_family,NOW()+make_interval(days => $2) AS replacement_expires_at FROM service_account_api_keys WHERE key_id=$1 AND revoked_at IS NULL AND rotated_at IS NULL AND expires_at > NOW() FOR UPDATE")
+            .bind(old_key_id).bind(lifetime_days as i32).fetch_optional(&mut *tx).await?.ok_or_else(|| anyhow::anyhow!("API key is inactive or already rotated"))?;
         let service_account_id: String = row.get("service_account_id");
         let family: Uuid = row.get("rotation_family");
-        let (plaintext, stored) =
-            generate_api_key(pepper, Utc::now() + Duration::days(lifetime_days))?;
+        let (plaintext, stored) = generate_api_key(pepper, row.get("replacement_expires_at"))?;
         sqlx::query("INSERT INTO service_account_api_keys (key_id,service_account_id,secret_hmac,pepper_version,expires_at,rotation_family) VALUES ($1,$2,$3,$4,$5,$6)")
             .bind(stored.key_id).bind(&service_account_id).bind(stored.secret_hmac.as_slice()).bind(pepper_version).bind(stored.expires_at).bind(family).execute(&mut *tx).await?;
         sqlx::query("UPDATE service_account_api_keys SET rotated_at=NOW(),overlap_until=NOW()+INTERVAL '24 hours' WHERE key_id=$1 AND rotated_at IS NULL")
@@ -585,12 +601,42 @@ impl SecurityStore {
         preferred_username: &str,
         idp: &str,
     ) -> anyhow::Result<(String, Uuid)> {
+        self.create_bound_refresh_session(
+            subject_type,
+            subject_id,
+            display_name,
+            preferred_username,
+            idp,
+            None,
+        )
+        .await
+    }
+
+    pub async fn create_bound_refresh_session(
+        &self,
+        subject_type: &str,
+        subject_id: &str,
+        display_name: &str,
+        preferred_username: &str,
+        idp: &str,
+        originating_key_id: Option<Uuid>,
+    ) -> anyhow::Result<(String, Uuid)> {
         validate_subject(subject_id)?;
         let family_id = Uuid::new_v4();
         let (plain, hash) = generate_refresh_token()?;
-        let expires_at = Utc::now() + Duration::days(REFRESH_SESSION_TTL_DAYS);
+        let mut expires_at = Utc::now() + Duration::days(REFRESH_SESSION_TTL_DAYS);
+        if let Some(key) = originating_key_id {
+            anyhow::ensure!(
+                subject_type == "service_account",
+                "API key binding requires a service account"
+            );
+            let key_expiry = sqlx::query_scalar::<_, DateTime<Utc>>("SELECT expires_at FROM service_account_api_keys WHERE key_id=$1 AND service_account_id=$2 AND revoked_at IS NULL AND expires_at>NOW() AND (rotated_at IS NULL OR overlap_until>NOW())")
+                .bind(key).bind(subject_id).fetch_optional(&self.pool).await?
+                .ok_or_else(|| anyhow::anyhow!("originating API key is invalid"))?;
+            expires_at = expires_at.min(key_expiry);
+        }
         sqlx::query(
-            "INSERT INTO auth_refresh_sessions (token_hash, family_id, subject_type, subject_id, display_name, preferred_username, idp, expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
+            "INSERT INTO auth_refresh_sessions (token_hash, family_id, subject_type, subject_id, display_name, preferred_username, idp, expires_at, originating_key_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)"
         )
         .bind(&hash)
         .bind(family_id)
@@ -600,6 +646,7 @@ impl SecurityStore {
         .bind(preferred_username)
         .bind(idp)
         .bind(expires_at)
+        .bind(originating_key_id)
         .execute(&self.pool)
         .await?;
         Ok((plain, family_id))
@@ -614,9 +661,13 @@ impl SecurityStore {
         }
         let presented_hash = refresh_token_hash(presented_token)?;
         let mut tx = self.pool.begin().await?;
+        // Serialize the whole family, including replay of an ancestor racing
+        // with renewal of a successor. Row locks alone cannot protect siblings.
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended(family_id::text, 0)) FROM auth_refresh_sessions WHERE token_hash=$1")
+            .bind(&presented_hash).execute(&mut *tx).await?;
         // Lock the presented row first; if missing, no retry.
         let row = sqlx::query(
-            "SELECT token_hash, family_id, subject_type, subject_id, display_name, preferred_username, idp, expires_at, rotated_at, revoked_at, replaced_by FROM auth_refresh_sessions WHERE token_hash=$1 FOR UPDATE"
+            "SELECT token_hash, family_id, subject_type, subject_id, display_name, preferred_username, idp, expires_at, rotated_at, revoked_at, replaced_by, originating_key_id FROM auth_refresh_sessions WHERE token_hash=$1 FOR UPDATE"
         )
         .bind(&presented_hash)
         .fetch_optional(&mut *tx)
@@ -629,9 +680,15 @@ impl SecurityStore {
         let display_name: String = row.get("display_name");
         let preferred_username: String = row.get("preferred_username");
         let idp: String = row.get("idp");
-        let expires_at: DateTime<Utc> = row.get("expires_at");
+        let expires_at: DateTime<Utc> = sqlx::query_scalar(
+            "SELECT MIN(expires_at) FROM auth_refresh_sessions WHERE family_id=$1",
+        )
+        .bind(family_id)
+        .fetch_one(&mut *tx)
+        .await?;
         let rotated_at: Option<DateTime<Utc>> = row.get("rotated_at");
         let revoked_at: Option<DateTime<Utc>> = row.get("revoked_at");
+        let originating_key_id: Option<Uuid> = row.get("originating_key_id");
 
         // Already revoked family or token?
         if revoked_at.is_some() {
@@ -685,11 +742,21 @@ impl SecurityStore {
             anyhow::bail!("principal is disabled");
         }
 
+        if subject_type == "service_account" {
+            let eligible = sqlx::query_scalar::<_, i32>("SELECT 1 FROM service_account_api_keys WHERE key_id=$1 AND service_account_id=$2 AND revoked_at IS NULL AND expires_at>NOW() AND (rotated_at IS NULL OR overlap_until>NOW()) FOR SHARE")
+                .bind(originating_key_id).bind(&subject_id).fetch_optional(&mut *tx).await?.is_some();
+            if !eligible {
+                sqlx::query("UPDATE auth_refresh_sessions SET revoked_at=NOW() WHERE family_id=$1 AND revoked_at IS NULL").bind(family_id).execute(&mut *tx).await?;
+                tx.commit().await?;
+                anyhow::bail!("originating API key is revoked or expired");
+            }
+        }
+
         // Generate successor
         let (new_plain, new_hash) = generate_refresh_token()?;
-        let new_expires_at = Utc::now() + Duration::days(REFRESH_SESSION_TTL_DAYS);
+        let new_expires_at = expires_at;
         sqlx::query(
-            "INSERT INTO auth_refresh_sessions (token_hash, family_id, subject_type, subject_id, display_name, preferred_username, idp, expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
+            "INSERT INTO auth_refresh_sessions (token_hash, family_id, subject_type, subject_id, display_name, preferred_username, idp, expires_at, originating_key_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)"
         )
         .bind(&new_hash)
         .bind(family_id)
@@ -699,6 +766,7 @@ impl SecurityStore {
         .bind(&preferred_username)
         .bind(&idp)
         .bind(new_expires_at)
+        .bind(originating_key_id)
         .execute(&mut *tx)
         .await?;
         sqlx::query(
@@ -710,6 +778,7 @@ impl SecurityStore {
         .await?;
         tx.commit().await?;
         let session = RefreshSession {
+            originating_key_id,
             family_id,
             subject_type,
             subject_id,
@@ -910,7 +979,7 @@ mod tests {
         let pepper = [7_u8; 32];
         let account = format!("ci-{}", Uuid::new_v4());
         let key = store
-            .issue_api_key(&pepper, "test-v1", &account, "CI", 30, None)
+            .issue_api_key(&pepper, "test-v1", &account, "CI", 90, None)
             .await
             .expect("issue API key");
         assert_eq!(
@@ -978,7 +1047,7 @@ mod tests {
 
         let old_key_id = public_key_id(&key).expect("parse public key id");
         let replacement = store
-            .rotate_api_key(&pepper, "test-v1", old_key_id, 30)
+            .rotate_api_key(&pepper, "test-v1", old_key_id, 90)
             .await
             .expect("rotate API key");
         store
@@ -990,6 +1059,12 @@ mod tests {
             .await
             .expect("replacement works");
         let replacement_id = public_key_id(&replacement).expect("parse replacement id");
+        let exact_lifetimes: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM service_account_api_keys WHERE key_id IN ($1,$2) AND expires_at = created_at + INTERVAL '90 days'")
+            .bind(old_key_id).bind(replacement_id).fetch_one(&store.pool).await.expect("check maximum key lifetimes");
+        assert_eq!(
+            exact_lifetimes, 2,
+            "issuance and rotation must use the database's exact 90-day boundary"
+        );
         store
             .revoke_api_key(replacement_id)
             .await
@@ -1018,9 +1093,27 @@ mod tests {
         let store = SecurityStore::new(pool);
         store.run_migration().await.expect("apply migrations");
 
-        // Create a refresh family via login simulation
+        // A successful login registers an active principal before issuing a
+        // refresh token. Unique subjects keep repeated runs independent.
+        let [alice, bob, carol, expired] =
+            ["alice", "bob", "carol", "expired"].map(|name| format!("{name}-{}", Uuid::new_v4()));
+        for subject in [&alice, &bob, &carol, &expired] {
+            let login = store
+                .start_session(Uuid::new_v4(), "a".repeat(64))
+                .await
+                .unwrap();
+            store
+                .complete_session(
+                    login.oauth_state,
+                    subject,
+                    subject,
+                    &format!("{subject}@example.test"),
+                )
+                .await
+                .unwrap();
+        }
         let (initial_plain, _) = store
-            .create_refresh_session("user", "alice", "Alice", "alice@example.test", "cognito")
+            .create_refresh_session("user", &alice, "Alice", "alice@example.test", "oidc")
             .await
             .expect("create refresh session");
 
@@ -1029,8 +1122,15 @@ mod tests {
             .rotate_refresh_token(&initial_plain)
             .await
             .expect("first rotation");
-        assert_eq!(session1.subject_id, "alice");
+        assert_eq!(session1.subject_id, alice);
         assert_ne!(initial_plain, rotated1);
+        let original_expiry: DateTime<Utc> =
+            sqlx::query_scalar("SELECT expires_at FROM auth_refresh_sessions WHERE token_hash=$1")
+                .bind(refresh_token_hash(&initial_plain).unwrap())
+                .fetch_one(&store.pool)
+                .await
+                .unwrap();
+        assert_eq!(session1.expires_at, original_expiry);
 
         // Reuse of the consumed token triggers replay detection and family revocation
         let replay = store.rotate_refresh_token(&initial_plain).await;
@@ -1043,7 +1143,7 @@ mod tests {
 
         // New family stays independent
         let (fresh_plain, _) = store
-            .create_refresh_session("user", "bob", "Bob", "bob@example.test", "cognito")
+            .create_refresh_session("user", &bob, "Bob", "bob@example.test", "oidc")
             .await
             .expect("create fresh session");
         let (_, fresh_rotated) = store
@@ -1052,15 +1152,15 @@ mod tests {
             .expect("fresh rotation");
         assert_ne!(fresh_plain, fresh_rotated);
 
-        // Disabled principal revokes خانواده and blocks refresh
-        store.disable_user("bob").await.expect("disable user");
+        // Disabling a principal immediately revokes its refresh family.
+        store.disable_user(&bob).await.expect("disable user");
         let disabled = store.rotate_refresh_token(&fresh_rotated).await;
         assert!(disabled.is_err());
-        assert!(disabled.unwrap_err().to_string().contains("disabled"));
+        assert!(disabled.unwrap_err().to_string().contains("revoked"));
 
         // Explicit family revocation via refresh token
         let (carol_plain, _) = store
-            .create_refresh_session("user", "carol", "Carol", "carol@example.test", "cognito")
+            .create_refresh_session("user", &carol, "Carol", "carol@example.test", "oidc")
             .await
             .expect("create carol");
         let (_, carol_rotated) = store
@@ -1072,5 +1172,139 @@ mod tests {
             .await
             .expect("revoke via token");
         assert!(store.rotate_refresh_token(&carol_rotated).await.is_err());
+
+        let (expired_plain, expired_family) = store
+            .create_refresh_session("user", &expired, "Expired", "expired@example.test", "oidc")
+            .await
+            .unwrap();
+        sqlx::query("UPDATE auth_refresh_sessions SET expires_at=NOW()-INTERVAL '1 second' WHERE family_id=$1")
+            .bind(expired_family).execute(&store.pool).await.unwrap();
+        assert!(store
+            .rotate_refresh_token(&expired_plain)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("expired"));
+        assert!(store
+            .rotate_refresh_token(&expired_plain)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("revoked"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires AUTH_GATEWAY_TEST_DATABASE_URL pointing at disposable PostgreSQL"]
+    async fn postgres_bound_api_key_refresh() {
+        let pool = PgPoolOptions::new()
+            .max_connections(3)
+            .connect(&std::env::var("AUTH_GATEWAY_TEST_DATABASE_URL").unwrap())
+            .await
+            .unwrap();
+        let store = SecurityStore::new(pool);
+        store.run_migration().await.unwrap();
+        store.run_migration().await.unwrap(); // additive migration is idempotent
+        let account = format!("refresh-{}", Uuid::new_v4());
+        let pepper = [19_u8; 32];
+        let key = store
+            .issue_api_key(&pepper, "test", &account, "Refresh", 1, None)
+            .await
+            .unwrap();
+        let key_id = public_key_id(&key).unwrap();
+        assert!(store.api_key_active(key_id, &account).await.unwrap());
+        let (plain, _) = store
+            .create_bound_refresh_session(
+                "service_account",
+                &account,
+                "Refresh",
+                "refresh@example.test",
+                "service-account",
+                Some(key_id),
+            )
+            .await
+            .unwrap();
+        let (session, next) = store.rotate_refresh_token(&plain).await.unwrap();
+        assert_eq!(session.subject_type, "service_account");
+        let key_expiry: DateTime<Utc> =
+            sqlx::query_scalar("SELECT expires_at FROM service_account_api_keys WHERE key_id=$1")
+                .bind(key_id)
+                .fetch_one(&store.pool)
+                .await
+                .unwrap();
+        assert_eq!(session.expires_at, key_expiry);
+        let (_, successor) = store.rotate_refresh_token(&next).await.unwrap();
+        store.revoke_api_key(key_id).await.unwrap();
+        assert!(!store.api_key_active(key_id, &account).await.unwrap());
+        assert!(store.rotate_refresh_token(&successor).await.is_err());
+
+        // A replacement key never inherits the old family's refresh credential.
+        let key = store
+            .issue_api_key(&pepper, "test", &account, "Rotation", 1, None)
+            .await
+            .unwrap();
+        let old_id = public_key_id(&key).unwrap();
+        let (old_refresh, _) = store
+            .create_bound_refresh_session(
+                "service_account",
+                &account,
+                "Refresh",
+                "refresh@example.test",
+                "service-account",
+                Some(old_id),
+            )
+            .await
+            .unwrap();
+        let replacement = store
+            .rotate_api_key(&pepper, "test", old_id, 1)
+            .await
+            .unwrap();
+        let (_, overlap_refresh) = store.rotate_refresh_token(&old_refresh).await.unwrap();
+        sqlx::query("UPDATE service_account_api_keys SET overlap_until=NOW()-INTERVAL '1 second' WHERE key_id=$1").bind(old_id).execute(&store.pool).await.unwrap();
+        assert!(store.rotate_refresh_token(&overlap_refresh).await.is_err());
+        let new_id = public_key_id(&replacement).unwrap();
+        let (new_refresh, _) = store
+            .create_bound_refresh_session(
+                "service_account",
+                &account,
+                "Refresh",
+                "refresh@example.test",
+                "service-account",
+                Some(new_id),
+            )
+            .await
+            .unwrap();
+        assert!(store.rotate_refresh_token(&new_refresh).await.is_ok());
+        // Moving key expiry earlier still blocks refresh immediately.
+        let (expires_refresh, _) = store
+            .create_bound_refresh_session(
+                "service_account",
+                &account,
+                "Refresh",
+                "refresh@example.test",
+                "service-account",
+                Some(new_id),
+            )
+            .await
+            .unwrap();
+        sqlx::query("UPDATE service_account_api_keys SET expires_at=NOW()-INTERVAL '1 second' WHERE key_id=$1").bind(new_id).execute(&store.pool).await.unwrap();
+        assert!(store.rotate_refresh_token(&expires_refresh).await.is_err());
+
+        let key = store
+            .issue_api_key(&pepper, "test", &account, "Disable", 1, None)
+            .await
+            .unwrap();
+        let (disabled_refresh, _) = store
+            .create_bound_refresh_session(
+                "service_account",
+                &account,
+                "Refresh",
+                "refresh@example.test",
+                "service-account",
+                Some(public_key_id(&key).unwrap()),
+            )
+            .await
+            .unwrap();
+        store.disable_service_account(&account).await.unwrap();
+        assert!(store.rotate_refresh_token(&disabled_refresh).await.is_err());
     }
 }

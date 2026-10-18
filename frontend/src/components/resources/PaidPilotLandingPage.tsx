@@ -1,6 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { trackEvent } from '@/lib/leads/analytics-client'
+import { PRIMARY_PILOT_SUCCESS_TEST } from '@/lib/leads/pilot-success'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   ArrowRight,
@@ -51,19 +54,16 @@ function paidPilotSpec(document: ResourceDocument): PackageSpecification | undef
   )
 }
 
-function paidPilotFaqValues(specification: PackageSpecification | undefined) {
-  const firstValue = packageMilestoneLabel(specification, 'first value')
-  const period = packageMilestoneLabel(specification, 'pilot period')
-  const price = packagePriceLabel(specification)
-  const participants = packageLimitLabel(specification, 'participants')
-
+// FAQ wording follows the active offer, never the base paid-pilot package:
+// without an offer every phrase stays nonspecific.
+function paidPilotFaqValues(offerTerms: OfferTerms | undefined) {
   return {
-    firstValuePhrase: firstValue ? `in the first ${firstValue}` : '',
-    periodPhrase: period || '',
-    pricePhrase: price || '',
-    participantsPhrase: participants
-      ? `onboarding for ${participants} participants`
-      : '',
+    pricePhrase: offerTerms
+      ? `${offerTerms.pilotPriceLabel} pilot fee`
+      : 'paid pilot fee',
+    periodPhrase: offerTerms
+      ? `${offerTerms.pilotDurationDays} days`
+      : 'pilot duration',
   }
 }
 
@@ -109,7 +109,7 @@ function StaticPilotBackground() {
   )
 }
 
-function Hero({ document, offer, offerTerms, pilotMode }: { document: ResourceDocument; offer?: string; offerTerms?: OfferTerms; pilotMode?: 'standard' | 'assisted' }) {
+function Hero({ document, context, offer, offerTerms, pilotMode }: { document: ResourceDocument; context: KnownLeadContext; offer?: string; offerTerms?: OfferTerms; pilotMode?: 'standard' | 'assisted' }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
   const router = useRouter()
@@ -118,13 +118,13 @@ function Hero({ document, offer, offerTerms, pilotMode }: { document: ResourceDo
   // has to change the page navigates. Assisted mode comes from the server, so on
   // /pilot it is swapped in with a scroll-less replace instead of a navigation
   // that would turn the scroll into a jump.
-  const assistedParams = () => new URLSearchParams({ ...(offer ? {offer} : {}), mode: 'assisted' })
+  const assistedParams = () => new URLSearchParams({ ...(offer ? { offer } : {}), mode: 'assisted' })
   const talkThroughHref = isPilotPage
     ? '#scope'
     : `/pilot?${assistedParams().toString()}#scope`
   const startHref = isPilotPage
     ? '#scope'
-    : `/pilot?${new URLSearchParams({ ...(offer ? {offer} : {}) }).toString()}#scope`
+    : `/pilot?${new URLSearchParams({ ...(offer ? { offer } : {}) }).toString()}#scope`
 
   const metrics = [
     [offerTerms ? `${offerTerms.pilotDurationDays} days` : packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
@@ -136,53 +136,62 @@ function Hero({ document, offer, offerTerms, pilotMode }: { document: ResourceDo
   return (
     <section
       data-header-theme="light"
-      className="relative flex min-h-screen items-center overflow-hidden"
+      className="relative flex items-center min-h-screen overflow-hidden"
     >
-      <div className="ui-grid relative z-10 w-full gap-y-36 py-fluid-[96,126] text-white">
-        <div className="col-span-full lg:col-span-11">
-          <h1 className="t-d2-sans max-w-[11em]">
-            {landing.headline || document.title}
+      <div className="ui-grid relative z-10 w-full gap-y-28 pt-104 lg:pt-126 pb-48 lg:pb-64 text-white">
+        <div className="col-span-full lg:col-span-13 max-w-[680px] lg:max-w-5xl">
+          {/* <p className="mb-16 t-p-sm-sans">Paid AI production pilot</p> */}
+          <h1 className="t-d2-sans max-w-[13em] lg:text-[clamp(42px,4.1vw,66px)] text-balance">
+            Reproduce, extend, and hand off approved AI production work.
           </h1>
-          <p className="mt-28 max-w-[37em] t-p-lg-serif text-white">
-            {landing.description || document.abstract}
+          <p className="mt-28 max-w-[37em] t-p-lg-serif text-white text-balance">
+            Put one live production on a shared, approved production state. Keep the right references, versions, prompts, and dependencies accessible so another creator can continue the work with less reconstruction.
           </p>
-          {offerTerms?.offerCopy ? <p className="mt-20 max-w-[37em] t-p-sans text-white/80">{offerTerms.offerCopy}</p> : null}
-          <div className="mt-32 flex gap-20 flex-row">
-            <CTAButton
-              href={talkThroughHref}
-              appearance="plain"
-              analyticsLabel="Talk through a pilot"
-              onClick={() => {
-                if (isPilotPage && pilotMode !== 'assisted') {
-                  void router.replace(`/pilot?${assistedParams().toString()}#scope`, {scroll: false})
-                }
-              }}
+          {(
+            <>{offerTerms?.offerCopy ? <p className="mt-20 max-w-[37em] t-p-sans text-white">{offerTerms.offerCopy}</p> : null}
+
+              <div className="mt-24 flex gap-16 flex-row">
+                <CTAButton
+                  href={startHref}
+                  analyticsLabel="Create my pilot plan"
+                >
+                  <span>Create my pilot plan</span>
+                </CTAButton>
+                <CTAButton
+                  href={talkThroughHref}
+                  appearance="plain"
+                  analyticsLabel="Talk through a pilot"
+                  onClick={() => {
+                    if (isPilotPage && pilotMode !== 'assisted') {
+                      void router.replace(`/pilot?${assistedParams().toString()}#scope`, { scroll: false })
+                    }
+                  }}
+                >
+                  <span>Talk through a pilot</span>
+                </CTAButton>
+              </div>
+              <p className="mt-14 t-p-sm-sans text-white text-balance">Creating your plan is free. Review and accept the agreement before payment; payment is due on signature.</p>
+              <SmoothAnchor
+                className="mt-20 inline-block t-p-sm-sans text-white underline decoration-2 underline-offset-4"
+                href="#success-criteria"
               >
-              <span>Talk through a pilot</span>
-            </CTAButton>
-            <CTAButton
-              href={startHref}
-              analyticsLabel="Start a pilot"
-            >
-              <span>Start a pilot</span>
-              <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
-            </CTAButton>
-          </div>
-          <SmoothAnchor 
-            className="mt-16 inline-block t-p-sans text-white underline underline-offset-4" 
-            href="#success-criteria"
-          >
-            see what the pilot measures
-          </SmoothAnchor>
+                Review the success test
+              </SmoothAnchor>
+            </>
+          )}
         </div>
 
-        <dl className="col-span-full grid grid-cols-2 gap-x-12 gap-y-28 lg:col-start-15">
-          {metrics.map(([value, label]) => (
-            <div key={label}>
-              <dd className="t-h1-sans text-white whitespace-nowrap">{value}</dd>
-              <dt className="mt-6 t-p-sm-sans text-white">{label}</dt>
-            </div>
-          ))}
+        <dl className="col-span-full lg:col-start-15">
+          <div className="mb-auto mr-auto w-fit grid grid-cols-2 gap-x-24 gap-y-28">
+            {metrics.map(([value, label]) => (
+              <div key={label}>
+                <dd className="t-h1-sans text-white whitespace-nowrap">{value}</dd>
+                <dt className="mt-6 t-p-sm-sans text-white">{label}</dt>
+              </div>
+            ))}
+          </div>
+          {context.diagnosticResult && context.qualificationTier !== 'low' ? <div className="mt-20 t-p-sm-sans"><p>Your assessment points to:</p><ul className="mt-8 space-y-6">{context.diagnosticResult.explanations.slice(0, 2).map((finding) => <li key={finding}>{finding}</li>)}</ul></div> : null}
+          <p className="mt-6 t-p-sm-sans text-balance">One production. One agreed workflow. A measured outcome. Works with your existing tools through supported integration or export paths.</p>
         </dl>
 
       </div>
@@ -200,22 +209,20 @@ function Objective({ document }: { document: ResourceDocument }) {
     <section data-header-theme="light">
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-10">
-          <h2 className="mt-20 max-w-[10em] t-d2-sans">
-            one workflow, one fully preserved production history.
+          <h2 className="mt-20 t-d2-sans">
+            Keep approved work ready for the next creator.
           </h2>
         </div>
         <div className="col-span-full lg:col-span-10 lg:col-start-14">
-          <p className="t-p-lg-serif text-white">{objective.summary}</p>
+          <p className="t-p-lg-serif text-white">Test whether your team can continue approved work with less reconstruction, fewer wrong-input generations, and clearer handoffs.</p>
           <div className="mt-24 rounded lg:rounded-[10px] border bg-white/10 px-16 py-8 backdrop-blur-[20px] flex items-start gap-x-16 t-p-sans leading-[1.2em]">
             <span className="flex h-[1.364em] items-center">
               <span className="size-8 shrink-0 bg-current" />
             </span>
-            this pilot is not an open-ended free trial. it is a focused commercial evaluation using real production work.
+            Test one defined workflow using real production work. Agree the scope and success measures before kickoff.
           </div>
           <div className="mt-24 space-y-16 t-p-sans text-white">
-            {sectionParagraphs(objective).map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
+            <p>{PRIMARY_PILOT_SUCCESS_TEST}</p>
           </div>
           {/* <p className="mt-32 max-w-[38em] t-h3-sans text-white">
             {outcome.summary}
@@ -236,18 +243,25 @@ function ScopeAndMilestone({ document }: { document: ResourceDocument }) {
 
   return (
     <section data-header-theme="light">
-      <div className="ui-grid gap-y-44 py-fluid-[76,106] text-white">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
         <div className="col-span-full lg:col-span-11">
           <p className="t-p-sans text-white">a deliberately narrow scope</p>
-          <h2 className="mt-20 max-w-[9em] t-d2-sans">
-            real work, real teams, one decision.
+          <h2 className="mt-20 t-d2-sans">
+            A contained pilot on real production work.
           </h2>
           {/* <p className="mt-24 max-w-[36em] t-p-lg-serif text-white">
             {scope.summary}
           </p> */}
         </div>
         <ul className="col-span-full grid gap-x-24 gap-y-18 sm:grid-cols-2 lg:col-span-11 lg:col-start-14">
-          {sectionBullets(scope).map((item) => (
+          {[
+            `${packageLimitLabel(specification, 'productionTeams')} production team`,
+            `${packageLimitLabel(specification, 'activeWorkflows')} active workflow`,
+            `${packageLimitLabel(specification, 'historicalProjects')} historical project`,
+            `${packageLimitLabel(specification, 'participants')} participants`,
+            'One agreed integration or export path; custom engineering is separately scoped',
+            'Workflow review, onboarding, support, and final evaluation',
+          ].map((item) => (
             <li key={item} className="flex items-start gap-12 t-p-sans text-white">
               <Check
                 aria-hidden="true"
@@ -284,26 +298,26 @@ function SuccessCriteria({ document, offerTerms }: { document: ResourceDocument;
   return (
     <section id="success-criteria" data-header-theme="light">
       <div className="px-sms py-fluid-[76,106]">
-      <div className="ui-grid gap-y-40 py-sms !text-black bg-white rounded-[1em] lg:rounded-[2em]">
-        <div className="col-span-full lg:col-span-10">
-          <h2 className="max-w-[9em] t-d2-sans">
-            success criteria
-          </h2>
-          <p className="mt-24 max-w-[35em] t-p-lg-serif">
-            {section.summary}
-          </p>
+        <h2 className="px-sms t-d2-sans mb-sms">
+          The primary success test
+        </h2>
+        <div className="ui-grid gap-y-40 py-sms !text-black bg-white rounded-[1em] lg:rounded-[2em]">
+          <div className="col-span-full xl:col-span-10">
+            <p className="max-w-[35em] t-p-lg-serif">
+              {PRIMARY_PILOT_SUCCESS_TEST}
+            </p>
+          </div>
+          <ol className="col-span-full space-y-24 xl:col-span-11 xl:col-start-12">
+            {['Locate the exact approved version and the sources used to create it.', 'Recover the relevant prompts, references, approvals, and production decisions.', 'Have another qualified creator continue or extend the work within agreed output tolerances.'].map((item, index) => (
+              <li key={item} className="grid grid-cols-[48px_1fr] gap-12 items-baseline">
+                <span className="t-p-sans">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="t-p-lg-sans">{item}</span>
+              </li>
+            ))}
+          </ol>
         </div>
-        <ol className="col-span-full space-y-24 lg:col-span-11 lg:col-start-14">
-          {sectionBullets(section).map((item, index) => (
-            <li key={item} className="grid grid-cols-[48px_1fr] gap-12 items-baseline">
-              <span className="t-p-sans">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <span className="t-p-lg-sans">{item}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
       </div>
     </section>
   )
@@ -330,17 +344,17 @@ function CommercialTerms({ document, offerTerms }: { document: ResourceDocument;
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
-        <div className="mt-24 col-span-full">
-          {offerTerms?.offerCopy || offerTerms?.acceptanceDeadlineLabel ? (
-            <p className="mb-16 max-w-[42em] t-p-sans !text-white">
-              {offerTerms.offerCopy || `sign by ${offerTerms.acceptanceDeadlineLabel} to lock in ${offerTerms.annualCreditLabel}.`}
-            </p>
-          ) : null}
-          <CTAButton href="#scope">
-            <span>Start a pilot</span>
-            <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
-          </CTAButton>
-        </div>
+          <div className="mt-24 col-span-full">
+            {offerTerms?.offerCopy || offerTerms?.acceptanceDeadlineLabel ? (
+              <p className="mb-16 max-w-[42em] t-p-sans !text-white">
+                {offerTerms.offerCopy || `Sign by ${offerTerms.acceptanceDeadlineLabel} to lock in ${offerTerms.annualCreditLabel}.`}
+              </p>
+            ) : null}
+            <CTAButton href="#scope">
+              <span>Create my pilot plan</span>
+              {/* <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} /> */}
+            </CTAButton>
+          </div>
         </div>
       </div>
     </section>
@@ -355,11 +369,11 @@ function Responsibilities({ document }: { document: ResourceDocument }) {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-40 py-fluid-[76,106] text-white">
-        <div className="col-span-full xl:col-span-10 xl:col-start-3">
-          <p className="t-d2-sans text-white">mutual responsibilities</p>
-          <h2 className="mt-20 t-p-lg-serif">
+        <div className="col-span-full xl:col-start-3">
+          <h2 className="t-d2-sans w-full text-white">mutual responsibilities</h2>
+          {/* <p className="mt-20 t-p-lg-serif">
             Both sides know what they are bringing to the table.
-          </h2>
+          </p> */}
         </div>
 
         {[
@@ -401,6 +415,7 @@ function PilotForm({
   offerTerms,
   pilotMode,
   assessmentOrigin,
+  annualOptions,
 }: {
   specSummary: string
   context: KnownLeadContext
@@ -414,20 +429,21 @@ function PilotForm({
   }
   pilotMode?: 'standard' | 'assisted'
   assessmentOrigin: 'standard' | 'assessment_override'
+  annualOptions: Array<{ slug: string; name: string; priceLabel: string }>
 }) {
   return (
     <section id="scope" data-header-theme="light" className="scroll-mt-20">
-      <div className="ui-grid gap-y-80 py-fluid-[76,106] text-white">
+      <div className="ui-grid gap-y-32 py-fluid-[40,64] text-white">
         <div className="col-span-full xl:col-span-10">
           <p className="t-p-sans text-white">build your pilot plan</p>
-          <h2 className="mt-20 t-d2-sans">
+          <h2 className="mt-20 t-d2-sans text-balance">
             put one production workflow under test
           </h2>
-          <p className="mt-24 max-w-[35em] t-p-lg-serif text-white">
-            our onboarding moves through five short stages: eligibility, scope, success, commercial context, and confirmation.
+          <p className="mt-24 max-w-[32em] t-p-lg-serif text-white text-balance">
+            Confirm the workflow, define access, and review the proposed engagement. Your assessment details are already carried forward where available.
           </p>
-          <p className="mt-24 max-w-[36em] t-p-lg-sans text-white">
-            your pilot plan covers technical contracts, project scope, milestones, success criteria, and security requirements. Building your customized pilot plan and security profile is free. After you approve the finalized plan, accept the terms, and formally launch the pilot, payment happens in the Pilot Room.
+          <p className="mt-24 max-w-[42em] t-p-sm-sans text-white text-balance">
+            Creating this plan does not commit you to a purchase. Your approval room brings together scope, success criteria, security requirements, and commercial terms. Request adjustments, accept the agreement when ready, then pay and schedule launch.
           </p>
           {/* {assessmentOrigin === 'assessment_override' ? (
             <p className="mt-18 max-w-[36em] t-p-sans text-white/80">
@@ -437,18 +453,19 @@ function PilotForm({
         </div>
 
         <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
-          <PilotScopeForm specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
+          {/* <p className="mb-20 t-p-sm-sans">{specSummary}</p> */}
+          <PilotScopeForm annualOptions={annualOptions} specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
         </div>
       </div>
     </section>
   )
 }
 
-function PilotFaq({ document }: { document: ResourceDocument }) {
+function PilotFaq({ document, offerTerms }: { document: ResourceDocument; offerTerms?: OfferTerms }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
   const faqs = getFaqsByCategories(
     ['pilot'],
-    paidPilotFaqValues(paidPilotSpec(document)),
+    paidPilotFaqValues(offerTerms),
   )
 
   return (
@@ -471,7 +488,7 @@ function PilotFaq({ document }: { document: ResourceDocument }) {
                   onClick={() =>
                     setOpenIndex(openIndex === index ? null : index)
                   }
-                  className="flex w-full items-center justify-between !p-24 h-auto text-left text-white focus:outline-none [&>span]:w-full [&>span]:justify-between"
+                  className="flex w-full items-center no-underline justify-between !p-24 h-auto text-left text-white focus:outline-none [&>span]:w-full [&>span]:justify-between"
                   aria-expanded={openIndex === index}
                 >
                   <span className="t-p-serif">{faq.question}</span>
@@ -505,18 +522,17 @@ function FinalDecision({ document }: { document: ResourceDocument }) {
       <div className="ui-grid gap-y-36 py-fluid-[76,106] text-white">
         <div className="col-span-full lg:mx-auto max-w-[50ch] lg:max-w-[70ch] 2xl:max-w-[100ch]">
           <h2 className="mt-20 max-w-[11em] t-d2-sans">
-            deploy under defined terms.
+            Review the plan. Approve when ready.
           </h2>
           <p className="mt-28 t-p-lg-serif text-white">{review.summary}</p>
           <div className="mt-28 flex flex-col gap-18 ">
             <CTAButton href="#scope">
-              <span>Start a pilot</span>
-              <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
+              <span>Create my pilot plan</span>
             </CTAButton>
-            <p className="items-center gap-2 t-p-sans text-white/80">
-              Not ready to streamline your production?
+            <p className="items-center gap-2 t-p-sans text-white">
+              Need to assess the workflow first?
             </p>
-            <a className="t-p-sans underline decoration-2 underline-offset-4" href="/assessment">Evaluate your current production workflow first.</a>
+            <Link className="t-p-sans underline decoration-2 underline-offset-4" href="/assessment">Evaluate your current production workflow first.</Link>
           </div>
         </div>
       </div>
@@ -531,6 +547,7 @@ export function PaidPilotLandingPage({
   offerTerms,
   pilotMode,
   assessmentOrigin = 'standard',
+  annualOptions = [],
 }: {
   document: ResourceDocument
   context: KnownLeadContext
@@ -538,7 +555,14 @@ export function PaidPilotLandingPage({
   offerTerms?: OfferTerms
   pilotMode?: 'standard' | 'assisted'
   assessmentOrigin?: 'standard' | 'assessment_override'
+  annualOptions?: Array<{ slug: string; name: string; priceLabel: string }>
 }) {
+  useEffect(() => {
+    void trackEvent('paid_pilot_page_viewed', { assessment_arrival: Boolean(context.assessmentCompleted), qualification_tier: context.qualificationTier })
+    if (context.assessmentCompleted && (context.qualificationTier === 'high' || context.qualificationTier === 'medium')) {
+      void trackEvent('qualified_assessment_pilot_arrival', { assessment_version: context.answerValues?.assessment_version, qualification_tier: context.qualificationTier })
+    }
+  }, [])
   const specification = paidPilotSpec(document)
   const formSpecSummary = [
     [
@@ -559,20 +583,20 @@ export function PaidPilotLandingPage({
       />
       <StaticPilotBackground />
       <div className="relative z-10">
-        <Hero document={document} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} />
+        <Hero document={document} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} />
         <div
           aria-hidden="true"
           className="pointer-events-none h-px w-full"
           data-webgl-marker="scrollTo"
           data-webgl-position="0.96"
         />
+        <PilotForm annualOptions={annualOptions} specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
         <Objective document={document} />
         <ScopeAndMilestone document={document} />
         <SuccessCriteria document={document} offerTerms={offerTerms} />
         <CommercialTerms document={document} offerTerms={offerTerms} />
         <Responsibilities document={document} />
-        <PilotForm specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
-        <PilotFaq document={document} />
+        <PilotFaq document={document} offerTerms={offerTerms} />
         <FinalDecision document={document} />
       </div>
     </main>

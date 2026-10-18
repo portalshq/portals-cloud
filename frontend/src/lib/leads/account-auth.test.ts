@@ -13,9 +13,34 @@ import {
   getCustomerAccountForUser,
   issueMagicLink,
   pilotMembershipRole,
+  pilotMembershipRoles,
   pilotMembershipWithAccountRole,
 } from './application-auth'
-import {getPilotById} from './store'
+import {getPilotById, leadPool} from './store'
+
+test('SQL membership reads retain every role and prefer signer over approver', async (t) => {
+  const previousDryRun = process.env.LEADS_DRY_RUN
+  const previousUrl = process.env.LEADS_DATABASE_URL
+  process.env.LEADS_DRY_RUN = 'false'
+  process.env.LEADS_DATABASE_URL = 'postgresql://fixture:fixture@127.0.0.1:1/never-connect'
+  try {
+    t.mock.method(leadPool(), 'query', async (sql: string) => {
+      if (sql.includes('SELECT role FROM pilot_memberships')) {
+        assert.doesNotMatch(sql, /LIMIT\s+1/i)
+        return {rows: [{role: 'signer'}, {role: 'approver'}]}
+      }
+      assert.match(sql, /WHEN 'signer' THEN 1 WHEN 'approver' THEN 2/)
+      return {rows: [{pilot_role: 'signer', account_role: 'member', customer_account_id: 'account'}]}
+    })
+    assert.deepEqual(await pilotMembershipRoles('pilot', 'user'), ['signer', 'approver'])
+    assert.equal(await pilotMembershipRole('pilot', 'user'), 'signer')
+    assert.equal((await pilotMembershipWithAccountRole('pilot', 'user')).pilotRole, 'signer')
+  } finally {
+    process.env.LEADS_DRY_RUN = previousDryRun
+    if (previousUrl === undefined) delete process.env.LEADS_DATABASE_URL
+    else process.env.LEADS_DATABASE_URL = previousUrl
+  }
+})
 
 test('getCustomerAccountsForUser returns accounts ordered by privilege', async () => {
   const ownerEmail = `owner-${crypto.randomUUID()}@studio.example`
@@ -105,7 +130,7 @@ test('magic link with customerAccountId grants membership to specified account',
   })
 
   const magicLink = await issueMagicLink({
-    userId: user.id,
+    userId: (await ensureApplicationUser({email: `new-member-${crypto.randomUUID()}@studio.example`})).id,
     purpose: 'invite',
     customerAccountId: customer.id,
     role: 'admin',
@@ -113,11 +138,24 @@ test('magic link with customerAccountId grants membership to specified account',
 
   const session = await consumeMagicLink(magicLink)
   assert.ok(session)
-  assert.equal(session.user.id, user.id)
 
-  const account = await getCustomerAccountForUser(customer.id, user.id)
+  const account = await getCustomerAccountForUser(customer.id, session.user.id)
   assert.ok(account)
   assert.equal(account.role, 'admin')
+})
+
+test('a lower-role invitation cannot demote an existing owner or admin and is single-use', async () => {
+  const user = await ensureApplicationUser({email: `existing-role-${crypto.randomUUID()}@studio.example`})
+  const accountId = crypto.randomUUID()
+  const memory = (globalThis as any).portalsApplicationAuth
+  memory.customers.set(accountId, {id: accountId, name: 'Existing account'})
+  for (const role of ['owner', 'admin'] as const) {
+    memory.memberships.set(`${accountId}:${user.id}`, role)
+    const token = await issueMagicLink({userId: user.id, purpose: 'invite', customerAccountId: accountId, role: 'member'})
+    assert.ok(await consumeMagicLink(token))
+    assert.equal((await getCustomerAccountForUser(accountId, user.id))?.role, role)
+    assert.equal(await consumeMagicLink(token), null)
+  }
 })
 
 test('pilot membership validation requires both account and pilot membership', async () => {

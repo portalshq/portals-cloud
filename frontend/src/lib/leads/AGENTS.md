@@ -42,7 +42,7 @@ Mixpanel analytics is consent-gated and separate from CRM. Client identifiers/at
 
 ### Progressive qualification fields
 
-All website forms collect two qualification questions:
+Website forms support the following acquisition fields; returning assessed pilot applicants skip them, and direct-entry pilot acquisition fields are optional:
 - `whatBroughtYouHere`: Enum value indicating primary motivation (workflow-problem, assess-scaling, evaluating-tools, other)
 - `whatBroughtYouHereOther`: Free-text detail when "other" is selected
 - `howDidYouHearAboutPortals`: Enum value indicating discovery channel (google-search, linkedin, email, someone-company, friend-colleague, article-newsletter-podcast, partner-company, social-media)
@@ -55,7 +55,7 @@ Lead forms support URL parameter-based field pre-population for campaign attribu
 
 - Parses URL parameters on form load using `frontend/src/lib/leads/url-params.ts`
 - Normalizes enum values to lowercase (e.g., `LinkedIn` → `linkedin`)
-- Applies fallback defaults (e.g., `how_did_you_hear` defaults to `google-search` when absent)
+- Preserves existing form-specific fallback defaults; the pilot leaves an unknown discovery source unanswered instead of assuming Google/search.
 - Persists attribution across page navigation via localStorage (`retrieveFormParams`/`storeFormParams` in `analytics-client.ts`)
 - Hides non-critical fields when pre-filled (`howDidYouHearAboutPortals`, `whatBroughtYouHere`)
 - Never hides critical identity fields (`email`, `company`, `role`)
@@ -77,11 +77,13 @@ Supported URL parameters:
 - `tools_used`: Comma-separated tool list
 - UTM parameters: `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`
 
-URL parameter priority (highest to lowest):
+The shared URL helper's priority (highest to lowest):
 1. URL-provided values
 2. Existing profile/context values (`context.answerValues`, `context.identity`)
 3. Form draft values
 4. Fallback defaults
+
+Pilot drafts additionally preserve explicit edits over inherited defaults, including cleared/unchecked values. Untouched defaults refresh from the current assessment. URL hints never authorize profile access; use the source and draft rules in `marketing/PILOT.md` for the pilot lifecycle.
 
 URL formatting guidelines:
 - Use canonical lowercase enum values (e.g., `linkedin`, not `LinkedIn`)
@@ -119,13 +121,15 @@ Role entries are only emitted when both name and email are present. The mapped r
 
 ### Production owner email
 
-The pilot controlled fields include `productionOwnerEmail` as a required field. This email is persisted in the `lead_pilots` table, used for reviewer invitations, and projected to the Apollo Contact custom field `Production owner email`.
+The pilot controlled fields include `productionOwnerEmail`. Preserve an explicit owner email; infer the applicant only when the named owner is absent or exactly matches the applicant. Other owners are confirmed/invited in the room, not guessed from the submitting identity. This email is persisted in the `lead_pilots` table, used for reviewer invitations, and projected to the Apollo Contact custom field `Production owner email`.
 
 ## Progressive qualification
 
 The workflow assessment is the single prospect-facing qualification flow. It asks about a real creative-production workflow, the pain it creates, the desired outcome, and only the practical context needed to recommend a next step. Do not reintroduce a separate "pilot readiness" form after the assessment result.
 
-`assessment` submissions are merged with the lead profile's previous qualification answers in `frontend/app/api/leads/route.ts`. `frontend/src/lib/leads/scoring.ts` scores fit, production-memory pain, and intent from that merged record. A credible workflow with sufficient fit and pain can move directly to `pilot_scope` when the assessment also establishes timing, ownership, approval path, and the prospect's stated question or friction. Otherwise, return the most relevant workflow/use-case recommendation. The legacy `commercial_readiness` submission type remains parseable only to preserve earlier submissions; do not use it for new UI.
+`assessment.v4` is a progressive production-state diagnostic. Definitions/branches live in `assessment-definition.ts`; deterministic operational (70)/commercial (30) scoring and internal evidence live in `assessment-diagnostic.ts`. `scoring.ts` dispatches by version and retains historical scoring. High/Mid route to the existing self-serve pilot application; Low receives materials. Do not expose internal categories or force a call. The API uses `validatedLeadRequestSchema`.
+
+Current diagnostic answers replace prior branches; historical answers/raw submissions remain intact. New data uses existing encrypted payloads and score JSON, without a destructive migration. `pilotAssessmentPrefill` carries workflow, tools, timing, approval path, bottleneck, and baseline. Strip internal diagnostic score/evidence from public profile context. See [the normal product/engineering specification](../../../../marketing/ASSESSMENT.md).
 
 Keep the form value-led: describe the concrete output first—less rediscovery, fewer recreated assets, faster repeatable production, and lower cost. Questions about approval or a pilot must make clear that they do not commit the prospect to either.
 
@@ -147,7 +151,7 @@ For any field that is captured from a prospect, update every applicable layer:
 5. Map the answer in `contactFields` in `frontend/src/lib/leads/crm.ts`. The CRM is a projection of Portals data, never the source of truth.
 6. Update tests for validation, score/routing, and CRM mapping when the new field affects them.
 
-`tools_used` is the reference field: it is a single text input for a comma-separated list of relevant tools, is stored in Apollo as the `Tools used` contact custom field, and is categorized as both `general` and `pilot`. The scoring layer accepts both this text list and historical count-shaped values so old submissions remain valid.
+`tools_used` remains the historical/pilot reference field: it is a single text input for a comma-separated list of relevant tools, is stored in Apollo as the `Tools used` contact custom field, and is categorized as both `general` and `pilot`. The scoring layer accepts both this text list and historical count-shaped values so old submissions remain valid.
 
 ## Apollo provisioning
 
@@ -224,3 +228,13 @@ Reserve 25% of eligible, never-contacted accounts as a stratified account-level 
 Vercel invokes `/api/internal/leads/retry` daily at 00:00 UTC on the free-plan schedule. New room events also request an in-process outbox run; the daily cron remains the durable retry path. Lead and CRM outboxes are leased and retried; inspect their `last_error`, correct the configuration, and move the affected row to `retry` to replay it. Raw encrypted submissions are redacted after 30 days once the intake outbox completes. The opaque profile cookie expires after 90 days.
 
 Mixpanel starts only after analytics consent. Do not send identity, messages, application answers, or workflow descriptions to browser analytics.
+
+## Paid-pilot continuation constraints
+
+Read `../../../../marketing/PILOT.md` for the implemented lifecycle. Share mapping through `pilot-inheritance.ts`/`pilotAssessmentPrefill`; keep original assessment facts/scores separate from editable pilot overrides and store the server-owned assessment source snapshot. Preserve exact contributor ranges and explicit unknowns. The default success test lives in `pilot-success.ts`; do not create redundant discovery or scoring.
+
+An existing email requires its authorized profile/session to resume; a typed address or unsigned Apollo provider must never mint access. Browser requests use the browser provider; signed callbacks retain HMAC verification. Application idempotency serializes persistence/room creation and replays the persisted request. Production advisory locks use a separate two-connection pool so the five-connection data pool cannot be starved by lock holders; locks are transaction-scoped to support transaction pooling.
+
+Use published packages/server offers for proposals and display labels. Preserve immutable prices, signature/reviewer locks, payment verification, and conflict checks. `pilot_scope_confirmed` is distinct from accepted `pilot_approved`. Browser event payloads contain only structured metadata; raw diagnostic answers/snapshots remain encrypted app data. Account/authentication/legacy room layouts are noindex, and email-prefilled public URLs keep public metadata with noindex. No new CRM fields are required for the snapshot or pilot mapping change.
+
+Room writes must preserve protected assessment snapshots and unresolved founder qualification. Signature acceptance uses finalized server scope, not arbitrary `body.answers`; owner-supplied manual payment is dry-run only, even when production Stripe configuration is missing. Persist canonical resume URLs under the returned profile scope, never a short-lived credential.

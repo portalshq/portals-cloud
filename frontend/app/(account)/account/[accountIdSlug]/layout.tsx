@@ -1,4 +1,7 @@
 import {cookies} from 'next/headers'
+import type {Metadata} from 'next'
+
+export const metadata: Metadata = {robots: {index: false, follow: false}}
 import {notFound, redirect} from 'next/navigation'
 import {AccountSidebar} from '@/components/account/AccountSidebar'
 import {

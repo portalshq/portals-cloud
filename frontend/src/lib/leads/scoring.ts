@@ -1,3 +1,5 @@
+import {scoreDiagnostic} from './assessment-diagnostic'
+import {ASSESSMENT_VERSION, selected} from './assessment-definition'
 import {
   SCORE_VERSION,
   type QualificationOutcome,
@@ -9,7 +11,8 @@ import {
 
 export type QualificationAnswers = Record<string, unknown>
 
-export const ASSESSMENT_SCORE_MAXIMUM = 24
+export const ASSESSMENT_SCORE_MAXIMUM = 100
+export const LEGACY_ASSESSMENT_SCORE_MAXIMUM = 24
 
 export const assessmentWeights = {
   fit: 40,
@@ -18,15 +21,16 @@ export const assessmentWeights = {
 } as const
 
 export function assessmentScore(
-  scores: Pick<QualificationScores, 'fit' | 'pain' | 'intent'>,
+  scores: Pick<QualificationScores, 'fit' | 'pain' | 'intent' | 'diagnostic'>,
 ): number {
+  if (scores.diagnostic) return scores.diagnostic.total
   const composite =
     (scores.fit.normalized * assessmentWeights.fit +
       scores.pain.normalized * assessmentWeights.pain +
       scores.intent.normalized * assessmentWeights.intent) /
     100
   return Math.round(
-    Math.min(ASSESSMENT_SCORE_MAXIMUM, (composite / 100) * ASSESSMENT_SCORE_MAXIMUM),
+    Math.min(LEGACY_ASSESSMENT_SCORE_MAXIMUM, (composite / 100) * LEGACY_ASSESSMENT_SCORE_MAXIMUM),
   )
 }
 
@@ -34,7 +38,7 @@ export function workflowRiskScore(
   scores: Pick<QualificationScores, 'pain'>,
 ): number {
   return Math.round(
-    Math.min(ASSESSMENT_SCORE_MAXIMUM, (scores.pain.normalized / 100) * ASSESSMENT_SCORE_MAXIMUM),
+    Math.min(LEGACY_ASSESSMENT_SCORE_MAXIMUM, (scores.pain.normalized / 100) * LEGACY_ASSESSMENT_SCORE_MAXIMUM),
   )
 }
 
@@ -203,6 +207,11 @@ function implicitZeroWhenNoIncident(
 export function calculateQualification(
   answers: QualificationAnswers,
 ): QualificationScores {
+  if (answers.assessment_version === ASSESSMENT_VERSION) {
+    const diagnostic = scoreDiagnostic(answers)
+    const fixed = (earned: number, maximum: number): ScoreDimension => ({earned, answeredMaximum: maximum, eligibleMaximum: maximum, normalized: Math.round(earned / maximum * 100), coverage: 100})
+    return {version: SCORE_VERSION, fit: fixed(diagnostic.operationalFitScore, 70), pain: fixed(diagnostic.operationalFitScore, 70), intent: fixed(diagnostic.commercialReadinessScore, 30), assessmentScore: diagnostic.total, workflowRiskScore: Math.round(diagnostic.operationalFitScore / 70 * 24), diagnostic}
+  }
   const fit = dimension([
     teamTypeSignal(answers),
     mapped(answers, 'teamSize', 8, {
@@ -324,6 +333,7 @@ export function qualificationTier(
   scores: QualificationScores,
   answers?: QualificationAnswers,
 ): QualificationTier {
+  if (scores.diagnostic) return scores.diagnostic.tier
   if (answers && !credibleActiveWorkflow(answers)) return 'low'
   if (
     scores.fit.coverage >= 60 &&
@@ -424,6 +434,11 @@ const workflowByRisk: Record<string, string> = {
 }
 
 export function recommendedWorkflow(answers: QualificationAnswers): string {
+  if (answers.assessment_version === ASSESSMENT_VERSION) {
+    const patterns = selected(answers, 'active_workflows')
+    const map: Record<string, string> = {make_twelve_more_like_this: 'five-more-like-this', approved_version_retrieval: 'approved-version-retrieval', character_or_identity_continuity: 'character-continuity', campaign_variant_production: 'campaign-variant-control', production_handoff: 'production-handoff', asset_reproduction: 'asset-reproduction'}
+    return patterns.map((v) => map[v]).find(Boolean) || 'asset-reproduction'
+  }
   const statedRisk = text(answers, 'workflowRisk')
   const incident = text(answers, 'incidentType')
   return (

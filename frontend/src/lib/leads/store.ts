@@ -116,6 +116,7 @@ type MemoryEmailDelivery = {
 
 const globalForLeads = globalThis as typeof globalThis & {
   portalsLeadPool?: Pool
+  portalsPilotLockPool?: Pool
   portalsLeadMemory?: {
     profiles: Map<string, StoredProfile>
     tokens: Map<string, string>
@@ -328,13 +329,56 @@ function pilotFromRow(row: PilotRow): StoredPilot {
   }
 }
 
+const submissionLocks = new Map<string, Promise<void>>()
+
+function pilotLockPool(): Pool {
+  // Locks must not occupy the connections needed by the operation they guard.
+  // Two concurrent lock holders leave the existing five-connection data pool free.
+  globalForLeads.portalsPilotLockPool ||= new pg.Pool({
+    connectionString: process.env.LEADS_DATABASE_URL,
+    max: 2,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+  })
+  return globalForLeads.portalsPilotLockPool
+}
+
+/** Serialize room creation/replays for one persisted application. */
+export async function withPilotSubmissionLock<T>(submissionId: string, operation: () => Promise<T>): Promise<T> {
+  if (leadsDryRun()) {
+    const previous = submissionLocks.get(submissionId) || Promise.resolve()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    submissionLocks.set(submissionId, gate)
+    await previous
+    try { return await operation() } finally {
+      release()
+      if (submissionLocks.get(submissionId) === gate) submissionLocks.delete(submissionId)
+    }
+  }
+  const client = await pilotLockPool().connect()
+  try {
+    await client.query('BEGIN')
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`pilot-submission:${submissionId}`])
+    const result = await operation()
+    await client.query('COMMIT')
+    return result
+  } catch (cause) {
+    await client.query('ROLLBACK').catch(() => undefined)
+    throw cause
+  } finally {
+    client.release()
+  }
+}
+
 export async function createPilotRecord(input: CreatePilotInput): Promise<StoredPilot> {
   const now = new Date().toISOString()
   // Invites are in-room only: create owner reviewer here, rest via invitePilotMember.
   // Fall back to submitter email when productionOwnerEmail is not set (direct store usage).
   const answersWithOwner = {
     ...(input.answers as Record<string, unknown>),
-    ...(!String((input.answers as Record<string, unknown>).productionOwnerEmail || '').trim() && String((input.answers as Record<string, unknown>).email || '').trim()
+    ...(!String((input.answers as Record<string, unknown>).productionOwnerEmail || '').trim() && String((input.answers as Record<string, unknown>).email || '').trim() &&
+      (!(input.answers as Record<string, unknown>).productionOwner || (input.answers as Record<string, unknown>).productionOwner === (input.answers as Record<string, unknown>).name)
       ? { productionOwnerEmail: String((input.answers as Record<string, unknown>).email) }
       : {}),
   }
@@ -539,7 +583,13 @@ export async function getPilotBySubmissionId(
     'SELECT pilot_id FROM lead_submissions WHERE id = $1',
     [submissionId],
   )
-  return result.rows[0]?.pilot_id ? getPilotById(result.rows[0].pilot_id) : null
+  if (result.rows[0]?.pilot_id) return getPilotById(result.rows[0].pilot_id)
+  // Recover a creation interrupted before submission linkage was persisted.
+  const pending = await pool().query<PilotRow>(
+    'SELECT * FROM lead_pilots WHERE initial_submission_id = $1 ORDER BY created_at LIMIT 1',
+    [submissionId],
+  )
+  return pending.rows[0] ? pilotFromRow(pending.rows[0]) : null
 }
 
 export async function latestPilotByProfile(profileId: string): Promise<StoredPilot | null> {
@@ -1276,17 +1326,20 @@ async function persistQualification(
   profile: StoredProfile,
   input: PersistInput,
   client?: PoolClient,
+  submissionId?: string,
 ): Promise<void> {
   if (!input.verified || !input.qualificationAnswers || !input.scores || !input.tier) {
     return
   }
+  const updatedAt = new Date().toISOString()
   const qualification: StoredQualification = {
-    answers: input.qualificationAnswers,
+    answers: {...input.qualificationAnswers,
+      ...(input.request.submissionType === 'assessment' && submissionId ? {assessmentSubmissionId: submissionId, assessmentSubmittedAt: updatedAt} : {})},
     scores: input.scores,
     tier: input.tier,
     recommendedWorkflow:
       input.response.recommendedWorkflow || 'asset-reproduction',
-    updatedAt: new Date().toISOString(),
+    updatedAt,
   }
   profile.qualification = qualification
   if (leadsDryRun()) {
@@ -1305,7 +1358,7 @@ async function persistQualification(
       WHERE id = $1`,
     [
       profile.id,
-      encryptJson(input.qualificationAnswers),
+      encryptJson(qualification.answers),
       input.scores,
       input.tier,
       qualification.recommendedWorkflow,
@@ -1355,9 +1408,10 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
       }
     }
     const { profile, token } = await upsertProfile(input)
-    await persistQualification(profile, input)
+    const id = randomUUID()
+    await persistQualification(profile, input, undefined, id)
     const submission: StoredSubmission = {
-      id: randomUUID(),
+      id,
       request: input.request,
       identity: profile.identity,
       profile,
@@ -1409,8 +1463,8 @@ export async function persistSubmission(input: PersistInput): Promise<PersistRes
     }
 
     const { profile, token } = await upsertProfile(input, client)
-    await persistQualification(profile, input, client)
     const id = randomUUID()
+    await persistQualification(profile, input, client, id)
     await client.query(
       `INSERT INTO lead_submissions(
         id, idempotency_key, submission_type, provider, form_version,

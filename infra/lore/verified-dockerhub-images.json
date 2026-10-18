@@ -48,6 +48,82 @@
         "completedAt": "2026-10-01T20:57:12.735Z"
       },
       "verifiedAt": "2026-10-01T20:57:12.735Z"
+    },
+    "portalshq/auth-gateway@sha256:7d1c6a95654679990d609f3979710267f7270fec8b2634e626cdadbb2cebd6a2": {
+      "service": "auth-gateway",
+      "platform": "linux/amd64",
+      "verifiedPlatforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "indexDigest": "sha256:7d1c6a95654679990d609f3979710267f7270fec8b2634e626cdadbb2cebd6a2",
+      "platformDigest": "sha256:2c90ff36381d26a4b59c58095c66e9f85223e6f76d32963bab5bbe4e4a858393",
+      "sourceCommit": "fa6c3a949c4fcbff9a45fb645be388e932593369",
+      "protocolCommit": "f717f97c7efffb53674d6c10cae94bd994b0c7e9",
+      "signature": {
+        "identity": "https://github.com/portalshq/portals-cloud/.github/workflows/auth-dockerhub-release.yml@refs/heads/release/mac-bootstrap-20261002",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "verifiedFromRegistry": true
+      },
+      "sbomReference": "portalshq/auth-gateway@sha256:7d1c6a95654679990d609f3979710267f7270fec8b2634e626cdadbb2cebd6a2#sbom",
+      "provenanceReference": "portalshq/auth-gateway@sha256:7d1c6a95654679990d609f3979710267f7270fec8b2634e626cdadbb2cebd6a2#provenance",
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.75.0",
+        "completedAt": "2026-10-02T22:49:16.300Z"
+      },
+      "verifiedAt": "2026-10-02T22:49:16.300Z"
+    },
+    "portalshq/auth-gateway@sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162": {
+      "service": "auth-gateway",
+      "platform": "linux/amd64",
+      "verifiedPlatforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "indexDigest": "sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162",
+      "platformDigest": "sha256:337a92c5855d842fd79c5a776417d6459f65eb2e8a2996c46d1279f1f45b94c7",
+      "sourceCommit": "f099892b49cac5399b19e18f9d0c356fe01d5c96",
+      "protocolCommit": "f717f97c7efffb53674d6c10cae94bd994b0c7e9",
+      "signature": {
+        "identity": "https://github.com/portalshq/portals-cloud/.github/workflows/auth-dockerhub-release.yml@refs/heads/release/mac-bootstrap-20261002",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "verifiedFromRegistry": true
+      },
+      "sbomReference": "portalshq/auth-gateway@sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162#sbom",
+      "provenanceReference": "portalshq/auth-gateway@sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162#provenance",
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.76.0",
+        "completedAt": "2026-10-15T06:56:09.212Z"
+      },
+      "verifiedAt": "2026-10-15T06:56:09.212Z"
+    },
+    "portalshq/lore@sha256:be13e82521606050a5dcfaaef2a550af89994ae02d98907b7a7b7f95cff3d9bf": {
+      "service": "lore",
+      "platform": "linux/amd64",
+      "indexDigest": "sha256:be13e82521606050a5dcfaaef2a550af89994ae02d98907b7a7b7f95cff3d9bf",
+      "platformDigest": "sha256:caef2a571801a1aee233870ec943e9703f282d3d283d568de6771d300eaf32cd",
+      "baseImage": "portalshq/lore@sha256:bd14ab3557631d098afe633a39f4093a59c785cb125839a7ad768ca6410bd840",
+      "sourceCommit": "55c7ae4befa941be73a870b916a6db09833c638c",
+      "packagingCommit": "3c708d767661e90b31907fc3e507ac282e9d20a9",
+      "buildId": "20261015-122737-27a47fcb",
+      "signature": {
+        "identity": "https://github.com/portalshq/portals-cloud/.github/workflows/lore-dockerhub-release.yml@refs/tags/v0.8.4-portals.11",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "verifiedFromRegistry": true
+      },
+      "sbomReference": "portalshq/lore@sha256:be13e82521606050a5dcfaaef2a550af89994ae02d98907b7a7b7f95cff3d9bf#sbom",
+      "provenanceReference": "portalshq/lore@sha256:be13e82521606050a5dcfaaef2a550af89994ae02d98907b7a7b7f95cff3d9bf#provenance",
+      "trivyScan": {
+        "critical": 0,
+        "high": 0,
+        "scannerVersion": "0.76.0",
+        "completedAt": "2026-10-15T12:49:56.579Z"
+      },
+      "verifiedAt": "2026-10-15T12:49:56.579Z"
     }
   }
 }

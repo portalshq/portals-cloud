@@ -2,4 +2,7 @@
 # UDP as beta and says its port changes without a Pro reservation. Reserve and
 # test a persistent UDP mapping to 127.0.0.1:41337, then put the dashboard-
 # generated foreground command in the private release file as
-# PINGGY_UDP_COMMAND.
+# PINGGY_UDP_COMMAND. Verify the SSH gateway fingerprint through a trusted
+# Pinggy channel and use `-o StrictHostKeyChecking=yes` plus
+# `-o UserKnownHostsFile=/Users/portals-svc/.ssh/known_hosts`; never accept a
+# dashboard command containing `StrictHostKeyChecking=no`.

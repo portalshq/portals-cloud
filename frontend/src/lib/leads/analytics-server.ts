@@ -1,3 +1,4 @@
+import {diagnosticAnalyticsProperties} from './assessment-diagnostic'
 import {assessmentScore} from './scoring'
 import type {StoredSubmission} from './store'
 
@@ -6,11 +7,13 @@ type Event = {event: string; properties: Record<string, unknown>}
 export async function trackSubmissionEvents(
   submission: StoredSubmission,
 ): Promise<void> {
+  if (!submission.request.consent.analytics) return
   const token =
     process.env.MIXPANEL_PROJECT_TOKEN || process.env.NEXT_PUBLIC_MIXPANEL_TOKEN
   if (!token) throw new Error('MIXPANEL_PROJECT_TOKEN is required.')
   const anonAnalyticsId = submission.request.anonAnalyticsId
   const common: Record<string, unknown> = {
+    ...diagnosticAnalyticsProperties(submission.request.answers, submission.scores?.diagnostic),
     token,
     distinct_id: submission.profile.analyticsPersonId,
     person_id: submission.profile.analyticsPersonId,
@@ -28,7 +31,7 @@ export async function trackSubmissionEvents(
     workflow_risk_score: submission.scores?.workflowRiskScore,
     utm_source: submission.request.attribution.utmSource,
     utm_campaign: submission.request.attribution.utmCampaign,
-    score_version: submission.scores?.version,
+    score_version: submission.scores?.diagnostic?.version || submission.scores?.version,
     time: Math.floor(Date.now() / 1000),
   }
   // Add client IP for geolocation if available
@@ -73,6 +76,8 @@ export async function trackSubmissionEvents(
   }
   if (submission.request.submissionType === 'assessment') {
     events.push({event: 'assessment_completed', properties: common})
+    events.push({event: 'assessment_submitted', properties: common})
+    if (submission.tier) events.push({event: `assessment_result_${submission.tier === 'medium' ? 'mid' : submission.tier}`, properties: common})
   }
   if (submission.request.submissionType === 'commercial_readiness') {
     events.push({event: 'commercial_clarification_completed', properties: common})
@@ -82,6 +87,7 @@ export async function trackSubmissionEvents(
   }
   if (submission.request.submissionType === 'pilot_request') {
     events.push({event: 'pilot_requested', properties: common})
+    events.push({event: 'pilot_application_submitted', properties: common})
   }
   if (submission.response.nextAction === 'calendar') {
     events.push({event: 'calendar_shown', properties: common})

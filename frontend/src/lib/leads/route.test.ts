@@ -19,6 +19,7 @@ import {
 import {
   getProfileByToken,
   getPilotById,
+  getTermsAcceptanceByPilotAndEmail,
   latestPilotByProfile,
   takeDueOutbox,
   updatePilot,
@@ -260,7 +261,7 @@ test('pilot_request through POST delivers the approval-room email to the submitt
   const queued = await takeDueOutbox()
   const pilotEmail = queued.find((row) => row.action_type === 'pilot_email')
   assert.ok(pilotEmail, 'a pilot_email outbox action is queued')
-  assert.equal(pilotEmail.action_key, `${pilot.id}:pilot_email:reviewing:`)
+  assert.equal(pilotEmail.action_key, `${pilot.id}:pilot_email:reviewing::event:revision:${pilot.version}:reviewing`)
 
   await processLeadOutbox(20)
 
@@ -844,4 +845,186 @@ test('reset_profile clears both profile and session cookies with complete attrib
   assert.match(sessionCookie, /HttpOnly/i)
   assert.match(sessionCookie, /SameSite=lax/i)
   assert.match(sessionCookie, /Path=\//i)
+})
+
+// Current diagnostic boundary, persistence, and self-serve routes.
+import {ASSESSMENT_VERSION} from './assessment-definition'
+import {completeAssessment, highAssessment, vfxAssessment, throughputAssessment} from './assessment-fixtures'
+
+function diagnosticBody(email: string, answers = highAssessment) {
+  return {...assessmentBody(email), formVersion: ASSESSMENT_VERSION,
+    identity: {name: 'Test Producer', email, company: 'Studio Example', role: 'production-operations', website: ''},
+    answers, idempotencyKey: `diagnostic:${crypto.randomUUID()}`}
+}
+test('v4 High and Mid results enter pilot application and keep internal tags out of public responses', async () => {
+  for (const [label, answers] of [['high', highAssessment], ['medium', {...highAssessment, production_status: 'within_1_to_3_months'}]] as const) {
+    const response = await post(diagnosticBody(`v4-${label}@studio.example`, answers))
+    assert.equal(response.status, 200)
+    const json = await response.json()
+    assert.equal(json.nextAction, 'pilot_scope')
+    assert.equal(json.qualificationTier, label)
+    assert.ok(json.diagnosticResult.explanations.length)
+    assert.ok(!JSON.stringify(json).includes('A_STATE_PERSON_DEPENDENT'))
+    const profile = await getProfileByToken(profileTokenFrom(response))
+    assert.ok(profile?.qualification?.scores.diagnostic)
+    assert.equal(profile.qualification.answers.pilotWorkflow, answers.most_urgent_active_workflow)
+    assert.ok(String(profile.qualification.answers.productionBaseline).includes('Time to transfer'))
+  }
+})
+test('v4 Low result routes to materials even when a legacy commercial readiness path was strong', async () => {
+  const email = 'v4-low-after-high@studio.example'
+  const first = await post(diagnosticBody(email))
+  const response = await post(diagnosticBody(email, completeAssessment), {cookie: `portals_profile=${profileTokenFrom(first)}`})
+  assert.equal(response.status, 200)
+  const json = await response.json()
+  assert.equal(json.nextAction, 'use_case')
+  assert.equal(json.qualificationTier, 'low')
+  const profile = await getProfileByToken(profileTokenFrom(first))
+  assert.equal(profile!.qualification!.scores.diagnostic!.meaningfulProblem, false)
+  assert.equal(profile!.qualification!.answers.manual_handoff_requirements, undefined)
+})
+test('v4 server rejects missing required and conditional answers before persistence', async () => {
+  for (const override of [{contributors_count: undefined}, {most_recent_incident: ''}, {ip_controlled_content: 'yes'}]) {
+    const response = await post(diagnosticBody(`v4-invalid-${crypto.randomUUID()}@studio.example`, {...highAssessment, ...override}))
+    assert.equal(response.status, 400)
+    assert.equal(response.headers.getSetCookie().length, 0)
+  }
+})
+
+test('assessment evidence reaches rooms without browser tampering or owner replacement', async () => {
+  for (const [name, fixture] of Object.entries({A: highAssessment, B: vfxAssessment, C: throughputAssessment, MULTI: highAssessment, MID: {...highAssessment, production_status: 'within_1_to_3_months'}, LOW: completeAssessment})) {
+    const email = `inherit-${name.toLowerCase()}-${crypto.randomUUID()}@studio.example`
+    const assessment = await post(diagnosticBody(email, fixture))
+    assert.equal(assessment.status, 200, name)
+    const token = profileTokenFrom(assessment)
+    const before = (await getProfileByToken(token))!.qualification!
+    const original = JSON.stringify(before.answers)
+    const response = await post(pilotBody(email, {productionOwner: 'Another producer', productionOwnerEmail: 'owner@studio.example', assessment_version: ASSESSMENT_VERSION, production_status: 'live_now', productionBaseline: 'Forged baseline', successCriteria: '', successCriterionKeysJson: ''}), {cookie: `portals_profile=${token}`})
+    assert.equal(response.status, 200, name)
+    const json = await response.json()
+    assert.equal(json.pilotAuthToken, undefined)
+    const {profile, pilot} = await pilotForProfile(token)
+    assert.ok(pilot)
+    assert.equal(JSON.stringify(profile.qualification!.answers), original)
+    assert.equal(pilot.answers.productionOwnerEmail, 'owner@studio.example')
+    assert.equal(pilot.answers.productionOwner, 'Another producer')
+    assert.equal(pilot.answers.assessmentSnapshot.profileId, profile.id)
+    assert.equal(pilot.answers.assessmentSnapshot.answers.production_status, fixture.production_status)
+    assert.ok(pilot.answers.assessmentSnapshot.submissionId)
+    assert.notEqual(pilot.answers.productionBaseline, 'Forged baseline')
+    assert.match(pilot.answers.successCriteria, /exact approved production version/)
+    if (before.tier === 'low') assert.equal(pilot.state, 'exception_review')
+  }
+})
+
+test('replayed and concurrent application submissions return the same room', async () => {
+  const email = `replay-${crypto.randomUUID()}@studio.example`
+  const assessment = await post(diagnosticBody(email))
+  const cookie = `portals_profile=${profileTokenFrom(assessment)}`
+  const body = pilotBody(email)
+  const responses = await Promise.all([post(body, {cookie}), post(body, {cookie})])
+  const first = await responses[0].json(), second = await responses[1].json()
+  assert.equal(responses[0].status, 200)
+  assert.equal(responses[1].status, 200)
+  assert.equal(first.pilotUrl, second.pilotUrl)
+  const replay = await post({...body, answers: {...body.answers, pilotWorkflow: 'Tampered replay'}}, {cookie})
+  assert.equal((await replay.json()).pilotUrl, first.pilotUrl)
+  const stored = await pilotForProfile(profileTokenFrom(assessment))
+  assert.equal(stored.pilot!.answers.pilotWorkflow, body.answers.pilotWorkflow)
+})
+
+test('claimed returning emails and forged assessment identifiers cannot disclose another lead', async () => {
+  const victimEmail = `victim-${crypto.randomUUID()}@studio.example`
+  const assessment = await post(diagnosticBody(victimEmail))
+  const token = profileTokenFrom(assessment)
+  const before = JSON.stringify((await getProfileByToken(token))!.qualification)
+  const rejected = await post(pilotBody(victimEmail, {assessmentId: 'forged-id', productionOwner: 'Attacker'}))
+  assert.equal(rejected.status, 403)
+  assert.equal(rejected.headers.getSetCookie().length, 0)
+  assert.equal(JSON.stringify((await getProfileByToken(token))!.qualification), before)
+  const unsignedProvider = await post({...pilotBody(victimEmail), provider: 'apollo'})
+  assert.equal(unsignedProvider.status, 400)
+  assert.equal(unsignedProvider.headers.getSetCookie().length, 0)
+  const other = await post(pilotBody(`other-${crypto.randomUUID()}@studio.example`, {...highAssessment, assessmentId: 'forged-id'}))
+  assert.equal(other.status, 200)
+  const otherPilot = (await pilotForProfile(profileTokenFrom(other))).pilot!
+  assert.equal(otherPilot.answers.assessmentSnapshot, undefined)
+  assert.equal(otherPilot.answers.assessment_version, undefined)
+})
+
+test('a qualified assessment reaches accepted terms, simulated payment and activation through the API', async (t) => {
+  const email = `commercial-journey-${crypto.randomUUID()}@studio.example`
+  const fetches = captureFetch(t)
+  const assessment = await post(diagnosticBody(email))
+  const profileToken = profileTokenFrom(assessment)
+  const created = await post(pilotBody(email, {
+    targetStartPeriod: 'within-30-days', historicalProject: 'one-completed',
+    productionOwner: 'Ava Nguyen', productionOwnerEmail: email,
+    successCriteria: '', successCriterionKeysJson: '',
+  }), {cookie: `portals_profile=${profileToken}`})
+  assert.equal(created.status, 200)
+  const {pilot} = await pilotForProfile(profileToken)
+  assert.ok(pilot)
+  assert.equal(pilot.route, 'zero-call')
+  const originalPrice = pilot.proposal!.priceAmount
+  const originalDuration = pilot.proposal!.termDays
+  await processLeadOutbox(2000)
+  const accessEmail = fetches.find(entry => entry.body.to === email && String(entry.body.text).includes('/auth/verify?token='))
+  assert.ok(accessEmail, 'the application supplies its existing secure email continuation')
+  const session = await consumeMagicLink(tokenFrom(String(accessEmail.body.text)))
+  assert.ok(session)
+  const cookie = `portals_session=${session.sessionToken}`
+  const act = async (body: Record<string, unknown>, expectedState: string) => {
+    const response = await patchPilot(pilot.id, body, {cookie})
+    const json = await response.json()
+    assert.equal(response.status, 200, JSON.stringify(json))
+    assert.equal(json.pilot.state, expectedState)
+    return json.pilot as StoredPilot
+  }
+  assert.equal((await patchPilot(pilot.id, {action: 'sign', signer: {name: 'Ava Nguyen', email}}, {cookie})).status, 400)
+  assert.equal((await patchPilot(pilot.id, {action: 'pay'}, {cookie})).status, 400)
+  const startDate = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
+  const scoped = await act({action: 'update', startDate, answers: {signerName: 'Ava Nguyen', signerEmail: email}, priceAmount: 1, proposal: {priceAmount: 1, termDays: 1}}, 'reviewing')
+  assert.equal(scoped.proposal!.priceAmount, originalPrice)
+  assert.equal(scoped.proposal!.termDays, originalDuration)
+  await act({action: 'confirm_scope'}, 'scope_confirmed')
+  const finalized = await act({action: 'finalize'}, 'ready_sign')
+  const signed = await act({action: 'sign', signer: {name: 'Ava Nguyen', email}, answers: {pilotWorkflow: 'Unapproved signature-time terms'}}, 'signed')
+  assert.ok(signed.signing.termsAcceptanceId)
+  const acceptance = await getTermsAcceptanceByPilotAndEmail(pilot.id, email, signed.signing.termsHash!, signed.signing.scopeHash!)
+  assert.ok(acceptance)
+  assert.equal((acceptance.termsSnapshot as {scope: {answers: Record<string, unknown>}}).scope.answers.pilotWorkflow, finalized.answers.pilotWorkflow)
+  assert.equal((await patchPilot(pilot.id, {action: 'draft', draftAnswers: {pilotWorkflow: 'Late change'}}, {cookie})).status, 400)
+  assert.equal(signed.proposal!.priceAmount, originalPrice)
+  assert.ok((await patchPilot(pilot.id, {action: 'sign', signer: {name: 'Ava Nguyen', email}}, {cookie})).status >= 400)
+  assert.equal((await getPilotById(pilot.id))!.signing.termsAcceptanceId, signed.signing.termsAcceptanceId)
+  await act({action: 'pay', payment: {amount: originalPrice, method: 'local-test'}}, 'paid')
+  await act({action: 'launch', launch: {date: startDate, timezone: 'UTC', slotLabel: 'Local fixture', availabilityVersion: 'default'}}, 'launch')
+  const active = await act({action: 'activate'}, 'active')
+  assert.ok(active.payment.paidAt)
+  assert.deepEqual(active.answers.assessmentSnapshot, finalized.answers.assessmentSnapshot)
+})
+
+test('room edits cannot forge assessment evidence or erase required founder qualification', async () => {
+  const email = `room-low-${crypto.randomUUID()}@studio.example`
+  const assessment = await post(diagnosticBody(email, completeAssessment))
+  const token = profileTokenFrom(assessment)
+  await post(pilotBody(email), {cookie: `portals_profile=${token}`})
+  const {pilot} = await pilotForProfile(token)
+  assert.ok(pilot)
+  const owner = await getApplicationUserByEmail(email)
+  const session = await consumeMagicLink(await issueMagicLink({userId: owner!.id, purpose: 'sign_in'}))
+  const cookie = `portals_session=${session!.sessionToken}`
+  const originalSnapshot = structuredClone(pilot.answers.assessmentSnapshot)
+  const updated = await patchPilot(pilot.id, {action: 'update', answers: {
+    assessmentOrigin: 'standard', assessmentSnapshot: {profileId: 'foreign'},
+    production_status: 'live_now', productionBaseline: 'Forged baseline',
+  }}, {cookie})
+  assert.equal(updated.status, 200)
+  const room = (await updated.json()).pilot
+  assert.equal(room.answers.assessmentOrigin, 'assessment_override')
+  assert.deepEqual(room.answers.assessmentSnapshot, originalSnapshot)
+  assert.ok(room.exceptions.some((exception: {kind: string}) => exception.kind === 'assessment-qualification'))
+  assert.equal((await patchPilot(pilot.id, {action: 'resolve_exceptions'}, {cookie})).status, 403)
+  assert.equal((await patchPilot(pilot.id, {action: 'sign', signer: {name: 'Ava', email}}, {cookie})).status, 422)
 })

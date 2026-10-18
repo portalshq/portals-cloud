@@ -1,3 +1,5 @@
+import {diagnosticResult, pilotAssessmentPrefill} from '@/lib/leads/assessment-diagnostic'
+import {assessmentQuestions, answerLabel, questionVisible, selected} from '@/lib/leads/assessment-definition'
 import React, { type ReactElement } from 'react'
 import path from 'node:path'
 import {
@@ -1005,6 +1007,36 @@ export function AssessmentResultPdfDocument({
   data: PersonalizedQualification
   document?: ResourceDocument
 }): ReactElement<DocumentProps> {
+  if (data.scores.diagnostic) {
+    const result = diagnosticResult(data.answers, data.scores.diagnostic)
+    const prefill = pilotAssessmentPrefill(data.answers)
+    return <Document title={`Production assessment - ${companyName(data)}`} author="portals">
+      <Page size="LETTER" style={styles.page}>
+        <ReportHeader page={1} />
+        <Text style={styles.reportTitle}>{result.title}</Text>
+        <Text style={styles.reportLead}>{result.recommendation}</Text>
+        <SagaColorBand />
+        <Text style={styles.sectionTitleSmall}>Your production evidence</Text>
+        <CleanList items={result.explanations} />
+        <Text style={styles.sectionTitleSmall}>Baseline to validate</Text>
+        <Text style={styles.reportLead}>{String(prefill.productionBaseline || '')}</Text>
+        <Text style={styles.reportLead}>{String(prefill.successCriteria || '')}</Text>
+        <Text style={styles.sectionTitleSmall}>Next step</Text>
+        <Text style={styles.reportLead}>{data.tier === 'low' ? 'Explore use cases and reassess when a live team production needs to transfer or scale.' : 'Configure a bounded production pilot. Review implementation scope, requirements, and terms before approval. Request assistance if requirements need clarification.'}</Text>
+        <Link src={data.tier === 'low' ? 'https://portals.works/use-cases' : 'https://portals.works/pilot'}>Continue with portals</Link>
+        <ReportFooter data={data} note="Assessment v4: operational fit 70 points; commercial readiness 30 points. Recommendations use reported answers. Establish measured baselines and agreed targets before testing; no savings are guaranteed." />
+      </Page>
+      <Page size="LETTER" style={styles.page}>
+        <ReportHeader page={2} />
+        <Text style={styles.reportTitle}>Your diagnostic answers</Text>
+        {assessmentQuestions.filter((q) => questionVisible(q, data.answers) && data.answers[q.id]).map((q) => <View key={q.id} style={{marginBottom: 8}} wrap={false}>
+          <Text style={{fontSize: 9, fontWeight: 500}}>{q.label}</Text>
+          <Text style={{fontSize: 9}}>{q.kind === 'multi' ? selected(data.answers, q.id).map((value) => answerLabel(q, value)).join(', ') : q.kind === 'select' ? answerLabel(q, String(data.answers[q.id])) : String(data.answers[q.id])}</Text>
+        </View>)}
+        <ReportFooter data={data} />
+      </Page>
+    </Document>
+  }
   return (
     <Document
       title={`Your production workflow evaluation - ${companyName(data)}`}

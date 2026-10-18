@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { after, NextResponse } from 'next/server'
+import {editablePilotOverrides} from '@/lib/leads/pilot-inheritance'
 import type {
   PilotAnswers,
   SuccessCriterion,
@@ -209,15 +210,16 @@ function recompute(
   unresolved: ReturnType<typeof computeUnresolved>
   proposal: CommercialSnapshot | null
 } {
-  const answers = {
-    ...(pilot.answers as Record<string, unknown>),
-    ...(body.answers || {}),
-  }
+  const overrides = editablePilotOverrides(pilot.answers, body.answers || {})
+  delete overrides.assessmentOrigin
+  const answers = {...pilot.answers, ...overrides}
   const classification = classifyPilot(answers as PilotAnswers)
   const exceptions = classification.exceptions.map((item) => {
     const prior = pilot.exceptions.find((existing) => existing.kind === item.kind)
     return prior?.resolvedAt ? { ...item, resolvedAt: prior.resolvedAt } : item
   })
+  const qualificationException = pilot.exceptions.find((item) => item.kind === 'assessment-qualification' && !item.resolvedAt)
+  if (qualificationException) exceptions.push(qualificationException)
   const startDate =
     body.startDate !== undefined ? body.startDate : pilot.resolvedStartDate
   const answersChanged = Boolean(body.answers)
@@ -1369,12 +1371,10 @@ export async function PATCH(
       if (offerEndsAt && Date.now() >= new Date(offerEndsAt).getTime()) {
         return NextResponse.json({ ok: false, message: 'this pilot offer has expired' }, { status: 409 })
       }
-      const answers = {
-        ...(pilot.answers as Record<string, unknown>),
-        ...(body.answers || {}),
-      }
-      const name = body.signer?.name || String(answers.signerName || '')
-      const email = body.signer?.email || String(answers.signerEmail || '')
+      // Acceptance records the finalized server scope, never new browser terms.
+      const answers = {...pilot.answers}
+      const name = body.signer?.name || String(body.answers?.signerName || answers.signerName || '')
+      const email = body.signer?.email || String(body.answers?.signerEmail || answers.signerEmail || '')
       if (!name.trim() || !email.trim()) {
         return NextResponse.json(
           { ok: false, message: 'signer name and email are required' },
@@ -1463,7 +1463,7 @@ export async function PATCH(
     }
 
     if (body.action === 'pay') {
-      if (!leadsDryRun() && process.env.STRIPE_SECRET_KEY) {
+      if (!leadsDryRun()) {
         return NextResponse.json(
           { ok: false, message: 'manual payment recording is disabled; complete Stripe Checkout to mark paid' },
           { status: 400 },

@@ -37,6 +37,8 @@ if grep -E 'ecr-login|dkr\.ecr|aws ecr' "$ROOT/scripts/check-images.sh" "$ROOT/s
   exit 1
 fi
 grep -q 'AUTH_SECRET_DIR' "$ROOT/templates/compose.prod.yaml"
+grep -q 'LORE_AWS_ENV_FILE' "$ROOT/templates/compose.prod.yaml"
+grep -q 'LORE_AWS_ENV_FILE' "$ROOT/scripts/bootstrap.sh"
 grep -q '/.well-known/jwks.json' "$ROOT/templates/Caddyfile"
 grep -q '8085/healthz' "$ROOT/scripts/deploy.sh"
 grep -q 'Docker-neighbor ReBAC URL' "$ROOT/scripts/check-release.mjs"

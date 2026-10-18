@@ -1,267 +1,459 @@
 'use client'
 
-import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownToLine, ArrowUpRight, ArrowRight } from 'lucide-react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type FormEvent,
+  type ChangeEvent,
+} from 'react'
 import { CTAButton } from '@/components/CTAButton'
-import { LeadCheckbox, LeadSelectField, LeadTextField, LeadTextareaField } from '@/components/mui/fields'
+import {
+  LeadCheckbox,
+  LeadSelectField,
+  LeadTextareaField,
+} from '@/components/mui/fields'
 import {
   analyticsConsent,
   buildAttribution,
-  qualificationBehavior,
   retrieveFormParams,
   trackEvent,
 } from '@/lib/leads/analytics-client'
-import { newSubmissionId, publicEmailNeedsWebsite, submitLead } from '@/lib/leads/client'
-import { productionWorkflows } from '@/lib/production-workflows'
+import {
+  newSubmissionId,
+  publicEmailNeedsWebsite,
+  submitLead,
+} from '@/lib/leads/client'
 import {
   DISCLOSURE_VERSION,
+  assessmentAnswersSchema,
   type KnownLeadContext,
-  type LeadIdentity,
   type LeadResponse,
 } from '@/lib/leads/contracts'
-import { ConditionalReveal } from './ConditionalReveal'
-import { ConsentFields, IdentityFields, LeadField, NoScriptLeadFallback } from './LeadFields'
-import { useFormDraft } from './useFormDraft'
-import { usePreservedSwap } from './usePreservedSwap'
+import {
+  ASSESSMENT_VERSION,
+  activeAssessmentAnswers,
+  answerLabel,
+  assessmentAnswersFromDraft,
+  assessmentQuestions,
+  assessmentStages,
+  assessmentTextMaximum,
+  assessmentValidationErrors,
+  diagnosticFields,
+  questionVisible,
+  selected,
+  visibleAssessmentStages,
+  type AssessmentQuestion,
+  type AssessmentValues,
+} from '@/lib/leads/assessment-definition'
 import {
   applyFallbackDefaults,
   normalizeUrlParams,
   parseUrlParams,
-  shouldHideField,
-  validateUrlParamEmail,
   type UrlParams,
 } from '@/lib/leads/url-params'
+import {
+  ConsentFields,
+  IdentityFields,
+  LeadField,
+  NoScriptLeadFallback,
+} from './LeadFields'
+import { useFormDraft } from './useFormDraft'
+import { Progress } from '../ui/progress'
 
-const frequencyOptions = ['never', 'quarterly', 'monthly', 'weekly', 'daily'] as const
-
-const reasonLabels: Record<string, string> = {
-  'strong-workflow-fit': 'Your team and production pattern align with a repository-backed workflow.',
-  'repeatable-production': 'The workflow repeats often enough to test in a bounded production pilot.',
-  'measurable-rework-risk': 'Your answers show material rediscovery, recreation, or delivery risk.',
-  'production-context-fragmented': 'Prompts, references, and generation context are split across people or tools.',
-  'approved-version-risk': 'Approved-version control depends on conventions that are difficult to reproduce reliably.',
-  'commercial-readiness-needed': 'A few ownership, timing, or approval details are still unknown.',
-  'workflow-definition-needed': 'The assessment could not establish a sufficiently specific active workflow.',
-  'limited-current-risk': 'The current answers show limited production-memory risk or urgency.',
+function validatedPrefill(values: AssessmentValues): AssessmentValues {
+  return Object.fromEntries(
+    Object.entries(values).flatMap(([id, value]) => {
+      const field = diagnosticFields[id]
+      if (!field) return []
+      const parsed = field.safeParse(value)
+      return parsed.success ? [[id, parsed.data]] : []
+    }),
+  )
 }
 
-function restoredResult(context: KnownLeadContext): LeadResponse | null {
-  if (!context.assessmentCompleted || !context.qualificationOutcome) return null
-  return {
-    ok: true,
-    nextAction:
-      context.qualificationOutcome === 'pilot_candidate'
-        ? 'pilot_scope'
-        : 'use_case',
-    qualificationOutcome: context.qualificationOutcome,
-    reasonCodes: context.reasonCodes,
-    missingFields: context.missingFields,
-    workflowRiskScore: context.scores?.workflowRiskScore,
-    recommendedWorkflow: context.recommendedWorkflow,
-    downloadUrl: '/api/leads/documents/assessment-result',
-    message:
-      context.qualificationOutcome === 'pilot_candidate'
-        ? 'Your workflow is a viable candidate for a paid production pilot.'
-        : 'Your assessment points to a production workflow worth improving. Explore the relevant pattern to see how to reduce repeat work before deciding on a pilot.',
-  }
+const MemoIdentityFields = memo(IdentityFields)
+const MemoConsentFields = memo(ConsentFields)
+
+const questionsByStage = new Map<number, AssessmentQuestion[]>()
+for (const q of assessmentQuestions) {
+  const list = questionsByStage.get(q.stage)
+  if (list) list.push(q)
+  else questionsByStage.set(q.stage, [q])
 }
 
-function AssessmentSelect({
-  id,
-  name,
-  label,
+function QuestionItem({
+  q,
+  visible,
   required,
-  options,
-  defaultValue = '',
-  onValueChange,
+  invalid,
+  value,
+  onChange,
 }: {
-  id: string
-  name: string
-  label: string
+  q: (typeof assessmentQuestions)[number]
+  visible: boolean
   required: boolean
-  options: readonly string[]
-  defaultValue?: string
-  onValueChange?: (value: string) => void
+  invalid: boolean
+  value: unknown
+  onChange: (id: string, value: unknown) => void
 }) {
+  const helpId = `${q.id}-help`
+  const selectedValues = useMemo(
+    () =>
+      q.kind === 'multi'
+        ? selected({ [q.id]: value } as AssessmentValues, q.id)
+        : [],
+    [q.kind, q.id, value],
+  )
   return (
-    <LeadField label={`${label}${required ? ' *' : ''}`} name={name}>
-      <LeadSelectField
-        id={id}
-        name={name}
-        required={required}
-        defaultValue={defaultValue}
-        onChange={onValueChange ? (event) => onValueChange(event.target.value) : undefined}
-      >
-        <option value="" disabled>select one</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option.replaceAll('-', ' ')}
-          </option>
-        ))}
-      </LeadSelectField>
-    </LeadField>
+    <div hidden={!visible} data-question={q.id} tabIndex={-1}>
+      {q.kind === 'multi' ? (
+        <fieldset
+          aria-describedby={q.help ? helpId : undefined}
+          aria-invalid={invalid || undefined}
+          className="space-y-12"
+        >
+          <legend className="t-p-sm-sans">
+            {q.label}
+            {q.required ? ' *' : ''}
+          </legend>
+          {q.help ? (
+            <p id={helpId} className="t-p-sm-sans text-white/80">
+              {q.help}
+            </p>
+          ) : null}
+          <div className="grid gap-10 sm:grid-cols-2">
+            {q.options!.map((optionValue) => (
+              <label
+                key={optionValue}
+                className="flex items-start gap-10 t-p-sm-sans"
+              >
+                <LeadCheckbox
+                  name={`${q.id}:${optionValue}`}
+                  checked={selectedValues.includes(optionValue)}
+                  onChange={(event) => {
+                    const current = selectedValues
+                    onChange(
+                      q.id,
+                      event.target.checked
+                        ? optionValue === q.exclusive
+                          ? [optionValue]
+                          : [
+                            ...current.filter((v) => v !== q.exclusive),
+                            optionValue,
+                          ]
+                        : current.filter((v) => v !== optionValue),
+                    )
+                  }}
+                />
+                <span>{answerLabel(q, optionValue)}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : (
+        <LeadField
+          label={`${q.label}${q.required ? ' *' : ''}`}
+          name={q.id}
+        >
+          {q.kind === 'select' ? (
+            <LeadSelectField
+              id={q.id}
+              name={q.id}
+              required={required}
+              value={String(value || '')}
+              onChange={(event) => onChange(q.id, event.target.value)}
+              error={invalid}
+            >
+              <option value="">Select one</option>
+              {q.options!.map((optionValue) => (
+                <option key={optionValue} value={optionValue}>
+                  {answerLabel(q, optionValue)}
+                </option>
+              ))}
+            </LeadSelectField>
+          ) : (
+            <LeadTextareaField
+              id={q.id}
+              name={q.id}
+              required={required}
+              minRows={3}
+              resizable={false}
+              value={String(value || '')}
+              onChange={(event) => onChange(q.id, event.target.value)}
+              slotProps={{
+                htmlInput: {
+                  maxLength: assessmentTextMaximum(q.id),
+                  'aria-invalid': invalid || undefined,
+                  'aria-describedby': q.help ? helpId : undefined,
+                },
+              }}
+            />
+          )}
+          {q.help ? (
+            <span id={helpId} className="t-p-sm-sans text-white/80">
+              {q.help}
+            </span>
+          ) : null}
+        </LeadField>
+      )}
+    </div>
   )
 }
 
-export function AssessmentForm({ context, preface }: { context: KnownLeadContext; preface?: ReactNode }) {
-  const [leadContext, setLeadContext] = useState<KnownLeadContext>(context)
-  const known = useMemo(() => new Set(leadContext.knownAnswerFields), [leadContext.knownAnswerFields])
-  const idempotencyKey = useMemo(() => newSubmissionId('assessment'), [])
+const MemoQuestionItem = memo(QuestionItem)
+
+export function AssessmentForm({
+  context,
+  preface,
+}: {
+  context: KnownLeadContext
+  preface?: ReactNode
+}) {
+  const [answers, setAnswers] = useState<AssessmentValues>(() =>
+    validatedPrefill(context.answerValues || {}),
+  )
+  const [stage, setStage] = useState(0)
   const [email, setEmail] = useState('')
-  const [recreationFrequency, setRecreationFrequency] = useState<string>(
-    () => (leadContext.answerValues?.recreationFrequency as string | undefined) || '',
+  const [urlParams, setUrlParams] = useState<UrlParams>({})
+  const [result, setResult] = useState<LeadResponse | null>(() =>
+    context.diagnosticResult && context.assessmentCompleted
+      ? {
+        ok: true,
+        nextAction:
+          context.qualificationTier === 'low' ? 'use_case' : 'pilot_scope',
+        qualificationTier: context.qualificationTier,
+        diagnosticResult: context.diagnosticResult,
+      }
+      : null,
   )
-  const [incidentType, setIncidentType] = useState<string>(
-    () => (leadContext.answerValues?.incidentType as string | undefined) || '',
-  )
-  const [result, setResult] = useState<LeadResponse | null>(() => restoredResult(leadContext))
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [error, setError] = useState('')
-  const [urlParams, setUrlParams] = useState<UrlParams>({})
-  const [showField, setShowField] = useState<Record<string, boolean>>({})
+  const [invalidFields, setInvalidFields] = useState<string[]>([])
+  const formRef = useRef<HTMLFormElement | null>(null)
+  const hasNavigated = useRef(false)
+  const headingRef = useRef<HTMLHeadingElement>(null)
   const started = useRef(false)
-  const { ref: swapRef, reservedHeight, reserve } = usePreservedSwap()
-  const { ref: draftRef, restored, flush, clear } = useFormDraft('workflow_assessment')
+  const startedAt = useRef(Date.now())
+  const idempotencyKey = useRef(newSubmissionId('assessment'))
+  const enteredBranches = useRef(new Set<string>())
+  const {
+    ref: draftRef,
+    restored,
+    flush,
+    clear,
+  } = useFormDraft('workflow_assessment')
+  const registerForm = useCallback(
+    (element: HTMLFormElement | null) => {
+      formRef.current = element
+      draftRef(element)
+    },
+    [draftRef],
+  )
+  const identityChanged = Boolean(
+    urlParams.email &&
+    context.identity?.email &&
+    urlParams.email.toLowerCase() !== context.identity.email.toLowerCase(),
+  )
+  const identityContext: KnownLeadContext = useMemo(
+    () =>
+      identityChanged
+        ? { known: false, knownFields: [], knownAnswerFields: [] }
+        : {
+          ...context,
+          knownFields: context.knownFields.filter(
+            (field) => !urlParams[field],
+          ),
+        },
+    [identityChanged, context, urlParams],
+  )
+  const stages = useMemo(() => visibleAssessmentStages(answers), [answers])
+  const currentStage = stages.includes(stage)
+    ? stage
+    : stages.find((v) => v > stage) || stages.at(-1) || 0
+  const position = stages.indexOf(currentStage)
+  const isLast = position === stages.length - 1
+  const visibility = useMemo(() => {
+    const map = new Map<string, boolean>()
+    for (const q of assessmentQuestions)
+      map.set(q.id, questionVisible(q, answers))
+    return map
+  }, [answers])
 
   useEffect(() => {
+    const params = applyFallbackDefaults(
+      normalizeUrlParams({ ...retrieveFormParams(), ...parseUrlParams() }),
+    )
+    setUrlParams(params)
+    if (params.email) setEmail(params.email)
+    if (
+      params.email &&
+      context.identity?.email &&
+      params.email.toLowerCase() !== context.identity.email.toLowerCase()
+    ) {
+      clear()
+      setAnswers({})
+      setResult(null)
+    }
+    void trackEvent('assessment_viewed', {
+      assessment_version: ASSESSMENT_VERSION,
+    })
+  }, [])
+  useEffect(() => {
+    setAnswers((current) => ({
+      ...current,
+      ...validatedPrefill(assessmentAnswersFromDraft(restored)),
+    }))
     if (restored.email) setEmail(restored.email)
-    if (restored.recreationFrequency) setRecreationFrequency(restored.recreationFrequency)
-    if (restored.incidentType) setIncidentType(restored.incidentType)
-  }, [restored.email, restored.recreationFrequency, restored.incidentType])
-
-  // Parse URL parameters and integrate with form
+  }, [restored])
   useEffect(() => {
-    const rawUrlParams = parseUrlParams()
-    const storedParams = retrieveFormParams()
-
-    // Merge URL params with stored params (URL params take priority)
-    const mergedParams = { ...storedParams, ...rawUrlParams }
-    const normalizedParams = normalizeUrlParams(mergedParams)
-    const paramsWithDefaults = applyFallbackDefaults(normalizedParams)
-
-    setUrlParams(paramsWithDefaults)
-
-    // Determine which fields to hide based on pre-filled values
-    const fieldVisibility: Record<string, boolean> = {}
-    fieldVisibility.howDidYouHearAboutPortals = !shouldHideField('howDidYouHearAboutPortals', paramsWithDefaults.how_did_you_hear)
-    fieldVisibility.whatBroughtYouHere = !shouldHideField('whatBroughtYouHere', paramsWithDefaults.what_brought_you)
-    fieldVisibility.teamType = !shouldHideField('teamType', paramsWithDefaults.team_type)
-    fieldVisibility.teamSize = !shouldHideField('teamSize', paramsWithDefaults.team_size)
-    fieldVisibility.toolsUsed = !shouldHideField('toolsUsed', paramsWithDefaults.tools_used)
-
-    setShowField(fieldVisibility)
-
-    // Track URL parameter usage for analytics
-    if (Object.keys(paramsWithDefaults).length > 0) {
-      void trackEvent('form_url_params_used', {
-        form_name: 'workflow_assessment',
-        param_count: Object.keys(paramsWithDefaults).length,
-        params: Object.keys(paramsWithDefaults),
+    for (const key of ['name', 'company', 'role', 'website'] as const) {
+      const value = urlParams[key]
+      const control = formRef.current?.elements.namedItem(key)
+      if (
+        !value ||
+        !(
+          control instanceof HTMLInputElement ||
+          control instanceof HTMLSelectElement
+        )
+      )
+        continue
+      if (
+        control instanceof HTMLSelectElement &&
+        ![...control.options].some((option) => option.value === value)
+      )
+        continue
+      control.value = value
+    }
+    if (urlParams.email) setEmail(urlParams.email)
+  }, [urlParams, restored])
+  useEffect(() => {
+    for (const q of assessmentQuestions.filter(
+      (q) =>
+        q.stage === currentStage && q.branch && questionVisible(q, answers),
+    )) {
+      if (enteredBranches.current.has(q.branch!)) continue
+      enteredBranches.current.add(q.branch!)
+      void trackEvent('assessment_branch_entered', {
+        branch: q.branch,
+        assessment_version: ASSESSMENT_VERSION,
       })
     }
-  }, [])
+  }, [currentStage, answers])
 
   useEffect(() => {
-    void trackEvent('form_opened', { form_name: 'workflow_assessment' })
-  }, [])
+    if (hasNavigated.current) headingRef.current?.focus()
+    hasNavigated.current = true
+  }, [currentStage])
 
-  useEffect(() => {
-    if (!result) return
-    void trackEvent('assessment_result_viewed', {
-      qualification_outcome: result.qualificationOutcome || 'unknown',
-      workflow_risk_score: result.workflowRiskScore ?? 'unknown',
-    })
-  }, [result])
-
-  function onStarted() {
+  const onStarted = useCallback(() => {
     if (started.current) return
     started.current = true
-    void trackEvent('form_started', { form_name: 'workflow_assessment' })
+    startedAt.current = Date.now()
+    void trackEvent('assessment_started', {
+      assessment_version: ASSESSMENT_VERSION,
+    })
+  }, [])
+  const change = useCallback(
+    (id: string, value: unknown) => {
+      onStarted()
+      setAnswers((current) => ({ ...current, [id]: value }))
+      setInvalidFields((current) => current.filter((field) => field !== id))
+      setError('')
+    },
+    [onStarted],
+  )
+  const onEmailChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) =>
+      setEmail(event.target.value),
+    [],
+  )
+  function validateStage(index: number): boolean {
+    const errors = assessmentValidationErrors(answers, index)
+    setInvalidFields(errors.map((e) => e.field))
+    if (errors.length) {
+      setError(errors[0].message)
+      formRef.current
+        ?.querySelector<HTMLElement>(`[data-question="${errors[0].field}"]`)
+        ?.focus()
+      return false
+    }
+    const fieldset = formRef.current?.querySelector<HTMLFieldSetElement>(
+      `[data-stage="${index}"]`,
+    )
+    const controls =
+      fieldset?.querySelectorAll<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >('input,select,textarea') || []
+    for (const control of controls)
+      if (!control.checkValidity()) {
+        control.reportValidity()
+        return false
+      }
+    return true
   }
-
-  const incidentEligible =
-    leadContext.incidentFollowUpEligible ??
-    (recreationFrequency !== '' && recreationFrequency !== 'never')
-
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setStatus('submitting')
+  function next() {
+    onStarted()
+    if (!validateStage(currentStage)) return
     flush()
-    const formData = new FormData(event.currentTarget)
-    const values = Object.fromEntries(formData.entries())
-    const selectedActiveWorkflows = productionWorkflows
-      .filter(({ id }) => formData.get(`activeWorkflowOption:${id}`) === 'on')
-      .map(({ id }) => id)
-    const activeWorkflows = known.has('activeWorkflows') && Array.isArray(leadContext.answerValues?.activeWorkflows)
-      ? leadContext.answerValues.activeWorkflows
-      : selectedActiveWorkflows
-    if (!known.has('activeWorkflows') && activeWorkflows.length === 0) {
-      setError('select at least one active workflow')
-      setStatus('error')
-      event.currentTarget.querySelector<HTMLElement>('[data-active-workflows]')?.focus()
+    setError('')
+    void trackEvent('assessment_stage_completed', {
+      stage: currentStage + 1,
+      assessment_version: ASSESSMENT_VERSION,
+    })
+    setStage(stages[position + 1])
+  }
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    onStarted()
+    if (!isLast) {
+      next()
       return
     }
+    const errors = assessmentValidationErrors(answers)
+    if (errors.length) {
+      setStage(assessmentQuestions.find((q) => q.id === errors[0].field)!.stage)
+      setError(errors[0].message)
+      setInvalidFields(errors.map((e) => e.field))
+      return
+    }
+    if (!validateStage(0)) {
+      setStage(0)
+      return
+    }
+    if (!validateStage(currentStage)) return
+    setStatus('submitting')
+    flush()
+    const values = Object.fromEntries(
+      new FormData(event.currentTarget).entries(),
+    )
     try {
-      const behavior = qualificationBehavior()
-
-      // Merge URL params with form values and context (priority: form > context > URL params)
-      const submittedIdentity: LeadIdentity = Object.fromEntries(
-        Object.entries({
-          email: String(values.email || leadContext.identity?.email || leadContext.answerValues?.email || urlParams.email || ''),
-          name: String(values.name || leadContext.identity?.name || leadContext.answerValues?.name || urlParams.name || ''),
-          company: String(values.company || leadContext.identity?.company || leadContext.answerValues?.company || urlParams.company || ''),
-          role: String(values.role || leadContext.identity?.role || leadContext.answerValues?.role || urlParams.role || ''),
-          website: String(values.website || leadContext.identity?.website || leadContext.answerValues?.website || urlParams.website || ''),
-        }).filter(([, value]) => value),
-      ) as LeadIdentity
-
-      const submittedAnswers = {
-        teamType: String(values.teamType || leadContext.answerValues?.teamType || urlParams.team_type || ''),
-        teamSize: String(values.teamSize || leadContext.answerValues?.teamSize || urlParams.team_size || ''),
-        workflowCollaborators: String(values.workflowCollaborators || ''),
-        toolsUsed: String(values.toolsUsed || leadContext.answerValues?.toolsUsed || urlParams.tools_used || ''),
-        approvedVersionMethod: String(values.approvedVersionMethod || ''),
-        productionContextMethod: String(values.productionContextMethod || ''),
-        recreationFrequency: String(values.recreationFrequency || ''),
-        incidentType: String(values.incidentType || ''),
-        incidentDescription: String(values.incidentDescription || ''),
-        peopleAffected: String(values.peopleAffected || ''),
-        hoursLost: String(values.hoursLost || ''),
-        deliveryImpact: String(values.deliveryImpact || ''),
-        recurringWorkflow: String(values.recurringWorkflow || ''),
-        assetVolume: String(values.assetVolume || ''),
-        annualAffectedValue: String(values.annualAffectedValue || ''),
-        activeWorkflows,
-        activeWorkflow: String(values.activeWorkflow || ''),
-        targetStartPeriod: String(values.targetStartPeriod || ''),
-        productionOwner: String(values.productionOwner || ''),
-        approvalPath: String(values.approvalPath || ''),
-        primaryObjection: String(values.primaryObjection || ''),
-        objectionDetail: String(values.objectionDetail || ''),
-        pricingOrPilotViewed: behavior.pricingOrPilotViewed,
-        securityDiligence: behavior.securityDiligence,
-        message: String(values.message || ''),
+      const identity = {
+        website: '',
+        ...Object.fromEntries(
+          ['name', 'email', 'company', 'role', 'website'].flatMap((key) => {
+            const value =
+              values[key] ||
+              identityContext.identity?.[
+              key as keyof typeof identityContext.identity
+              ]
+            return value ? [[key, String(value)]] : []
+          }),
+        ),
       }
-
-      // Validate email domain if provided via URL params
-      if (urlParams.email && !values.email) {
-        const emailValidation = validateUrlParamEmail(urlParams.email)
-        if (!emailValidation.valid) {
-          setError(emailValidation.error || 'invalid email')
-          setStatus('error')
-          return
-        }
-      }
-
       const response = await submitLead({
         submissionType: 'assessment',
-        idempotencyKey,
-        formVersion: 'assessment.v3',
+        idempotencyKey: idempotencyKey.current,
+        formVersion: ASSESSMENT_VERSION,
         provider: 'browser',
-        identity: submittedIdentity,
+        identity,
         attribution: buildAttribution({
           sourcePage: '/assessment',
-          ctaLabel: 'Assess production workflow',
+          ctaLabel: 'See my production recommendation',
           intent: 'workflow_assessment',
         }),
         consent: {
@@ -270,603 +462,232 @@ export function AssessmentForm({ context, preface }: { context: KnownLeadContext
           analytics: analyticsConsent() === 'accepted',
         },
         companyFax: String(values.companyFax || ''),
-        whatBroughtYouHere: ((values.whatBroughtYouHere || leadContext.answerValues?.whatBroughtYouHere || urlParams.what_brought_you) as 'workflow-problem' | 'assess-scaling' | 'evaluating-tools' | 'other' | undefined),
-        whatBroughtYouHereOther: String(values.whatBroughtYouHereOther || leadContext.answerValues?.whatBroughtYouHereOther || urlParams.what_brought_you_other || ''),
-        howDidYouHearAboutPortals: ((values.howDidYouHearAboutPortals || leadContext.answerValues?.howDidYouHearAboutPortals || urlParams.how_did_you_hear) as 'google-search' | 'linkedin' | 'email' | 'someone-company' | 'friend-colleague' | 'article-newsletter-podcast' | 'partner-company' | 'social-media' | undefined),
-        answers: submittedAnswers,
-      })
-      const newKnownFields = Array.from(
-        new Set([
-          ...(leadContext.knownFields || []),
-          ...(submittedIdentity.email ? ['email' as const] : []),
-          ...(submittedIdentity.name ? ['name' as const] : []),
-          ...(submittedIdentity.company ? ['company' as const] : []),
-          ...(submittedIdentity.role ? ['role' as const] : []),
-          ...(submittedIdentity.website ? ['website' as const] : []),
-        ]),
-      )
-      const newIdentity = {
-        ...(leadContext.identity || {}),
-        ...submittedIdentity,
-      }
-      const newAnswerValues = {
-        ...(leadContext.answerValues || {}),
-        ...newIdentity,
-        ...Object.fromEntries(
-          Object.entries(submittedAnswers).filter(
-            ([, v]) => typeof v === 'string' ? v.trim().length > 0 : v != null,
+        whatBroughtYouHere: urlParams.what_brought_you,
+        whatBroughtYouHereOther: urlParams.what_brought_you_other || '',
+        howDidYouHearAboutPortals: urlParams.how_did_you_hear,
+        answers: assessmentAnswersSchema.parse({
+          ...activeAssessmentAnswers(answers),
+          assessment_version: ASSESSMENT_VERSION,
+          assessment_completion_seconds: Math.min(
+            7_776_000,
+            Math.max(0, Math.round((Date.now() - startedAt.current) / 1000)),
           ),
-        ),
-      }
-      const newKnownAnswerFields = Object.keys(newAnswerValues)
-      const updatedContext: KnownLeadContext = {
-        known: true,
-        knownFields: newKnownFields,
-        knownAnswerFields: newKnownAnswerFields,
-        identity: newIdentity,
-        answerValues: newAnswerValues,
-        requiresWebsite:
-          Boolean(newIdentity.email) &&
-          !newIdentity.website &&
-          publicEmailNeedsWebsite(newIdentity.email || ''),
-        scores: response.scores || leadContext.scores,
-        qualificationTier: response.qualificationTier || leadContext.qualificationTier,
-        qualificationOutcome: response.qualificationOutcome || leadContext.qualificationOutcome,
-        reasonCodes: response.reasonCodes || leadContext.reasonCodes,
-        missingFields: response.missingFields || leadContext.missingFields,
-        assessmentCompleted: true,
-        recommendedWorkflow: response.recommendedWorkflow || leadContext.recommendedWorkflow,
-        incidentFollowUpEligible: submittedAnswers.recreationFrequency !== 'never',
-      }
-      setLeadContext(updatedContext)
-      reserve()
+        }),
+      })
+      void trackEvent('assessment_stage_completed', {
+        stage: currentStage + 1,
+        assessment_version: ASSESSMENT_VERSION,
+      })
       clear()
       setResult(response)
       setStatus('idle')
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'we could not score the assessment')
+    } catch (cause) {
       setStatus('error')
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'We could not complete the assessment. Please try again.',
+      )
     }
   }
 
-  if (result) {
-    const workflow = result.recommendedWorkflow || 'asset-reproduction'
-    const outcome = result.qualificationOutcome ||
-      (result.nextAction === 'pilot_scope'
-        ? 'pilot_candidate'
-        : result.nextAction === 'commercial_clarification' || result.nextAction === 'assessment_review'
-          ? 'clarify'
-          : 'education')
-    const reasons = (result.reasonCodes || []).map((code) => reasonLabels[code]).filter(Boolean)
+  if (result)
     return (
-      <div
-        ref={swapRef}
-        role="status"
-        className="space-y-28 transition-[min-height] duration-500 ease-out motion-reduce:transition-none"
-        style={reservedHeight ? { minHeight: reservedHeight } : undefined}
-      >
-        <div className="space-y-14">
-          <p className="t-p-sans">we've evaluated your workflow</p>
-          <h2 className="t-d2-sans max-w-[12em]">
-            {outcome === 'pilot_candidate'
-              ? 'pilot candidate'
-              : 'your clearest next step'}
-          </h2>
-          <p className="max-w-[38em] t-p-sans">{result.message}</p>
+      <div role="status" className="space-y-24">
+        <h2 className="t-h3-sans">
+          {result.diagnosticResult?.title || 'Your production recommendation'}
+        </h2>
+        <p className="t-p-sans">{result.message}</p>
+        <ul className="space-y-10 t-p-sans">
+          {result.diagnosticResult?.explanations.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+        <div className="space-y-12 border-t border-white/20 pt-20">
+          <h3 className="t-h3-sans">Recommended intervention</h3>
+          <p className="t-p-sans">{result.diagnosticResult?.recommendation}</p>
         </div>
-        <div className="max-w-[720px] space-y-16">
-          {/* {result.nextAction === 'pilot_scope' && (
-              <p className="t-p-sans">
-                Your assessment answers carry over. There is no fee to scope or receive your customized plan. The $5,000 fee applies only if you approve and conduct the pilot.
-              </p>
-          )} */}
-          <div className="flex items-center gap-16">
-            {result.downloadUrl ? (
-              <CTAButton appearance="plain" className="hover:underline" href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
-                <ArrowDownToLine aria-hidden="true" size={18} />
-                Download my evaluation
+        <div className="flex flex-wrap gap-16">
+          {result.nextAction === 'pilot_scope' ? (
+            <>
+              <CTAButton
+                href="/pilot?from=assessment#scope"
+                analyticsLabel="Configure production pilot"
+              >
+                {result.qualificationTier === 'high'
+                  ? 'Configure production pilot'
+                  : 'Continue pilot application'}
               </CTAButton>
-            ) : null}
-            {result.nextAction === 'pilot_scope' ? (
-              <CTAButton href="/pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
-                Build my custom pilot plan
-                <ArrowRight aria-hidden="true" size={18} />
+              <CTAButton
+                href="/pilot?from=assessment&mode=assisted#scope"
+                appearance="plain"
+                analyticsLabel="Request assisted review"
+                onClick={() =>
+                  void trackEvent('pilot_assisted_review_requested', {
+                    assessment_version: ASSESSMENT_VERSION,
+                  })
+                }
+              >
+                Request assisted review
               </CTAButton>
-            ) : (
-              <>
-                <CTAButton
-                  href={`/workflow/ai-production-workflow-risks#${workflow}`}
-                  analyticsLabel="Explore the Relevant Workflow"
-                  analyticsUseCase={workflow}
-                  onClick={() => void trackEvent('education_use_case_clicked', { workflow })}
-                >
-                  Explore use cases
-                  <ArrowRight aria-hidden="true" size={18} />
-                </CTAButton>
-                <div className="border-l border-white/50 pl-20">
-                  <p className="t-p-lg-serif">
-                    Think your workflow could benefit from production memory? You’re invited to build a customized pilot plan for your workflow.
-                  </p>
-                  {/* <p className="mt-8 t-p-sans">
-                    Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
-                  </p> */}
-                  <CTAButton
-                    href="/pilot?from=assessment-override#scope"
-                    analyticsLabel="Build a Customized Pilot Plan"
-                    onClick={() => void trackEvent('assessment_override_started', { workflow })}
-                    className="mt-14"
-                  >
-                    Build a custom pilot plan
-                    <ArrowRight aria-hidden="true" size={18} />
-                  </CTAButton>
-                </div>
-              </>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              <CTAButton
+                href="/use-cases"
+                analyticsLabel="Explore production use cases"
+              >
+                Explore use cases
+              </CTAButton>
+              <CTAButton
+                href="/production-memory"
+                appearance="plain"
+                analyticsLabel="Explore product materials"
+              >
+                Explore product materials
+              </CTAButton>
+            </>
+          )}
+          {result.downloadUrl ? (
+            <CTAButton
+              href={result.downloadUrl}
+              appearance="plain"
+              target="_blank"
+              rel="noreferrer"
+              analyticsLabel="Download my assessment"
+            >
+              Download my evaluation
+            </CTAButton>
+          ) : null}
         </div>
-        {typeof result.workflowRiskScore === 'number' ? (
-          <div className="space-y-20">
-            <p className="t-p-lg-serif text-white">
-              your production memory risk: <span className="t-h1-sans">{result.workflowRiskScore}/24</span>
-            </p>
-          </div>
+        {result.nextAction === 'pilot_scope' ? (
+          <p className="t-p-sm-sans text-white/80">
+            Your answers carry into the pilot application. You can review the
+            scope, measurable outcomes, requirements, and terms before approving
+            a pilot. A meeting is optional unless the requirements need
+            clarification.
+          </p>
         ) : null}
-        {reasons.length ? <div className="max-w-[680px] space-y-10">
-          <ul className="space-y-8 t-p-sans text-white">
-            {reasons.map((reason) => <li key={reason} className="flex items-center gap-12">
-              <span className="size-8 shrink-0 bg-white" />
-              {reason}</li>)}
-          </ul>
-        </div> : null}
-        {result.missingFields?.length ? <p className="max-w-[680px] t-p-sans">
-          Still needed: {result.missingFields.map((field) => field.replaceAll(/([A-Z])/g, ' $1').toLowerCase()).join(', ')}.
-        </p> : null}
-        <div className="max-w-[720px] space-y-16">
-          <div className="flex items-center gap-16">
-            {result.downloadUrl ? (
-              <CTAButton href={result.downloadUrl} target="_blank" rel="noreferrer" analyticsLabel="Download My Assessment" analyticsIntent="assessment_result">
-                <ArrowDownToLine aria-hidden="true" size={18} />
-                Download my evaluation
-              </CTAButton>
-            ) : null}
-            {result.nextAction === 'pilot_scope' ? (
-              <div>
-                <CTAButton href="/pilot?from=assessment#scope" analyticsLabel="Build My Customized Pilot Plan" onClick={() => void trackEvent('pilot_handoff_clicked', { workflow })}>
-                  Build my customized pilot plan
-                  <ArrowUpRight aria-hidden="true" size={18} />
-                </CTAButton>
-                {result.nextAction === 'pilot_scope' && (
-                  <p className="t-p-sans">
-                    Your assessment answers carry over. There is no fee to receive your customized plan. The pilot fee applies only if you approve and conduct the pilot. The pilot fee is credited to the first annual agreement if the agreement is signed within the agreed credit window.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div>
-                <CTAButton
-                  href={`/use-cases#${workflow}`}
-                  analyticsLabel="Explore the Relevant Workflow"
-                  analyticsUseCase={workflow}
-                  onClick={() => void trackEvent('education_use_case_clicked', { workflow })}
-                >
-                  explore the relevant production use case
-                  <ArrowRight aria-hidden="true" size={18} />
-                </CTAButton>
-                <div className="border-l border-white/50 pl-20">
-                  <p className="t-p-lg-serif">
-                    Think your workflow could benefit from a production repository and memory system? You’re invited to build a free customized pilot plan.
-                  </p>
-                  {/* <p className="mt-8 t-p-sans">
-                    Building and receiving the plan is free. Because the assessment did not establish fit, completing the scope triggers one qualification call before a pilot can proceed.
-                  </p> */}
-                  <CTAButton
-                    href="/pilot?from=assessment-override#scope"
-                    analyticsLabel="Build a Customized Pilot Plan"
-                    onClick={() => void trackEvent('assessment_override_started', { workflow })}
-                    className="mt-14"
-                  >
-                    Build a customized pilot plan
-                    <ArrowUpRight aria-hidden="true" size={18} />
-                  </CTAButton>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <CTAButton
+          type="button"
+          appearance="plain"
+          analyticsLabel="Reassess production"
+          onClick={() => {
+            setResult(null)
+            setStage(0)
+            idempotencyKey.current = newSubmissionId('assessment')
+            started.current = false
+          }}
+        >
+          Reassess this production
+        </CTAButton>
       </div>
     )
-  }
 
   return (
     <>
-      {preface && preface}
+      {preface}
       <form
-        ref={(element) => {
-          swapRef(element)
-          draftRef(element)
-        }}
+        noValidate
+        ref={registerForm}
         onSubmit={onSubmit}
-        onFocus={onStarted}
-        className="space-y-20"
+        onInput={onStarted}
+        className="space-y-24"
       >
-        <div className="max-w-[40em] space-y-10 border-t border-white/20 pt-20">
-          <h2 className="t-h3-sans">map one workflow you want to make faster</h2>
-          <p className="t-p-sans text-white/80">
-            Tell us where approved work, creative context, or handoffs break down. We’ll return a practical view of the repeat work you can reduce and the production capability most worth exploring.
-          </p>
-        </div>
-        <IdentityFields
-          context={leadContext}
-          email={email}
-          onEmailChange={(event) => setEmail(event.target.value)}
-          requireWebsite={publicEmailNeedsWebsite(email) || Boolean(leadContext.requiresWebsite)}
-          onStarted={onStarted}
-          urlParams={urlParams}
+        <p className="t-p-sm-sans" aria-live="polite">
+          Step {position + 1} of {stages.length} —{' '}
+          {assessmentStages[currentStage]}
+        </p>
+        <Progress
+          aria-label="Assessment progress"
+          value={(Number(position) / stages.length) * 100}
+          max={stages.length}
+          className="h-[2px] w-full"
         />
-
-        {/* What brought you here - with URL param support and field hiding */}
-        {showField.whatBroughtYouHere ? (
-          <LeadField label="What brought you here?" name="whatBroughtYouHere">
-            <LeadSelectField
-              id="whatBroughtYouHere"
-              name="whatBroughtYouHere"
-              required
-              defaultValue={leadContext.answerValues?.whatBroughtYouHere || urlParams.what_brought_you || ''}
-            >
-              <option value="" disabled>select one</option>
-              <option value="workflow-problem">I have a workflow problem I need to solve</option>
-              <option value="assess-scaling">I want to assess whether our current process will scale</option>
-              <option value="evaluating-tools">I'm evaluating production tools</option>
-              <option value="other">Other</option>
-            </LeadSelectField>
-          </LeadField>
-        ) : urlParams.what_brought_you ? (
-          <div className="space-y-8 py-12 border-b border-white/10">
-            <p className="t-p-sm-sans text-white/60">What brought you here</p>
-            <p className="t-p-sans">{urlParams.what_brought_you.replace(/-/g, ' ')}</p>
-            <button
-              type="button"
-              onClick={() => setShowField(prev => ({ ...prev, whatBroughtYouHere: true }))}
-              className="t-p-sm-sans text-white/60 underline hover:text-white"
-            >
-              Edit
-            </button>
-          </div>
-        ) : null}
-
-        {(leadContext.answerValues?.whatBroughtYouHere === 'other' || urlParams.what_brought_you === 'other') ? (
-          <LeadField label="Please describe" name="whatBroughtYouHereOther">
-            <LeadTextareaField
-              id="whatBroughtYouHereOther"
-              name="whatBroughtYouHereOther"
-              defaultValue={leadContext.answerValues?.whatBroughtYouHereOther || urlParams.what_brought_you_other || ''}
-              placeholder="Describe what brought you here"
-            />
-          </LeadField>
-        ) : null}
-
-        {/* How did you hear about portals - with URL param support and field hiding */}
-        {showField.howDidYouHearAboutPortals ? (
-          <LeadField label="How did you hear about portals?" name="howDidYouHearAboutPortals">
-            <LeadSelectField
-              id="howDidYouHearAboutPortals"
-              name="howDidYouHearAboutPortals"
-              required
-              defaultValue={leadContext.answerValues?.howDidYouHearAboutPortals || urlParams.how_did_you_hear || ''}
-            >
-              <option value="" disabled>select one</option>
-              <option value="google-search">Google / search</option>
-              <option value="linkedin">LinkedIn</option>
-              <option value="email">Email</option>
-              <option value="someone-company">Someone at my company</option>
-              <option value="friend-colleague">Friend or colleague</option>
-              <option value="article-newsletter-podcast">Article / newsletter / podcast</option>
-              <option value="partner-company">Partner / another company</option>
-              <option value="social-media">Social media</option>
-            </LeadSelectField>
-          </LeadField>
-        ) : urlParams.how_did_you_hear ? (
-          <div className="space-y-8 py-12 border-b border-white/10">
-            <p className="t-p-sm-sans text-white/60">How you heard about us</p>
-            <p className="t-p-sans">{urlParams.how_did_you_hear.replace(/-/g, ' ')}</p>
-            <button
-              type="button"
-              onClick={() => setShowField(prev => ({ ...prev, howDidYouHearAboutPortals: true }))}
-              className="t-p-sm-sans text-white/60 underline hover:text-white"
-            >
-              Edit
-            </button>
-          </div>
-        ) : null}
-
-        {/* Team type - with URL param support and field hiding */}
-        {!known.has('teamType') ? (
-          showField.teamType ? (
-            <AssessmentSelect
-              id="teamType"
-              name="teamType"
-              label="team type"
-              required
-              options={['agency', 'creative-studio', 'production-company', 'in-house-creative', 'brand-marketing', 'film-animation', 'game-entertainment', 'independent-creator', 'other']}
-              defaultValue={leadContext.answerValues?.teamType as string || urlParams.team_type}
-            />
-          ) : urlParams.team_type ? (
-            <div className="space-y-8 py-12 border-b border-white/10">
-              <p className="t-p-sm-sans text-white/60">Team type</p>
-              <p className="t-p-sans">{urlParams.team_type.replace(/-/g, ' ')}</p>
-              <button
-                type="button"
-                onClick={() => setShowField(prev => ({ ...prev, teamType: true }))}
-                className="t-p-sm-sans text-white/60 underline hover:text-white"
-              >
-                Edit
-              </button>
-            </div>
-          ) : (
-            <AssessmentSelect
-              id="teamType"
-              name="teamType"
-              label="team type"
-              required
-              options={['agency', 'creative-studio', 'production-company', 'in-house-creative', 'brand-marketing', 'film-animation', 'game-entertainment', 'independent-creator', 'other']}
-            />
-          )
-        ) : null}
-
-        {/* Team size - with URL param support and field hiding */}
-        {!known.has('teamSize') ? (
-          showField.teamSize ? (
-            <AssessmentSelect
-              id="teamSize"
-              name="teamSize"
-              label="production team size"
-              required
-              options={['1', '2-4', '5-9', '10-24', '25-plus']}
-              defaultValue={leadContext.answerValues?.teamSize as string || urlParams.team_size}
-            />
-          ) : urlParams.team_size ? (
-            <div className="space-y-8 py-12 border-b border-white/10">
-              <p className="t-p-sm-sans text-white/60">Production team size</p>
-              <p className="t-p-sans">{urlParams.team_size.replace('-', '-')}</p>
-              <button
-                type="button"
-                onClick={() => setShowField(prev => ({ ...prev, teamSize: true }))}
-                className="t-p-sm-sans text-white/60 underline hover:text-white"
-              >
-                Edit
-              </button>
-            </div>
-          ) : (
-            <AssessmentSelect id="teamSize" name="teamSize" label="production team size" required options={['1', '2-4', '5-9', '10-24', '25-plus']} />
-          )
-        ) : null}
-        {!known.has('workflowCollaborators') ? (
-          <AssessmentSelect id="workflowCollaborators" name="workflowCollaborators" label="people involved in production" required options={['1', '2-4', '5-9', '10-plus']} />
-        ) : null}
-        {!known.has('toolsUsed') ? (
-          showField.toolsUsed ? (
-            <LeadField label="tools used *" name="toolsUsed">
-              <LeadTextField
-                id="toolsUsed"
-                name="toolsUsed"
-                required
-                slotProps={{ htmlInput: { maxLength: 500 } }}
-                placeholder="e.g. Adobe Firefly, Runway, Midjourney, ChatGPT"
-                onChange={onStarted}
-                defaultValue={leadContext.answerValues?.toolsUsed as string || urlParams.tools_used}
-              />
-            </LeadField>
-          ) : urlParams.tools_used ? (
-            <div className="space-y-8 py-12 border-b border-white/10">
-              <p className="t-p-sm-sans text-white/60">Tools used</p>
-              <p className="t-p-sans">{urlParams.tools_used}</p>
-              <button
-                type="button"
-                onClick={() => setShowField(prev => ({ ...prev, toolsUsed: true }))}
-                className="t-p-sm-sans text-white/60 underline hover:text-white"
-              >
-                Edit
-              </button>
-            </div>
-          ) : (
-            <LeadField label="tools used *" name="toolsUsed">
-              <LeadTextField
-                id="toolsUsed"
-                name="toolsUsed"
-                required
-                slotProps={{ htmlInput: { maxLength: 500 } }}
-                placeholder="e.g. Adobe Firefly, Runway, Midjourney, ChatGPT"
-                onChange={onStarted}
-              />
-            </LeadField>
-          )
-        ) : null}
-        {!known.has('approvedVersionMethod') ? (
-          <AssessmentSelect id="approvedVersionMethod" name="approvedVersionMethod" label="current approved version method" required options={['canonical-system', 'documented-review', 'folder-naming', 'chat-spreadsheet', 'creator-memory', 'inconsistent']} />
-        ) : null}
-        {!known.has('productionContextMethod') ? (
-          <AssessmentSelect id="productionContextMethod" name="productionContextMethod" label="where generation context is stored" required options={['attached-record', 'project-document', 'multiple-tools', 'chat-personal-notes', 'memory-inconsistent']} />
-        ) : null}
-        {!known.has('recreationFrequency') ? (
-          <AssessmentSelect
-            id="recreationFrequency"
-            name="recreationFrequency"
-            label="frequency of rediscovery recreation"
-            required
-            options={frequencyOptions}
-            defaultValue={recreationFrequency}
-            onValueChange={(value) => {
-              onStarted()
-              setRecreationFrequency(value)
-            }}
-          />
-        ) : null}
-        {!known.has('incidentType') ? (
-          <AssessmentSelect
-            id="incidentType"
-            name="incidentType"
-            label="most recent incident"
-            required
-            options={['none', 'version-confusion', 'missing-context', 'failed-reproduction', 'recreated-work', 'other']}
-            defaultValue={incidentType}
-            onValueChange={(value) => {
-              onStarted()
-              setIncidentType(value)
-            }}
-          />
-        ) : null}
-        {incidentType === 'other' ? (
-          <LeadField label="describe the incident *" name="incidentDescription">
-            <LeadTextareaField
-              id="incidentDescription"
-              name="incidentDescription"
-              minRows={3}
-              resizable={false}
-              required
-              onChange={onStarted}
-            />
-          </LeadField>
-        ) : null}
-        <ConditionalReveal active={incidentEligible}>
-          <div className="space-y-20 py-6">
-            {!known.has('peopleAffected') ? (
-              <AssessmentSelect id="peopleAffected" name="peopleAffected" label="people affected by the last incident" required options={['1', '2-4', '5-9', '10-24', '25-plus']} />
-            ) : null}
-            {!known.has('hoursLost') ? (
-              <AssessmentSelect id="hoursLost" name="hoursLost" label="time lost to the last incident" required options={['none', 'under-1-hour', '1-4-hours', 'one-day', '2-5-days', 'week-plus']} />
-            ) : null}
-            {!known.has('deliveryImpact') ? (
-              <AssessmentSelect id="deliveryImpact" name="deliveryImpact" label="delivery impact of the last incident" required options={['none', 'internal-delay', 'delivery-delayed', 'client-affected', 'revenue-relationship']} />
-            ) : null}
-          </div>
-        </ConditionalReveal>
-        {!known.has('recurringWorkflow') ? (
-          <AssessmentSelect id="recurringWorkflow" name="recurringWorkflow" label="how often the workflow repeats" required options={['one-off', 'quarterly', 'monthly', 'weekly', 'daily']} />
-        ) : null}
-        {!known.has('assetVolume') ? (
-          <AssessmentSelect id="assetVolume" name="assetVolume" label="assets produced per month" required options={['under-25', '25-99', '100-499', '500-plus']} />
-        ) : null}
-        {!known.has('annualAffectedValue') ? (
-          <AssessmentSelect id="annualAffectedValue" name="annualAffectedValue" label="annual value of the affected work" required={false} options={['under-10k', '10k-49k', '50k-99k', '100k-499k', '500k-plus']} />
-        ) : null}
-        {!known.has('activeWorkflows') ? (
+        <h2 ref={headingRef} tabIndex={-1} className="t-h3-sans">
+          {assessmentStages[currentStage]}
+        </h2>
+        {assessmentStages.map((title, index) => (
           <fieldset
-            className="space-y-12"
-            data-active-workflows
-            tabIndex={-1}
-            aria-describedby="active-workflows-help"
+            key={title}
+            data-stage={index}
+            hidden={currentStage !== index}
+            className="space-y-20"
           >
-            <legend className="t-p-sm-sans text-white">active workflows today *</legend>
-            <p id="active-workflows-help" className="t-p-sm-sans text-white/80">
-              select every production pattern your team is actively running or expects to run next.
-            </p>
-            <div className="grid gap-10 sm:grid-cols-2">
-              {productionWorkflows.map((workflow) => (
-                <label key={workflow.id} className="flex items-start gap-10 t-p-sm-sans text-white">
-                  <LeadCheckbox
-                    name={`activeWorkflowOption:${workflow.id}`}
-                    onChange={onStarted}
-                  />
-                  <span>{workflow.title}</span>
-                </label>
-              ))}
-            </div>
+            <legend className="sr-only">{title}</legend>
+            {index === 0 ? (
+              <div className="grid gap-20 sm:grid-cols-2">
+                <MemoIdentityFields
+                  context={identityContext}
+                  email={email}
+                  onEmailChange={onEmailChange}
+                  requireWebsite={publicEmailNeedsWebsite(email)}
+                  onStarted={onStarted}
+                  urlParams={urlParams}
+                />
+              </div>
+            ) : null}
+            {(questionsByStage.get(index) ?? []).map((q) => (
+              <MemoQuestionItem
+                key={q.id}
+                q={q}
+                visible={visibility.get(q.id) ?? true}
+                required={Boolean(
+                  q.required &&
+                  visibility.get(q.id) &&
+                  currentStage === index,
+                )}
+                invalid={invalidFields.includes(q.id)}
+                value={answers[q.id]}
+                onChange={change}
+              />
+            ))}
+            {index === 7 ? (
+              <>
+                <MemoConsentFields
+                  onStarted={onStarted}
+                  showMarketing={!identityContext.known}
+                />
+                <NoScriptLeadFallback />
+              </>
+            ) : null}
           </fieldset>
+        ))}
+        {error ? (
+          <p role="alert" className="t-p-sans">
+            {error}
+          </p>
         ) : null}
-        {!known.has('activeWorkflow') ? (
-          <LeadField label="most urgent active workflow *" name="activeWorkflow">
-            <LeadTextareaField
-              id="activeWorkflow"
-              name="activeWorkflow"
-              minRows={4}
-              resizable={false}
-              required
-              placeholder="Describe the one recurring deliverable or production workflow that is most urgent to make faster, cheaper, or easier to reproduce."
-            />
-          </LeadField>
-        ) : null}
-        <div className="space-y-20 border-t border-white/20 pt-20">
-          <div className="max-w-[38em] space-y-8">
-            <h3 className="t-h3-sans">make the recommendation useful</h3>
-            <p className="t-p-sans text-white/80">
-              These details help us distinguish a real production opportunity from a generic tooling search. They do not commit you to a pilot or a meeting.
-            </p>
-          </div>
-          {!known.has('targetStartPeriod') ? (
-            <LeadField label="when would improving this workflow matter? *" name="targetStartPeriod">
-              <LeadSelectField id="targetStartPeriod" name="targetStartPeriod" required defaultValue="">
-                <option value="" disabled>select timing</option>
-                <option value="within-30-days">within 30 days</option>
-                <option value="within-60-days">within 60 days</option>
-                <option value="this-quarter">this quarter</option>
-                <option value="later">later</option>
-              </LeadSelectField>
-            </LeadField>
+        <div className="flex flex-wrap gap-16">
+          {position > 0 ? (
+            <CTAButton
+              type="button"
+              appearance="plain"
+              analyticsLabel="Previous assessment step"
+              disabled={status === 'submitting'}
+              onClick={() => {
+                flush()
+                setError('')
+                setStage(stages[position - 1])
+              }}
+            >
+              Back
+            </CTAButton>
           ) : null}
-          {!known.has('productionOwner') ? (
-            <LeadField label="who is closest to this workflow? *" name="productionOwner">
-              <LeadTextField
-                id="productionOwner"
-                name="productionOwner"
-                required
-                slotProps={{ htmlInput: { maxLength: 300 } }}
-                placeholder="Name or role, such as senior producer or creative operations lead"
-                onChange={onStarted}
-              />
-            </LeadField>
-          ) : null}
-          {!known.has('approvalPath') ? (
-            <LeadField label="if you found a worthwhile way to improve this, how would your team approve a small test? *" name="approvalPath">
-              <LeadSelectField id="approvalPath" name="approvalPath" required defaultValue="">
-                <option value="" disabled>select the closest answer</option>
-                <option value="self">I can approve it</option>
-                <option value="other">I would involve a colleague</option>
-                <option value="procurement">procurement is involved</option>
-                <option value="not-established">we are still figuring that out</option>
-                <option value="no">it is not a near-term priority</option>
-              </LeadSelectField>
-            </LeadField>
-          ) : null}
-          {!known.has('primaryObjection') ? (
-            <LeadField label="what would make this assessment useful to you? *" name="primaryObjection">
-              <LeadSelectField id="primaryObjection" name="primaryObjection" required defaultValue="">
-                <option value="" disabled>select the closest answer</option>
-                <option value="value">reduce rework and the cost of producing variants</option>
-                <option value="workflow-fit">find approved work and production context without hunting</option>
-                <option value="pilot-scope">make a repeatable workflow easier to run at volume</option>
-                <option value="security">understand security or governance requirements</option>
-                <option value="integration">understand existing-tool or integration needs</option>
-                <option value="procurement">help align a team, budget, or approval path</option>
-                <option value="timing-budget">decide whether the timing and investment make sense</option>
-                <option value="stakeholder-alignment">get the right stakeholders aligned</option>
-                <option value="other">something else</option>
-              </LeadSelectField>
-            </LeadField>
-          ) : null}
-          {!known.has('objectionDetail') ? (
-            <LeadField label="what is breaking down today, or what do you need answered? *" name="objectionDetail">
-              <LeadTextareaField
-                id="objectionDetail"
-                name="objectionDetail"
-                minRows={4}
-                resizable={false}
-                required
-                slotProps={{ htmlInput: { maxLength: 2000 } }}
-                placeholder="For example: approved prompts and references are spread across drives and chat, so every new version starts with rediscovery."
-                onChange={onStarted}
-              />
-            </LeadField>
-          ) : null}
+          <CTAButton
+            type="submit"
+            analyticsLabel={
+              isLast ? 'See production recommendation' : 'Next assessment step'
+            }
+            disabled={status === 'submitting'}
+          >
+            {status === 'submitting'
+              ? 'Evaluating…'
+              : isLast
+                ? 'See my recommendation'
+                : 'Continue'}
+          </CTAButton>
         </div>
-        <LeadField label="anything else we should know?" name="message">
-          <LeadTextareaField id="message" name="message" minRows={4} resizable={false} onChange={onStarted} />
-        </LeadField>
-        <ConsentFields onStarted={onStarted} showMarketing={!leadContext.known} />
-        <NoScriptLeadFallback />
-        {status === 'error' ? <p role="alert" className="t-p-sans text-[#ffb4a8]">{error}</p> : null}
-        <CTAButton type="submit" className="js-lead-submit" disabled={status === 'submitting'} analyticsLabel="Assess Your Workflow">
-          {status === 'submitting' ? 'Scoring...' : 'Score my workflow'}
-        </CTAButton>
       </form>
     </>
   )

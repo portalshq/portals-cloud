@@ -1,9 +1,9 @@
-import type {PackageSpecification} from '@/types/resource'
+import type { PackageSpecification } from '@/types/resource'
 import {
   PACKAGE_SPECIFICATION_BY_SLUG_QUERY,
   PACKAGE_SPECIFICATIONS_QUERY,
 } from '@/sanity/lib/queries'
-import {sanityClient, sanityDocumentClient} from '@/sanity/lib/client'
+import { sanityClient, sanityDocumentClient } from '@/sanity/lib/client'
 
 export const PACKAGE_SPEC_SLUGS = {
   paidPilot: 'paid-pilot',
@@ -146,6 +146,6 @@ export async function getPublishedPackageSpecification(
 ): Promise<PackageSpecification | null> {
   return sanityDocumentClient.fetch<PackageSpecification | null>(
     PACKAGE_SPECIFICATION_BY_SLUG_QUERY,
-    {slug},
+    { slug },
   )
 }

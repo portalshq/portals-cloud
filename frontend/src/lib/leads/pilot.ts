@@ -708,7 +708,7 @@ export function buildValueModel(
   }
 }
 
-function annualTotalFrom(spec: PackageSpecification | undefined): number | null {
+export function annualTotalFrom(spec: PackageSpecification | undefined): number | null {
   const amount = spec?.price?.amount
   if (!amount) return null
   const note = `${spec.price?.periodLabel || ''} ${spec.price?.billingNote || ''}`.toLowerCase()

@@ -17,7 +17,7 @@ export const faqs: FaqItem[] = [
   {
     question: 'What does a production workflow assessment measure?',
     answer:
-      'It evaluates the operational cost of missing production memory in one production workflow.',
+      'It checks whether one live AI production loses capacity to context reconstruction, incorrect inputs, or approved production state that cannot transfer between creators. Your result identifies the capability most worth fixing first; it does not commit you to a pilot or meeting.',
     categories: ['assessment'],
   },
   {
@@ -27,7 +27,7 @@ export const faqs: FaqItem[] = [
     categories: ['assessment'],
   },
   {
-    question: 'When does the $5,000 pilot fee apply?',
+    question: 'When does the paid pilot fee apply?',
     answer:
       'The fee applies when you approve the customized plan and commercial terms and choose to conduct the production pilot. Payment is completed in the Pilot Room.',
     categories: ['assessment'],
@@ -83,7 +83,7 @@ export const faqs: FaqItem[] = [
   {
     question: 'how is this different from a free trial?',
     answer:
-      'this is a focused commercial evaluation built to prove an operational ROI using live production work, clearly-defined success criteria, and a final decision date.',
+      'The fee funds configuration, onboarding, and evaluation on real production work. The agreed success test determines whether the workflow improves enough to justify deployment.',
     categories: ['pilot'],
   },
   {
@@ -95,7 +95,7 @@ export const faqs: FaqItem[] = [
   {
     question: 'what does the {pricePhrase|pilot fee} cover?',
     answer:
-      'it covers full repository configuration, integration alignment, team onboarding, dedicated engineering support for 21 days, and the final operational ROI evaluation. custom integration development is separately scoped.',
+      'The fee covers repository configuration, the agreed integration or export path, team onboarding, support during {periodPhrase|the pilot}, and a final evaluation. Custom integration development is separately scoped.',
     categories: ['pilot'],
   },
   {
@@ -104,12 +104,12 @@ export const faqs: FaqItem[] = [
       'select one active workflow with high iteration cycles (e.g., active ad campaigns, recurring social assets) and one completed historical project that you frequently need to reference or extend.',
     categories: ['pilot'],
   },
-  {
-    question: 'does the pilot fee apply to an annual agreement?',
-    answer:
-      'yes. when you transition to an annual contract or pilot extension within the agreed decision window, the $5,000 fee is fully credited toward your annual deployment. the annual deployment scope, price, credit terms, and decision window are defined before the pilot starts.',
-    categories: ['pilot'],
-  },
+  // {
+  //   question: 'does the pilot fee apply to an annual agreement?',
+  //   answer:
+  //     'yes. when you transition to an annual contract or pilot extension within the agreed decision window, the $5,000 fee is fully credited toward your annual deployment. the annual deployment scope, price, credit terms, and decision window are defined before the pilot starts.',
+  //   categories: ['pilot'],
+  // },
   {
     question: 'what happens after {periodPhrase|the pilot}?',
     answer:

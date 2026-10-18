@@ -12,17 +12,18 @@ export type PilotConfirmation = {
 const CONFIRMATION_KEY = 'portals_pilot_confirmation'
 const CONFIRMATION_TTL_MS = 90 * 24 * 60 * 60 * 1000
 
-export function readPilotConfirmation(): PilotConfirmation | null {
+export function readPilotConfirmation(scope?: string): PilotConfirmation | null {
   if (typeof window === 'undefined') return null
+  const key = scope ? `${CONFIRMATION_KEY}:${scope}` : CONFIRMATION_KEY
   try {
-    const raw = window.localStorage.getItem(CONFIRMATION_KEY)
+    const raw = window.localStorage.getItem(key)
     if (!raw) return null
     const stored = JSON.parse(raw) as Partial<PilotConfirmation>
     if (
       typeof stored.confirmedAt !== 'number' ||
       Date.now() - stored.confirmedAt > CONFIRMATION_TTL_MS
     ) {
-      window.localStorage.removeItem(CONFIRMATION_KEY)
+      window.localStorage.removeItem(key)
       return null
     }
     return {
@@ -39,7 +40,7 @@ export function readPilotConfirmation(): PilotConfirmation | null {
     }
   } catch {
     try {
-      window.localStorage.removeItem(CONFIRMATION_KEY)
+      window.localStorage.removeItem(key)
     } catch {
       // persistence must never throw
     }
@@ -49,11 +50,12 @@ export function readPilotConfirmation(): PilotConfirmation | null {
 
 export function writePilotConfirmation(
   confirmation: Omit<PilotConfirmation, 'confirmedAt'>,
+  scope?: string,
 ) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(
-      CONFIRMATION_KEY,
+      scope ? `${CONFIRMATION_KEY}:${scope}` : CONFIRMATION_KEY,
       JSON.stringify({...confirmation, confirmedAt: Date.now()}),
     )
   } catch {
@@ -61,10 +63,13 @@ export function writePilotConfirmation(
   }
 }
 
-export function clearPilotConfirmation() {
+export function clearPilotConfirmation(scope?: string) {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.removeItem(CONFIRMATION_KEY)
+    if (scope) window.localStorage.removeItem(`${CONFIRMATION_KEY}:${scope}`)
+    else {
+      for (const key of Object.keys(window.localStorage)) if (key.startsWith(CONFIRMATION_KEY)) window.localStorage.removeItem(key)
+    }
   } catch {
     // persistence must never throw
   }
