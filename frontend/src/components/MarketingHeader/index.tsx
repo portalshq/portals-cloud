@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { PortalsHeader, type PortalsHeaderProps } from '@/components/PortalsHeader'
+import { scopeAPilotMailto } from '@/lib/utils'
 
 const productionMemory = { href: '/production-memory', label: 'production memory', appearance: 'plain' } as const
 const assess = { href: '/assessment', label: 'Assess your workflow' } as const
@@ -10,18 +11,18 @@ const assess = { href: '/assessment', label: 'Assess your workflow' } as const
 // inherits its parent's entry (e.g. /blog/<slug> -> /blog). Unlisted routes get
 // no header.
 const staticHeaders: Record<string, PortalsHeaderProps> = {
-  '/': { actions: [{ href: '#pricing', label: 'Get started', className: 'fixed top-15 right-sms' }] },
-  '/contact': { breadcrumb: [{ href: '/contact', label: 'contact' }] },
-  '/assessment': { breadcrumb: [{ href: '/assessment', label: 'assessment' }] },
-  '/production-memory': { breadcrumb: [{ href: '/production-memory', label: 'production memory' }] },
-  '/use-cases': { breadcrumb: [{ href: '/use-cases', label: 'use cases' }], actions: [{ href: '#pricing', label: 'Get started', className: 'fixed top-15 right-sms' }] },
-  '/blog': { breadcrumb: [{ href: '/blog', label: 'blog' }] },
+  '/': { actions: [{ href: '#pricing', label: 'Get started' }] },
+  '/contact': { breadcrumb: [{ href: '/contact', label: 'contact' }], actions: [{ href: scopeAPilotMailto, label: 'Scope a pilot', appearance: 'plain' }] },
+  '/assessment': { breadcrumb: [{ href: '/assessment', label: 'assessment' }], actions: [{ href: scopeAPilotMailto, label: 'Scope a pilot', appearance: 'plain' }] },
+  '/production-memory': { breadcrumb: [{ href: '/production-memory', label: 'production memory' }], actions: [{ href: scopeAPilotMailto, label: 'Scope a pilot', appearance: 'plain' }] },
+  '/use-cases': { breadcrumb: [{ href: '/use-cases', label: 'use cases' }], actions: [{ href: '#pricing', label: 'Get started' }] },
+  '/blog': { breadcrumb: [{ href: '/blog', label: 'blog' }], actions: [{ href: scopeAPilotMailto, label: 'Scope a pilot', appearance: 'plain' }] },
   '/pilot': { breadcrumb: [{ href: '/pilot', label: 'paid pilot' }] },
   '/paid-pilot': { breadcrumb: [{ href: '/pilot', label: 'paid pilot' }] },
   '/security-and-architecture': { breadcrumb: [{ href: '/security-and-architecture', label: 'security' }], actions: [{ href: '#controls', label: 'security brief / 2026', appearance: 'plain' }] },
   '/privacy-policy': { breadcrumb: [{ href: '/privacy-policy', label: 'privacy policy' }], actions: [{ href: '#document-sections', label: 'contents', appearance: 'plain' }] },
   '/terms-of-service': { breadcrumb: [{ href: '/terms-of-service', label: 'terms of service' }], actions: [{ href: '#document-sections', label: 'contents', appearance: 'plain' }] },
-  '/workflow': { breadcrumb: [{ href: '/workflow/ai-production-workflow-risks', label: 'workflow risks' }] },
+  '/workflow': { breadcrumb: [{ href: '/workflow/ai-production-workflow-risks', label: 'workflow risks' }], actions: [{ href: scopeAPilotMailto, label: 'Scope a pilot', appearance: 'plain' }] },
 }
 
 function findHeader(pathname: string) {

@@ -42,6 +42,8 @@ import {
   validateUrlParamEmail,
   type UrlParams,
 } from '@/lib/leads/url-params'
+import { findPackageSpecification, packageOnboardingFee, PACKAGE_SPEC_SLUGS } from '@/lib/package-specifications'
+import type { PackageSpecification } from '@/types/resource'
 
 const STAGES = [
   { key: 'eligibility', label: 'eligibility' },
@@ -76,6 +78,7 @@ export function PilotScopeForm({
   initialAnswers,
   assessmentOrigin = 'standard',
   annualOptions = [],
+  packageSpecifications = [],
 }: {
   specSummary: string
   context: KnownLeadContext
@@ -92,11 +95,14 @@ export function PilotScopeForm({
   initialAnswers?: Record<string, unknown>
   assessmentOrigin?: 'standard' | 'assessment_override'
   annualOptions?: Array<{ slug: string; name: string; priceLabel: string }>
+  packageSpecifications?: PackageSpecification[]
 }) {
   const carriedAnswers = {
     ...(context.answerValues || {}),
     ...(initialAnswers || {}),
   }
+  const productionTeamSpec = findPackageSpecification(packageSpecifications, PACKAGE_SPEC_SLUGS.productionTeam)
+  const onboardingFee = packageOnboardingFee(productionTeamSpec)
   const [stage, setStage] = useState(0)
   const [submitState, setSubmitState] = useState<SubmitState>({ status: 'idle' })
   const [email, setEmail] = useState('')
@@ -1013,7 +1019,7 @@ export function PilotScopeForm({
             defaultChecked={Boolean(initialAnswers?.annualPriceAcknowledged)}
           />
           <span>
-            I have reviewed the proposed annual deployment and the pilot fee{offerTerms ? ` of ${offerTerms.pilotPriceLabel}` : ''}. Any credit follows the written terms. Creating this plan does not accept an agreement or authorize payment.
+            I have reviewed the proposed annual deployment and the {liveAnswers.annualDeploymentOption === 'production-team' ? `onboarding fee of $${onboardingFee || '1,000'}` : `pilot fee${offerTerms ? ` of ${offerTerms.pilotPriceLabel}` : ''}`}. Any credit follows the written terms. Creating this plan does not accept an agreement or authorize payment.
           </span>
         </label>
         {liveAnswers.approvalPath === 'procurement' ? (
@@ -1088,7 +1094,7 @@ export function PilotScopeForm({
         ) : null}
       </div>
 
-      <div className="flex items-center justify-end gap-16 sm:col-span-2">
+      <div className="flex items-center justify-end lg:justify-start gap-16 sm:col-span-2">
         {stage > 0 ? (
           <CTAButton
             type="button"

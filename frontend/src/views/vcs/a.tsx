@@ -217,7 +217,7 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
 
 function pricingTierHref(tier: PricingTier): string {
   if (tier.slug === PACKAGE_SPEC_SLUGS.productionTeam) {
-    return '/assessment';
+    return '/auth/sign-in';
   }
   if (tier.slug === PACKAGE_SPEC_SLUGS.studio || tier.slug === PACKAGE_SPEC_SLUGS.enterprise || tier.slug === PACKAGE_SPEC_SLUGS.paidPilot) {
     return '/pilot';
@@ -263,12 +263,12 @@ function ListColumn({ item }: { item: OverviewItem }) {
     <ul className="saga-overview-list space-y-8">
       {item.list.map((text) => (
         <li key={text}>
-          <Badge className="border px-16 py-8 backdrop-blur-[10px]">
-            <div className="flex items-start gap-x-16 t-p-sans leading-[1.2em]">
-              <span className="flex h-[1.364em] items-center">
-                <span className="size-8 shrink-0 bg-current" />
+          <Badge className="border px-16 py-8 backdrop-blur-[10px] w-full">
+            <div className="flex flex-row items-center gap-x-16 t-p-sm-sans leading-[1.2em] whitespace-nowrap">
+              <span className="flex h-[1.364em] items-center shrink-0">
+                <span className="size-8 bg-current" />
               </span>
-              <span>{text}</span>
+              <span className="shrink-0">{text}</span>
             </div>
           </Badge>
         </li>

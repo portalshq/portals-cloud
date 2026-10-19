@@ -153,12 +153,6 @@ function Hero({ document, context, offer, offerTerms, pilotMode }: { document: R
 
               <div className="mt-24 flex gap-16 flex-row">
                 <CTAButton
-                  href={startHref}
-                  analyticsLabel="Create my pilot plan"
-                >
-                  <span>Create my pilot plan</span>
-                </CTAButton>
-                <CTAButton
                   href={talkThroughHref}
                   appearance="plain"
                   analyticsLabel="Talk through a pilot"
@@ -169,6 +163,12 @@ function Hero({ document, context, offer, offerTerms, pilotMode }: { document: R
                   }}
                 >
                   <span>Talk through a pilot</span>
+                </CTAButton>
+                <CTAButton
+                  href={startHref}
+                  analyticsLabel="Create my pilot plan"
+                >
+                  <span>Create my pilot plan</span>
                 </CTAButton>
               </div>
               <p className="mt-14 t-p-sm-sans text-white text-balance">Creating your plan is free. Review and accept the agreement before payment; payment is due on signature.</p>
@@ -304,13 +304,13 @@ function SuccessCriteria({ document, offerTerms }: { document: ResourceDocument;
         </h2>
         <div className="ui-grid gap-y-40 py-sms !text-black bg-white rounded-[1em] lg:rounded-[2em]">
           <div className="col-span-full xl:col-span-10">
-            <p className="max-w-[35em] t-p-lg-serif">
+            <p className="t-p-lg-serif text-balance">
               {PRIMARY_PILOT_SUCCESS_TEST}
             </p>
           </div>
           <ol className="col-span-full space-y-24 xl:col-span-11 xl:col-start-12">
             {['Locate the exact approved version and the sources used to create it.', 'Recover the relevant prompts, references, approvals, and production decisions.', 'Have another qualified creator continue or extend the work within agreed output tolerances.'].map((item, index) => (
-              <li key={item} className="grid grid-cols-[48px_1fr] gap-12 items-baseline">
+              <li key={item} className="grid grid-cols-[48px_1fr] gap-8 lg:gap-12 items-baseline">
                 <span className="t-p-sans">
                   {String(index + 1).padStart(2, '0')}
                 </span>
@@ -417,6 +417,7 @@ function PilotForm({
   pilotMode,
   assessmentOrigin,
   annualOptions,
+  packageSpecifications,
 }: {
   specSummary: string
   context: KnownLeadContext
@@ -431,6 +432,7 @@ function PilotForm({
   pilotMode?: 'standard' | 'assisted'
   assessmentOrigin: 'standard' | 'assessment_override'
   annualOptions: Array<{ slug: string; name: string; priceLabel: string }>
+  packageSpecifications: PackageSpecification[]
 }) {
   return (
     <section id="scope" data-header-theme="light" className="scroll-mt-20">
@@ -455,7 +457,7 @@ function PilotForm({
 
         <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
           {/* <p className="mb-20 t-p-sm-sans">{specSummary}</p> */}
-          <PilotScopeForm annualOptions={annualOptions} specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
+          <PilotScopeForm annualOptions={annualOptions} specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={packageSpecifications} />
         </div>
       </div>
     </section>
@@ -558,6 +560,7 @@ export function PaidPilotLandingPage({
   assessmentOrigin?: 'standard' | 'assessment_override'
   annualOptions?: Array<{ slug: string; name: string; priceLabel: string }>
 }) {
+  const packageSpecifications = document.packageSpecifications || []
   useEffect(() => {
     void trackEvent('paid_pilot_page_viewed', { assessment_arrival: Boolean(context.assessmentCompleted), qualification_tier: context.qualificationTier })
     if (context.assessmentCompleted && (context.qualificationTier === 'high' || context.qualificationTier === 'medium')) {
@@ -591,7 +594,7 @@ export function PaidPilotLandingPage({
           data-webgl-marker="scrollTo"
           data-webgl-position="0.96"
         />
-        <PilotForm annualOptions={annualOptions} specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
+        <PilotForm annualOptions={annualOptions} specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={packageSpecifications} />
         <Objective document={document} />
         <ScopeAndMilestone document={document} />
         <SuccessCriteria document={document} offerTerms={offerTerms} />
