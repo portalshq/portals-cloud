@@ -219,7 +219,7 @@ function pricingTierHref(tier: PricingTier): string {
   if (tier.slug === PACKAGE_SPEC_SLUGS.productionTeam) {
     return '/assessment';
   }
-  if (tier.slug === PACKAGE_SPEC_SLUGS.studio || tier.slug === PACKAGE_SPEC_SLUGS.enterprise || tier.slug === PACKAGE_SPEC_SLUGS.studioPilot) {
+  if (tier.slug === PACKAGE_SPEC_SLUGS.studio || tier.slug === PACKAGE_SPEC_SLUGS.enterprise || tier.slug === PACKAGE_SPEC_SLUGS.productionPilot) {
     return '/pilot';
   }
   return scopeAPilotMailto;
@@ -1019,7 +1019,7 @@ function PricingSection({
 }) {
   const pilotSpec = findPackageSpecification(
     packageSpecifications,
-    PACKAGE_SPEC_SLUGS.studioPilot,
+    PACKAGE_SPEC_SLUGS.productionPilot,
   );
   const pilotTier = pilotSpec ? pricingTierFromSpec(pilotSpec) : undefined;
   const pricingTiers = [

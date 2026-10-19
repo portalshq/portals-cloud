@@ -6,9 +6,9 @@ const specs = [
   {
     status: 'published',
     packageKind: 'paidPilot',
-    name: 'Studio Pilot',
-    shortName: 'Studio Pilot',
-    slug: {_type: 'slug', current: 'studio-pilot'},
+    name: 'Production Pilot',
+    shortName: 'Production Pilot',
+    slug: {_type: 'slug', current: 'production-pilot'},
     sortOrder: 10,
     subtitle:
       'For studios managing concurrent campaigns, episodic, animation, or game pipelines.',
@@ -54,7 +54,6 @@ const specs = [
     },
     features: [
       'Up to 24 production members',
-      'Paid pilot required: $5,000 base price',
       '100% of the pilot fee credited toward your annual agreement when you sign before the pilot ends',
       '15 active production repositories',
       'Unlimited reviewers and guests',
@@ -97,8 +96,6 @@ const specs = [
       'Annual deployment terms established before kickoff',
     ],
     ctaLabel: 'Scope a pilot',
-    microcopy:
-      'The Q4 discounted pilot price and its expiry are rendered by the existing offer module wherever it renders today.',
     legalNote:
       'Pilot scope, integrations, annual deployment price, credit terms, success criteria, and final decision date must be agreed in writing before kickoff.',
   },
@@ -224,7 +221,6 @@ const specs = [
     },
     features: [
       'Up to 24 production members',
-      'Paid pilot required: $5,000 base price',
       '100% of the pilot fee credited toward your annual agreement when you sign before the pilot ends',
       '15 active production repositories',
       'Unlimited reviewers and guests',

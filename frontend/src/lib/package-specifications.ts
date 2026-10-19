@@ -6,7 +6,7 @@ import {
 import { sanityClient, sanityDocumentClient } from '@/sanity/lib/client'
 
 export const PACKAGE_SPEC_SLUGS = {
-  studioPilot: 'studio-pilot',
+  productionPilot: 'production-pilot',
   productionTeam: 'production-team',
   studio: 'studio',
   enterprise: 'enterprise',
