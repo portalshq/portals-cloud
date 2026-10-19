@@ -219,7 +219,7 @@ function pricingTierHref(tier: PricingTier): string {
   if (tier.slug === PACKAGE_SPEC_SLUGS.productionTeam) {
     return '/assessment';
   }
-  if (tier.slug === PACKAGE_SPEC_SLUGS.studio || tier.slug === PACKAGE_SPEC_SLUGS.enterprise) {
+  if (tier.slug === PACKAGE_SPEC_SLUGS.studio || tier.slug === PACKAGE_SPEC_SLUGS.enterprise || tier.slug === PACKAGE_SPEC_SLUGS.studioPilot) {
     return '/pilot';
   }
   return scopeAPilotMailto;

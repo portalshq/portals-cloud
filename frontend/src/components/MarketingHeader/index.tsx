@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation'
 import { PortalsHeader, type PortalsHeaderProps } from '@/components/PortalsHeader'
-import { scopeAPilotMailto } from '@/lib/utils'
 
 const productionMemory = { href: '/production-memory', label: 'production memory', appearance: 'plain' } as const
 const assess = { href: '/assessment', label: 'Assess your workflow' } as const
@@ -11,7 +10,7 @@ const assess = { href: '/assessment', label: 'Assess your workflow' } as const
 // inherits its parent's entry (e.g. /blog/<slug> -> /blog). Unlisted routes get
 // no header.
 const staticHeaders: Record<string, PortalsHeaderProps> = {
-  '/': { actions: [{ href: '#pricing', label: 'Get started', className: 'fixed top-15 right-sms' }, { href: scopeAPilotMailto, label: 'Scope a pilot', appearance: 'plain' }] },
+  '/': { actions: [{ href: '#pricing', label: 'Get started', className: 'fixed top-15 right-sms' }] },
   '/contact': { breadcrumb: [{ href: '/contact', label: 'contact' }] },
   '/assessment': { breadcrumb: [{ href: '/assessment', label: 'assessment' }] },
   '/production-memory': { breadcrumb: [{ href: '/production-memory', label: 'production memory' }] },
