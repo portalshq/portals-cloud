@@ -1021,25 +1021,7 @@ function PricingSection({
     packageSpecifications,
     PACKAGE_SPEC_SLUGS.studioPilot,
   );
-  const pilotTier: PricingTier = pilotSpec ? pricingTierFromSpec(pilotSpec) : {
-    slug: 'studio-pilot',
-    name: 'Studio Pilot',
-    price: '$5,000',
-    originalPrice: undefined,
-    discountPercentage: undefined,
-    period: 'one-time',
-    subtitle: 'For studios managing concurrent campaigns, episodic, animation, or game pipelines.',
-    banner: undefined,
-    features: [
-      'Up to 24 production members',
-      '21-day pilot period',
-      '100% of the pilot fee credited toward your annual agreement when you sign before the pilot ends',
-      'Standard integrations',
-      'Guided onboarding',
-    ],
-    cta: 'Scope a pilot',
-    micro: 'The Q4 discounted pilot price and its expiry are rendered by the existing offer module wherever it renders today.',
-  } as PricingTier;
+  const pilotTier = pilotSpec ? pricingTierFromSpec(pilotSpec) : undefined;
   const pricingTiers = [
     PACKAGE_SPEC_SLUGS.productionTeam,
     PACKAGE_SPEC_SLUGS.studio,
