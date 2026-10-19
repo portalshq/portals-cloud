@@ -500,7 +500,7 @@ function getReasonCodeLabels(codes: QualificationReasonCode[]): string[] {
 }
 
 function getPilotSpec(document?: ResourceDocument) {
-  return findPackageSpecification(document?.packageSpecifications, PACKAGE_SPEC_SLUGS.productionPilot)
+  return findPackageSpecification(document?.packageSpecifications, PACKAGE_SPEC_SLUGS.paidPilot)
 }
 
 function Header({ title, page, compact = false }: { title: string; page?: number; compact?: boolean }) {
@@ -1069,7 +1069,7 @@ export function PersonalizedPilotPdfDocument({
 }): ReactElement<DocumentProps> {
   const specification = findPackageSpecification(
     document.packageSpecifications,
-    PACKAGE_SPEC_SLUGS.productionPilot,
+    PACKAGE_SPEC_SLUGS.paidPilot,
   )
   const price = packagePriceLabel(specification)
   const period = packageMilestoneLabel(specification, 'pilot period')

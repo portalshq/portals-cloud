@@ -51,7 +51,7 @@ type SubmitState =
 function paidPilotSpec(document: ResourceDocument): PackageSpecification | undefined {
   return findPackageSpecification(
     document.packageSpecifications,
-    PACKAGE_SPEC_SLUGS.productionPilot,
+    PACKAGE_SPEC_SLUGS.paidPilot,
   )
 }
 
