@@ -10,7 +10,7 @@ import {
   packagePriceLabel,
   packagePricingFeatures,
 } from '@/lib/package-specifications';
-import { formatNumber, scopeAPilotMailto } from '@/lib/utils';
+import { cn, formatNumber, scopeAPilotMailto } from '@/lib/utils';
 import { blurEnterDurationMs, blurEnterEasing, blurExitDurationMs, blurExitEasing, overviewBlurStaggerMs, overviewColumnMotionStyle, overviewEnterTotalMs, overviewExitTotalMs, overviewMotionStyle, OverviewScrollPhase, OverviewTransitionStage } from '@/types/overview';
 import type { PackageSpecification } from '@/types/resource';
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
@@ -189,6 +189,7 @@ type PricingTier = {
   slug: string;
   name: string;
   price: string;
+  billingNote?: string;
   originalPrice?: string;
   discountPercentage?: number | null;
   period: string;
@@ -196,6 +197,7 @@ type PricingTier = {
   banner?: string;
   features: string[];
   cta: string;
+  ctaDestination?: string;
   micro?: string;
 };
 
@@ -204,6 +206,7 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
     slug: specification.slug,
     name: specification.name,
     price: packagePriceLabel(specification),
+    billingNote: specification.price?.billingNote,
     originalPrice: packageOriginalPriceLabel(specification),
     discountPercentage: specification.price?.discount?.percentage,
     period: specification.price?.periodLabel || '',
@@ -211,16 +214,18 @@ function pricingTierFromSpec(specification: PackageSpecification): PricingTier {
     banner: specification.banner,
     features: packagePricingFeatures(specification),
     cta: specification.ctaLabel || 'Scope a pilot',
+    ctaDestination: specification.ctaDestination,
     micro: specification.microcopy,
   };
 }
 
 function pricingTierHref(tier: PricingTier): string {
+  if (tier.ctaDestination) return tier.ctaDestination
   if (tier.slug === PACKAGE_SPEC_SLUGS.productionTeam) {
-    return '/auth/sign-in';
+    return '/auth/sign-in?next=%2Fcheckout%2Fproduction-team';
   }
   if (tier.slug === PACKAGE_SPEC_SLUGS.studio || tier.slug === PACKAGE_SPEC_SLUGS.enterprise || tier.slug === PACKAGE_SPEC_SLUGS.paidPilot) {
-    return '/pilot';
+    return '/pilot'
   }
   return scopeAPilotMailto;
 }
@@ -1033,58 +1038,62 @@ function PricingSection({
 
   return (
     <section data-header-theme="light" id="pricing">
-      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
+      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] w-fit mx-auto text-white">
         {/* <div className="col-span-full lg:col-span-6">
           <SectionKicker>pricing</SectionKicker>
         </div> */}
         <div className="col-span-full lg:mx-auto">
           <h2 className="t-d2-sans max-w-[12.58em] text-balance lg:text-center">A clear path from adoption to enterprise scale</h2>
         </div>
-        <div className="col-span-full grid grid-cols-1 gap-px max-w-[42em] lg:mx-auto rounded">
+        <div className="col-span-full grid grid-cols-1 gap-px max-w-xl xl:max-w-1/3 lg:mx-auto rounded">
           {pilotTier ? [pilotTier].map((tier) => (
-            <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border">
+            <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border border-white/50  bg-[radial-gradient(circle_at_bottom_left,_rgba(255,255,255,0.35)_0%,_rgba(255,255,255,0.1)_100%)]">
               <h3 className="t-h3-sans">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
-                <span className="t-m2 !lowercase">{tier.period}</span>
+                <span className="t-p-sm-sans text-white/80 !lowercase">{tier.period}</span>
               </div>
-              <p className="t-p-sans">{tier.subtitle}</p>
+              <p className="t-p-sm-sans">{tier.subtitle}</p>
               <ul className="my-24 flex flex-1 flex-col gap-y-8">
                 {tier.features.map((feature) => (
-                  <li key={feature} className="flex gap-x-8 t-p-sans">
+                  <li key={feature} className="flex gap-x-8 t-p-sm-sans">
                     <span>+</span>
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
-              <CTAButton href={pricingTierHref(tier)}>{tier.cta}</CTAButton>
-              {tier.micro && <p className="mt-24 t-p-sans">{tier.micro}</p>}
+              <CTAButton href={pricingTierHref(tier)} className="bg-transparent">{tier.cta}</CTAButton>
+              {tier.micro && <p className="mt-24 t-p-sm-sans">{tier.micro}</p>}
             </article>
           )) : null}
         </div>
-        <div className="mt-40 col-span-full grid grid-cols-1 gap-px lg:grid-cols-3">
+        <div className="col-span-full grid grid-cols-1 gap-8 xl:gap-12 xl:grid-cols-3">
           {pricingTiers.map((tier) => (
-            <article key={tier.name} className="relative flex min-h-194 flex-col p-24">
+            <article key={tier.name} className={cn(["relative lg:mx-auto flex min-h-194 flex-col p-24 max-w-xl rounded border border-white/50",
+              tier.name ==="Production Team" && 'bg-white/10',
+            tier.name ==="Studio" && 'bg-white/20',
+            tier.name === "Enterprise" && 'bg-white/30',
+            ])}>
               <div className="flex gap-x-12">
                 <h3 className="t-h3-sans mb-20 flex items-center gap-x-12">
                   <span>{tier.name}</span>
                 </h3>
                 {tier.banner && <Badge className='h-fit p-8 t-p-sm-sans'>{tier.banner}</Badge>}
-                </div>
-              <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
-                <span className="t-h3-sans">{tier.price}</span>
-                <span className="t-m2 !lowercase">{tier.period}</span>
               </div>
-              <p className="t-p-sans">{tier.subtitle}</p>
+              <div className="my-20">
+                <p className="t-h3-sans">{tier.price} {tier.period}</p>
+                {tier.billingNote && <p className="mt-8 t-p-sans">{tier.billingNote}</p>}
+                {tier.micro && <p className="mt-8 t-p-sans">{tier.micro}</p>}
+              </div>
+              <p className="t-p-sm-sans">{tier.subtitle}</p>
               <ul className="my-24 flex flex-1 flex-col gap-y-8">
                 {tier.features.map((feature) => (
-                  <li key={feature} className="flex gap-x-8 t-p-sans text-white">
+                  <li key={feature} className="flex gap-x-8 t-p-sm-sans text-white">
                     <span className="text-white">+</span>
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
-              <CTAButton href={pricingTierHref(tier)}>{tier.cta}</CTAButton>
-              {tier.micro && <p className="relative lg:absolute -bottom-54 mt-24 t-p-sans text-white">{tier.micro}</p>}
+              <CTAButton href={pricingTierHref(tier)} className="bg-transparent">{tier.cta}</CTAButton>
             </article>
           ))}
         </div>

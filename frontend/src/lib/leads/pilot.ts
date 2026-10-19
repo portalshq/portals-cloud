@@ -721,14 +721,12 @@ export function buildCommercialSnapshot(
   opts: { startDate?: string; termDays?: number; currency?: string; offer?: PilotOffer | null },
 ): CommercialSnapshot {
   const pilotSpec = specs.find((spec) => spec.packageKind === 'paidPilot')
-  const priceAmount =
-    opts.offer?.pilotPriceAmount ||
-    Number(process.env.PILOT_PRICE_AMOUNT) ||
-    pilotSpec?.price?.amount ||
-    5000
-  const priceLabel = opts.offer?.pilotPriceLabel || packagePriceLabel(pilotSpec) || `$${priceAmount.toLocaleString()}`
+  const priceAmount = opts.offer?.pilotPriceAmount ?? pilotSpec?.price?.amount
+  if (!priceAmount) throw new Error('Studio Pilot pricing is missing from the published package specification')
+  const priceLabel = opts.offer?.pilotPriceLabel || packagePriceLabel(pilotSpec)
   const currency = opts.currency || pilotSpec?.price?.currency || 'USD'
   const termDays = opts.termDays || opts.offer?.pilotDurationDays || packageTermDays(pilotSpec)
+  if (!termDays) throw new Error('Studio Pilot duration is missing from the published package specification')
   const start = opts.startDate
   const end = start ? new Date(new Date(start).getTime() + (termDays - 1) * 86_400_000) : undefined
   const decisionDate = start
@@ -738,7 +736,8 @@ export function buildCommercialSnapshot(
   // No hard-coded day counts here.
   const windowLabel = packageMilestoneLabel(pilotSpec, 'annual-credit decision window')
   const windowDays = Number.parseInt(String(windowLabel), 10)
-  const creditWindowDays = Number.isFinite(windowDays) && windowDays > 0 ? windowDays : 14
+  const creditWindowDays = Number.isFinite(windowDays) && windowDays > 0 ? windowDays : null
+  if (!creditWindowDays) throw new Error('Studio Pilot annual-credit window is missing from the published package specification')
   const creditDeadline = decisionDate
     ? new Date(decisionDate.getTime() + creditWindowDays * 86_400_000)
     : undefined
@@ -752,7 +751,7 @@ export function buildCommercialSnapshot(
   const annualTotal = annualTotalFrom(annualSpec)
   const annualCredit = opts.offer
     ? `${opts.offer.annualCreditLabel} annual deployment credit under the ${opts.offer.annualCreditRedemptionPolicy}.`
-    : `The $${priceAmount.toLocaleString()} pilot fee will be credited if the annual order form is signed by ${iso(creditDeadline) || 'the stated deadline'}.`
+    : `${priceLabel} pilot fee credited if the annual order form is signed by ${iso(creditDeadline) || 'the stated deadline'}.`
   const annualOption = annualSpec
     ? {
         slug: annualSpec.slug,
@@ -785,7 +784,7 @@ export function buildCommercialSnapshot(
       offerAcceptanceDeadlineLabel: opts.offer.acceptanceDeadlineLabel,
       offerCopy: opts.offer.offerCopy,
     } : {}),
-    participantsLabel: answers.participantsRange || 'up to five',
+    participantsLabel: answers.participantsRange || packageLimitLabel(pilotSpec, 'participants'),
     participantLimit: Number(packageLimitLabel(pilotSpec, 'participants').match(/\d+/)?.[0] || 5),
     annualOption,
     valueModel: buildValueModel(

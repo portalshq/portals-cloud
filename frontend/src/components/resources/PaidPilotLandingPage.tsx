@@ -110,7 +110,7 @@ function StaticPilotBackground() {
   )
 }
 
-function Hero({ document, context, offer, offerTerms, pilotMode }: { document: ResourceDocument; context: KnownLeadContext; offer?: string; offerTerms?: OfferTerms; pilotMode?: 'standard' | 'assisted' }) {
+function Hero({ document, context, offer, offerTerms, pilotMode, initialAnswers }: { document: ResourceDocument; context: KnownLeadContext; offer?: string; offerTerms?: OfferTerms; pilotMode?: 'standard' | 'assisted'; initialAnswers?: Record<string, unknown> }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
   const router = useRouter()
@@ -122,10 +122,10 @@ function Hero({ document, context, offer, offerTerms, pilotMode }: { document: R
   const assistedParams = () => new URLSearchParams({ ...(offer ? { offer } : {}), mode: 'assisted' })
   const talkThroughHref = isPilotPage
     ? '#scope'
-    : `/pilot?${assistedParams().toString()}#scope`
+    : `/pilot?${assistedParams().toString()}`
   const startHref = isPilotPage
     ? '#scope'
-    : `/pilot?${new URLSearchParams({ ...(offer ? { offer } : {}) }).toString()}#scope`
+    : `/pilot?${new URLSearchParams({ ...(offer ? { offer } : {}) }).toString()}`
 
   const metrics = [
     [offerTerms ? `${offerTerms.pilotDurationDays} days` : packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
@@ -153,6 +153,12 @@ function Hero({ document, context, offer, offerTerms, pilotMode }: { document: R
 
               <div className="mt-24 flex gap-16 flex-row">
                 <CTAButton
+                  href={startHref}
+                  analyticsLabel="Start a pilot"
+                >
+                  <span>Start a pilot</span>
+                </CTAButton>
+                <CTAButton
                   href={talkThroughHref}
                   appearance="plain"
                   analyticsLabel="Talk through a pilot"
@@ -163,12 +169,6 @@ function Hero({ document, context, offer, offerTerms, pilotMode }: { document: R
                   }}
                 >
                   <span>Talk through a pilot</span>
-                </CTAButton>
-                <CTAButton
-                  href={startHref}
-                  analyticsLabel="Create my pilot plan"
-                >
-                  <span>Create my pilot plan</span>
                 </CTAButton>
               </div>
               <p className="mt-14 t-p-sm-sans text-white text-balance">Creating your plan is free. Review and accept the agreement before payment; payment is due on signature.</p>
@@ -418,6 +418,7 @@ function PilotForm({
   assessmentOrigin,
   annualOptions,
   packageSpecifications,
+  initialAnswers,
 }: {
   specSummary: string
   context: KnownLeadContext
@@ -433,6 +434,7 @@ function PilotForm({
   assessmentOrigin: 'standard' | 'assessment_override'
   annualOptions: Array<{ slug: string; name: string; priceLabel: string }>
   packageSpecifications: PackageSpecification[]
+  initialAnswers?: Record<string, unknown>
 }) {
   return (
     <section id="scope" data-header-theme="light" className="scroll-mt-20">
@@ -457,7 +459,7 @@ function PilotForm({
 
         <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
           {/* <p className="mb-20 t-p-sm-sans">{specSummary}</p> */}
-          <PilotScopeForm annualOptions={annualOptions} specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={packageSpecifications} />
+          <PilotScopeForm annualOptions={annualOptions} specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={packageSpecifications} initialAnswers={initialAnswers} />
         </div>
       </div>
     </section>
@@ -551,6 +553,7 @@ export function PaidPilotLandingPage({
   pilotMode,
   assessmentOrigin = 'standard',
   annualOptions = [],
+  initialAnswers,
 }: {
   document: ResourceDocument
   context: KnownLeadContext
@@ -559,6 +562,7 @@ export function PaidPilotLandingPage({
   pilotMode?: 'standard' | 'assisted'
   assessmentOrigin?: 'standard' | 'assessment_override'
   annualOptions?: Array<{ slug: string; name: string; priceLabel: string }>
+  initialAnswers?: Record<string, unknown>
 }) {
   const packageSpecifications = document.packageSpecifications || []
   useEffect(() => {
@@ -587,14 +591,14 @@ export function PaidPilotLandingPage({
       />
       <StaticPilotBackground />
       <div className="relative z-10">
-        <Hero document={document} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} />
+        <Hero document={document} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} initialAnswers={initialAnswers} />
         <div
           aria-hidden="true"
           className="pointer-events-none h-px w-full"
           data-webgl-marker="scrollTo"
           data-webgl-position="0.96"
         />
-        <PilotForm annualOptions={annualOptions} specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={packageSpecifications} />
+        <PilotForm annualOptions={annualOptions} specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={packageSpecifications} initialAnswers={initialAnswers} />
         <Objective document={document} />
         <ScopeAndMilestone document={document} />
         <SuccessCriteria document={document} offerTerms={offerTerms} />

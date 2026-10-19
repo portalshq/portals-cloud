@@ -134,8 +134,41 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({error: 'pilot handling failed'}, {status: 500})
       }
     }
-    if (event.type === 'checkout.session.async_payment_succeeded') {
+    if (event.type === 'checkout.session.async_payment_succeeded' && session.metadata?.product_type !== 'production-team') {
       return NextResponse.json({received: true})
+    }
+
+    if (session.metadata?.product_type === 'production-team' && session.metadata?.billing_cadence === 'quarterly') {
+      const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id
+      const installmentCount = Number.parseInt(session.metadata.installment_count || '', 10)
+      const quarterlyPriceId = process.env.STRIPE_PRICE_PRODUCTION_TEAM_QUARTERLY_ID
+      if (!subscriptionId || !quarterlyPriceId || !Number.isInteger(installmentCount) || installmentCount < 1) {
+        console.error('Quarterly Production Team checkout is missing its schedule metadata')
+        return NextResponse.json({error: 'quarterly schedule configuration missing'}, {status: 500})
+      }
+      try {
+        const stripe = createStripePlatformClient(secretKey)
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        const currentScheduleId = typeof subscription.schedule === 'string'
+          ? subscription.schedule
+          : subscription.schedule?.id
+        const schedule = currentScheduleId
+          ? await stripe.subscriptionSchedules.retrieve(currentScheduleId)
+          : await stripe.subscriptionSchedules.create({from_subscription: subscriptionId}, {idempotencyKey: `production-team-annual-quarterly:${subscriptionId}`})
+        if (schedule.end_behavior !== 'cancel' || schedule.metadata?.production_team_installments !== String(installmentCount)) {
+          const scheduleUpdate = {
+            end_behavior: 'cancel' as const,
+            phases: [{items: [{price: quarterlyPriceId, quantity: 1}], iterations: installmentCount}],
+            metadata: {production_team_installments: String(installmentCount)},
+          } as unknown as Stripe.SubscriptionScheduleUpdateParams
+          await stripe.subscriptionSchedules.update(schedule.id, {
+            ...scheduleUpdate,
+          })
+        }
+      } catch (error) {
+        console.error('Quarterly Production Team schedule setup failed:', error)
+        return NextResponse.json({error: 'quarterly schedule setup failed'}, {status: 500})
+      }
     }
   }
   if (event.type === 'checkout.session.async_payment_failed') {

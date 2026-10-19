@@ -16,6 +16,7 @@ import {
   reviewerTokenRole,
   STANDARD_SUCCESS_KEYS,
 } from './pilot'
+import {TEST_PACKAGE_SPECIFICATIONS} from './test-package-specifications'
 
 const eligible = {
   pilotWorkflow: 'campaign variant production',
@@ -161,7 +162,7 @@ test('value model accepts the live assessment people ranges', () => {
 test('commercial snapshot prices from the pilot spec amount and composes the annual credit', () => {
   const snapshot = buildCommercialSnapshot(
     {...eligible, targetStartPeriod: 'asap'},
-    [],
+    TEST_PACKAGE_SPECIFICATIONS,
     {startDate: '2026-09-01', termDays: 21},
   )
 
@@ -401,7 +402,7 @@ test('security decisions mark SSO as an exception when required', () => {
 test('commercial snapshot omits the annual option when specs are missing', () => {
   const snapshot = buildCommercialSnapshot(
     {...eligible, annualDeploymentOption: 'studio'},
-    [],
+    TEST_PACKAGE_SPECIFICATIONS.slice(0, 1),
     {startDate: '2026-08-10'},
   )
 
@@ -417,7 +418,7 @@ test('commercial snapshot omits the annual option when specs are missing', () =>
 test('commercial snapshot omits the annual option when not chosen', () => {
   const snapshot = buildCommercialSnapshot(
     {...eligible, annualDeploymentOption: 'not-known'},
-    [],
+    TEST_PACKAGE_SPECIFICATIONS,
     {},
   )
 

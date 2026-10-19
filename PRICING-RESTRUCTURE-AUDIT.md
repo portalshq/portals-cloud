@@ -1,7 +1,19 @@
 # Pricing Restructure Audit Report
-**Date**: 2026-10-18
-**Status**: Phase 1 Read-Only Audit Complete
-**Purpose**: Document current pricing architecture before implementing the pricing restructure
+**Date**: 2026-10-19
+**Status**: Pricing implementation in progress; latest feature allocation awaits Sanity write permission
+**Purpose**: Record pricing architecture, implementation decisions, and deferred entitlement enforcement
+
+## Implementation decisions (2026-10-19)
+
+- Sanity's configured `production` dataset is the package-specification source of truth. The Studio Pilot, Studio, Production Team, and Enterprise package documents were updated with revision checks; Q3/Q4 offer documents were not changed.
+- Production Team checkout is authenticated and offers annual payment or the CMS-configured quarterly installment schedule. Quarterly installments are four payments within one annual term; Stripe schedules cancel at the end of the term rather than renew quarterly.
+- The one-time onboarding fee and Studio annual price are resolved from Sanity. Stripe catalog synchronization reads those same published specs and is test-mode-only by default; old immutable prices are archived, not deleted.
+- Production Team add-on seat purchases are available through a separate annual subscription checkout. The first annual amount is charged at purchase, and each add-on term runs from its own subscription start.
+- Membership caps are descriptive/package qualification data only for this release. Do not enforce Studio or add-on limits in invitations, account membership, or billing. Entitlement enforcement requires a separate migration and explicit product decision.
+- Studio and Enterprise use the existing paid-pilot room. Enterprise pricing routes to the assisted pilot experience; exception review remains a distinct commercial classification.
+- Pricing page values and package CTA destinations are read from Sanity. Enterprise's pilot selection is prefilled as assisted, and public pricing CTAs route to the correct checkout or pilot entry without a scope hash.
+- Q3 offer data remains evidence. Do not modify the Q4 offer as part of this change.
+- Feature allocation in the checked-in Sanity seed/update scripts places standard production integrations and guided onboarding in Production Team, removes guided onboarding/integrations from Studio's explicit feature list, and places API access, audit history, and multiple production workspaces in Enterprise. The current Sanity credential can read production but was denied `update` permission, so this final feature-list revision is not confirmed in the live dataset.
 
 ---
 
@@ -106,7 +118,7 @@ Fields:
 - `offerCopy`: text
 - `termsVersion`: string
 
-### Current CMS Values (from seeding script)
+### Pre-change CMS Values (historical audit snapshot)
 
 **Paid Pilot (paid-pilot)**:
 - Price: $5,000 one-time

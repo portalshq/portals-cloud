@@ -369,7 +369,8 @@ async function syncPilotRecord(
       ...(submitterEmail ? { email: submitterEmail } : {}),
       ...(submitterName ? { name: submitterName } : {}),
     }
-    const proposal = pilot.proposal || buildCommercialSnapshot(answers, [], {
+    const packageSpecifications = pilot.proposal ? [] : await getPublishedPackageSpecifications()
+    const proposal = pilot.proposal || buildCommercialSnapshot(answers, packageSpecifications, {
       startDate: pilot.resolvedStartDate || undefined,
     })
     const at = new Date().toISOString()
@@ -456,7 +457,7 @@ async function syncPilotRecord(
   }
 
   const profile = await getProfileById(profileId)
-  const packages = leadsDryRun() ? [] : await getPublishedPackageSpecifications()
+  const packages = await getPublishedPackageSpecifications()
   const offer = await resolveCurrentPilotOffer(leadRequest.offer, leadRequest.identity?.email).catch((cause) => {
     console.error('pilot offer resolution failed', cause)
     return null

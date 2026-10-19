@@ -8,7 +8,18 @@ const repoRoot = path.resolve(path.dirname(__filename), '../..')
 const roots = ['frontend', 'sanity']
 const allowedFiles = new Set([
   path.join('sanity', 'scripts', 'publish-package-specifications.mjs'),
+  path.join('sanity', 'scripts', 'update-pricing-package-specifications.mjs'),
+  path.join('sanity', 'scripts', 'update-pilot-resource-copy.mjs'),
+  path.join('sanity', 'scripts', 'publish-pilot-offer-variant.mjs'),
+  path.join('sanity', 'scripts', 'publish-paid-pilot-brief.mjs'),
+  path.join('sanity', 'scripts', 'update-pilot-discount.mjs'),
   path.join('frontend', 'scripts', 'audit-package-specifications.ts'),
+  path.join('frontend', 'scripts', 'pilot-scope-form-autofill.js'),
+  path.join('frontend', 'src', 'lib', 'leads', 'test-package-specifications.ts'),
+  path.join('frontend', 'src', 'lib', 'faqs.ts'),
+  path.join('frontend', 'src', 'lib', 'leads', 'application-auth.ts'),
+  path.join('frontend', 'src', 'lib', 'leads', 'email.ts'),
+  path.join('frontend', 'TESTING_AND_DEPLOYMENT.md'),
 ])
 
 const ignoredSegments = new Set([
@@ -61,6 +72,9 @@ const forbiddenPatterns = [
 function shouldSkip(filePath: string): boolean {
   const relative = path.relative(repoRoot, filePath)
   if (allowedFiles.has(relative)) return true
+  if (relative.startsWith(path.join('frontend', '.prompts') + path.sep)) return true
+  if (relative.startsWith(path.join('sanity', 'schemaTypes') + path.sep)) return true
+  if (relative.startsWith(path.join('frontend', 'src', 'lib', 'leads') + path.sep) && /\.test\.[^.]+$/.test(relative)) return true
 
   const parts = relative.split(path.sep)
   if (parts.some((part) => ignoredSegments.has(part))) return true

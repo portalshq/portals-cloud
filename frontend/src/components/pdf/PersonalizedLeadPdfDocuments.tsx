@@ -826,8 +826,8 @@ function Page4PilotCase({ data, document }: { data: PersonalizedQualification; d
   const historicalProjects = packageLimitLabel(spec, 'historicalProjects')
   const model = getValueModel(data)
   const recovery = recoveryScenario(model)
-  const pilotPrice = spec?.price?.amount || 5000
-  const breakEvenHours = Math.ceil(pilotPrice / 100)
+  const pilotPrice = spec?.price?.amount
+  const breakEvenHours = pilotPrice ? Math.ceil(pilotPrice / 100) : null
 
   const measures = [
     ['approved retrieval', 'under 1 minute', 'timed retrieval test'],
@@ -863,7 +863,7 @@ function Page4PilotCase({ data, document }: { data: PersonalizedQualification; d
           <Text style={styles.featureColumnBody}>25–50% annual capacity recovery case</Text>
         </View>
         <View style={styles.featureColumn}>
-          <Text style={styles.featureColumnTitle}>{breakEvenHours} hours</Text>
+          <Text style={styles.featureColumnTitle}>{breakEvenHours ? `${breakEvenHours} hours` : 'measure in pilot'}</Text>
           <Text style={styles.featureColumnBody}>reclaimed capacity equal to the pilot fee</Text>
         </View>
       </View>
@@ -1254,7 +1254,7 @@ export function PilotPlanPdfDocument({
           <Text style={styles.sectionTitle}>objective</Text>
           <Text>{workflow}</Text>
           <Text style={styles.body}>
-            prove that portals can preserve and recover the complete production history of this workflow so the team can find, understand, reproduce, and extend valuable work. the first 48 hours deliver one fragmented project as a complete, searchable production record.
+            prove that portals can preserve and recover the complete production history of this workflow so the team can find, understand, reproduce, and extend valuable work. the initial delivery establishes one fragmented project as a complete, searchable production record.
           </Text>
         </View>
 

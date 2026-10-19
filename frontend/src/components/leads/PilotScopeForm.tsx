@@ -1019,7 +1019,7 @@ export function PilotScopeForm({
             defaultChecked={Boolean(initialAnswers?.annualPriceAcknowledged)}
           />
           <span>
-            I have reviewed the proposed annual deployment and the {liveAnswers.annualDeploymentOption === 'production-team' ? `onboarding fee of $${onboardingFee || '1,000'}` : `pilot fee${offerTerms ? ` of ${offerTerms.pilotPriceLabel}` : ''}`}. Any credit follows the written terms. Creating this plan does not accept an agreement or authorize payment.
+            I have reviewed the proposed annual deployment and the {liveAnswers.annualDeploymentOption === 'production-team' ? `onboarding fee of ${onboardingFee ? new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD', maximumFractionDigits: 0}).format(onboardingFee) : 'the amount shown in the agreement'}` : `pilot fee${offerTerms ? ` of ${offerTerms.pilotPriceLabel}` : ''}`}. Any credit follows the written terms. Creating this plan does not accept an agreement or authorize payment.
           </span>
         </label>
         {liveAnswers.approvalPath === 'procurement' ? (

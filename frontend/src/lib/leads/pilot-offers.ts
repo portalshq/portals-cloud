@@ -69,7 +69,7 @@ export async function resolveCurrentPilotOffer(
         apiVersion: '2026-07-01',
         useCdn: true,
       })
-      const query = `*[_type == "pilotOfferVariant" && basePackage->slug.current == "paid-pilot" && status == "active" && startsAt <= $now && endsAt > $now] | order(startsAt desc)${OFFER_FIELDS}`
+      const query = `*[_type == "pilotOfferVariant" && basePackage->slug.current == "studio-pilot" && status == "active" && startsAt <= $now && endsAt > $now] | order(startsAt desc)${OFFER_FIELDS}`
       const offers = await publicClient.fetch<PilotOffer[]>(query, {now: now.toISOString()})
       if (offers.length > 1) throw new Error('multiple active pilot offers are configured')
       const offer = offers[0]
@@ -82,8 +82,8 @@ export async function resolveCurrentPilotOffer(
   }
 
   const query = normalizedOfferSlug
-    ? `*[_type == "pilotOfferVariant" && slug.current == $offerSlug && basePackage->slug.current == "paid-pilot" && status == "active"]${OFFER_FIELDS}`
-    : `*[_type == "pilotOfferVariant" && basePackage->slug.current == "paid-pilot" && status == "active" && startsAt <= $now && endsAt > $now] | order(startsAt desc)${OFFER_FIELDS}`
+    ? `*[_type == "pilotOfferVariant" && slug.current == $offerSlug && basePackage->slug.current == "studio-pilot" && status == "active"]${OFFER_FIELDS}`
+    : `*[_type == "pilotOfferVariant" && basePackage->slug.current == "studio-pilot" && status == "active" && startsAt <= $now && endsAt > $now] | order(startsAt desc)${OFFER_FIELDS}`
   const offers = await offerClient.fetch<PilotOffer[]>(query, {
     ...(normalizedOfferSlug ? {offerSlug: normalizedOfferSlug} : {}),
     now: now.toISOString(),
@@ -98,7 +98,7 @@ export async function resolveCurrentPilotOffer(
 }
 
 function validateAndNormalizeOffer(offer: PilotOffer, now: Date, email?: string): PilotOffer {
-  if (offer.basePackageSlug !== 'paid-pilot') throw new Error('invalid pilot offer package')
+  if (offer.basePackageSlug !== 'studio-pilot') throw new Error('invalid pilot offer package')
 
   const startsAt = new Date(offer.startsAt).getTime()
   const endsAt = new Date(offer.endsAt).getTime()

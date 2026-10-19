@@ -19,10 +19,10 @@ export async function generateMetadata({searchParams}: {searchParams: Promise<{e
   const document = await getResourceDocument('paid-pilot')
   if (!document) return {}
   return marketingMetadata({
-    title: document.seo?.metaTitle || '21-Day AI Creative Production Pilot | portals',
+    title: document.seo?.metaTitle || 'Studio Pilot | portals',
     description:
       document.seo?.metaDescription ||
-      'Scope a 21-day paid pilot on one active AI creative workflow. Measure asset retrieval, context recovery, reproducibility, handoffs, and rework.',
+      'Evaluate Portals against one real production workflow. Measure asset retrieval, context recovery, reproducibility, handoffs, and rework.',
     path: document.seo?.canonicalPath || '/pilot',
     keywords: document.seo?.keywords ?? [
       'AI production pilot',
@@ -44,9 +44,9 @@ export async function generateMetadata({searchParams}: {searchParams: Promise<{e
 export default async function PaidPilotPage({
   searchParams,
 }: {
-  searchParams: Promise<{offer?: string; mode?: 'standard' | 'assisted'; email?: string}>
+  searchParams: Promise<{offer?: string; mode?: 'standard' | 'assisted'; tier?: 'studio' | 'enterprise'; email?: string}>
 }) {
-  const {offer, mode, email} = await searchParams
+  const {offer, mode, tier, email} = await searchParams
   const [document, knownContext, offerVariant, packages] = await Promise.all([
     getResourceDocument('paid-pilot'),
     getKnownLeadContext(),
@@ -82,6 +82,7 @@ export default async function PaidPilotPage({
       } : undefined}
       assessmentOrigin="standard"
       pilotMode={mode}
+      initialAnswers={tier ? {annualDeploymentOption: tier} : undefined}
     />
   )
 }

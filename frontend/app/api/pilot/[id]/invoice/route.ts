@@ -27,6 +27,10 @@ export async function POST(
     return NextResponse.json({ok: false, code: 'material_exception', message: 'invoice creation is unavailable until the flagged pilot exception is resolved'}, {status: 422})
   }
   if (pilot.state !== 'signed' && pilot.state !== 'launch') return NextResponse.json({ok: false, message: 'the pilot must be signed before an invoice can be issued'}, {status: 400})
+  const proposal = pilot.proposal
+  if (!proposal?.priceAmount || !proposal.termDays || !proposal.currency) {
+    return NextResponse.json({ok: false, message: 'the pilot order is missing its persisted commercial snapshot'}, {status: 409})
+  }
 
   const existingInvoice = String(pilot.payment?.invoiceId || '')
   if (existingInvoice) {
@@ -54,14 +58,14 @@ export async function POST(
     if (created) await createBillingCustomer({id: customer.id, email: customer.email || email, name: customer.name || name, metadata: customer.metadata})
     await linkPilotStripeCustomer(id, customer.id)
     const stripe = createStripePlatformClient(secretKey)
-    const amount = Math.round((pilot.proposal?.priceAmount || Number(process.env.PILOT_PRICE_AMOUNT) || 5000) * 100)
-    const currency = String(pilot.proposal?.currency || 'USD').toLowerCase()
-    await stripe.invoiceItems.create({customer: customer.id, amount, currency, description: `Portals production pilot — ${pilot.proposal?.termDays || 21} days`}, {idempotencyKey: `pilot-invoice-item:${id}`})
+    const amount = Math.round(proposal.priceAmount * 100)
+    const currency = proposal.currency.toLowerCase()
+    await stripe.invoiceItems.create({customer: customer.id, amount, currency, description: `Portals production pilot — ${proposal.termDays} days`}, {idempotencyKey: `pilot-invoice-item:${id}`})
     const invoice = await stripe.invoices.create({
       customer: customer.id,
       collection_method: 'send_invoice',
       days_until_due: Number(process.env.PILOT_INVOICE_DAYS_UNTIL_DUE || 7),
-      metadata: {pilotId: id, productType: 'production-pilot', offer: String(pilot.proposal?.offerVariantSlug || '')},
+      metadata: {pilotId: id, productType: 'production-pilot', offer: String(proposal.offerVariantSlug || '')},
       description: 'Portals production pilot',
     }, {idempotencyKey: `pilot-invoice:${id}`})
     const finalized = await stripe.invoices.finalizeInvoice(invoice.id, {}, {idempotencyKey: `pilot-invoice-finalize:${id}`})

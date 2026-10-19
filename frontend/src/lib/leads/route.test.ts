@@ -25,6 +25,7 @@ import {
   updatePilot,
   type StoredPilot,
 } from './store'
+import {TEST_PACKAGE_SPECIFICATIONS} from './test-package-specifications'
 
 const DISCLOSURE = '2026-08-01'
 
@@ -39,8 +40,12 @@ function tokenFrom(text: string): string {
 function captureFetch(t: TestContext) {
   const fetches: Captured[] = []
   const captured: typeof fetch = async (url, init) => {
+    const requestUrl = url instanceof Request ? url.url : String(url)
+    if (requestUrl.includes('.api.sanity.io/')) {
+      return Response.json({result: TEST_PACKAGE_SPECIFICATIONS})
+    }
     fetches.push({
-      url: String(url),
+      url: requestUrl,
       body: init?.body ? JSON.parse(String(init.body)) : {},
     })
     return new Response(JSON.stringify({id: 'sent'}), {status: 200})

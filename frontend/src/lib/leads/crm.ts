@@ -714,7 +714,7 @@ async function upsertPilotDeal(schema: ApolloSchema, submission: StoredSubmissio
     name: `paid pilot - ${submission.identity.company || submission.profile.companyDomain}`,
     account_id: accountId,
     contact_ids: [contactId],
-    amount: String(pilot.proposal?.priceAmount || Number(process.env.PILOT_PRICE_AMOUNT || 5000)),
+    amount: pilot.proposal?.priceAmount ? String(pilot.proposal.priceAmount) : undefined,
     opportunity_stage_id: stageId,
     typed_custom_fields: fieldValues(schema, 'deal', {
       portals_submission_id: submission.id,

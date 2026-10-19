@@ -48,6 +48,14 @@ export async function POST(
     )
   }
 
+  const proposal = pilot.proposal
+  const amount = proposal?.priceAmount
+  const termDays = proposal?.termDays
+  const currency = proposal?.currency
+  if (!proposal || !amount || !termDays || !currency) {
+    return NextResponse.json({ok: false, message: 'the pilot order is missing its persisted commercial snapshot'}, {status: 409})
+  }
+
   const roomPath = pilotRoomPathForPilotOrFallback(pilot)
   const roomUrl = `${siteUrl()}${roomPath}`
   const secretKey = process.env.STRIPE_SECRET_KEY
@@ -85,9 +93,6 @@ export async function POST(
   const billing = createStripePlatformBilling(secretKey)
 
   // Production pilot uses a custom price_data approach, not a pre-configured product
-  const amount = pilot.proposal?.priceAmount || Number(process.env.PILOT_PRICE_AMOUNT) || 5000
-  const currency = pilot.proposal?.currency || 'USD'
-
   let session: Stripe.Checkout.Session
   try {
     session = await billing.createCheckoutSession(
@@ -106,7 +111,7 @@ export async function POST(
               unit_amount: Math.round(amount * 100),
               product_data: {
                 name: `portals paid production pilot — ${String(pilot.answers.company || '')}`,
-                description: `${pilot.proposal?.termDays || 21}-day production pilot; ${pilot.proposal?.annualCreditLabel || 'the pilot fee'} applies under the persisted annual conversion terms.`,
+              description: `${termDays}-day production pilot; ${proposal.annualCreditLabel} applies under the persisted annual conversion terms.`,
               },
             },
           },

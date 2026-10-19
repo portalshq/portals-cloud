@@ -6,7 +6,7 @@ import {
 import { sanityClient, sanityDocumentClient } from '@/sanity/lib/client'
 
 export const PACKAGE_SPEC_SLUGS = {
-  paidPilot: 'paid-pilot',
+  paidPilot: 'studio-pilot',
   productionTeam: 'production-team',
   studio: 'studio',
   enterprise: 'enterprise',
@@ -153,17 +153,19 @@ export function packagePricingFeatures(
 
 export function packageTermDays(
   specification: PackageSpecification | undefined,
-): number {
-  const pilotPeriodLabel = packageMilestoneLabel(specification, 'pilot period')
+): number | null {
   const numericValue = specification?.milestones?.find(
     (milestone) => milestone.label.toLowerCase().includes('pilot period')
   )?.numericValue
-  return numericValue || 21
+  return numericValue || null
 }
 
 export async function getPackageSpecifications(): Promise<
   PackageSpecification[]
 > {
+  if (process.env.LEADS_DRY_RUN === 'true') {
+    return (await import('./leads/test-package-specifications')).TEST_PACKAGE_SPECIFICATIONS
+  }
   return sanityClient.fetch<PackageSpecification[]>(
     PACKAGE_SPECIFICATIONS_QUERY,
     {},
@@ -173,6 +175,9 @@ export async function getPackageSpecifications(): Promise<
 export async function getPublishedPackageSpecifications(): Promise<
   PackageSpecification[]
 > {
+  if (process.env.LEADS_DRY_RUN === 'true') {
+    return (await import('./leads/test-package-specifications')).TEST_PACKAGE_SPECIFICATIONS
+  }
   return sanityDocumentClient.fetch<PackageSpecification[]>(
     PACKAGE_SPECIFICATIONS_QUERY,
   )
@@ -181,6 +186,10 @@ export async function getPublishedPackageSpecifications(): Promise<
 export async function getPublishedPackageSpecification(
   slug: string,
 ): Promise<PackageSpecification | null> {
+  if (process.env.LEADS_DRY_RUN === 'true') {
+    const specifications = (await import('./leads/test-package-specifications')).TEST_PACKAGE_SPECIFICATIONS
+    return specifications.find((specification) => specification.slug === slug) || null
+  }
   return sanityDocumentClient.fetch<PackageSpecification | null>(
     PACKAGE_SPECIFICATION_BY_SLUG_QUERY,
     { slug },

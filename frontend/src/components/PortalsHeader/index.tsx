@@ -23,8 +23,8 @@ export function PortalsHeader({ breadcrumb, actions, className = '' }: PortalsHe
   const breadcrumbItems = breadcrumb
 
   return (
-    <header className={`absolute inset-x-0 top-0 z-(--z-header) ${className}`}>
-      <div className="flex h-Header-h items-center justify-between gap-x-24 px-sms">
+    <header className={`fixed inset-x-0 top-0 z-(--z-header) bg-transparent text-white ${className}`}>
+      <div className="flex min-h-Header-h items-center justify-between gap-x-12 px-sms">
         <div className="flex min-w-0 items-baseline-last gap-x-12">
           <Link href="/" className="t-h3-sans !font-medium text-white">
             portals
@@ -39,7 +39,7 @@ export function PortalsHeader({ breadcrumb, actions, className = '' }: PortalsHe
           ))}
         </div>
         {actions?.length ? (
-          <nav aria-label="Page" className="hidden shrink-0 items-center gap-x-16 text-white sm:flex">
+          <nav aria-label="Page" className="flex shrink-0 items-center gap-x-8 text-white">
             {actions.map(({ href, label, appearance, className }) => (
               <CTAButton key={`${href}-${label}`} href={href} appearance={appearance} analyticsLabel={label} className={className}>
                 {label}

@@ -65,6 +65,7 @@ import {
   type PilotDirectAnswers,
 } from '@/lib/leads/pilot-room-fields'
 import { emailDomain, requiresCompanyEmailDomain, validatePilotRoleEmailDomains } from '@/lib/leads/identity'
+import {getPublishedPackageSpecifications} from '@/lib/package-specifications'
 
 type PatchAction =
   | 'update'
@@ -201,6 +202,7 @@ function reviewerMembershipIsStillRequired(
 function recompute(
   pilot: StoredPilot,
   body: PatchBody,
+  packageSpecifications: Awaited<ReturnType<typeof getPublishedPackageSpecifications>>,
 ): {
   answers: Record<string, unknown>
   route: ReturnType<typeof classifyPilot>['route']
@@ -232,7 +234,7 @@ function recompute(
     route: classification.route,
   })
   const baseProposal = answersChanged || body.startDate !== undefined
-    ? buildCommercialSnapshot(answers as PilotAnswers, [], {
+    ? buildCommercialSnapshot(answers as PilotAnswers, packageSpecifications, {
       startDate: startDate || undefined,
     })
     : pilot.proposal
@@ -685,6 +687,7 @@ export async function PATCH(
     }
 
     if (body.action === 'commit_draft') {
+      const packageSpecifications = await getPublishedPackageSpecifications()
       const { pilot: updated, result } = await mutatePilot(id, (locked) => {
         if (!EDITABLE_DRAFT_STATES.includes(locked.state)) {
           throw new Error('pilot terms cannot be edited in the current state')
@@ -719,7 +722,7 @@ export async function PATCH(
           startDate: resolved.terms.startDate,
           answers: resolved.terms.answers,
         }
-        const next = recompute(locked, commitBody)
+        const next = recompute(locked, commitBody, packageSpecifications)
         const committed = commitPilotTermRevision({
           pilot: locked,
           nextTerms: resolved.terms,
@@ -1262,7 +1265,7 @@ export async function PATCH(
           { status: 422 },
         )
       }
-      const next = recompute(pilot, body)
+      const next = recompute(pilot, body, await getPublishedPackageSpecifications())
       const unresolved = computePilotProgressUnresolved({
         state: pilot.state,
         version: pilot.version,
@@ -1336,7 +1339,7 @@ export async function PATCH(
       if (roleEmailError) {
         return NextResponse.json({ ok: false, message: roleEmailError }, { status: 400 })
       }
-      const next = recompute(pilot, body)
+      const next = recompute(pilot, body, await getPublishedPackageSpecifications())
       const frozen = TEAM_REVIEW_STATES.includes(pilot.state)
       const version = frozen && materialChange(pilot, body) ? pilot.version + 1 : pilot.version
       const updated = await updatePilot(id, {
@@ -1552,7 +1555,7 @@ export async function PATCH(
     if (transition === 'activate' && !pilot.payment?.paidAt) {
       return NextResponse.json({ ok: false, message: 'payment must clear before the pilot can be activated' }, { status: 422 })
     }
-    const next = recompute(pilot, body)
+    const next = recompute(pilot, body, await getPublishedPackageSpecifications())
     if (transition === 'resolve_exceptions') {
       next.exceptions = next.exceptions.map((item) => ({
         ...item,
