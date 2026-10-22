@@ -1083,6 +1083,9 @@ export function PilotApprovalRoom({
                 Download PDF
               </a>
             </div>
+            <div className="flex justify-end lg:hidden">
+              <PilotApprovalRoomTour />
+            </div>
             <p className="max-w-[42rem] t-p-sm-sans">
               Review the scope, success criteria, security requirements, and commercial terms. Make any necessary changes, save them, then approve the pilot when everything is correct.
             </p>
@@ -1726,9 +1729,6 @@ export function PilotApprovalRoom({
       }
       </div>
     </TooltipProvider>
-    <div className="mt-24 flex justify-end lg:hidden">
-      <PilotApprovalRoomTour />
-    </div>
   </>
 )}
 
