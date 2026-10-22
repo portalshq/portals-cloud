@@ -94,7 +94,7 @@ export function AccountSidebar({
 
   return (
     <>
-      <div className="fixed right-16 top-16 z-[150] lg:hidden">
+      <div className="absolute right-16 top-16 z-[150] lg:hidden">
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
             <button
