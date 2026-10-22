@@ -69,6 +69,10 @@ export async function PilotRoomRoute({
 
   return (
     <>
+      <style>{`html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}`}</style>
       <div
         aria-hidden="true"
         className="pointer-events-none h-px w-full"
@@ -77,9 +81,9 @@ export async function PilotRoomRoute({
         data-webgl-easing="easeInOut"
       />
       <StaticPilotRoomBackground />
-      <section className="relative z-10 mx-auto w-full min-w-0 max-w-3xl">
+      <section className="relative z-10 mx-auto w-full min-w-0 max-w-3xl px-24">
         {!pilot || !accessRole ? (
-          <div className="max-w-[34em] px-24 py-24 md:py-40 mx-auto">
+          <div className="max-w-[34em] py-24 md:py-40 mx-auto">
             <h1 className="t-h1-sans">this content could not be found.</h1>
             <p className="mt-16 t-p-sans">
               if you expected it to exist, use the secure link in your email or

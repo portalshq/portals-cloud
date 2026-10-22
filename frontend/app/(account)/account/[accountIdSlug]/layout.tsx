@@ -42,7 +42,11 @@ export default async function AccountLayout({
 
   return (
     <div className="min-h-[100dvh]">
-      <div className="min-h-[100dvh] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <style>{`html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}`}</style>
+      <div className="min-h-[100dvh] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_16rem]">
         <AccountSidebar
           accountName={account.name}
           accountHref={accountHref}

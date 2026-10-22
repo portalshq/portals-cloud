@@ -157,11 +157,6 @@ function SectionShell({
     const openLinkedSection = () => {
       if (hashSectionId(window.location.hash) === id) {
         setOpen(true)
-        // Smooth scroll to the section when hash changes
-        const element = document.getElementById(id)
-        if (element && !reducedMotion) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
       }
     }
 
