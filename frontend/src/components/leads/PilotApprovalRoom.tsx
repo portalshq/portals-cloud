@@ -1738,7 +1738,7 @@ export function PilotApprovalRoom({
         ) : null
       }
       </div>
-      <div className="flex justify-end lg:hidden">
+      <div className="flex justify-end">
         <PilotApprovalRoomTour />
       </div>
     </TooltipProvider>
