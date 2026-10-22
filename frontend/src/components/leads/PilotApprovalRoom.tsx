@@ -1222,7 +1222,7 @@ export function PilotApprovalRoom({
             </div>
             <div className="mt-14 grid gap-12">
               {conflicts.map((conflict) => (
-                <div key={conflict.field} className="grid gap-10 bg-white/10 rounded-sm pt-12 md:grid-cols-[1fr_1fr_auto] md:items-start">
+                <div key={conflict.field} className="grid gap-10 bg-white/10 rounded-sm pt-12">
                   <div>
                     <p className="t-p-sm-sans">{conflict.label}</p>
                     <p className="mt-4 t-p-sm-sans">Current version: {String(conflict.currentValue || '-')}</p>
@@ -1269,7 +1269,7 @@ export function PilotApprovalRoom({
         summary="The operational shape of the pilot: workflow, people, integrations, data, participants, and target start."
         action={!canEditDraft ? requestAction('Scope') : null}
       >
-        <dl className="grid gap-14 t-p-sm-sans md:grid-cols-2">
+        <dl className="grid gap-14 t-p-sm-sans">
           {answers.productionStateBottleneck ? <div><dt className="text-white/80">Production-state bottleneck</dt><dd className="mt-2">{String(answers.productionStateBottleneck)}</dd></div> : null}
           {answers.productionBaseline ? <div><dt className="text-white/80">Assessment baseline to validate</dt><dd className="mt-2">{String(answers.productionBaseline)}</dd></div> : null}
           <div><dt className="text-white/80">Pilot workflow</dt><dd className="mt-2">{canEditDraft ? <RoomTextareaField minRows={3} value={String(answers.pilotWorkflow || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, pilotWorkflow: event.target.value }))} /> : String(answers.pilotWorkflow || answers.activeWorkflow || '-')}</dd></div>
@@ -1307,7 +1307,7 @@ export function PilotApprovalRoom({
         action={!canEditDraft ? requestAction('Commercial terms') : null}
       >
         {pilot.proposal ? (
-          <dl className="grid gap-14 t-p-sm-sans md:grid-cols-2">
+          <dl className="grid gap-14 t-p-sm-sans">
             <div><dt className="text-white/80">Pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature</dd></div>
             {pilot.payment?.invoiceId ? <div><dt className="text-white/60">Invoice</dt><dd className="mt-2"><a className="underline" href={String(pilot.payment.hostedInvoiceUrl || '#')} target="_blank" rel="noreferrer">{String(pilot.payment.invoiceId)}</a> · {String(pilot.payment.invoiceStatus || 'open')}</dd></div> : null}
             {pilot.payment?.paymentStatus ? <div><dt className="text-white/60">Payment status</dt><dd className="mt-2 capitalize">{String(pilot.payment.paymentStatus)}</dd></div> : null}
@@ -1417,7 +1417,7 @@ export function PilotApprovalRoom({
       >
         <div className="grid gap-10">
           {pilot.securityDecisions.map((decision) => (
-            <div key={decision.key} className="grid gap-6 border-t border-white/80 pt-10 t-p-sm-sans md:grid-cols-[1fr_auto] md:items-baseline">
+            <div key={decision.key} className="grid gap-6 border-t border-white/80 pt-10 t-p-sm-sans">
               <div className='flex flex-col gap-8'>
                 <p className="text-white/80">{decision.label}</p>
                 <p>{decision.note || ''}</p>
@@ -1435,11 +1435,11 @@ export function PilotApprovalRoom({
         mode="readonly"
         summary="A compact view of who has confirmed the current terms revision and who still needs to review."
       >
-        <dl className="grid gap-10 t-p-sm-sans md:grid-cols-2">
+        <dl className="grid gap-10 t-p-sm-sans">
           {reviewRows.map((row) => (
-            <div key={row.section} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,auto)] items-baseline gap-12 border-b border-white/80 pb-10">
-              <dt className="min-w-0">{row.section}</dt>
-              <dd className={`min-w-0 text-right ${toneClasses(row.view.tone)}`}>{row.view.label}</dd>
+            <div key={row.section} className="grid gap-4 border-b border-white/80 pb-10">
+              <dt className="text-white/80">{row.section}</dt>
+              <dd className={toneClasses(row.view.tone)}>{row.view.label}</dd>
             </div>  
           ))}
         </dl>
@@ -1469,7 +1469,7 @@ export function PilotApprovalRoom({
                 : 'Confirmed'
             return (
               <div key={primary.id} className="grid gap-12 rounded-sm border border-white/80 px-18 py-16">
-                <div className="grid gap-6 md:grid-cols-[minmax(13rem,16rem)_1fr_auto] md:items-baseline">
+                <div className="grid gap-6">
                   <div>
                     <p className="t-p-sm-sans font-medium">{primary.name || primary.email || 'No one named yet'}</p>
                     <p className="t-p-sm-sans text-white/80">{primary.email || 'Assign an email to invite this reviewer'}</p>
@@ -1487,7 +1487,7 @@ export function PilotApprovalRoom({
                     const view = reviewerStatusView(reviewer)
                     const stale = reviewer.status === 'reviewed' && reviewer.versionSeen < pilot.version
                     return (
-                      <div key={reviewer.id} className="grid gap-8 md:grid-cols-[minmax(13rem,16rem)_1fr_auto] md:items-start">
+                      <div key={reviewer.id} className="grid gap-8">
                         <p className="t-p-sm-sans text-white/80">{reviewerRoleLabel(reviewer.role)}</p>
                         <div className="grid gap-8">
                           <p className={`t-p-sm-sans ${toneClasses(view.tone)}`}>
@@ -1636,7 +1636,7 @@ export function PilotApprovalRoom({
             mode="editable"
             summary={`By signing, ${String(answers.company || 'the customer')} agrees to the confirmed scope, the ${pilot.proposal?.priceLabel} pilot fee due on signature, and the ${pilot.proposal?.termDays}-day pilot term.`}
           >
-            <div className="grid gap-14 md:grid-cols-2">
+            <div className="grid gap-14">
               <label className="t-p-sm-sans text-white/80">
                 Authorized signer name
                 <RoomTextField className="mt-4" value={signerName} onChange={(event) => setSignerName(event.target.value)} />

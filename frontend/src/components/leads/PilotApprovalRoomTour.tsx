@@ -50,20 +50,17 @@ const TOUR_STEPS: TourStep[] = [
 export function PilotApprovalRoomTour() {
   const [currentStep, setCurrentStep] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
-  const [savedScrollPosition, setSavedScrollPosition] = useState(0)
 
   const step = TOUR_STEPS[currentStep]
   const isLastStep = currentStep === TOUR_STEPS.length - 1
 
   const handleOpen = () => {
-    setSavedScrollPosition(window.scrollY)
     setIsOpen(true)
   }
 
   const handleNext = () => {
     if (isLastStep) {
       setIsOpen(false)
-      window.scrollTo({ top: savedScrollPosition, behavior: 'smooth' })
     } else {
       const nextStep = currentStep + 1
       setCurrentStep(nextStep)
@@ -87,7 +84,6 @@ export function PilotApprovalRoomTour() {
 
   const handleDismiss = () => {
     setIsOpen(false)
-    window.scrollTo({ top: savedScrollPosition, behavior: 'smooth' })
   }
 
   if (!isOpen) {
