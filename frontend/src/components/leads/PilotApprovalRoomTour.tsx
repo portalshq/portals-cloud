@@ -50,17 +50,21 @@ const TOUR_STEPS: TourStep[] = [
 export function PilotApprovalRoomTour() {
   const [currentStep, setCurrentStep] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
+  const [savedScrollPosition, setSavedScrollPosition] = useState(0)
 
   const step = TOUR_STEPS[currentStep]
   const isLastStep = currentStep === TOUR_STEPS.length - 1
 
   const handleOpen = () => {
+    setSavedScrollPosition(window.scrollY)
     setIsOpen(true)
   }
 
   const handleNext = () => {
     if (isLastStep) {
       setIsOpen(false)
+      setCurrentStep(0)
+      window.scrollTo({ top: savedScrollPosition, behavior: 'smooth' })
     } else {
       const nextStep = currentStep + 1
       setCurrentStep(nextStep)
@@ -84,6 +88,8 @@ export function PilotApprovalRoomTour() {
 
   const handleDismiss = () => {
     setIsOpen(false)
+    setCurrentStep(0)
+    window.scrollTo({ top: savedScrollPosition, behavior: 'smooth' })
   }
 
   if (!isOpen) {
@@ -120,7 +126,7 @@ export function PilotApprovalRoomTour() {
             {TOUR_STEPS.map((_, index) => (
               <div
                 key={index}
-                className={`h-2 w-2 rounded-full transition-colors ${
+                className={`h-4 w-4 aspect-square transition-colors ${
                   index === currentStep ? 'bg-white' : 'bg-white/20'
                 }`}
                 aria-label={`Step ${index + 1} of ${TOUR_STEPS.length}`}
