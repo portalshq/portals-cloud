@@ -51,16 +51,23 @@ export function PilotApprovalRoomTour() {
   const [currentStep, setCurrentStep] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const [savedScrollPosition, setSavedScrollPosition] = useState(0)
 
   if (dismissed) return null
 
   const step = TOUR_STEPS[currentStep]
   const isLastStep = currentStep === TOUR_STEPS.length - 1
 
+  const handleOpen = () => {
+    setSavedScrollPosition(window.scrollY)
+    setIsOpen(true)
+  }
+
   const handleNext = () => {
     if (isLastStep) {
       setIsOpen(false)
       setDismissed(true)
+      window.scrollTo({ top: savedScrollPosition, behavior: 'smooth' })
     } else {
       setCurrentStep((prev) => prev + 1)
       // Scroll to target
@@ -78,12 +85,13 @@ export function PilotApprovalRoomTour() {
   const handleDismiss = () => {
     setIsOpen(false)
     setDismissed(true)
+    window.scrollTo({ top: savedScrollPosition, behavior: 'smooth' })
   }
 
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={handleOpen}
         className="flex items-center gap-8 rounded-full bg-white/10 border border-white/80 px-16 py-8 text-white hover:bg-white/20 transition-colors lg:fixed lg:bottom-24 lg:right-24 lg:z-50"
         aria-label="Start guided tour"
       >

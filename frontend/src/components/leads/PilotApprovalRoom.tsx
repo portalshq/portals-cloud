@@ -1408,7 +1408,7 @@ export function PilotApprovalRoom({
                 {(['target', 'participant', 'evidence'] as const).map((field) => (
                   <label key={field} className="t-p-sm-sans">
                     {field === 'target' ? 'Measurable target' : field === 'participant' ? 'Participant' : 'Evidence'}
-                    {canEditDraft && criterion.status !== 'not-applicable' ? (
+                    {canEditDraft && criterion.status === 'modified' ? (
                       <RoomTextField
                         className="!mt-12"
                         value={String(criterion[field] || '')}
@@ -1420,7 +1420,9 @@ export function PilotApprovalRoom({
                         }}
                       />
                     ) : (
-                      <span className="mt-12 block t-p-sm-sans">{criterion[field] || '-'}</span>
+                      <span className="mt-12 block t-p-sm-sans">
+                        {criterion.status === 'not-applicable' ? '' : (criterion[field] || '-')}
+                      </span>
                     )}
                   </label>
                 ))}
@@ -1737,9 +1739,9 @@ export function PilotApprovalRoom({
           </section>
         ) : null
       }
-      </div>
       <div className="flex justify-end">
         <PilotApprovalRoomTour />
+      </div>
       </div>
     </TooltipProvider>
   </>
