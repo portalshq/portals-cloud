@@ -155,7 +155,14 @@ function SectionShell({
   const [open, setOpen] = useState(true)
   useEffect(() => {
     const openLinkedSection = () => {
-      if (hashSectionId(window.location.hash) === id) setOpen(true)
+      if (hashSectionId(window.location.hash) === id) {
+        setOpen(true)
+        // Smooth scroll to the section when hash changes
+        const element = document.getElementById(id)
+        if (element && !reducedMotion) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }
     }
 
     const handleAnchorClick = (event: MouseEvent) => {
@@ -172,6 +179,12 @@ function SectionShell({
         hashSectionId(destination.hash) === id
       ) {
         setOpen(true)
+        // Smooth scroll to the section
+        const element = document.getElementById(id)
+        if (element && !reducedMotion) {
+          event.preventDefault()
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
       }
     }
 
@@ -1084,7 +1097,7 @@ export function PilotApprovalRoom({
               </a>
             </div>
             <p className="max-w-[42rem] t-p-sm-sans">
-              Review the scope, success criteria, security requirements, and commercial terms. Make any necessary changes, save them, then approve the pilot when everything is correct.
+              Review scope, success criteria, security requirements, and commercial terms. Make changes, save them, then approve the pilot when everything is correct.
             </p>
             
             {globalWorkflowAction ? (
