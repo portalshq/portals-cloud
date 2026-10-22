@@ -104,7 +104,7 @@ export function AccountSidebar({
               <Menu className="h-24 w-24" />
             </button>
           </SheetTrigger>
-          <SheetContent side="right" className="!z-[200] w-[80vw] max-w-sm border-l border-white/20 bg-[#07112C] p-24 text-white !bg-[#07112C] [&>button]:!opacity-100 [&>button]:!h-40 [&>button]:!w-40 [&>button>svg]:!h-24 [&>button>svg]:!w-24 [&>button]:!text-white [&>button]:hover:!bg-white/10" style={{zIndex: 200}}>
+          <SheetContent side="right" className="!z-[200] w-[80vw] max-w-sm border-l border-white/20 bg-[#07112C] p-24 text-white !bg-[#07112C] [&>button]:!opacity-100 [&>button]:!h-40 [&>button]:!w-40 [&>button]:!p-8 [&>button]:!flex [&>button]:!items-center [&>button]:!justify-center [&>button>svg]:!h-24 [&>button>svg]:!w-24 [&>button]:!text-white [&>button]:hover:!bg-white/10" style={{zIndex: 200}}>
             {sidebarContent(true)}
           </SheetContent>
         </Sheet>
