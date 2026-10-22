@@ -50,10 +50,7 @@ const TOUR_STEPS: TourStep[] = [
 export function PilotApprovalRoomTour() {
   const [currentStep, setCurrentStep] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
   const [savedScrollPosition, setSavedScrollPosition] = useState(0)
-
-  if (dismissed) return null
 
   const step = TOUR_STEPS[currentStep]
   const isLastStep = currentStep === TOUR_STEPS.length - 1
@@ -66,12 +63,12 @@ export function PilotApprovalRoomTour() {
   const handleNext = () => {
     if (isLastStep) {
       setIsOpen(false)
-      setDismissed(true)
       window.scrollTo({ top: savedScrollPosition, behavior: 'smooth' })
     } else {
-      setCurrentStep((prev) => prev + 1)
-      // Scroll to target
-      const target = document.querySelector(step.target)
+      const nextStep = currentStep + 1
+      setCurrentStep(nextStep)
+      // Scroll to next step's target
+      const target = document.querySelector(TOUR_STEPS[nextStep].target)
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
@@ -79,12 +76,17 @@ export function PilotApprovalRoomTour() {
   }
 
   const handlePrevious = () => {
-    setCurrentStep((prev) => Math.max(0, prev - 1))
+    const prevStep = Math.max(0, currentStep - 1)
+    setCurrentStep(prevStep)
+    // Scroll to previous step's target
+    const target = document.querySelector(TOUR_STEPS[prevStep].target)
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
   }
 
   const handleDismiss = () => {
     setIsOpen(false)
-    setDismissed(true)
     window.scrollTo({ top: savedScrollPosition, behavior: 'smooth' })
   }
 
