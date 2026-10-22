@@ -165,35 +165,10 @@ function SectionShell({
       }
     }
 
-    const handleAnchorClick = (event: MouseEvent) => {
-      const target = event.target
-      if (!(target instanceof Element)) return
-      const anchor = target.closest<HTMLAnchorElement>('a[href]')
-      if (!anchor) return
-
-      const destination = new URL(anchor.href, window.location.href)
-      if (
-        destination.origin === window.location.origin &&
-        destination.pathname === window.location.pathname &&
-        destination.search === window.location.search &&
-        hashSectionId(destination.hash) === id
-      ) {
-        setOpen(true)
-        // Smooth scroll to the section
-        const element = document.getElementById(id)
-        if (element && !reducedMotion) {
-          event.preventDefault()
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-      }
-    }
-
     openLinkedSection()
     window.addEventListener('hashchange', openLinkedSection)
-    document.addEventListener('click', handleAnchorClick)
     return () => {
       window.removeEventListener('hashchange', openLinkedSection)
-      document.removeEventListener('click', handleAnchorClick)
     }
   }, [id])
 
@@ -385,6 +360,40 @@ export function PilotApprovalRoom({
       pilot_route: pilot.route,
       assessment_origin: answers.assessmentOrigin || 'standard',
     })
+  }, [])
+
+  // Global click handler for smooth scrolling to section anchors
+  useEffect(() => {
+    const handleAnchorClick = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const anchor = target.closest<HTMLAnchorElement>('a[href]')
+      if (!anchor) return
+
+      const destination = new URL(anchor.href, window.location.href)
+      if (
+        destination.origin === window.location.origin &&
+        destination.pathname === window.location.pathname &&
+        destination.search === window.location.search &&
+        destination.hash
+      ) {
+        const targetHash = hashSectionId(destination.hash)
+        const targetElement = document.getElementById(targetHash)
+        
+        if (targetElement && !reducedMotion) {
+          event.preventDefault()
+          // Smooth scroll to the target
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          // Update URL hash
+          window.history.pushState(null, '', destination.hash)
+        }
+      }
+    }
+
+    document.addEventListener('click', handleAnchorClick)
+    return () => {
+      document.removeEventListener('click', handleAnchorClick)
+    }
   }, [])
 
   useEffect(() => {
@@ -1465,7 +1474,7 @@ export function PilotApprovalRoom({
             <div key={row.section} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,auto)] items-baseline gap-12 border-b border-white/80 pb-10">
               <dt className="min-w-0">{row.section}</dt>
               <dd className={`min-w-0 text-right ${toneClasses(row.view.tone)}`}>{row.view.label}</dd>
-            </div>
+            </div>  
           ))}
         </dl>
       </SectionShell>
