@@ -69,10 +69,6 @@ export async function PilotRoomRoute({
 
   return (
     <>
-      <style>{`html { scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-}`}</style>
       <div
         aria-hidden="true"
         className="pointer-events-none h-px w-full"
