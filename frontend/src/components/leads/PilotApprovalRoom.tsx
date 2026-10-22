@@ -159,6 +159,11 @@ function SectionShell({
     const openLinkedSection = () => {
       if (hashSectionId(window.location.hash) === id) {
         setOpen(true)
+        // Smooth scroll to the section when hash changes
+        const element = document.getElementById(id)
+        if (element && !reducedMotion) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
       }
     }
 
@@ -1153,7 +1158,23 @@ export function PilotApprovalRoom({
             <ul className="mt-12 grid gap-10">
               {progressUnresolved.map((item) => (
                 <li key={item.key} className="t-p-sm-sans">
-                  <a href={item.href} className="inline underline decoration-2 underline-offset-4">{item.label}</a>
+                  <a
+                    href={item.href}
+                    className="inline underline decoration-2 underline-offset-4"
+                    onClick={(event) => {
+                      const hash = item.href.includes('#') ? item.href.split('#')[1] : null
+                      if (hash) {
+                        event.preventDefault()
+                        const element = document.getElementById(hash)
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          window.history.pushState(null, '', item.href)
+                        }
+                      }
+                    }}
+                  >
+                    {item.label}
+                  </a>
                   {/* {item.resolution} */}
                 </li>
               ))}
@@ -1282,6 +1303,7 @@ export function PilotApprovalRoom({
             <dd className="mt-2">
               {canEditDraft ? (
                 <RoomTextField
+                  id='pilot-start-date'
                   type="date"
                   value={startDate}
                   onChange={(event) => setStartDate(event.target.value)}
