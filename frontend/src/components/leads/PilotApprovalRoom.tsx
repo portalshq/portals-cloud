@@ -144,6 +144,7 @@ function SectionShell({
   mode,
   children,
   action,
+  scrollMarginTop = '140px',
 }: {
   id: string
   title: string
@@ -151,6 +152,7 @@ function SectionShell({
   mode: 'editable' | 'request' | 'readonly'
   children: ReactNode
   action?: ReactNode
+  scrollMarginTop?: string
 }) {
   const [open, setOpen] = useState(true)
   useEffect(() => {
@@ -175,7 +177,7 @@ function SectionShell({
   const Icon = modeCopy.icon
   const showBadge = mode !== 'request'
   return (
-    <section id={id} className="border-t border-white/80 py-28 lowercase">
+    <section id={id} className="border-t border-white/80 py-28 lowercase" style={{ scrollMarginTop }}>
       <div className="flex items-start justify-between gap-16">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-10">
@@ -1162,7 +1164,7 @@ export function PilotApprovalRoom({
 
       {
         pilot.exceptions.length > 0 ? (
-          <div id="exceptions" className="mt-24 bg-white/10 rounded-sm px-18 py-16">
+          <div id="exceptions" className="mt-24 bg-white/10 rounded-sm px-18 py-16" style={{ scrollMarginTop: '140px' }}>
             <p className="t-p-sm-sans">In order for us to serve you best, these terms require our review before the pilot can be approved:</p>
             <ul className="mt-12 grid gap-24">
               {pilot.exceptions.map((item, index) => (
