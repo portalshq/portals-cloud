@@ -781,23 +781,30 @@ export async function PATCH(
             candidate.email.toLowerCase() === user.email.toLowerCase(),
         )
         const now = new Date().toISOString()
+        const reviewers = reviewer
+          ? locked.reviewers.map((candidate) =>
+              candidate.id === reviewer.id
+                ? {
+                  ...candidate,
+                  status: 'reviewed' as const,
+                  reviewedAt: now,
+                  requestedChanges: true,
+                  versionSeen: locked.version,
+                  notes: [...candidate.notes, contextualNote],
+                }
+                : candidate,
+            )
+          : locked.reviewers
+        
+        // Transition to revision state if not already there
+        const revisionTransition = applyTransition(locked.state, 'revise')
+        const nextState = revisionTransition.allowed ? revisionTransition.state : locked.state
+        
         return {
           patch: {
-            reviewers: reviewer
-              ? locked.reviewers.map((candidate) =>
-                candidate.id === reviewer.id
-                  ? {
-                    ...candidate,
-                    status: 'reviewed' as const,
-                    reviewedAt: now,
-                    requestedChanges: true,
-                    versionSeen: locked.version,
-                    notes: [...candidate.notes, contextualNote],
-                  }
-                  : candidate,
-              )
-              : locked.reviewers,
-            historyNote: `${user.email} requested changes to ${section}`,
+            reviewers,
+            state: nextState,
+            historyNote: `${user.email} requested changes to ${section}${revisionTransition.allowed ? '; pilot moved to revision' : ''}`,
             by: user.email,
           },
           result: undefined,
@@ -991,7 +998,7 @@ export async function PATCH(
       if (decision === 'changes' && !String(body.note || '').trim()) return NextResponse.json({ ok: false, message: 'a requested change must include a note' }, { status: 400 })
       if (!Number.isInteger(body.versionSeen) || body.versionSeen !== pilot.version) {
         return NextResponse.json(
-          { ok: false, code: 'stale_review', message: 'This pilot changed before the review could be confirmed.' },
+          { ok: false, code: 'stale_review', message: 'The pilot terms were updated after you started reviewing. Please review the latest version above, then confirm your review.' },
           { status: 409 },
         )
       }
@@ -1155,13 +1162,7 @@ export async function PATCH(
         const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewer.id)
         if (!lockedReviewer) throw new Error('reviewer not found')
         if (lockedReviewer.role === role) {
-          return {
-            patch: {
-              historyNote: `${lockedReviewer.email} already holds the ${role.replaceAll('_', ' ')} role`,
-              by: body.by,
-            },
-            result: undefined,
-          }
+          throw new Error(`${lockedReviewer.email} already holds the ${role.replaceAll('_', ' ')} role`)
         }
         const existingRole = locked.reviewers.find(
           (candidate) =>
@@ -1171,13 +1172,7 @@ export async function PATCH(
             candidate.email.trim().toLowerCase() === lockedReviewer.email.trim().toLowerCase(),
         )
         if (existingRole) {
-          return {
-            patch: {
-              historyNote: `${lockedReviewer.email} already holds the ${role.replaceAll('_', ' ')} role`,
-              by: body.by,
-            },
-            result: undefined,
-          }
+          throw new Error(`${lockedReviewer.email} already holds the ${role.replaceAll('_', ' ')} role`)
         }
         return {
           patch: {
@@ -1219,7 +1214,6 @@ export async function PATCH(
       const { pilot: updated } = await mutatePilot(id, (locked) => {
         const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewer.id)
         if (!lockedReviewer) throw new Error('reviewer not found')
-        const now = new Date().toISOString()
         return {
           patch: {
             reviewers: locked.reviewers.map((candidate) =>
@@ -1230,14 +1224,13 @@ export async function PATCH(
                     String(locked.answers.productionOwner || '').split(',')[0].trim() ||
                     user.email,
                   email: user.email.toLowerCase(),
-                  status: 'reviewed' as const,
-                  reviewedAt: now,
-                  requestedChanges: false,
+                  // Keep status as 'proposed' so the owner must still review
+                  // Do not auto-confirm the review
                   versionSeen: locked.version,
                 }
                 : candidate,
             ),
-            historyNote: `the submitter holds the ${lockedReviewer.role.replaceAll('_', ' ')} role`,
+            historyNote: `the submitter now holds the ${lockedReviewer.role.replaceAll('_', ' ')} role and must review`,
             by: body.by,
           },
           result: undefined,
@@ -1402,10 +1395,16 @@ export async function PATCH(
       // (UNIQUE constraint is on pilot_id, terms_hash, pilot_scope_hash - not actor_email)
       const existingAcceptance = await getTermsAcceptanceByPilotAndEmail(id, email, termsHash, scopeHash)
       if (existingAcceptance) {
-        return NextResponse.json(
-          { ok: false, message: 'Terms already accepted by this signer' },
-          { status: 409 },
-        )
+        // Allow re-signing if the previous acceptance was for a different signer name
+        // (e.g., signer changed from person A to B, then back to A with same email)
+        const previousName = String(existingAcceptance.actor_name || '')
+        if (previousName.trim() === name.trim()) {
+          return NextResponse.json(
+            { ok: false, message: 'Terms already accepted by this signer' },
+            { status: 409 },
+          )
+        }
+        // Different name with same email - allow the new signature
       }
       
       const acceptanceId = randomUUID()

@@ -10,6 +10,18 @@ import {pilotRoomPath} from '@/lib/leads/account-paths'
 import {pilotTermsFromDraft} from '@/lib/leads/pilot-collaboration'
 import {pilotMutableTermsFromState} from '@/lib/leads/pilot-room-revisions'
 import {getPilotById} from '@/lib/leads/store'
+import {CTAButton} from '@/components/CTAButton'
+
+function normalizeDates<T>(value: T): T {
+  if (value instanceof Date) return value.toISOString() as T
+  if (Array.isArray(value)) return value.map(normalizeDates) as T
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [key, normalizeDates(nested)]),
+    ) as T
+  }
+  return value
+}
 
 function StaticPilotRoomBackground() {
   return (
@@ -33,7 +45,10 @@ export async function PilotRoomRoute({
   pilotId: string
   sessionId?: string
 }) {
-  const pilot = await getPilotById(pilotId)
+  const storedPilot = await getPilotById(pilotId)
+  // The room is a client component. Normalize any Date values in the persisted
+  // pilot payload to ISO strings so they can never be rendered as React children.
+  const pilot = storedPilot ? normalizeDates(storedPilot) : null
   const roomPath = pilotRoomPath(accountId, pilotId)
   const session = (await cookies()).get(APP_SESSION_COOKIE)?.value
   const user = await currentApplicationUser(session)
@@ -53,7 +68,7 @@ export async function PilotRoomRoute({
   }))
 
   return (
-    <main className="relative z-(--z-main) min-h-screen">
+    <>
       <div
         aria-hidden="true"
         className="pointer-events-none h-px w-full"
@@ -62,22 +77,22 @@ export async function PilotRoomRoute({
         data-webgl-easing="easeInOut"
       />
       <StaticPilotRoomBackground />
-      <section className="relative z-10 w-full max-w-3xl mx-auto px-24 py-24 md:py-40">
-        {!pilot ? (
-          <div className="max-w-[34em] mx-auto">
+      <section className="relative z-10 mx-auto w-full min-w-0 max-w-3xl">
+        {!pilot || !accessRole ? (
+          <div className="max-w-[34em] px-24 py-24 md:py-40 mx-auto">
             <h1 className="t-h1-sans">this content could not be found.</h1>
             <p className="mt-16 t-p-sans">
-              if you expected it to exist,
-              reply to the email that brought you here.
+              if you expected it to exist, use the secure link in your email or
+              sign in with the work email that owns this pilot room.
             </p>
-          </div>
-        ) : !accessRole ? (
-          <div className="max-w-[34em] mx-auto">
-            <h1 className="t-h1-sans">this content could not be found.</h1>
-            <p className="mt-16 t-p-sans">
-              if you expected it to exist,
-              reply to the email that brought you here.
-            </p>
+            <div className="mt-24">
+              <CTAButton
+                href={`/auth/sign-in?next=${encodeURIComponent(roomPath)}`}
+                analyticsLabel="pilot room sign in"
+              >
+                sign in with the pilot owner’s email
+              </CTAButton>
+            </div>
           </div>
         ) : (
           <PilotApprovalRoom
@@ -97,6 +112,6 @@ export async function PilotRoomRoute({
           />
         )}
       </section>
-    </main>
+    </>
   )
 }

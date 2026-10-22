@@ -921,7 +921,7 @@ function reviewerProgressItem(reviewer: Reviewer, version: number): UnresolvedIt
   if (reviewer.status === 'proposed') {
     return {
       key: `reviewer-${reviewer.id}-invite`,
-      label: `Invite the ${role} reviewer`,
+      label: `Send invitation to ${role}`,
       resolution: 'Send the reviewer an invitation to the pilot room.',
       href: '#reviewers',
     }
@@ -930,8 +930,8 @@ function reviewerProgressItem(reviewer: Reviewer, version: number): UnresolvedIt
     key: `reviewer-${reviewer.id}-approval`,
     label:
       reviewer.status === 'reviewed'
-        ? `Await renewed confirmation from the ${role}`
-        : `Await confirmation from the ${role}`,
+        ? `${role} needs to review the updated terms`
+        : `Awaiting review from ${role}`,
     resolution: 'The reviewer needs to confirm the current terms revision.',
     href: '#reviewers',
   }

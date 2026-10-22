@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Download,
+  Info,
   LockKeyhole,
   Pencil,
   Save,
@@ -15,6 +16,8 @@ import {
   X,
 } from 'lucide-react'
 import { RoomCheckbox, RoomSelectField, RoomTextField, RoomTextareaField } from '@/components/mui/fields'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { PilotApprovalRoomTour } from './PilotApprovalRoomTour'
 import type { SuccessCriterion } from '@/lib/leads/contracts'
 import type { ConflictResolution, PilotDraftConflict } from '@/lib/leads/pilot-collaboration-types'
 import {
@@ -37,6 +40,7 @@ import type { StoredPilot } from '@/lib/leads/store'
 import { trackEvent } from '@/lib/leads/analytics-client'
 import { formatReadableDate } from '@/lib/utils'
 import { CTAButton } from '../CTAButton'
+import { Badge } from '../ui/badge'
 
 const EDITABLE_STATES: PilotState[] = [
   'reviewing',
@@ -84,9 +88,9 @@ function reviewerStatusView(reviewer: Reviewer | undefined): ReviewerStatusView 
       ? { label: 'Changes requested', tone: 'warn' }
       : { label: 'Confirmed', tone: 'ok' }
   }
-  if (reviewer.status === 'opened') return { label: 'Review pending', tone: 'warn' }
-  if (reviewer.status === 'invited') return { label: 'Invited', tone: 'warn' }
-  return { label: 'Proposed', tone: 'muted' }
+  if (reviewer.status === 'opened') return { label: 'Viewed room', tone: 'warn' }
+  if (reviewer.status === 'invited') return { label: 'Invitation sent', tone: 'warn' }
+  return { label: 'Not yet invited', tone: 'muted' }
 }
 
 function termsFromPilot(pilot: StoredPilot): RoomTerms {
@@ -95,6 +99,19 @@ function termsFromPilot(pilot: StoredPilot): RoomTerms {
     criteria: pilot.successCriteria.map((criterion) => ({ ...criterion })),
     answers: pilotDirectAnswersFrom(pilot.answers as Record<string, unknown>),
   }
+}
+
+function formatCommercialDate(value: unknown): string | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime())
+      ? null
+      : value.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })
+  }
+  return typeof value === 'string' ? formatReadableDate(value) : null
 }
 
 function changedCount(base: RoomTerms, current: RoomTerms): number {
@@ -236,7 +253,7 @@ function SectionShell({
 
 function StatusPill({ children }: { children: ReactNode }) {
   return (
-    <span className="cursor-default inline-flex items-center rounded border border-white/80 bg-white/10 px-12 py-4 t-p-sm-sans">
+    <span className="cursor-default inline-flex w-fit h-fit items-center rounded border border-white/80 bg-white/10 px-12 py-4 t-p-sm-sans">
       {children}
     </span>
   )
@@ -291,6 +308,7 @@ export function PilotApprovalRoom({
   const [myNote, setMyNote] = useState('')
   const [openRequest, setOpenRequest] = useState<string | null>(null)
   const [requestText, setRequestText] = useState<Record<string, string>>({})
+  const [reviewerToRemove, setReviewerToRemove] = useState<Reviewer | null>(null)
 
   const editable = EDITABLE_STATES.includes(pilot.state)
   const canEditDraft = editable
@@ -368,7 +386,10 @@ export function PilotApprovalRoom({
     if (!sessionId || pilot.state === 'paid') return
     const attemptsKey = `checkout-wait-${pilot.id}-${sessionId}`
     const attempts = Number(sessionStorage.getItem(attemptsKey) || 0)
-    if (attempts >= 6) return
+    if (attempts >= 6) {
+      setError('Payment is taking longer than expected. Please contact support if payment was completed.')
+      return
+    }
     const timer = setTimeout(() => {
       sessionStorage.setItem(attemptsKey, String(attempts + 1))
       void refreshPilot()
@@ -585,12 +606,12 @@ export function PilotApprovalRoom({
     }
     if (pilot.state === 'scope_confirmed') {
       if (await patch({ action: 'finalize', note: 'agreement finalized for signature' }, { sync: true })) {
-        setNotice('The agreement is ready for signature.')
+        setNotice('The agreement is ready for signature. Payment will be due after signing.')
       }
       return
     }
     if (await patch({ action: 'confirm_scope', ...saveFields() }, { sync: true })) {
-      setNotice('Pilot terms approved. The agreement can now be finalized.')
+      setNotice('Scope confirmed. The pilot terms are now ready for final agreement and signature. This is not yet a commercial commitment.')
     }
   }
 
@@ -610,7 +631,7 @@ export function PilotApprovalRoom({
       action: 'invite_reviewer',
       invite: { role: reviewer.role, email, name: reviewer.name, reviewerId: reviewer.id },
     })) {
-      setNotice(`Invitation sent to ${email}.`)
+      setNotice(`Invitation sent to ${email}. They can access the room via the link in the email.`)
       setReviewerEmailDrafts((current) => {
         const next = { ...current }
         delete next[reviewer.id]
@@ -644,7 +665,7 @@ export function PilotApprovalRoom({
       })
       if (!ok) return
     }
-    setNotice(`Invitations sent to ${invitations.length} reviewer${invitations.length === 1 ? '' : 's'}.`)
+    setNotice(`Invitations sent to ${invitations.length} reviewer${invitations.length === 1 ? '' : 's'}. They can access the room via the link in the email.`)
   }
 
   async function onAddReviewer() {
@@ -656,16 +677,22 @@ export function PilotApprovalRoom({
       action: 'invite_reviewer',
       invite: { role: draftRole, email: draftReviewerEmail.trim(), name: draftName.trim() || undefined },
     })) {
-      setNotice(`Invitation sent to ${draftReviewerEmail.trim()}.`)
+      setNotice(`Invitation sent to ${draftReviewerEmail.trim()}. They can access the room via the link in the email.`)
       setDraftName('')
       setDraftReviewerEmail('')
     }
   }
 
   async function onRemove(reviewer: Reviewer) {
-    if (await patch({ action: 'remove_reviewer', reviewerId: reviewer.id })) {
-      setNotice(`${reviewer.email} removed from the room.`)
+    setReviewerToRemove(reviewer)
+  }
+
+  async function confirmRemoveReviewer() {
+    if (!reviewerToRemove) return
+    if (await patch({ action: 'remove_reviewer', reviewerId: reviewerToRemove.id })) {
+      setNotice(`${reviewerToRemove.email} removed from the room.`)
     }
+    setReviewerToRemove(null)
   }
 
   async function onChangeRole(reviewer: Reviewer, role: ReviewerRole) {
@@ -676,7 +703,7 @@ export function PilotApprovalRoom({
 
   async function onClaim(reviewer: Reviewer) {
     if (await patch({ action: 'claim_role', reviewerId: reviewer.id })) {
-      setNotice(`You hold the ${reviewerRoleLabel(reviewer.role).toLowerCase()} role.`)
+      setNotice(`You now hold the ${reviewerRoleLabel(reviewer.role).toLowerCase()} role. Please review the terms to confirm.`)
     }
   }
 
@@ -935,7 +962,7 @@ export function PilotApprovalRoom({
     progressUnresolved.length === 0
 
   const approvalLabel =
-    pilot.state === 'scope_confirmed' ? 'Approve for signature' : 'Approve pilot terms'
+    pilot.state === 'scope_confirmed' ? 'Approve for signature' : 'Confirm scope and invite reviewers'
 
   const globalWorkflowAction = (() => {
     if (!canCommitDraft) return null
@@ -963,10 +990,17 @@ export function PilotApprovalRoom({
     }
     if (canApprove && !pendingExceptionReview) {
       return (
-        <button onClick={() => void onApprove()} disabled={busy || hasUnsavedChanges} className={accentButtonClasses}>
-          <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
-          {approvalLabel}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={() => void onApprove()} disabled={busy || hasUnsavedChanges} className={accentButtonClasses}>
+              <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
+              {approvalLabel}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Confirm the pilot scope and invite reviewers. This is not yet a commercial commitment.</p>
+          </TooltipContent>
+        </Tooltip>
       )
     }
     if (pilot.state === 'signed' || (pilot.state === 'launch' && !pilot.payment?.paidAt)) {
@@ -1026,56 +1060,12 @@ export function PilotApprovalRoom({
   ]
 
   return (
-    <div className="pb-[14rem] lg:pb-32">
-      <div className="z-20 md:-mt-40 md:pt-40">
-        <div className="grid gap-20 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-          <div>
-            <div className="flex items-baseline justify-between gap-12">
-              <p className="t-p-sm-sans">{answers.company ? String(`${answers.company} & portals: pilot approval`) : 'pilot approval'}</p>
-              <p className="t-p-sm-sans whitespace-nowrap lg:hidden">{accessRole} - {userEmail}</p>
-            </div>
-            <p className="mt-10 max-w-[42rem] t-p-sm-sans">
-              Review the scope, success criteria, security requirements, and commercial terms. Make any necessary changes, save them, then approve the pilot when everything is correct.
-            </p>
-          </div>
-          <h1 className="mt-6 t-h3-sans lowercase">{stateLabel(pilot.state)}</h1>
-          <p className="mt-10 max-w-[42rem] t-p-sm-sans">
-            Review the scope, success criteria, security requirements, and commercial terms. Make any necessary changes, save them, then approve the pilot when everything is correct.
-          </p>
-          <div className="mt-16 flex flex-wrap items-center gap-8 lowercase">
-            <StatusPill>{pilot.mode === 'assisted' ? 'Assisted pilot' : 'Standard pilot'}</StatusPill>
-            <StatusPill>{routeBadge}</StatusPill>
-            <StatusPill>
-              {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
-            </StatusPill>
-            {canEditDraft ? (
-              <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={`${primaryButtonClasses} w-full sm:w-auto`}>
-                <Save aria-hidden="true" size={16} strokeWidth={1.8} />
-                Submit changes
-              </button>
-            ) : null}
-          </div>
-          <div className="grid gap-8 lg:justify-items-end">
-            <p className="t-p-sm-sans hidden lg:block">{accessRole} - {userEmail}</p>
-            <a
-              className={`${plainButtonClasses} hover:bg-white/10`}
-              href={`/api/leads/documents/pilot-packet?pilot=${encodeURIComponent(pilot.id)}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Download aria-hidden="true" size={16} strokeWidth={1.8} />
-              Download PDF
-            </a>
-            {globalWorkflowAction ? (
-              <div className="flex flex-wrap gap-8 lg:justify-items-end">{globalWorkflowAction}</div>
-            ) : null}
-          </div>
-        </div >
-      </div >
-
-      <div
+    <>
+      <TooltipProvider>
+        <div className="min-w-0 max-w-full pb-[14rem] [overflow-wrap:anywhere] lg:pb-32">
+          <div
         id="pilot-actions"
-        className="fixed inset-x-0 bottom-0 z-20 mt-16 rounded-t bg-[#07112C] px-24 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-16 lowercase md:rounded lg:sticky lg:inset-x-auto lg:top-0 lg:bottom-auto lg:pb-24"
+        className="fixed inset-x-0 bottom-0 z-20 space-y-12 rounded-t-[2em] border-t lg:border-none bg-[#07112C] px-24 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-16 lowercase md:rounded lg:sticky lg:inset-x-auto lg:top-0 lg:bottom-auto lg:pb-24"
         style={{
           backgroundImage:
             'linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
@@ -1083,11 +1073,13 @@ export function PilotApprovalRoom({
         }}
       >
         <h1 className="mt-6 t-h3-sans lowercase">{stateLabel(pilot.state)}</h1>
-        <div className="pt-24 flex flex-wrap items-center gap-8">
+        <div className="flex items-center gap-8">
           <StatusPill>{routeBadge}</StatusPill>
           <StatusPill>
             {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
           </StatusPill>
+        </div>
+        <div className="flex items-center gap-8">
           {canEditDraft ? (
             <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={`${primaryButtonClasses} w-full sm:w-auto`}>
               <Save aria-hidden="true" size={16} strokeWidth={1.8} />
@@ -1100,6 +1092,46 @@ export function PilotApprovalRoom({
               Confirm terms
             </button>
           ) : null}
+        </div>
+      </div>
+
+      <div className="z-20 mt-20">
+        <div className="grid gap-8 lg:items-start">
+            <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-12 gap-y-4">
+              <p className="min-w-0 t-p-sm-sans">{answers.company ? String(`${answers.company} & portals: pilot approval`) : 'pilot approval'}</p>
+              <p className="min-w-0 t-p-sm-sans">{accessRole} - {userEmail}</p>
+            </div>
+            <div className='flex justify-between'>
+              <StatusPill>{pilot.mode === 'assisted' ? 'Assisted pilot' : 'Standard pilot'}</StatusPill>
+              <a
+                className={`${plainButtonClasses} hover:bg-white/10`}
+                href={`/api/leads/documents/pilot-packet?pilot=${encodeURIComponent(pilot.id)}`}
+                target="_blank"
+                rel="noreferrer"
+                >
+                <Download aria-hidden="true" size={16} strokeWidth={1.8} />
+                Download PDF
+              </a>
+            </div>
+            <p className="max-w-[42rem] t-p-sm-sans">
+              Review the scope, success criteria, security requirements, and commercial terms. Make any necessary changes, save them, then approve the pilot when everything is correct.
+            </p>
+          <div className="flex flex-wrap items-center gap-12 lowercase">
+            <StatusPill>{routeBadge}</StatusPill>
+            <StatusPill>
+              {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
+            </StatusPill>
+            {canEditDraft ? (
+              <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={`${primaryButtonClasses} w-full sm:w-auto`}>
+                <Save aria-hidden="true" size={16} strokeWidth={1.8} />
+                Submit changes
+              </button>
+            ) : null}
+          </div>
+            
+            {globalWorkflowAction ? (
+              <div className="flex flex-wrap gap-8 lg:justify-items-end">{globalWorkflowAction}</div>
+            ) : null}
         </div>
       </div>
 
@@ -1163,7 +1195,7 @@ export function PilotApprovalRoom({
             <ul className="mt-12 grid gap-24">
               {pilot.exceptions.map((item, index) => (
                 <li key={item.kind + index} className="grid gap-4 t-p-sm-sans">
-                  <span className='text-white/60'>{item.amendment}</span>
+                  <span className='text-white'>{item.amendment}</span>
                   <span>{item.summary}</span>
                   {item.resolvedAt ? <span>Resolved</span> : null}
                 </li>
@@ -1234,6 +1266,25 @@ export function PilotApprovalRoom({
         ) : null
       }
 
+      {
+        reviewerToRemove ? (
+          <div className="mt-24 bg-white/10 rounded-sm px-18 py-16" role="alertdialog" aria-modal="true" aria-labelledby="remove-reviewer-title">
+            <p id="remove-reviewer-title" className="t-p-sm-sans font-medium">Remove reviewer</p>
+            <p className="mt-8 t-p-sm-sans">
+              Are you sure you want to remove {reviewerToRemove.name || reviewerToRemove.email} from the room? This action cannot be undone.
+            </p>
+            <div className="mt-14 flex flex-wrap gap-8">
+              <button onClick={() => void confirmRemoveReviewer()} disabled={busy} className={primaryButtonClasses}>
+                Yes, remove
+              </button>
+              <button onClick={() => setReviewerToRemove(null)} disabled={busy} className={plainButtonClasses}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null
+      }
+
       <SectionShell
         id="scope"
         title="Scope"
@@ -1242,18 +1293,18 @@ export function PilotApprovalRoom({
         action={!canEditDraft ? requestAction('Scope') : null}
       >
         <dl className="grid gap-14 t-p-sm-sans md:grid-cols-2">
-          {answers.productionStateBottleneck ? <div><dt className="text-white/60">Production-state bottleneck</dt><dd className="mt-2">{String(answers.productionStateBottleneck)}</dd></div> : null}
-          {answers.productionBaseline ? <div><dt className="text-white/60">Assessment baseline to validate</dt><dd className="mt-2">{String(answers.productionBaseline)}</dd></div> : null}
-          <div><dt className="text-white/60">Pilot workflow</dt><dd className="mt-2">{canEditDraft ? <RoomTextareaField minRows={3} value={String(answers.pilotWorkflow || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, pilotWorkflow: event.target.value }))} /> : String(answers.pilotWorkflow || answers.activeWorkflow || '-')}</dd></div>
-          <div><dt className="text-white/60">Production owner</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.productionOwner || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, productionOwner: event.target.value }))} /> : String(answers.productionOwner || '-')}</dd></div>
-          <div><dt className="text-white/60">Economic buyer</dt><dd className="mt-2">{String(answers.economicBuyer || '-')}</dd></div>
-          <div><dt className="text-white/60">Technical evaluator</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.technicalEvaluator || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, technicalEvaluator: event.target.value }))} /> : String(answers.technicalEvaluator || '-')}</dd></div>
-          <div><dt className="text-white/60">Historical projects</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.historicalProject || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, historicalProject: event.target.value }))} /> : String(answers.historicalProject || '-')}</dd></div>
-          <div><dt className="text-white/60">Participants</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.participantsRange || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, participantsRange: event.target.value }))} /> : String(answers.participantsRange || '-')}</dd></div>
-          <div><dt className="text-white/60">Integration method</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.integrationMethod || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, integrationMethod: event.target.value }))} /> : String(answers.integrationMethod || '-')}</dd></div>
-          <div><dt className="text-white/60">Data classification</dt><dd className="mt-2">{String(answers.dataClassification || '-')}</dd></div>
+          {answers.productionStateBottleneck ? <div><dt className="text-white/80">Production-state bottleneck</dt><dd className="mt-2">{String(answers.productionStateBottleneck)}</dd></div> : null}
+          {answers.productionBaseline ? <div><dt className="text-white/80">Assessment baseline to validate</dt><dd className="mt-2">{String(answers.productionBaseline)}</dd></div> : null}
+          <div><dt className="text-white/80">Pilot workflow</dt><dd className="mt-2">{canEditDraft ? <RoomTextareaField minRows={3} value={String(answers.pilotWorkflow || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, pilotWorkflow: event.target.value }))} /> : String(answers.pilotWorkflow || answers.activeWorkflow || '-')}</dd></div>
+          <div><dt className="text-white/80">Production owner</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.productionOwner || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, productionOwner: event.target.value }))} /> : String(answers.productionOwner || '-')}</dd></div>
+          <div><dt className="text-white/80">Economic buyer</dt><dd className="mt-2">{String(answers.economicBuyer || '-')}</dd></div>
+          <div><dt className="text-white/80">Technical evaluator</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.technicalEvaluator || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, technicalEvaluator: event.target.value }))} /> : String(answers.technicalEvaluator || '-')}</dd></div>
+          <div><dt className="text-white/80">Historical projects</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.historicalProject || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, historicalProject: event.target.value }))} /> : String(answers.historicalProject || '-')}</dd></div>
+          <div><dt className="text-white/80">Participants</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.participantsRange || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, participantsRange: event.target.value }))} /> : String(answers.participantsRange || '-')}</dd></div>
+          <div><dt className="text-white/80">Integration method</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.integrationMethod || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, integrationMethod: event.target.value }))} /> : String(answers.integrationMethod || '-')}</dd></div>
+          <div><dt className="text-white/80">Data classification</dt><dd className="mt-2">{String(answers.dataClassification || '-')}</dd></div>
           <div>
-            <dt className="text-white/60">Pilot start date</dt>
+            <dt className="text-white/80">Pilot start date</dt>
             <dd className="mt-2">
               {canEditDraft ? (
                 <RoomTextField
@@ -1280,26 +1331,26 @@ export function PilotApprovalRoom({
       >
         {pilot.proposal ? (
           <dl className="grid gap-14 t-p-sm-sans md:grid-cols-2">
-            <div><dt className="text-white/60">Pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature</dd></div>
+            <div><dt className="text-white/80">Pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature</dd></div>
             {pilot.payment?.invoiceId ? <div><dt className="text-white/60">Invoice</dt><dd className="mt-2"><a className="underline" href={String(pilot.payment.hostedInvoiceUrl || '#')} target="_blank" rel="noreferrer">{String(pilot.payment.invoiceId)}</a> · {String(pilot.payment.invoiceStatus || 'open')}</dd></div> : null}
             {pilot.payment?.paymentStatus ? <div><dt className="text-white/60">Payment status</dt><dd className="mt-2 capitalize">{String(pilot.payment.paymentStatus)}</dd></div> : null}
-            <div><dt className="text-white/60">Term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? `, ${pilot.proposal.termStart} to ${pilot.proposal.termEnd}` : ''}</dd></div>
-            {pilot.proposal.decisionDate ? <div><dt className="text-white/60">Final decision date</dt><dd className="mt-2">{pilot.proposal.decisionDate}</dd></div> : null}
+            <div><dt className="text-white/80">Term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? `, ${pilot.proposal.termStart} to ${pilot.proposal.termEnd}` : ''}</dd></div>
+            {formatCommercialDate(pilot.proposal.decisionDate) ? <div><dt className="text-white/60">Final decision date</dt><dd className="mt-2">{formatCommercialDate(pilot.proposal.decisionDate)}</dd></div> : null}
             {pilot.proposal.offerVariantSlug ? (
-              <div><dt className="text-white/60">Offer acceptance deadline</dt><dd className="mt-2">Sign by {pilot.proposal.offerAcceptanceDeadlineLabel || pilot.proposal.offerEndsAt}</dd></div>
+              <div><dt className="text-white/80">Offer acceptance deadline</dt><dd className="mt-2">Sign by {pilot.proposal.offerAcceptanceDeadlineLabel || pilot.proposal.offerEndsAt}</dd></div>
             ) : pilot.proposal.creditDeadline ? (
-              <div><dt className="text-white/60">Annual credit window</dt><dd className="mt-2">Signs by {pilot.proposal.creditDeadline}</dd></div>
+              <div><dt className="text-white/80">Annual credit window</dt><dd className="mt-2">Signs by {pilot.proposal.creditDeadline}</dd></div>
             ) : null}
             {pilot.proposal.annualOption ? (
               <div>
-                <dt className="text-white/60">Proposed annual deployment</dt>
+                <dt className="text-white/80">Proposed annual deployment</dt>
                 <dd className="mt-2">{pilot.proposal.annualOption.name} - {pilot.proposal.annualOption.priceLabel}</dd>
                 <dd className="mt-2">{pilot.proposal.annualOption.creditNote}</dd>
               </div>
             ) : null}
             {value ? (
               <div className="md:col-span-2">
-                <dt className="text-white/60">Auditable value estimate</dt>
+                <dt className="text-white/80">Auditable value estimate</dt>
                 <dd className="mt-2">{value.formula}</dd>
                 <dd className="mt-2">Range ${value.low.toLocaleString()} to ${value.high.toLocaleString()}, midpoint ${value.midpoint.toLocaleString()}</dd>
                 <dd className="mt-2 text-white">{value.frequency.label}, {value.hoursLoss.label} lost, {value.people.label} affected</dd>
@@ -1389,7 +1440,7 @@ export function PilotApprovalRoom({
           {pilot.securityDecisions.map((decision) => (
             <div key={decision.key} className="grid gap-6 border-t border-white/80 pt-10 t-p-sm-sans md:grid-cols-[1fr_auto] md:items-baseline">
               <div className='flex flex-col gap-8'>
-                <p className="text-white/60">{decision.label}</p>
+                <p className="text-white/80">{decision.label}</p>
                 <p>{decision.note || ''}</p>
               </div>
               <p className="capitalize self-end">{decision.decision.replace('-', ' ')}</p>
@@ -1407,9 +1458,9 @@ export function PilotApprovalRoom({
       >
         <dl className="grid gap-10 t-p-sm-sans md:grid-cols-2">
           {reviewRows.map((row) => (
-            <div key={row.section} className="grid grid-cols-[1fr_auto] items-baseline gap-12 border-b border-white/80 pb-10">
-              <dt>{row.section}</dt>
-              <dd className={toneClasses(row.view.tone)}>{row.view.label}</dd>
+            <div key={row.section} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,auto)] items-baseline gap-12 border-b border-white/80 pb-10">
+              <dt className="min-w-0">{row.section}</dt>
+              <dd className={`min-w-0 text-right ${toneClasses(row.view.tone)}`}>{row.view.label}</dd>
             </div>
           ))}
         </dl>
@@ -1422,7 +1473,7 @@ export function PilotApprovalRoom({
         summary="Confirm who needs access to this room. People with multiple responsibilities are grouped together while each role stays independently reviewable."
       >
         {!invitationsUnlocked ? (
-          <p className="mb-14 t-p-sm-sans text-white/60">Invitations unlock after the draft is ready for team review.</p>
+          <p className="mb-14 t-p-sm-sans">Invitations unlock after the draft is ready for team review.</p>
         ) : null}
         <div className="grid gap-12">
           {reviewerGroups.map((group) => {
@@ -1435,19 +1486,19 @@ export function PilotApprovalRoom({
             const groupStatus = activeReviewers.some((reviewer) => reviewer.requestedChanges)
               ? 'Changes requested'
               : pendingReviewers.length > 0
-                ? 'Review pending'
+                ? 'Awaiting review'
                 : 'Confirmed'
             return (
-              <div key={primary.id} className="grid gap-12 border border-white/80 px-18 py-16">
+              <div key={primary.id} className="grid gap-12 rounded-sm border border-white/80 px-18 py-16">
                 <div className="grid gap-6 md:grid-cols-[minmax(13rem,16rem)_1fr_auto] md:items-baseline">
                   <div>
                     <p className="t-p-sm-sans font-medium">{primary.name || primary.email || 'No one named yet'}</p>
-                    <p className="t-p-sm-sans text-white/60">{primary.email || 'Assign an email to invite this reviewer'}</p>
+                    <p className="t-p-sm-sans text-white/80">{primary.email || 'Assign an email to invite this reviewer'}</p>
                   </div>
                   <div className="flex flex-wrap gap-6">
                     <span className="border border-white/50 px-8 py-2 t-p-sm-sans">{reviewerRoleLabel(primary.role)}</span>
                     {group.additional.map((reviewer) => (
-                      <span key={reviewer.id} className="border border-white/20 px-8 py-2 t-p-sm-sans text-white/60">+ {reviewerRoleLabel(reviewer.role)}</span>
+                      <Badge key={reviewer.id} className="border border-white/20 px-8 py-2 t-p-sm-sans">+ {reviewerRoleLabel(reviewer.role)}</Badge>
                     ))}
                   </div>
                   <p className={`t-p-sm-sans ${groupStatus === 'Confirmed' ? 'text-white/60' : 'text-white'}`}>{groupStatus}</p>
@@ -1458,7 +1509,7 @@ export function PilotApprovalRoom({
                     const stale = reviewer.status === 'reviewed' && reviewer.versionSeen < pilot.version
                     return (
                       <div key={reviewer.id} className="grid gap-8 md:grid-cols-[minmax(13rem,16rem)_1fr_auto] md:items-start">
-                        <p className="t-p-sm-sans text-white/60">{reviewerRoleLabel(reviewer.role)}</p>
+                        <p className="t-p-sm-sans text-white/80">{reviewerRoleLabel(reviewer.role)}</p>
                         <div className="grid gap-8">
                           <p className={`t-p-sm-sans ${toneClasses(view.tone)}`}>
                             {view.label}
@@ -1481,17 +1532,38 @@ export function PilotApprovalRoom({
                             <button onClick={() => void onInvite(reviewer)} disabled={busy} className={primaryButtonClasses}>Invite</button>
                           ) : null}
                           {(reviewer.status === 'invited' || reviewer.status === 'opened') && invitationsUnlocked ? (
-                            <button onClick={() => void onInvite(reviewer)} disabled={busy} className={primaryButtonClasses}>Resend invitation</button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button onClick={() => void onInvite(reviewer)} disabled={busy} className={primaryButtonClasses}>Resend invitation</button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Send the invitation email again if the original was lost or expired.</p>
+                              </TooltipContent>
+                            </Tooltip>
                           ) : null}
                         </div>
                         {accessRole === 'owner' && invitationsUnlocked ? (
                           <div className="grid content-between gap-8 md:justify-items-end">
-                            <p className="t-p-sm-sans text-white/60">Add another role</p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="t-p-sm-sans text-white/80 cursor-help">Add another role</p>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Assign this person an additional review role (e.g., technical evaluator + economic buyer). They will receive one invitation for all their roles.</p>
+                              </TooltipContent>
+                            </Tooltip>
                             <RoomSelectField aria-label={`Add another role for ${reviewer.email || reviewer.name || 'reviewer'}`} value={reviewer.role} onChange={(event) => void onChangeRole(reviewer, event.target.value as ReviewerRole)}>
                               {REVIEWER_ROLES.map((role) => <option key={role} value={role}>{reviewerRoleLabel(role)}</option>)}
                             </RoomSelectField>
                             <div className="flex flex-wrap gap-8">
-                              <button onClick={() => void onClaim(reviewer)} disabled={busy} className={plainButtonClasses}>I hold this role</button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button onClick={() => void onClaim(reviewer)} disabled={busy} className={plainButtonClasses}>I hold this role</button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Assign this role to yourself so you can review and confirm the terms.</p>
+                                </TooltipContent>
+                              </Tooltip>
                               {reviewer.status !== 'revoked' ? <button onClick={() => void onRemove(reviewer)} disabled={busy} className={plainButtonClasses}>Remove</button> : null}
                             </div>
                           </div>
@@ -1515,11 +1587,11 @@ export function PilotApprovalRoom({
             <div className="mt-16 border-t border-white/80">
               <h2 className="t-h3-sans pt-28">Add Reviewer</h2>
               <div className="mt-8 grid gap-14 lg:grid-cols-[2fr_auto] lg:items-end">
-                <label className="t-p-sm-sans text-white/60">
+                <label className="t-p-sm-sans text-white/80">
                   Email
                   <RoomTextField className="mt-4" type="email" value={draftReviewerEmail} onChange={(event) => setDraftReviewerEmail(event.target.value)} placeholder="name@company.com" />
                 </label>
-                <label className="t-p-sm-sans text-white/60">
+                <label className="t-p-sm-sans text-white/80">
                   Role
                   <RoomSelectField className="mt-4" value={draftRole} onChange={(event) => setDraftRole(event.target.value as ReviewerRole)}>
                     {REVIEWER_ROLES.map((role) => (
@@ -1527,7 +1599,7 @@ export function PilotApprovalRoom({
                     ))}
                   </RoomSelectField>
                 </label>
-                <label className="t-p-sm-sans text-white/60">
+                <label className="t-p-sm-sans text-white/80">
                   Name
                   <RoomTextField className="mt-4" value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="name and title" />
                 </label>
@@ -1553,7 +1625,7 @@ export function PilotApprovalRoom({
               <p className="mb-12 t-p-sm-sans text-white">The plan changed after your last review. Please re-review.</p>
             ) : null}
             <div className="grid gap-14">
-              <label className="t-p-sm-sans text-white/60">
+              <label className="t-p-sm-sans text-white/80">
                 Notes or requested changes
                 <RoomTextareaField
                   className="mt-4"
@@ -1586,11 +1658,11 @@ export function PilotApprovalRoom({
             summary={`By signing, ${String(answers.company || 'the customer')} agrees to the confirmed scope, the ${pilot.proposal?.priceLabel} pilot fee due on signature, and the ${pilot.proposal?.termDays}-day pilot term.`}
           >
             <div className="grid gap-14 md:grid-cols-2">
-              <label className="t-p-sm-sans text-white/60">
+              <label className="t-p-sm-sans text-white/80">
                 Authorized signer name
                 <RoomTextField className="mt-4" value={signerName} onChange={(event) => setSignerName(event.target.value)} />
               </label>
-              <label className="t-p-sm-sans text-white/60">
+              <label className="t-p-sm-sans text-white/80">
                 Signer email
                 <RoomTextField className="mt-4" type="email" value={signerEmail} onChange={(event) => setSignerEmail(event.target.value)} />
               </label>
@@ -1601,7 +1673,7 @@ export function PilotApprovalRoom({
                 By selecting Confirm pilot &amp; purchase, I represent that I am authorized to accept these terms on behalf of this organization and agree to the Production Pilot Terms, Privacy Policy, and pilot scope shown above.
               </span>
             </label>
-            <p className="mt-12 t-p-sm-sans text-white/60">
+            <p className="mt-12 t-p-sm-sans text-white/80">
               Review the canonical <a className="underline" href="/terms-of-service" target="_blank" rel="noreferrer">Terms of Service</a>, <a className="underline" href="/privacy-policy" target="_blank" rel="noreferrer">Privacy Policy</a>, and <a className="underline" href="/security-and-architecture" target="_blank" rel="noreferrer">Security &amp; Architecture</a> documents before accepting.
             </p>
             <button onClick={() => void onSign()} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} mt-18`}>
@@ -1613,8 +1685,11 @@ export function PilotApprovalRoom({
 
       {
         pilot.state === 'active' ? (
-          <div className="mt-24 bg-[#07112C] px-18 py-16 text-white">
+          <div className="mt-24 grid gap-16 bg-[#07112C] px-18 py-16 text-white">
             <p className="t-p-sm-sans">The pilot is live. The final evaluation will be assessed against the agreed criteria.</p>
+            <CTAButton href="/account" analyticsLabel="pilot room return to account">
+              Return to account
+            </CTAButton>
           </div>
         ) : null
       }
@@ -1623,7 +1698,7 @@ export function PilotApprovalRoom({
         sessionId && pilot.state !== 'paid' ? (
           <div className="mt-24 border border-white/80 bg-white/10 px-18 py-16">
             <p className="t-p-sm-sans font-medium">Payment received. Finalizing your pilot record.</p>
-            <p className="mt-8 t-p-sm-sans text-white/60">This page refreshes the pilot status without leaving the room.</p>
+            <p className="mt-8 t-p-sm-sans text-white/80">This page refreshes the pilot status without leaving the room.</p>
           </div>
         ) : null
       }
@@ -1660,9 +1735,11 @@ export function PilotApprovalRoom({
           </section>
         ) : null
       }
-    </div >
-  )
-}
+      </div>
+    </TooltipProvider>
+    <PilotApprovalRoomTour />
+  </>
+)}
 
 const primaryButtonClasses =
   'inline-flex min-h-44 items-center justify-center gap-8 rounded border border-white/80 px-18 t-p-sm-sans transition-colors duration-100 hover:border-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer'
