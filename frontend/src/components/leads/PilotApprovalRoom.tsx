@@ -1063,42 +1063,12 @@ export function PilotApprovalRoom({
     <>
       <TooltipProvider>
         <div className="min-w-0 max-w-full pb-[14rem] [overflow-wrap:anywhere] lg:pb-32">
-          <div
-        id="pilot-actions"
-        className="fixed inset-x-0 bottom-0 z-20 space-y-12 rounded-t-[2em] border-t lg:border-none bg-[#07112C] px-24 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-16 lowercase md:rounded lg:sticky lg:inset-x-auto lg:top-0 lg:bottom-auto lg:pb-24"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
-          backgroundAttachment: 'fixed',
-        }}
-      >
-        <h1 className="mt-6 t-h3-sans lowercase">{stateLabel(pilot.state)}</h1>
-        <div className="flex items-center gap-8">
-          <StatusPill>{routeBadge}</StatusPill>
-          <StatusPill>
-            {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
-          </StatusPill>
-        </div>
-        <div className="flex items-center gap-8">
-          {canEditDraft ? (
-            <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={`${primaryButtonClasses} w-full sm:w-auto`}>
-              <Save aria-hidden="true" size={16} strokeWidth={1.8} />
-              Submit changes
-            </button>
-          ) : null}
-          {myReviewer ? (
-            <button onClick={() => void onReviewerDecision('confirm')} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} w-full sm:w-auto`}>
-              <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
-              Confirm terms
-            </button>
-          ) : null}
-        </div>
-      </div>
 
       <div className="z-20 mt-20">
         <div className="grid gap-8 lg:items-start">
+
             <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-12 gap-y-4">
-              <p className="min-w-0 t-p-sm-sans">{answers.company ? String(`${answers.company} & portals: pilot approval`) : 'pilot approval'}</p>
+              <h1 className="mt-6 t-h3-sans lowercase">{stateLabel(pilot.state)}</h1>
               <p className="min-w-0 t-p-sm-sans">{accessRole} - {userEmail}</p>
             </div>
             <div className='flex justify-between'>
@@ -1116,18 +1086,6 @@ export function PilotApprovalRoom({
             <p className="max-w-[42rem] t-p-sm-sans">
               Review the scope, success criteria, security requirements, and commercial terms. Make any necessary changes, save them, then approve the pilot when everything is correct.
             </p>
-          <div className="flex flex-wrap items-center gap-12 lowercase">
-            <StatusPill>{routeBadge}</StatusPill>
-            <StatusPill>
-              {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
-            </StatusPill>
-            {canEditDraft ? (
-              <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={`${primaryButtonClasses} w-full sm:w-auto`}>
-                <Save aria-hidden="true" size={16} strokeWidth={1.8} />
-                Submit changes
-              </button>
-            ) : null}
-          </div>
             
             {globalWorkflowAction ? (
               <div className="flex flex-wrap gap-8 lg:justify-items-end">{globalWorkflowAction}</div>
@@ -1171,6 +1129,37 @@ export function PilotApprovalRoom({
           </div>
         ) : null
       }
+
+      <div
+            id="pilot-actions"
+            className="fixed inset-x-0 mt-24 bottom-0 z-20 space-y-12 rounded-t-[2em] border-t lg:border-none bg-[#07112C] px-24 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-16 lowercase md:rounded lg:sticky lg:inset-x-auto lg:top-0 lg:bottom-auto lg:pb-24"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
+              backgroundAttachment: 'fixed',
+            }}
+          >
+            <div className="flex items-center gap-8">
+              <StatusPill>{routeBadge}</StatusPill>
+              <StatusPill>
+                {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
+              </StatusPill>
+            </div>
+            <div className="flex items-center gap-8">
+              {canEditDraft ? (
+                <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={`${primaryButtonClasses} w-full sm:w-auto`}>
+                  <Save aria-hidden="true" size={16} strokeWidth={1.8} />
+                  Submit changes
+                </button>
+              ) : null}
+              {myReviewer ? (
+                <button onClick={() => void onReviewerDecision('confirm')} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} w-full sm:w-auto`}>
+                  <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
+                  Confirm terms
+                </button>
+              ) : null}
+            </div>
+          </div>
 
       {
         progressUnresolved.length > 0 ? (
@@ -1737,7 +1726,9 @@ export function PilotApprovalRoom({
       }
       </div>
     </TooltipProvider>
-    <PilotApprovalRoomTour />
+    <div className="relative lg:static">
+      <PilotApprovalRoomTour />
+    </div>
   </>
 )}
 
