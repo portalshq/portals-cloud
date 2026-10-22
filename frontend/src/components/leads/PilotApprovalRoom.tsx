@@ -1383,11 +1383,11 @@ export function PilotApprovalRoom({
       >
         <div className="grid gap-[2px]">
           {criteria.map((criterion, index) => (
-            <div key={criterion.key} className="grid gap-14 bg-white/10 rounded-sm px-18 py-16 md:grid-cols-[minmax(13rem,16rem)_1fr]">
-              <div>
+            <div key={criterion.key} className="grid gap-14 bg-white/10 rounded-sm px-18 py-16">
+              <div className="flex flex-wrap items-baseline justify-between gap-12">
                 <p className="t-p-sm-sans font-medium">{criterion.label}</p>
                 {canEditDraft ? (
-                  <div className="mt-10 inline-grid grid-cols-3 border rounded" role="group" aria-label={`${criterion.label} decision`}>
+                  <div className="inline-grid grid-cols-3 border rounded" role="group" aria-label={`${criterion.label} decision`}>
                     {CRITERION_STATUS_OPTIONS.map((option) => (
                       <button
                         key={option.value}
@@ -1410,7 +1410,7 @@ export function PilotApprovalRoom({
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-8 t-p-sm-sans">{criterion.status.replace('-', ' ')}</p>
+                  <p className="t-p-sm-sans">{criterion.status.replace('-', ' ')}</p>
                 )}
               </div>
               <div className="grid gap-10">
