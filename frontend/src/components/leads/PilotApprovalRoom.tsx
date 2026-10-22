@@ -1071,17 +1071,20 @@ export function PilotApprovalRoom({
               <h1 className="mt-6 t-h3-sans lowercase">{stateLabel(pilot.state)}</h1>
               <p className="min-w-0 t-p-sm-sans">{accessRole} - {userEmail}</p>
             </div>
-            <div className='flex justify-between'>
+            <div className='flex flex-wrap items-center justify-between gap-8'>
               <StatusPill>{pilot.mode === 'assisted' ? 'Assisted pilot' : 'Standard pilot'}</StatusPill>
-              <a
-                className={`${plainButtonClasses} hover:bg-white/10`}
-                href={`/api/leads/documents/pilot-packet?pilot=${encodeURIComponent(pilot.id)}`}
-                target="_blank"
-                rel="noreferrer"
-                >
-                <Download aria-hidden="true" size={16} strokeWidth={1.8} />
-                Download PDF
-              </a>
+              <div className='flex items-center gap-8'>
+                <PilotApprovalRoomTour />
+                <a
+                  className={`${plainButtonClasses} hover:bg-white/10`}
+                  href={`/api/leads/documents/pilot-packet?pilot=${encodeURIComponent(pilot.id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  >
+                  <Download aria-hidden="true" size={16} strokeWidth={1.8} />
+                  Download PDF
+                </a>
+              </div>
             </div>
             <p className="max-w-[42rem] t-p-sm-sans">
               Review the scope, success criteria, security requirements, and commercial terms. Make any necessary changes, save them, then approve the pilot when everything is correct.
@@ -1726,9 +1729,6 @@ export function PilotApprovalRoom({
       }
       </div>
     </TooltipProvider>
-    <div className="relative lg:static">
-      <PilotApprovalRoomTour />
-    </div>
   </>
 )}
 
