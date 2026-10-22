@@ -84,7 +84,7 @@ export function PilotApprovalRoomTour() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-8 rounded-full bg-white/10 border border-white/80 px-16 py-8 text-white hover:bg-white/20 transition-colors lg:fixed lg:bottom-24 lg:right-24 lg:z-50 ml-auto"
+        className="flex items-center gap-8 rounded-full bg-white/10 border border-white/80 px-16 py-8 text-white hover:bg-white/20 transition-colors lg:fixed lg:bottom-24 lg:right-24 lg:z-50"
         aria-label="Start guided tour"
       >
         <Info size={16} strokeWidth={1.8} />
