@@ -1338,6 +1338,7 @@ export async function PATCH(
         unresolved: next.unresolved,
         exceptions: next.exceptions,
         reviewers: pilot.reviewers,
+        approvalPath: String(next.answers.approvalPath || ''),
       })
       if (unresolved.length > 0) {
         return NextResponse.json(

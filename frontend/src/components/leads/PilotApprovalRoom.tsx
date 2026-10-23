@@ -416,6 +416,7 @@ export function PilotApprovalRoom({
         unresolved: pilot.unresolved,
         exceptions: pilot.exceptions,
         reviewers: pilot.reviewers,
+        approvalPath: String(pilot.answers.approvalPath || ''),
       }),
     [pilot],
   )
@@ -1356,7 +1357,6 @@ export function PilotApprovalRoom({
           <div id="integration-method" className="scroll-mt-36"><dt className="text-white/80">Integration method</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.integrationMethod || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, integrationMethod: event.target.value }))} /> : String(answers.integrationMethod || '-')}</dd></div>
           <div id="data-classification" className="scroll-mt-36"><dt className="text-white/80">Data classification</dt><dd className="mt-2">{String(answers.dataClassification || '-')}</dd></div>
           <div id="approval-path" className="scroll-mt-36"><dt className="text-white/80">Approval path</dt><dd className="mt-2">{String(answers.approvalPath || '-')}</dd></div>
-          <div id="approver-email" className="scroll-mt-36"><dt className="text-white/80">Approver email</dt><dd className="mt-2">{String(answers.approverEmail || 'Not provided')}</dd></div>
           <div id="pilot-start-date" className="scroll-mt-36">
             <dt className="text-white/80">Pilot start date</dt>
             <dd className="mt-2">

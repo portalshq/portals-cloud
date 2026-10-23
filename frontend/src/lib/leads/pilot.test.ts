@@ -264,6 +264,42 @@ test('pilot progress includes pending reviewer approvals and lifecycle actions',
   )
 })
 
+test('approver requirement resolves from the reviewer roster, not scope answers', () => {
+  assert.ok(
+    !computeUnresolved({...eligible, approvalPath: 'procurement'}, {route: 'zero-call'})
+      .some((item) => item.key === 'approver'),
+  )
+  const approver = (overrides: Partial<{email: string; status: 'proposed' | 'revoked'}> = {}) => ({
+    id: 'approver-1',
+    role: 'approver' as const,
+    name: 'Ben Wu',
+    email: 'ben@studio.example',
+    required: false,
+    status: 'proposed' as const,
+    requestedChanges: false,
+    versionSeen: 0,
+    notes: [],
+    ...overrides,
+  })
+  const progress = (reviewers: ReturnType<typeof approver>[], approvalPath?: string, unresolved = [] as Parameters<typeof computePilotProgressUnresolved>[0]['unresolved']) =>
+    computePilotProgressUnresolved({state: 'reviewing', version: 1, unresolved, exceptions: [], reviewers, approvalPath})
+  const legacy = [{key: 'approver', label: 'Legacy', resolution: 'Legacy', href: '#approver-email'}]
+
+  const missing = progress([], 'procurement').find((item) => item.key === 'approver')
+  assert.equal(missing?.href, '#reviewers')
+  assert.match(missing?.resolution || '', /reviewers section/)
+  assert.ok(progress([], 'other').some((item) => item.key === 'approver'))
+  assert.ok(!progress([approver()], 'procurement').some((item) => item.key === 'approver'))
+  assert.ok(progress([approver({status: 'revoked'})], 'procurement').some((item) => item.key === 'approver'))
+  assert.ok(progress([approver({email: '  '})], 'procurement').some((item) => item.key === 'approver'))
+  assert.equal(progress([approver()], 'procurement', legacy).some((item) => item.key === 'approver'), false)
+  assert.equal(progress([], 'economic-buyer', legacy).some((item) => item.key === 'approver'), false)
+  assert.equal(progress([], undefined).some((item) => item.key === 'approver'), false)
+  const replaced = progress([], 'procurement', legacy).filter((item) => item.key === 'approver')
+  assert.equal(replaced.length, 1)
+  assert.equal(replaced[0].href, '#reviewers')
+})
+
 test('signer exception is filtered out in non-signing states', () => {
   const signerUnresolved = [{key: 'signer', label: 'Identify the authorized signer', resolution: 'Test', href: '#signature'}]
   

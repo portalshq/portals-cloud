@@ -63,6 +63,8 @@ export type PilotProgressInput = {
   unresolved: UnresolvedItem[]
   exceptions: ExceptionItem[]
   reviewers: Reviewer[]
+  /** Current approval path; when it requires an approver, the roster must assign one. */
+  approvalPath?: string
 }
 
 export type ExceptionItem = {
@@ -260,6 +262,13 @@ export function groupReviewersByEmail(reviewers: Reviewer[]): ReviewerGroup[] {
   })
 }
 
+const APPROVER_APPROVAL_PATHS = new Set(['other', 'procurement'])
+
+/** Approval paths that need a separately assigned approver reviewer. */
+export function requiresApproverReviewer(approvalPath?: string): boolean {
+  return APPROVER_APPROVAL_PATHS.has(String(approvalPath || ''))
+}
+
 export function recommendedReviewers(
   answers: PilotAnswers,
 ): RecommendedReviewer[] {
@@ -285,7 +294,7 @@ export function recommendedReviewers(
       required: true,
     },
   ]
-  if (answers.approvalPath === 'other' || answers.approvalPath === 'procurement') {
+  if (requiresApproverReviewer(answers.approvalPath)) {
     rows.push({
       role: 'approver',
       name: name('approverName'),
@@ -862,17 +871,6 @@ export function computeUnresolved(
       href: '#approval-path',
     })
   }
-  if (
-    (answers.approvalPath === 'other' || answers.approvalPath === 'procurement') &&
-    !(answers.approverEmail || '').trim()
-  ) {
-    unresolved.push({
-      key: 'approver',
-      label: 'Add the approver\u2019s email so the plan can be shared',
-      resolution: 'Share the room with the approver using the share box, or revise the plan to add their email.',
-      href: '#approver-email',
-    })
-  }
   if (!answers.annualDeploymentOption || answers.annualDeploymentOption === 'not-known') {
     unresolved.push({
       key: 'annual',
@@ -1017,6 +1015,21 @@ export function computePilotProgressUnresolved(input: PilotProgressInput): Unres
     if (signerIndex !== -1) {
       unresolved.splice(signerIndex, 1)
     }
+  }
+
+  // Legacy rooms persisted an answer-based approver item; the roster is now authoritative.
+  const legacyApproverIndex = unresolved.findIndex((item) => item.key === 'approver')
+  if (legacyApproverIndex !== -1) unresolved.splice(legacyApproverIndex, 1)
+  const hasAssignedApprover = input.reviewers.some(
+    (reviewer) => reviewer.role === 'approver' && reviewer.status !== 'revoked' && Boolean(reviewer.email.trim()),
+  )
+  if (requiresApproverReviewer(input.approvalPath) && !hasAssignedApprover) {
+    add({
+      key: 'approver',
+      label: 'Assign the approver reviewer',
+      resolution: 'Please add the approver in the reviewers section, or add the Approver role to an existing reviewer.',
+      href: '#reviewers',
+    })
   }
 
   if (pendingException) {
