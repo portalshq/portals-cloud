@@ -86,6 +86,7 @@ export type StoredSubmission = {
 type PersistInput = Omit<StoredSubmission, 'id' | 'profile'> & {
   currentProfileToken?: string
   qualificationAnswers?: Record<string, unknown>
+  suppressProfileToken?: boolean
 }
 
 type PersistResult = {
@@ -1196,7 +1197,8 @@ async function upsertProfile(
       ) || null
     }
     const tokenNeeded =
-      !profile || !input.currentProfileToken || tokenProfile?.id !== profile.id
+      !input.suppressProfileToken &&
+      (!profile || !input.currentProfileToken || tokenProfile?.id !== profile.id)
     profile ||= {
       id: randomUUID(),
       identity: input.identity,
@@ -1234,7 +1236,8 @@ async function upsertProfile(
     : null
   profile ||= await findProfileByEmail(input.identity, client)
   const tokenNeeded =
-    !profile || !input.currentProfileToken || tokenProfile?.id !== profile.id
+    !input.suppressProfileToken &&
+    (!profile || !input.currentProfileToken || tokenProfile?.id !== profile.id)
 
   if (!profile) {
     profile = {

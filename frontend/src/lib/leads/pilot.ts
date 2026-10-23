@@ -121,6 +121,7 @@ export type CommercialSnapshot = {
   annualCreditAmount?: number
   annualCreditLabel?: string
   annualCreditRedemptionPolicy?: string
+  annualCreditTerms?: string
   offerVariantSlug?: string
   offerVariantRevision?: string
   offerTermsVersion?: string
@@ -137,7 +138,11 @@ export type CommercialSnapshot = {
     slug: string
     name: string
     priceLabel: string
+    periodLabel?: string
     annualTotal: number | null
+    currency?: string
+    billingTerms?: string
+    onboardingFee?: number
     creditNote: string
   }
   valueModel?: ValueModel
@@ -433,14 +438,14 @@ export function classifyPilot(
     exceptions.push({
       kind: 'approval-path',
       summary: 'The approval path is not established for the pilot purchase.',
-      amendment: 'Confirm the authorized buyer, procurement path, or exception terms before funding.',
+      amendment: 'Customer: identify the authorized buyer and procurement path. Portals will review any exception before funding.',
     })
   }
   if (answers.exactReproductionRequired) {
     exceptions.push({
       kind: 'exact-reproduction',
       summary: 'A guaranteed exact reproduction outcome is outside the standard pilot.',
-      amendment: 'Align on a measurable reproduction objective and permitted variance before funding.',
+      amendment: 'Customer: confirm the measurable reproduction objective and permitted variance. Portals will review them before funding.',
     })
   }
 
@@ -448,14 +453,14 @@ export function classifyPilot(
     exceptions.push({
       kind: 'custom-integration',
       summary: 'Custom integration or portals engineering work is outside the standard scope.',
-      amendment: 'Separately priced amendment or technical review before scope confirmation.',
+      amendment: 'Portals: review the custom integration and confirm any separate pricing before scope confirmation.',
     })
   }
   if (answers.historicalProject === 'more-than-one') {
     exceptions.push({
       kind: 'extra-projects',
       summary: 'More than one historical project is outside the standard pilot.',
-      amendment: 'Additional historical project allowance.',
+      amendment: 'Portals: confirm the additional historical-project allowance before scope confirmation.',
     })
   }
   if (
@@ -465,7 +470,7 @@ export function classifyPilot(
     exceptions.push({
       kind: 'extra-participants',
       summary: `${answers.participantsRange} participants exceeds the standard five.`,
-      amendment: 'Additional participant allowance.',
+      amendment: 'Portals: confirm the additional participant allowance before scope confirmation.',
     })
   }
   const classification = answers.dataClassification || ''
@@ -473,13 +478,13 @@ export function classifyPilot(
     exceptions.push({
       kind: 'regulated-data',
       summary: 'Regulated or personal data requires a legal and security posture review.',
-      amendment: 'Legal review and security addendum before processing.',
+      amendment: 'Portals: complete legal and security review and confirm any required addendum before processing this data.',
     })
   } else if (UNKNOWN_CLASSIFICATION.has(classification)) {
     exceptions.push({
       kind: 'data-classification',
       summary: 'The data classification was not confirmed.',
-      amendment: 'Confirm the data classification before scope confirmation.',
+      amendment: 'Customer: confirm the data classification in Scope before Portals can complete review.',
     })
   }
   const successKeys = parseSuccessKeys(answers.successCriterionKeysJson)
@@ -487,14 +492,14 @@ export function classifyPilot(
     exceptions.push({
       kind: 'custom-criteria',
       summary: 'Custom success criteria are outside the standard success plan.',
-      amendment: 'Resolve the success plan in the Pilot Terms Review.',
+      amendment: 'Customer and Portals: agree on the success plan in Pilot Terms Review before scope confirmation.',
     })
   }
   if (answers.approvalPath === 'procurement') {
     exceptions.push({
       kind: 'procurement',
       summary: 'Procurement review is required before the pilot can be funded.',
-      amendment: 'Procurement process run in parallel; funding must precede launch.',
+      amendment: 'Customer: complete procurement in parallel. Portals review can proceed, but funding must precede launch.',
     })
   }
   const securityText = (answers.securityRequirements || '')
@@ -503,7 +508,7 @@ export function classifyPilot(
       exceptions.push({
         kind,
         summary: `Security or operating requirement detected (${kind.replace('-', ' ')}).`,
-        amendment: 'Resolve the security posture in the Pilot Terms Review.',
+        amendment: 'Portals: review this security or operating requirement in Pilot Terms Review before scope confirmation.',
       })
     }
   }
@@ -511,7 +516,7 @@ export function classifyPilot(
     exceptions.push({
       kind: 'annual-option',
       summary: 'The proposed annual deployment option is not determined.',
-      amendment: 'Confirm the annual configuration in the Pilot Terms Review.',
+      amendment: 'Customer: choose the proposed annual configuration in Commercial Terms so Portals can complete review.',
     })
   }
 
@@ -715,6 +720,19 @@ export function annualTotalFrom(spec: PackageSpecification | undefined): number 
   return note.includes('month') ? amount * 12 : amount
 }
 
+function annualBillingTerms(specification: PackageSpecification | undefined): string {
+  const price = specification?.price
+  if (!price) return 'Billing terms to be specified in the annual agreement.'
+  const terms = price.annualAmount ? ['Billed annually'] : ['Annual agreement; total to be specified']
+  const schedule = price.installmentSchedule
+  if (price.installmentsAvailable && schedule?.count && schedule.interval) {
+    const interval = `${schedule.interval}${schedule.count === 1 ? '' : 'ly'}`
+    const requestNote = specification.microcopy?.toLowerCase().includes('upon request') ? ' upon request' : ''
+    terms.push(`${schedule.count} ${interval} installments available${requestNote}`)
+  }
+  return terms.join('; ')
+}
+
 export function buildCommercialSnapshot(
   answers: PilotAnswers,
   specs: PackageSpecification[],
@@ -749,15 +767,22 @@ export function buildCommercialSnapshot(
       ? undefined
       : specs.find((spec) => spec.slug === annualSlug)
   const annualTotal = annualTotalFrom(annualSpec)
+  const creditDeadlineText = iso(creditDeadline)
+    ? ''
+    : 'The credit deadline will be set when the pilot start date is confirmed.'
   const annualCredit = opts.offer
-    ? `${opts.offer.annualCreditLabel} annual deployment credit under the ${opts.offer.annualCreditRedemptionPolicy}.`
-    : `${priceLabel} pilot fee credited if the annual order form is signed by ${iso(creditDeadline) || 'the stated deadline'}.`
+    ? `Available against the annual deployment.${creditDeadlineText ? ` ${creditDeadlineText}` : ''}`
+    : `The pilot fee is applied against the annual deployment.${creditDeadlineText ? ` ${creditDeadlineText}` : ''}`
   const annualOption = annualSpec
     ? {
         slug: annualSpec.slug,
         name: annualSpec.name,
         priceLabel: annualSpec.price?.displayValue || annualSpec.name,
+        periodLabel: annualSpec.price?.periodLabel,
         annualTotal,
+        currency: annualSpec.price?.currency || currency,
+        billingTerms: annualBillingTerms(annualSpec),
+        onboardingFee: annualSpec.price?.onboardingFee,
         creditNote: annualCredit,
       }
     : undefined
@@ -772,9 +797,10 @@ export function buildCommercialSnapshot(
     termEnd: end ? iso(end) : undefined,
     decisionDate: iso(decisionDate),
     creditDeadline: iso(creditDeadline),
+    annualCreditAmount: opts.offer?.annualCreditAmount ?? priceAmount,
+    annualCreditLabel: opts.offer?.annualCreditLabel ?? priceLabel,
+    annualCreditTerms: annualCredit,
     ...(opts.offer ? {
-      annualCreditAmount: opts.offer.annualCreditAmount,
-      annualCreditLabel: opts.offer.annualCreditLabel,
       annualCreditRedemptionPolicy: opts.offer.annualCreditRedemptionPolicy,
       offerVariantSlug: opts.offer.slug,
       offerVariantRevision: opts.offer._rev,
@@ -805,7 +831,7 @@ export function computeUnresolved(
       key: 'start-date',
       label: 'Select the start date',
       resolution: 'Pick a start date in the approval room.',
-      href: '#scope'
+      href: '#pilot-start-date'
     })
   }
   if (
@@ -816,7 +842,7 @@ export function computeUnresolved(
       key: 'integration',
       label: 'Select the import or integration method',
       resolution: 'Select one of the standard integration paths.',
-      href: '#scope',
+      href: '#integration-method',
     })
   }
   if (UNKNOWN_CLASSIFICATION.has(answers.dataClassification || '')) {
@@ -824,7 +850,7 @@ export function computeUnresolved(
       key: 'classification',
       label: 'Confirm how your production data should be classified',
       resolution: 'Select the data classification that applies.',
-      href: '#scope',
+      href: '#data-classification',
     })
   }
   if (!answers.approvalPath || answers.approvalPath === 'not-established') {
@@ -833,7 +859,7 @@ export function computeUnresolved(
       key: 'approval',
       label: `Confirm the ${pilotPrice} approval path`,
       resolution: 'Confirm who can approve and fund the pilot.',
-      href: '#scope',
+      href: '#approval-path',
     })
   }
   if (
@@ -844,7 +870,7 @@ export function computeUnresolved(
       key: 'approver',
       label: 'Add the approver\u2019s email so the plan can be shared',
       resolution: 'Share the room with the approver using the share box, or revise the plan to add their email.',
-      href: '#scope',
+      href: '#approver-email',
     })
   }
   if (!answers.annualDeploymentOption || answers.annualDeploymentOption === 'not-known') {
@@ -852,7 +878,7 @@ export function computeUnresolved(
       key: 'annual',
       label: 'Choose the proposed annual deployment option',
       resolution: 'Select the annual deployment you are evaluating.',
-      href: '#scope',
+      href: '#annual-deployment-option',
     })
   }
   if (!answers.annualPriceAcknowledged) {
@@ -860,15 +886,15 @@ export function computeUnresolved(
       key: 'annual-ack',
       label: 'Acknowledge the proposed annual price',
       resolution: 'Acknowledge the annual price shown in the commercial terms.',
-      href: '#scope',
+      href: '#annual-price-acknowledgement',
     })
   }
   if (!(answers.signerName || '').trim() || !(answers.signerEmail || '').trim()) {
     unresolved.push({
       key: 'signer',
       label: 'Identify the authorized signer',
-      resolution: 'Enter the signer\u2019s name and email in the approval room.',
-      href: '#scope',
+      resolution: "The authorized signer must be identified before signing. Enter the signer's name and email in the signature section.",
+      href: '#signature',
     })
   }
   if (opts.route === 'zero-call') {
@@ -879,7 +905,7 @@ export function computeUnresolved(
           key: `criterion-${criterion.key}`,
           label: `Set a measurable target for: ${criterion.label}`,
           resolution: 'Edit the success criterion and add a target.',
-          href: '#scope',
+          href: '#success-criteria',
         })
       }
     }
@@ -983,14 +1009,26 @@ export function computePilotProgressUnresolved(input: PilotProgressInput): Unres
   }
   const pendingException = input.exceptions.some((item) => !item.resolvedAt)
 
+  // Filter out the signer exception unless the pilot is ready for signature
+  // The signature section is only editable in ready_sign state and later
+  const SIGNING_STATES: PilotState[] = ['ready_sign', 'signed', 'paid', 'launch', 'active']
+  if (!SIGNING_STATES.includes(input.state)) {
+    const signerIndex = unresolved.findIndex((item) => item.key === 'signer')
+    if (signerIndex !== -1) {
+      unresolved.splice(signerIndex, 1)
+    }
+  }
+
   if (pendingException) {
     add({
       key: 'portals-review',
       label:
         input.state === 'exception_review'
-          ? 'Portals review is in progress'
+          ? 'Portals is reviewing the flagged pilot terms'
           : 'Submit the outstanding terms for Portals review',
-      resolution: 'Resolve the required security, legal, or commercial review before approval.',
+      resolution: input.state === 'exception_review'
+        ? 'Portals is reviewing the flagged security, legal, or commercial terms. The pilot owner will be able to continue when review is complete.'
+        : 'The pilot owner must submit the flagged terms to Portals. Portals will review them before approval.',
       href: '#exceptions',
     })
   }

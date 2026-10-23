@@ -74,6 +74,11 @@ export type PilotRoomComparableTerms = {
   answers: PilotDirectAnswers
 }
 
+export function normalizePilotStartDate(value?: string | null): string | null {
+  if (!value) return null
+  return /^\d{4}-\d{2}-\d{2}T/.test(value) ? value.slice(0, 10) : value
+}
+
 /**
  * The room and API both use these paths to make a save a narrow operation.
  * Keeping this independent from the Automerge module also keeps WASM server-only.
@@ -83,7 +88,7 @@ export function changedPilotTermPaths(
   next: PilotRoomComparableTerms,
 ): string[] {
   const paths: string[] = []
-  if ((base.startDate || null) !== (next.startDate || null)) paths.push('startDate')
+  if (normalizePilotStartDate(base.startDate) !== normalizePilotStartDate(next.startDate)) paths.push('startDate')
 
   for (const field of PILOT_DIRECT_ANSWER_FIELDS) {
     if ((base.answers?.[field] || '') !== (next.answers?.[field] || '')) {

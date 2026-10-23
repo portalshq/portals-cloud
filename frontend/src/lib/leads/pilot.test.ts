@@ -172,6 +172,35 @@ test('commercial snapshot prices from the pilot spec amount and composes the ann
   assert.equal(snapshot.termStart, '2026-09-01')
   assert.equal(snapshot.termEnd, '2026-09-21')
   assert.ok(snapshot.creditDeadline && snapshot.creditDeadline > '2026-09-21')
+  assert.equal(snapshot.annualCreditAmount, 5000)
+  assert.equal(snapshot.annualOption?.periodLabel, '/month')
+  assert.equal(snapshot.annualOption?.annualTotal, 28800)
+  assert.equal(snapshot.annualOption?.billingTerms, 'Billed annually')
+  assert.match(snapshot.annualOption?.creditNote || '', /applied against the annual deployment/)
+})
+
+test('a live offer overrides the pilot base package in the commercial snapshot', () => {
+  const snapshot = buildCommercialSnapshot(
+    {...eligible, targetStartPeriod: 'asap'},
+    TEST_PACKAGE_SPECIFICATIONS,
+    {
+      startDate: '2026-09-01',
+      offer: {
+        _id: 'offer-1', _rev: 'rev-1', slug: 'fast-start', basePackageSlug: 'studio-pilot',
+        status: 'active', startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-10-01T00:00:00.000Z',
+        pilotPriceAmount: 3750, pilotPriceLabel: '$3,750', annualCreditAmount: 5000,
+        annualCreditLabel: '$5,000', pilotDurationDays: 21,
+        annualCreditRedemptionPolicy: 'standard-pilot-conversion-window',
+      },
+    },
+  )
+
+  assert.equal(snapshot.priceAmount, 3750)
+  assert.equal(snapshot.priceLabel, '$3,750')
+  assert.equal(snapshot.annualCreditAmount, 5000)
+  assert.equal(snapshot.offerVariantSlug, 'fast-start')
+  assert.equal(snapshot.annualCreditLabel, '$5,000')
+  assert.equal(snapshot.annualOption?.billingTerms, 'Billed annually')
 })
 
 test('unresolved items cover signer, start date, and annual acknowledgment', () => {
@@ -181,6 +210,14 @@ test('unresolved items cover signer, start date, and annual acknowledgment', () 
   assert.ok(keys.includes('start-date'))
   assert.ok(keys.includes('signer'))
   assert.ok(keys.includes('annual-ack'))
+  assert.equal(unresolved.find((item) => item.key === 'signer')?.href, '#signature')
+  assert.equal(unresolved.find((item) => item.key === 'start-date')?.href, '#pilot-start-date')
+  assert.equal(unresolved.find((item) => item.key === 'integration')?.href, '#integration-method')
+  assert.equal(unresolved.find((item) => item.key === 'classification')?.href, '#data-classification')
+  assert.equal(unresolved.find((item) => item.key === 'approval')?.href, '#approval-path')
+  assert.equal(unresolved.find((item) => item.key === 'annual')?.href, '#annual-deployment-option')
+  assert.equal(unresolved.find((item) => item.key === 'annual-ack')?.href, '#annual-price-acknowledgement')
+  assert.match(unresolved.find((item) => item.key === 'signer')?.resolution || '', /name and email in the signature section/)
 })
 
 test('a resolved configuration has no unresolved items', () => {
@@ -225,6 +262,50 @@ test('pilot progress includes pending reviewer approvals and lifecycle actions',
     })[0]?.key,
     'payment',
   )
+})
+
+test('signer exception is filtered out in non-signing states', () => {
+  const signerUnresolved = [{key: 'signer', label: 'Identify the authorized signer', resolution: 'Test', href: '#signature'}]
+  
+  // In reviewing state, signer exception should be filtered out
+  const reviewingState = computePilotProgressUnresolved({
+    state: 'reviewing',
+    version: 1,
+    unresolved: signerUnresolved,
+    exceptions: [],
+    reviewers: [],
+  })
+  assert.ok(!reviewingState.some((item) => item.key === 'signer'))
+
+  // In team_review state, signer exception should be filtered out
+  const teamReviewState = computePilotProgressUnresolved({
+    state: 'team_review',
+    version: 1,
+    unresolved: signerUnresolved,
+    exceptions: [],
+    reviewers: [],
+  })
+  assert.ok(!teamReviewState.some((item) => item.key === 'signer'))
+
+  // In ready_sign state, signer exception should be present
+  const readySignState = computePilotProgressUnresolved({
+    state: 'ready_sign',
+    version: 1,
+    unresolved: signerUnresolved,
+    exceptions: [],
+    reviewers: [],
+  })
+  assert.ok(readySignState.some((item) => item.key === 'signer'))
+
+  // In signed state, signer exception should be present
+  const signedState = computePilotProgressUnresolved({
+    state: 'signed',
+    version: 1,
+    unresolved: signerUnresolved,
+    exceptions: [],
+    reviewers: [],
+  })
+  assert.ok(signedState.some((item) => item.key === 'signer'))
 })
 
 test('dual-role reviewers have one consolidated pending item and satisfy every assigned role together', () => {

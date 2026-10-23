@@ -26,6 +26,7 @@ import {
   type StoredPilot,
 } from './store'
 import {TEST_PACKAGE_SPECIFICATIONS} from './test-package-specifications'
+import {commitPilotTermRevision, pilotMutableTermsFromState} from './pilot-room-revisions'
 
 const DISCLOSURE = '2026-08-01'
 
@@ -515,6 +516,102 @@ test('a dual-role reviewer keeps both memberships and one confirmation completes
   )
 })
 
+test('reviewer decisions acknowledge the invite; removed reviewers are rejected', async (t) => {
+  const ownerEmail = `review-state-owner-${crypto.randomUUID()}@studio.example`
+  const reviewerEmail = `review-state-reviewer-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+  const teamReviewPilot = await updatePilot(pilot.id, {state: 'team_review'})
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+  const ownerCookie = `portals_session=${ownerSession.sessionToken}`
+  const proposedReviewer = {
+    id: crypto.randomUUID(),
+    role: 'technical_evaluator' as const,
+    name: 'Reviewer',
+    email: reviewerEmail,
+    status: 'proposed' as const,
+    versionSeen: teamReviewPilot.version,
+    notes: [],
+  }
+  await updatePilot(teamReviewPilot.id, {reviewers: [proposedReviewer]})
+
+  // Acting inside the room is the invite acknowledgement: a proposed reviewer
+  // can be confirmed without a formal invitation being sent first.
+  const proposed = await patchPilot(teamReviewPilot.id, {
+    action: 'reviewer_decision',
+    reviewerId: proposedReviewer.id,
+    decision: 'confirm',
+    versionSeen: teamReviewPilot.version,
+  }, {cookie: ownerCookie})
+  assert.equal(proposed.status, 200)
+  const acknowledged = (await getPilotById(teamReviewPilot.id))!.reviewers.find(
+    (reviewer) => reviewer.id === proposedReviewer.id,
+  )
+  assert.ok(acknowledged)
+  assert.equal(acknowledged.status, 'reviewed')
+  assert.ok(acknowledged.invitedAt)
+  assert.ok(acknowledged.openedAt)
+  assert.ok(acknowledged.reviewedAt)
+
+  await patchPilot(teamReviewPilot.id, {
+    action: 'remove_reviewer',
+    reviewerId: proposedReviewer.id,
+  }, {cookie: ownerCookie})
+  const revoked = await patchPilot(teamReviewPilot.id, {
+    action: 'reviewer_decision',
+    reviewerId: proposedReviewer.id,
+    decision: 'confirm',
+    versionSeen: (await getPilotById(teamReviewPilot.id))!.version,
+  }, {cookie: ownerCookie})
+  assert.equal(revoked.status, 403)
+  assert.deepEqual(await revoked.json(), {
+    ok: false,
+    code: 'reviewer_revoked',
+    message: 'This reviewer was removed from the pilot. Contact the pilot owner to be re-invited.',
+  })
+})
+
+test('a room member confirms their seeded proposed review without an invitation', async (t) => {
+  const ownerEmail = `self-confirm-owner-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+
+  const created = await post(pilotBody(ownerEmail, {productionOwnerEmail: ownerEmail}))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+
+  const seeded = pilot.reviewers.find((reviewer) => reviewer.role === 'production_owner')
+  assert.ok(seeded)
+  assert.equal(seeded.status, 'proposed')
+  assert.equal(seeded.email.toLowerCase(), ownerEmail.toLowerCase())
+
+  const confirmation = await patchPilot(pilot.id, {
+    action: 'reviewer_decision',
+    reviewerId: seeded.id,
+    decision: 'confirm',
+    versionSeen: pilot.version,
+  }, {cookie: `portals_session=${ownerSession.sessionToken}`})
+  assert.equal(confirmation.status, 200)
+
+  const updated = await getPilotById(pilot.id)
+  assert.ok(updated)
+  const confirmed = updated.reviewers.find((reviewer) => reviewer.id === seeded.id)
+  assert.ok(confirmed)
+  assert.equal(confirmed.status, 'reviewed')
+  assert.ok(confirmed.invitedAt)
+  assert.ok(confirmed.openedAt)
+  assert.equal(confirmed.versionSeen, updated.version)
+})
+
 test('removing a reviewer revokes only the membership role no longer assigned', async (t) => {
   const ownerEmail = `remove-owner-${crypto.randomUUID()}@studio.example`
   const reviewerEmail = `remove-reviewer-${crypto.randomUUID()}@studio.example`
@@ -619,6 +716,50 @@ test('reviewer role additions stay proposed until an explicit invitation is sent
   assert.ok(reviewerUser)
   assert.deepEqual(await pilotMembershipRoles(teamReviewPilot.id, reviewerUser.id), ['participant'])
   assert.equal(fetches.filter((entry) => entry.body.to === reviewerEmail).length, 0)
+
+  const invitePerson = await patchPilot(teamReviewPilot.id, {
+    action: 'invite_reviewer',
+    invite: {role: 'economic_buyer', email: reviewerEmail},
+  }, {cookie: ownerCookie})
+  assert.equal(invitePerson.status, 200)
+  const invitedRoles = (await getPilotById(teamReviewPilot.id))!.reviewers.filter(
+    (candidate) => candidate.email === reviewerEmail,
+  )
+  assert.deepEqual(invitedRoles.map((candidate) => candidate.status), ['invited', 'invited'])
+})
+
+test('an existing pilot member with no reviewer role can be assigned one', async (t) => {
+  const ownerEmail = `roleless-owner-${crypto.randomUUID()}@studio.example`
+  const memberEmail = `roleless-member-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+  const teamReviewPilot = await updatePilot(pilot.id, {state: 'team_review'})
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+  const ownerCookie = `portals_session=${ownerSession.sessionToken}`
+  await invitePilotMember({pilotId: teamReviewPilot.id, email: memberEmail, role: 'participant'})
+
+  const added = await patchPilot(teamReviewPilot.id, {
+    action: 'reviewer_role',
+    email: memberEmail,
+    role: 'technical_evaluator',
+  }, {cookie: ownerCookie})
+  assert.equal(added.status, 200)
+  const assigned = (await getPilotById(teamReviewPilot.id))!.reviewers.find(
+    (reviewer) => reviewer.email === memberEmail && reviewer.role === 'technical_evaluator',
+  )
+  assert.equal(assigned?.status, 'proposed')
+
+  const outsider = await patchPilot(teamReviewPilot.id, {
+    action: 'reviewer_role',
+    email: `not-a-member-${crypto.randomUUID()}@studio.example`,
+    role: 'economic_buyer',
+  }, {cookie: ownerCookie})
+  assert.equal(outsider.status, 404)
 })
 
 test('reviewer invitation endpoints reject unknown roles', async (t) => {
@@ -781,6 +922,151 @@ test('members can submit a shared draft while only the owner advances the pilot'
   assert.equal(reloaded?.resolvedStartDate, '2026-10-01')
   assert.equal(reloaded?.revisions.at(-1)?.committedBy, participantEmail)
   assert.equal(reloaded?.revisions.at(-1)?.submittedBy, participantEmail)
+})
+
+test('choosing the current value resolves and clears a pilot draft conflict without a new revision', async (t) => {
+  const ownerEmail = `draft-conflict-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot: createdPilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(createdPilot)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+  const cookie = `portals_session=${ownerSession.sessionToken}`
+
+  const baseTerms = {...pilotMutableTermsFromState(createdPilot), startDate: '2026-10-23'}
+  const baseline = commitPilotTermRevision({pilot: createdPilot, nextTerms: baseTerms, actor: ownerEmail})
+  const baselinePilot = await updatePilot(createdPilot.id, {
+    version: baseline.version,
+    draft: baseline.draft,
+    revisions: baseline.revisions,
+    resolvedStartDate: baseTerms.startDate,
+  })
+
+  const draft = await patchPilot(baselinePilot.id, {
+    action: 'draft',
+    baseVersion: baselinePilot.version,
+    criteria: baselinePilot.successCriteria,
+    startDate: '2026-10-25',
+    fieldPaths: ['startDate'],
+  }, {cookie})
+  assert.equal(draft.status, 200)
+
+  const currentTerms = {...baseTerms, startDate: '2026-10-24'}
+  const currentRevision = commitPilotTermRevision({
+    pilot: (await getPilotById(baselinePilot.id))!,
+    nextTerms: currentTerms,
+    actor: 'concurrent-editor@studio.example',
+  })
+  await updatePilot(baselinePilot.id, {
+    version: currentRevision.version,
+    revisions: currentRevision.revisions,
+    resolvedStartDate: currentTerms.startDate,
+  })
+
+  const conflict = await patchPilot(baselinePilot.id, {
+    action: 'commit_draft',
+    criteria: baselinePilot.successCriteria,
+    startDate: '2026-10-25',
+    fieldPaths: ['startDate'],
+  }, {cookie})
+  assert.equal(conflict.status, 409)
+  assert.equal((await conflict.json()).conflicts[0].field, 'startDate')
+
+  const resolved = await patchPilot(baselinePilot.id, {
+    action: 'commit_draft',
+    criteria: baselinePilot.successCriteria,
+    startDate: '2026-10-24',
+    fieldPaths: ['startDate'],
+    resolutions: {startDate: 'current'},
+  }, {cookie})
+  assert.equal(resolved.status, 200)
+  const finalPilot = await getPilotById(baselinePilot.id)
+  assert.equal(finalPilot?.resolvedStartDate, '2026-10-24')
+  assert.equal(finalPilot?.version, currentRevision.version)
+  assert.deepEqual(finalPilot?.draft?.changes, [])
+})
+
+test('choosing your value commits the conflict and preserves other pilot edits', async (t) => {
+  const ownerEmail = `draft-conflict-mine-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot: createdPilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(createdPilot)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+  const cookie = `portals_session=${ownerSession.sessionToken}`
+
+  const baseTerms = {
+    ...pilotMutableTermsFromState(createdPilot),
+    startDate: '2026-10-23',
+    answers: {...pilotMutableTermsFromState(createdPilot).answers, productionOwnerEmail: ownerEmail},
+  }
+  const baseline = commitPilotTermRevision({pilot: createdPilot, nextTerms: baseTerms, actor: ownerEmail})
+  const baselinePilot = await updatePilot(createdPilot.id, {
+    version: baseline.version,
+    draft: baseline.draft,
+    revisions: baseline.revisions,
+    resolvedStartDate: baseTerms.startDate,
+    answers: {...createdPilot.answers, productionOwnerEmail: ownerEmail},
+  })
+
+  const mineTerms = {
+    ...baseTerms,
+    startDate: '2026-10-25',
+    answers: {...baseTerms.answers, productionOwnerEmail: 'updated-owner@studio.example'},
+  }
+  const draft = await patchPilot(baselinePilot.id, {
+    action: 'draft',
+    baseVersion: baselinePilot.version,
+    criteria: mineTerms.criteria,
+    startDate: mineTerms.startDate,
+    draftAnswers: mineTerms.answers,
+    fieldPaths: ['startDate', 'answers.productionOwnerEmail'],
+  }, {cookie})
+  assert.equal(draft.status, 200)
+
+  const currentTerms = {...baseTerms, startDate: '2026-10-24'}
+  const currentRevision = commitPilotTermRevision({
+    pilot: (await getPilotById(baselinePilot.id))!,
+    nextTerms: currentTerms,
+    actor: 'concurrent-editor@studio.example',
+  })
+  await updatePilot(baselinePilot.id, {
+    version: currentRevision.version,
+    revisions: currentRevision.revisions,
+    resolvedStartDate: currentTerms.startDate,
+  })
+
+  const conflict = await patchPilot(baselinePilot.id, {
+    action: 'commit_draft',
+    criteria: mineTerms.criteria,
+    startDate: mineTerms.startDate,
+    draftAnswers: mineTerms.answers,
+    fieldPaths: ['startDate', 'answers.productionOwnerEmail'],
+  }, {cookie})
+  assert.equal(conflict.status, 409)
+  assert.deepEqual((await conflict.json()).conflicts.map((item: {field: string}) => item.field), ['startDate'])
+
+  const resolved = await patchPilot(baselinePilot.id, {
+    action: 'commit_draft',
+    criteria: mineTerms.criteria,
+    startDate: mineTerms.startDate,
+    draftAnswers: mineTerms.answers,
+    fieldPaths: ['startDate', 'answers.productionOwnerEmail'],
+    resolutions: {startDate: 'mine'},
+  }, {cookie})
+  assert.equal(resolved.status, 200)
+
+  const finalPilot = await getPilotById(baselinePilot.id)
+  assert.equal(finalPilot?.resolvedStartDate, '2026-10-25')
+  assert.equal(finalPilot?.answers.productionOwnerEmail, 'updated-owner@studio.example')
+  assert.equal(finalPilot?.version, currentRevision.version + 1)
+  assert.deepEqual(finalPilot?.draft?.changes, [])
 })
 
 test('a disqualified pilot request is held for clarification', async (t) => {
@@ -955,6 +1241,51 @@ test('claimed returning emails and forged assessment identifiers cannot disclose
   const otherPilot = (await pilotForProfile(profileTokenFrom(other))).pilot!
   assert.equal(otherPilot.answers.assessmentSnapshot, undefined)
   assert.equal(otherPilot.answers.assessment_version, undefined)
+})
+
+test('unbound claimed-email assessments render results without binding the browser', async () => {
+  const email = `unbound-${crypto.randomUUID()}@studio.example`
+  const first = await post(diagnosticBody(email, {
+    ...highAssessment,
+    // A schema-allowed field that is neither a v4 question id nor a
+    // pilotAssessmentPrefill target, so it only survives via a proper
+    // prior-answers merge.
+    incidentDescription: 'historical-marker',
+  }))
+  assert.equal(first.status, 200)
+  const ownerToken = profileTokenFrom(first)
+
+  // A fresh browser claiming the same email gets its own results but is never
+  // bound to the stored profile: no token cookie is issued, the document
+  // download CTA (which requires the token) is omitted, and the claimed
+  // profile's identifiers are withheld so this browser cannot alias the
+  // owner's analytics identity.
+  const resumed = await post(diagnosticBody(email, vfxAssessment))
+  assert.equal(resumed.status, 200)
+  const resumedJson = await resumed.json()
+  assert.equal(resumedJson.ok, true)
+  assert.ok(resumedJson.diagnosticResult)
+  assert.equal(resumedJson.downloadUrl, undefined)
+  assert.equal(resumedJson.profileId, undefined)
+  assert.equal(resumedJson.analyticsPersonId, undefined)
+  assert.equal(
+    resumed.headers.getSetCookie().filter((c) => c.startsWith('portals_profile=')).length,
+    0,
+  )
+
+  // The owner's existing token still resolves and now holds the fresh
+  // diagnostic, matching re-assessment replacement semantics. Stored
+  // historical (non-question) fields survive the merge instead of being
+  // overwritten by the fresh diagnostic alone.
+  const profile = await getProfileByToken(ownerToken)
+  assert.ok(profile)
+  assert.equal(profile.qualification!.answers.production_type, 'vfx_animation_virtual_production')
+  assert.equal(profile.qualification!.answers.incidentDescription, 'historical-marker')
+
+  // Non-assessment submissions on a claimed email still require sign-in.
+  const rejected = await post(pilotBody(email))
+  assert.equal(rejected.status, 403)
+  assert.equal(rejected.headers.getSetCookie().length, 0)
 })
 
 test('a qualified assessment reaches accepted terms, simulated payment and activation through the API', async (t) => {

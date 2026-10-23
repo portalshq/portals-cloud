@@ -4,6 +4,7 @@ import {PilotApprovalRoom} from './PilotApprovalRoom'
 import {
   APP_SESSION_COOKIE,
   currentApplicationUser,
+  activePilotMemberEmails,
   pilotMembershipRole,
 } from '@/lib/leads/application-auth'
 import {pilotRoomPath} from '@/lib/leads/account-paths'
@@ -11,6 +12,7 @@ import {pilotTermsFromDraft} from '@/lib/leads/pilot-collaboration'
 import {pilotMutableTermsFromState} from '@/lib/leads/pilot-room-revisions'
 import {getPilotById} from '@/lib/leads/store'
 import {CTAButton} from '@/components/CTAButton'
+import {isPortalsTeamReviewerEmail} from '@/lib/leads/pilot-team-reviewer'
 
 function normalizeDates<T>(value: T): T {
   if (value instanceof Date) return value.toISOString() as T
@@ -27,12 +29,25 @@ function StaticPilotRoomBackground() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0"
-      style={{
-        backgroundImage:
-          'linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
-      }}
-    />
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
+        }}
+      />
+      <svg className="absolute inset-0 h-full w-full opacity-30 mix-blend-soft-light" aria-hidden="true" preserveAspectRatio="none">
+        <defs>
+          <filter id="pilot-room-noise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.003" numOctaves="3" seed="8" stitchTiles="stitch" />
+            <feColorMatrix type="saturate" values="0" />
+          </filter>
+        </defs>
+        <rect width="100%" height="100%" filter="url(#pilot-room-noise)" />
+      </svg>
+    </div>
   )
 }
 
@@ -56,6 +71,7 @@ export async function PilotRoomRoute({
   const accessRole = pilot?.customerAccountId === accountId
     ? await pilotMembershipRole(pilot.id, user.id)
     : null
+  const memberEmails = pilot ? await activePilotMemberEmails(pilot.id) : []
   const draftTerms = pilot
     ? pilotTermsFromDraft(pilot.draft, pilotMutableTermsFromState(pilot))
     : undefined
@@ -100,6 +116,10 @@ export async function PilotRoomRoute({
             draftTerms={draftTerms}
             accessRole={accessRole}
             userEmail={user.email}
+            memberEmails={memberEmails}
+            portalsTeamEmails={memberEmails.filter((email) =>
+              isPortalsTeamReviewerEmail(email, process.env.LEADS_NOTIFICATION_EMAIL || ''),
+            )}
             sessionId={sessionId}
             revisePath={roomPath}
             founderAccess={

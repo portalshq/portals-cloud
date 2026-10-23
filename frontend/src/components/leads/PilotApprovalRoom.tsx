@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type MouseEvent as ReactMouseEvent, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -16,12 +16,14 @@ import {
   X,
 } from 'lucide-react'
 import { RoomCheckbox, RoomSelectField, RoomTextField, RoomTextareaField } from '@/components/mui/fields'
+import { SmoothAnchor } from '@/components/SmoothAnchor'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PilotApprovalRoomTour } from './PilotApprovalRoomTour'
 import type { SuccessCriterion } from '@/lib/leads/contracts'
 import type { ConflictResolution, PilotDraftConflict } from '@/lib/leads/pilot-collaboration-types'
 import {
   changedPilotTermPaths,
+  normalizePilotStartDate,
   pilotDirectAnswersFrom,
   type PilotDirectAnswers,
 } from '@/lib/leads/pilot-room-fields'
@@ -38,6 +40,7 @@ import {
 } from '@/lib/leads/pilot'
 import type { StoredPilot } from '@/lib/leads/store'
 import { trackEvent } from '@/lib/leads/analytics-client'
+import { PORTALS_TEAM_REVIEWER_LABEL, PORTALS_TEAM_REVIEWER_ROLE } from '@/lib/leads/pilot-team-reviewer'
 import { formatReadableDate } from '@/lib/utils'
 import { CTAButton } from '../CTAButton'
 import { Badge } from '../ui/badge'
@@ -95,7 +98,7 @@ function reviewerStatusView(reviewer: Reviewer | undefined): ReviewerStatusView 
 
 function termsFromPilot(pilot: StoredPilot): RoomTerms {
   return {
-    startDate: pilot.resolvedStartDate || null,
+    startDate: normalizePilotStartDate(pilot.resolvedStartDate),
     criteria: pilot.successCriteria.map((criterion) => ({ ...criterion })),
     answers: pilotDirectAnswersFrom(pilot.answers as Record<string, unknown>),
   }
@@ -136,10 +139,38 @@ function changedCount(base: RoomTerms, current: RoomTerms): number {
   return changedPilotTermPaths(base, current).length
 }
 
+function termsWithConflictValue(terms: RoomTerms, field: string, value: unknown): RoomTerms {
+  if (field === 'startDate') {
+    return {...terms, startDate: normalizePilotStartDate(value ? String(value) : null)}
+  }
+  const answer = field.match(/^answers\.([A-Za-z0-9_]+)$/)
+  if (answer) {
+    return {
+      ...terms,
+      answers: {...terms.answers, [answer[1]]: String(value || '')},
+    }
+  }
+  const removal = field.match(/^criteria\.([^.]+)\.__removed$/)
+  if (removal && value) {
+    return {...terms, criteria: terms.criteria.filter((criterion) => criterion.key !== removal[1])}
+  }
+  const match = field.match(/^criteria\.([^.]+)\.(status|target|participant|evidence)$/)
+  if (!match) return terms
+  const [, key, property] = match
+  return {
+    ...terms,
+    criteria: terms.criteria.map((criterion) =>
+      criterion.key === key
+        ? {...criterion, [property]: property === 'status' ? value : String(value || '')}
+        : criterion,
+    ),
+  }
+}
+
 function toneClasses(tone: ReviewerStatusView['tone']) {
   if (tone === 'ok') return 'text-white'
   if (tone === 'warn') return 'text-white'
-  return 'text-white/60'
+  return 'text-white/80'
 }
 
 function hashSectionId(hash: string) {
@@ -175,20 +206,24 @@ function SectionShell({
   const [open, setOpen] = useState(true)
   useEffect(() => {
     const openLinkedSection = () => {
-      if (hashSectionId(window.location.hash) === id) {
+      const targetId = hashSectionId(window.location.hash)
+      const target = document.getElementById(targetId)
+      const targetSection = target?.closest<HTMLElement>('section[id]')
+      if (targetId === id || targetSection?.id === id) {
         setOpen(true)
-        // Smooth scroll to the section when hash changes
-        const element = document.getElementById(id)
-        if (element && !reducedMotion) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        const linkedElement = target || document.getElementById(id)
+        if (linkedElement && !reducedMotion) {
+          window.setTimeout(() => linkedElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), 140)
         }
       }
     }
 
     openLinkedSection()
     window.addEventListener('hashchange', openLinkedSection)
+    window.addEventListener('popstate', openLinkedSection)
     return () => {
       window.removeEventListener('hashchange', openLinkedSection)
+      window.removeEventListener('popstate', openLinkedSection)
     }
   }, [id])
 
@@ -271,6 +306,8 @@ export function PilotApprovalRoom({
   draftTerms,
   accessRole,
   userEmail,
+  memberEmails: initialMemberEmails,
+  portalsTeamEmails = [],
   sessionId,
   revisePath,
   founderAccess = false,
@@ -281,6 +318,8 @@ export function PilotApprovalRoom({
   draftTerms?: RoomTerms
   accessRole: 'owner' | 'participant' | 'approver' | 'signer'
   userEmail: string
+  memberEmails: string[]
+  portalsTeamEmails?: string[]
   sessionId?: string
   revisePath: string
   founderAccess?: boolean
@@ -288,13 +327,16 @@ export function PilotApprovalRoom({
   kickoffAvailability?: Array<{ date: string; label: string; timezone: string; version: string }>
 }) {
   const committedTerms = termsFromPilot(initial)
-  const initialDraftTerms = draftTerms || committedTerms
+  const initialDraftTerms = {
+    ...(draftTerms || committedTerms),
+    startDate: normalizePilotStartDate((draftTerms || committedTerms).startDate),
+  }
   const [pilot, setPilot] = useState(initial)
   const [baseTerms, setBaseTerms] = useState<RoomTerms>(committedTerms)
   const [draftBaseTerms, setDraftBaseTerms] = useState<RoomTerms>(initialDraftTerms)
   const [baseVersion, setBaseVersion] = useState(initial.version)
   const [criteria, setCriteria] = useState(initialDraftTerms.criteria)
-  const [startDate, setStartDate] = useState(initialDraftTerms.startDate || '')
+  const [startDate, setStartDate] = useState(normalizePilotStartDate(initialDraftTerms.startDate) || '')
   const [draftAnswers, setDraftAnswers] = useState<PilotDirectAnswers>(initialDraftTerms.answers)
   const [signerName, setSignerName] = useState(String(initial.answers.signerName || ''))
   const [signerEmail, setSignerEmail] = useState(String(initial.answers.signerEmail || ''))
@@ -311,11 +353,15 @@ export function PilotApprovalRoom({
   const [draftRole, setDraftRole] = useState<ReviewerRole>('technical_evaluator')
   const [draftName, setDraftName] = useState('')
   const [draftReviewerEmail, setDraftReviewerEmail] = useState('')
-  const [reviewerEmailDrafts, setReviewerEmailDrafts] = useState<Record<string, string>>({})
   const [myNote, setMyNote] = useState('')
   const [openRequest, setOpenRequest] = useState<string | null>(null)
   const [requestText, setRequestText] = useState<Record<string, string>>({})
   const [reviewerToRemove, setReviewerToRemove] = useState<Reviewer | null>(null)
+  const [memberEmails, setMemberEmails] = useState(initialMemberEmails.map((email) => email.trim().toLowerCase()))
+  const [roleEditor, setRoleEditor] = useState<string | null>(null)
+  const [roleToAdd, setRoleToAdd] = useState<ReviewerRole>('technical_evaluator')
+  const pageContentRef = useRef<HTMLDivElement>(null)
+  const actionsRef = useRef<HTMLDivElement>(null)
 
   const editable = EDITABLE_STATES.includes(pilot.state)
   const canEditDraft = editable
@@ -327,7 +373,7 @@ export function PilotApprovalRoom({
   const reviewers = pilot.reviewers
   const currentTerms: RoomTerms = useMemo(
     () => ({
-      startDate: startDate || null,
+      startDate: normalizePilotStartDate(startDate),
       criteria,
       answers: draftAnswers,
     }),
@@ -352,6 +398,9 @@ export function PilotApprovalRoom({
   )
   const pendingExceptionReview = hasPendingMaterialException(pilot.exceptions)
   const myReviewer = highestPrivilegeReviewer(myReviewers)
+  const isMyReviewPending =
+    !!myReviewer &&
+    (myReviewer.status !== 'reviewed' || myReviewer.versionSeen < pilot.version)
   const myReviewerRoleLabels = myReviewers
     .map((reviewer) => reviewerRoleLabel(reviewer.role).toLowerCase())
     .join(' + ')
@@ -370,6 +419,49 @@ export function PilotApprovalRoom({
       }),
     [pilot],
   )
+
+  useLayoutEffect(() => {
+    const content = pageContentRef.current
+    const actions = actionsRef.current
+    if (!content || !actions) return
+
+    const updateBottomPadding = () => {
+      content.style.paddingBottom = `${actions.getBoundingClientRect().height + 16}px`
+    }
+    const observer = new ResizeObserver(updateBottomPadding)
+    observer.observe(actions)
+    updateBottomPadding()
+    return () => observer.disconnect()
+  }, [])
+
+  function handlePilotAnchorClick(event: ReactMouseEvent<HTMLAnchorElement>) {
+    const anchor = event.currentTarget
+    const targetId = hashSectionId(anchor.hash)
+    if (!targetId) return
+    const target = document.getElementById(targetId)
+    if (!target) return
+
+    if (anchor.hash !== window.location.hash) {
+      window.history.pushState(null, '', `${window.location.pathname}${window.location.search}${anchor.hash}`)
+    }
+
+    const section = target.closest<HTMLElement>('section[id]')
+    const toggle = section?.querySelector<HTMLButtonElement>(
+      `button[aria-controls="${section.id}-content"]`,
+    )
+    const sectionWasClosed = toggle?.getAttribute('aria-expanded') === 'false'
+    if (sectionWasClosed) toggle.click()
+
+    // SmoothAnchor handles the normal case with the shared site behavior. A
+    // collapsed section needs a second scroll after its content is mounted.
+    if (sectionWasClosed) {
+      window.setTimeout(() => {
+        window.requestAnimationFrame(() => {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        })
+      }, 140)
+    }
+  }
 
   useEffect(() => {
     void trackEvent('pilot_room_entered', {assessment_version: answers.assessment_version})
@@ -464,9 +556,11 @@ export function PilotApprovalRoom({
         ok: boolean
         pilot?: StoredPilot
         draftTerms?: RoomTerms
+        memberEmails?: string[]
       }
       if (response.ok && json.ok && json.pilot) {
         setPilot(json.pilot)
+        if (json.memberEmails) setMemberEmails(json.memberEmails.map((email) => email.trim().toLowerCase()))
         if (
           generation === localDraftGenerationRef.current &&
           !hasLocalDraftChangesRef.current
@@ -490,7 +584,7 @@ export function PilotApprovalRoom({
     setDraftBaseTerms(draft)
     setBaseVersion(nextPilot.version)
     setCriteria(draft.criteria)
-    setStartDate(draft.startDate || '')
+    setStartDate(normalizePilotStartDate(draft.startDate) || '')
     setDraftAnswers(draft.answers)
     setConflicts([])
     setResolutions({})
@@ -528,6 +622,7 @@ export function PilotApprovalRoom({
         message?: string
         pilot?: StoredPilot
         draftTerms?: RoomTerms
+        noOp?: boolean
         conflicts?: PilotDraftConflict[]
         unresolved?: Array<{ key: string; label: string; resolution: string }>
       }
@@ -540,7 +635,10 @@ export function PilotApprovalRoom({
           throw new Error('Resolve the highlighted conflict before saving.')
         }
         const detail = json.unresolved?.map((item) => `- ${item.label}`).join('\n')
-        throw new Error(detail ? `resolve the highlighted items first:\n${detail}` : (json.message || 'could not update the pilot room'))
+        const reviewerStateMessage = json.code === 'reviewer_revoked'
+          ? 'This reviewer was removed from the pilot. Contact the pilot owner to be re-invited.'
+          : null
+        throw new Error(reviewerStateMessage || (detail ? `resolve the highlighted items first:\n${detail}` : (json.message || 'could not update the pilot room')))
       }
       if (json.pilot) {
         setPilot(json.pilot)
@@ -555,6 +653,11 @@ export function PilotApprovalRoom({
         if (opts.sync) syncFromPilot(json.pilot)
       }
       if (body.action === 'confirm_scope') void trackEvent('pilot_scope_confirmed', {pilot_state: json.pilot?.state})
+      if (body.action === 'commit_draft') {
+        setNotice(json.noOp
+          ? 'The current pilot values are already in effect. No new revision was needed.'
+          : 'Your changes have been saved.')
+      }
       if (body.action === 'sign' && json.pilot?.state === 'signed') void trackEvent('pilot_approved', {pilot_state: 'signed'})
       if (body.action === 'section_change_request' || (body.action === 'reviewer_decision' && body.decision === 'changes')) void trackEvent('pilot_terms_adjustment_requested', {pilot_state: json.pilot?.state})
       if (body.action === 'request_exception') void trackEvent('pilot_assisted_review_requested', {pilot_state: json.pilot?.state})
@@ -593,11 +696,11 @@ export function PilotApprovalRoom({
     }
   }
 
-  async function onSave(extraResolutions = resolutions) {
+  async function onSave(extraResolutions = resolutions, terms = currentTerms, resolvedField?: string) {
     if (canCommitDraft) {
-      if (await patch({ action: 'commit_draft', ...saveFields(), resolutions: extraResolutions }, { sync: true })) {
-        setNotice('Your changes have been saved as the latest pilot revision.')
-      }
+      const fields = saveFields(terms)
+      if (resolvedField) fields.fieldPaths = [...new Set([...fields.fieldPaths, resolvedField])]
+      await patch({ action: 'commit_draft', ...fields, resolutions: extraResolutions }, { sync: true })
       return
     }
   }
@@ -633,17 +736,15 @@ export function PilotApprovalRoom({
     }
   }
 
-  async function onInvite(reviewer: Reviewer, email = reviewer.email) {
+  async function onInvite(reviewer: Reviewer) {
+    const email = reviewer.email.trim()
+    if (!email) return
     if (await patch({
       action: 'invite_reviewer',
       invite: { role: reviewer.role, email, name: reviewer.name, reviewerId: reviewer.id },
     })) {
       setNotice(`Invitation sent to ${email}. They can access the room using the link in the email.`)
-      setReviewerEmailDrafts((current) => {
-        const next = { ...current }
-        delete next[reviewer.id]
-        return next
-      })
+      setMemberEmails((current) => current.includes(email.trim().toLowerCase()) ? current : [...current, email.trim().toLowerCase()])
     }
   }
 
@@ -655,6 +756,7 @@ export function PilotApprovalRoom({
         reviewer.status === 'proposed' &&
         email &&
         reviewer.role !== 'signer' &&
+        !portalsTeamEmails.includes(email) &&
         !pendingByEmail.has(email)
       ) {
         pendingByEmail.set(email, reviewer)
@@ -672,6 +774,7 @@ export function PilotApprovalRoom({
       })
       if (!ok) return
     }
+    setMemberEmails((current) => [...new Set([...current, ...invitations.map((reviewer) => reviewer.email.trim().toLowerCase())])])
     setNotice(`Invitations sent to ${invitations.length} reviewer${invitations.length === 1 ? '' : 's'}. They can access the room using the link in the email.`)
   }
 
@@ -685,6 +788,7 @@ export function PilotApprovalRoom({
       invite: { role: draftRole, email: draftReviewerEmail.trim(), name: draftName.trim() || undefined },
     })) {
       setNotice(`Invitation sent to ${draftReviewerEmail.trim()}. They can access the room using the link in the email.`)
+      setMemberEmails((current) => current.includes(draftReviewerEmail.trim().toLowerCase()) ? current : [...current, draftReviewerEmail.trim().toLowerCase()])
       setDraftName('')
       setDraftReviewerEmail('')
     }
@@ -698,6 +802,13 @@ export function PilotApprovalRoom({
     if (!reviewerToRemove) return
     if (await patch({ action: 'remove_reviewer', reviewerId: reviewerToRemove.id })) {
       setNotice(`${reviewerToRemove.email} removed from the room.`)
+      const hasAnotherActiveRole = reviewers.some(
+        (reviewer) => reviewer.email.trim().toLowerCase() === reviewerToRemove.email.trim().toLowerCase() &&
+          reviewer.id !== reviewerToRemove.id && reviewer.status !== 'revoked',
+      )
+      if (!hasAnotherActiveRole) {
+        setMemberEmails((current) => current.filter((email) => email !== reviewerToRemove.email.trim().toLowerCase()))
+      }
     }
     setReviewerToRemove(null)
   }
@@ -705,6 +816,14 @@ export function PilotApprovalRoom({
   async function onChangeRole(reviewer: Reviewer, role: ReviewerRole) {
     if (await patch({ action: 'reviewer_role', reviewerId: reviewer.id, role })) {
       setNotice(`${reviewer.email} has been added as ${reviewerRoleLabel(role).toLowerCase()}. Send an invitation when ready.`)
+      setRoleEditor(null)
+    }
+  }
+
+  async function onAddMemberRole(email: string, role: ReviewerRole) {
+    if (await patch({ action: 'reviewer_role', email, role })) {
+      setNotice(`${email} has been added as ${reviewerRoleLabel(role).toLowerCase()}. Send an invitation when ready.`)
+      setRoleEditor(null)
     }
   }
 
@@ -882,39 +1001,13 @@ export function PilotApprovalRoom({
     }
   }
 
-  function setConflictField(field: string, value: unknown) {
-    if (field === 'startDate') setStartDate(value ? String(value) : '')
-    const answer = field.match(/^answers\.([A-Za-z0-9_]+)$/)
-    if (answer) {
-      setDraftAnswers((current) => ({ ...current, [answer[1]]: String(value || '') }))
-      return
-    }
-    const removal = field.match(/^criteria\.([^.]+)\.__removed$/)
-    if (removal && value) {
-      setCriteria((current) => current.filter((criterion) => criterion.key !== removal[1]))
-      return
-    }
-    const match = field.match(/^criteria\.([^.]+)\.(status|target|participant|evidence)$/)
-    if (!match) return
-    const [, key, property] = match
-    setCriteria((current) =>
-      current.map((criterion) =>
-        criterion.key === key
-          ? { ...criterion, [property]: property === 'status' ? value : String(value || '') }
-          : criterion,
-      ),
-    )
-  }
-
   async function resolveConflict(conflict: PilotDraftConflict, resolution: ConflictResolution) {
     const nextResolutions = { ...resolutions, [conflict.field]: resolution }
     setResolutions(nextResolutions)
-    setConflicts((current) => current.filter((item) => item.field !== conflict.field))
-    if (resolution === 'current') {
-      setConflictField(conflict.field, conflict.currentValue)
-      return
-    }
-    await onSave(nextResolutions)
+    const terms = resolution === 'current'
+      ? termsWithConflictValue(currentTermsRef.current, conflict.field, conflict.currentValue)
+      : currentTermsRef.current
+    await onSave(nextResolutions, terms, conflict.field)
   }
 
   function requestAction(section: string) {
@@ -934,7 +1027,7 @@ export function PilotApprovalRoom({
     if (openRequest !== section) return null
     return (
       <div className="mt-14 grid gap-10 border border-white/80 bg-white/10 p-14">
-        <label className="t-p-sm-sans text-white/60">
+        <label className="t-p-sm-sans text-white">
           Requested change for {section}
           <RoomTextareaField
             className="mt-6"
@@ -992,6 +1085,14 @@ export function PilotApprovalRoom({
         <button onClick={() => void onResolveExceptions()} disabled={busy} className={accentButtonClasses}>
           <Check aria-hidden="true" size={16} strokeWidth={1.8} />
           Resolve review
+        </button>
+      )
+    }
+    if (isMyReviewPending && !['signed', 'paid', 'launch', 'active'].includes(pilot.state)) {
+      return (
+        <button onClick={() => void onReviewerDecision('confirm')} disabled={busy || hasUnsavedChanges} className={accentButtonClasses}>
+          <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
+          Confirm terms
         </button>
       )
     }
@@ -1069,10 +1170,10 @@ export function PilotApprovalRoom({
   return (
     <>
       <TooltipProvider>
-        <div className="min-w-0 max-w-full pb-[14rem] [overflow-wrap:anywhere] lg:pb-32">
+        <div ref={pageContentRef} className="min-w-0 max-w-full [overflow-wrap:anywhere]">
 
       <div className="z-20 mt-20">
-        <div className="grid gap-8 lg:items-start">
+        <div className="grid gap-8 lg:items-start mb-20">
 
             <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-12 gap-y-4">
               <h1 className="mt-6 t-h3-sans lowercase">{stateLabel(pilot.state)}</h1>
@@ -1093,10 +1194,6 @@ export function PilotApprovalRoom({
             <p className="max-w-[42rem] t-p-sm-sans">
               Review the pilot scope, success criteria, security posture, and commercial terms. Make changes, save them, then approve the pilot when everything is correct.
             </p>
-            
-            {globalWorkflowAction ? (
-              <div className="flex flex-wrap gap-8 lg:justify-items-end">{globalWorkflowAction}</div>
-            ) : null}
         </div>
       </div>
 
@@ -1104,7 +1201,7 @@ export function PilotApprovalRoom({
         pilot.state === 'paid' || (pilot.state === 'launch' && pilot.payment?.paidAt) ? (
           <div className="mt-24 bg-white/10 rounded-sm px-18 py-16" role="status">
             <p className="t-p-sm-sans font-medium">Thank you — payment received.</p>
-            <p className="mt-8 t-p-sm-sans text-white/60">Your pilot is confirmed. Schedule your launch below to keep production on track.</p>
+            <p className="mt-8 t-p-sm-sans text-white">Your pilot is confirmed. Schedule your launch below to keep production on track.</p>
           </div>
         ) : null
       }
@@ -1134,37 +1231,6 @@ export function PilotApprovalRoom({
         ) : null
       }
 
-      <div
-            id="pilot-actions"
-            className="fixed inset-x-0 mt-24 bottom-0 z-20 space-y-12 rounded-t-[2em] border-t lg:border-none bg-[#07112C] px-24 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-16 lowercase md:rounded lg:sticky lg:inset-x-auto lg:top-0 lg:bottom-auto lg:pb-24"
-            style={{
-              backgroundImage:
-                'linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
-              backgroundAttachment: 'fixed',
-            }}
-          >
-            <div className="flex items-center gap-8">
-              <StatusPill>{routeBadge}</StatusPill>
-              <StatusPill>
-                {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
-              </StatusPill>
-            </div>
-            <div className="flex items-center gap-8">
-              {canEditDraft ? (
-                <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={`${primaryButtonClasses} w-full sm:w-auto`}>
-                  <Save aria-hidden="true" size={16} strokeWidth={1.8} />
-                  Submit changes
-                </button>
-              ) : null}
-              {myReviewer ? (
-                <button onClick={() => void onReviewerDecision('confirm')} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} w-full sm:w-auto`}>
-                  <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
-                  Confirm terms
-                </button>
-              ) : null}
-            </div>
-          </div>
-
       {
         progressUnresolved.length > 0 ? (
           <div className="mt-24 rounded border border-white/80 bg-white/10 backdrop-blur-[20px] px-18 py-16">
@@ -1172,24 +1238,14 @@ export function PilotApprovalRoom({
             <ul className="mt-12 grid gap-10">
               {progressUnresolved.map((item) => (
                 <li key={item.key} className="t-p-sm-sans">
-                  <a
+                  <SmoothAnchor
                     href={item.href}
                     className="inline underline decoration-2 underline-offset-4"
-                    onClick={(event) => {
-                      const hash = item.href.includes('#') ? item.href.split('#')[1] : null
-                      if (hash) {
-                        event.preventDefault()
-                        const element = document.getElementById(hash)
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                          window.history.pushState(null, '', item.href)
-                        }
-                      }
-                    }}
+                    onClick={handlePilotAnchorClick}
                   >
                     {item.label}
-                  </a>
-                  {/* {item.resolution} */}
+                  </SmoothAnchor>
+                  <span className="mt-4 block">{item.resolution}</span>
                 </li>
               ))}
             </ul>
@@ -1200,21 +1256,27 @@ export function PilotApprovalRoom({
       {
         pilot.exceptions.length > 0 ? (
           <div id="exceptions" className="mt-24 bg-white/10 rounded-sm px-18 py-16" style={{ scrollMarginTop: '140px' }}>
-            <p className="t-p-sm-sans">These terms require Portals review before the pilot can be approved:</p>
+            <p className="t-p-sm-sans">These terms need review before the pilot can be approved.</p>
             <ul className="mt-12 grid gap-24">
               {pilot.exceptions.map((item, index) => (
                 <li key={item.kind + index} className="grid gap-4 t-p-sm-sans">
                   <span className='text-white'>{item.amendment}</span>
                   <span>{item.summary}</span>
-                  {item.resolvedAt ? <span>Resolved</span> : null}
+                  {item.resolvedAt ? <span>Review complete</span> : null}
                 </li>
               ))}
             </ul>
             {canCommitDraft && pendingExceptionReview && pilot.state !== 'exception_review' ? (
-              <button onClick={() => void onSubmitForPortalsReview()} disabled={busy || hasUnsavedChanges} className={`${primaryButtonClasses} mt-14`}>
+              <button onClick={() => void onSubmitForPortalsReview()} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} mt-14`}>
                 Submit for Portals review
                 <Send aria-hidden="true" size={16} strokeWidth={1.8} />
               </button>
+            ) : null}
+            {pendingExceptionReview && pilot.state === 'exception_review' ? (
+              <p className="mt-12 t-p-sm-sans">Portals is reviewing these terms. The pilot owner can continue after the review is resolved.</p>
+            ) : null}
+            {pendingExceptionReview && hasUnsavedChanges ? (
+              <p className="mt-12 t-p-sm-sans">Save your changes before submitting these terms for Portals review.</p>
             ) : null}
           </div>
         ) : null
@@ -1261,34 +1323,15 @@ export function PilotApprovalRoom({
                     <p className="mt-4 t-p-sm-sans">Your change: {String(conflict.mineValue || '-')}</p>
                   </div>
                   <div className="flex flex-wrap gap-8 md:justify-end">
-                    <button type="button" className={plainButtonClasses} onClick={() => void resolveConflict(conflict, 'current')}>
+                    <button type="button" className={plainButtonClasses} disabled={busy} onClick={() => void resolveConflict(conflict, 'current')}>
                       Use current
                     </button>
-                    <button type="button" className={primaryButtonClasses} onClick={() => void resolveConflict(conflict, 'mine')}>
+                    <button type="button" className={primaryButtonClasses} disabled={busy} onClick={() => void resolveConflict(conflict, 'mine')}>
                       Use mine
                     </button>
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        ) : null
-      }
-
-      {
-        reviewerToRemove ? (
-          <div className="mt-24 bg-white/10 rounded-sm px-18 py-16" role="alertdialog" aria-modal="true" aria-labelledby="remove-reviewer-title">
-            <p id="remove-reviewer-title" className="t-p-sm-sans font-medium">Remove reviewer</p>
-            <p className="mt-8 t-p-sm-sans">
-              Are you sure you want to remove {reviewerToRemove.name || reviewerToRemove.email} from the room? This action cannot be undone.
-            </p>
-            <div className="mt-14 flex flex-wrap gap-8">
-              <button onClick={() => void confirmRemoveReviewer()} disabled={busy} className={primaryButtonClasses}>
-                Yes, remove
-              </button>
-              <button onClick={() => setReviewerToRemove(null)} disabled={busy} className={plainButtonClasses}>
-                Cancel
-              </button>
             </div>
           </div>
         ) : null
@@ -1310,14 +1353,15 @@ export function PilotApprovalRoom({
           <div><dt className="text-white/80">Technical evaluator</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.technicalEvaluator || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, technicalEvaluator: event.target.value }))} /> : String(answers.technicalEvaluator || '-')}</dd></div>
           <div><dt className="text-white/80">Historical projects</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.historicalProject || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, historicalProject: event.target.value }))} /> : String(answers.historicalProject || '-')}</dd></div>
           <div><dt className="text-white/80">Participants</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.participantsRange || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, participantsRange: event.target.value }))} /> : String(answers.participantsRange || '-')}</dd></div>
-          <div><dt className="text-white/80">Integration method</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.integrationMethod || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, integrationMethod: event.target.value }))} /> : String(answers.integrationMethod || '-')}</dd></div>
-          <div><dt className="text-white/80">Data classification</dt><dd className="mt-2">{String(answers.dataClassification || '-')}</dd></div>
-          <div>
+          <div id="integration-method" className="scroll-mt-36"><dt className="text-white/80">Integration method</dt><dd className="mt-2">{canEditDraft ? <RoomTextField value={String(answers.integrationMethod || '')} onChange={(event) => setDraftAnswers((current) => ({ ...current, integrationMethod: event.target.value }))} /> : String(answers.integrationMethod || '-')}</dd></div>
+          <div id="data-classification" className="scroll-mt-36"><dt className="text-white/80">Data classification</dt><dd className="mt-2">{String(answers.dataClassification || '-')}</dd></div>
+          <div id="approval-path" className="scroll-mt-36"><dt className="text-white/80">Approval path</dt><dd className="mt-2">{String(answers.approvalPath || '-')}</dd></div>
+          <div id="approver-email" className="scroll-mt-36"><dt className="text-white/80">Approver email</dt><dd className="mt-2">{String(answers.approverEmail || 'Not provided')}</dd></div>
+          <div id="pilot-start-date" className="scroll-mt-36">
             <dt className="text-white/80">Pilot start date</dt>
             <dd className="mt-2">
               {canEditDraft ? (
                 <RoomTextField
-                  id='pilot-start-date'
                   type="date"
                   value={startDate}
                   onChange={(event) => setStartDate(event.target.value)}
@@ -1352,11 +1396,11 @@ export function PilotApprovalRoom({
               <div><dt className="text-white/80">Pilot fee credited toward annual plan</dt><dd className="mt-2">{formatCommercialAmount(pilot.proposal.annualCreditAmount ?? pilot.proposal.priceAmount, pilot.proposal.currency)}{pilot.proposal.creditDeadline ? ` when the annual order form is signed by ${formatCommercialDate(pilot.proposal.creditDeadline)}` : ''}.</dd></div>
             ) : null}
             {pilot.proposal.annualOption ? (
-              <div>
+              <div id="annual-deployment-option" className="scroll-mt-36">
                 <dt className="text-white/80">Annual plan</dt>
                 <dd className="mt-2">{pilot.proposal.annualOption.name}</dd>
                 <dl className="mt-12 grid gap-10 border-l border-white/30 pl-14">
-                  <div><dt className="text-white/80">Monthly subscription rate</dt><dd className="mt-2">{pilot.proposal.annualOption.priceLabel} per month (billed annually)</dd></div>
+                  <div id="annual-price-acknowledgement" className="scroll-mt-36"><dt className="text-white/80">Monthly subscription rate</dt><dd className="mt-2">{pilot.proposal.annualOption.priceLabel} per month (billed annually)</dd></div>
                   <div>
                     <dt className="text-white/80">Annual contract total</dt>
                     <dd className="mt-2">{pilot.proposal.annualOption.annualTotal === null
@@ -1366,7 +1410,8 @@ export function PilotApprovalRoom({
                   <div><dt className="text-white/80">Annual plan setup fee</dt><dd className="mt-2">{pilot.proposal.annualOption.onboardingFee ? `${formatCommercialAmount(pilot.proposal.annualOption.onboardingFee, pilot.proposal.annualOption.currency)}, due at account creation.` : 'None.'}</dd></div>
                 </dl>
               </div>
-            ) : <div><dt className="text-white/80">Annual plan</dt><dd className="mt-2">Not selected.</dd></div>}
+            ) : <div id="annual-deployment-option" className="scroll-mt-36"><dt className="text-white/80">Annual plan</dt><dd className="mt-2">Not selected.</dd></div>}
+            {!pilot.proposal.annualOption ? <div id="annual-price-acknowledgement" className="scroll-mt-36"><dt className="text-white/80">Annual price acknowledgement</dt><dd className="mt-2">{answers.annualPriceAcknowledged ? 'Acknowledged' : 'Not yet acknowledged'}</dd></div> : null}
             {pilot.payment?.invoiceId ? <div><dt className="text-white/80">Invoice</dt><dd className="mt-2"><a className="underline" href={String(pilot.payment.hostedInvoiceUrl || '#')} target="_blank" rel="noreferrer">{String(pilot.payment.invoiceId)}</a> · {String(pilot.payment.invoiceStatus || 'open')}</dd></div> : null}
             {pilot.payment?.paymentStatus ? <div><dt className="text-white/80">Payment status</dt><dd className="mt-2 capitalize">{String(pilot.payment.paymentStatus)}</dd></div> : null}
             {value ? (
@@ -1379,7 +1424,11 @@ export function PilotApprovalRoom({
             ) : null}
           </dl>
         ) : (
-          <p className="t-p-sm-sans text-white">Commercial terms are being prepared.</p>
+          <p className="t-p-sm-sans text-white">
+            Commercial terms are being prepared.{' '}
+            <span id="annual-deployment-option" className="scroll-mt-36">Annual deployment option pending.</span>{' '}
+            <span id="annual-price-acknowledgement" className="scroll-mt-36">Annual price acknowledgement pending.</span>
+          </p>
         )}
         {requestPanel('Commercial terms')}
       </SectionShell>
@@ -1461,12 +1510,12 @@ export function PilotApprovalRoom({
       >
         <div className="grid gap-10">
           {pilot.securityDecisions.map((decision) => (
-            <div key={decision.key} className="grid gap-6 border-t border-white/80 pt-10 t-p-sm-sans">
+            <div key={decision.key} className="flex justify-between gap-6 border-t border-white/80 pt-10 t-p-sm-sans">
               <div className='flex flex-col gap-8'>
-                <p className="text-white/80">{decision.label}</p>
-                <p>{decision.note || ''}</p>
+                <p>{decision.label}</p>
+                {decision.note && <p className='text-white/80'>{decision.note || ''}</p>}
               </div>
-              <p className="capitalize self-end">{decision.decision.replace('-', ' ')}</p>
+              <p className="capitalize self-end shrink-0">{decision.decision.replace('-', ' ')}</p>
             </div>
           ))}
         </div>
@@ -1498,10 +1547,22 @@ export function PilotApprovalRoom({
         {!invitationsUnlocked ? (
           <p className="mb-14 t-p-sm-sans">Invitations unlock after the draft is ready for team review.</p>
         ) : null}
+        <p className="mb-12 t-p-sm-sans">Each person appears once. Role badges show all review roles assigned to that person.</p>
         <div className="grid gap-12">
-          {reviewerGroups.map((group) => {
+          {portalsTeamEmails.map((email) => (
+            <div key={`portals:${email}`} data-reviewer-role={PORTALS_TEAM_REVIEWER_ROLE} className="grid gap-6 rounded-sm border border-white/80 px-18 py-16">
+              <p className="t-p-sm-sans font-medium">{email}</p>
+              <Badge className="w-fit border border-white/10 px-8 py-2 t-p-sm-sans">{PORTALS_TEAM_REVIEWER_LABEL}</Badge>
+              <p className="t-p-sm-sans">Managed by Portals</p>
+            </div>
+          ))}
+          {reviewerGroups.filter((group) =>
+            !portalsTeamEmails.includes(group.email) && memberEmails.includes(group.email) && group.reviewers.some((reviewer) => reviewer.status !== 'revoked'),
+          ).map((group) => {
             const primary = group.primary
-            const activeReviewers = group.reviewers.filter((reviewer) => reviewer.status !== 'revoked')
+            const activeReviewers = [...new Map(
+              group.reviewers.filter((reviewer) => reviewer.status !== 'revoked').map((reviewer) => [reviewer.role, reviewer]),
+            ).values()]
             const pendingReviewers = activeReviewers.filter(
               (reviewer) => reviewer.role !== 'signer' &&
                 !(reviewer.status === 'reviewed' && reviewer.versionSeen >= pilot.version),
@@ -1511,23 +1572,41 @@ export function PilotApprovalRoom({
               : pendingReviewers.length > 0
                 ? 'Awaiting review'
                 : 'Confirmed'
+            const inviteTarget = activeReviewers.find(
+              (reviewer) => reviewer.status === 'proposed' && reviewer.email.trim(),
+            )
+            const resendTarget = activeReviewers.find(
+              (reviewer) => (reviewer.status === 'invited' || reviewer.status === 'opened') && reviewer.email.trim(),
+            )
             return (
               <div key={primary.id} className="grid gap-12 rounded-sm border border-white/80 px-18 py-16">
                 <div className="grid gap-6">
                   <div>
                     <p className="t-p-sm-sans font-medium">{primary.name || primary.email || 'No one named yet'}</p>
-                    <p className="t-p-sm-sans text-white/80">{primary.email || 'Assign an email to invite this reviewer'}</p>
+                    <p className="t-p-sm-sans text-white">{primary.email || 'Assign an email to invite this reviewer'}</p>
                   </div>
                   <div className="flex flex-wrap gap-6">
-                    <span className="border border-white/50 px-8 py-2 t-p-sm-sans">{reviewerRoleLabel(primary.role)}</span>
-                    {group.additional.map((reviewer) => (
-                      <Badge key={reviewer.id} className="border border-white/20 px-8 py-2 t-p-sm-sans">+ {reviewerRoleLabel(reviewer.role)}</Badge>
+                    <Badge className="border border-white/10 px-8 py-2 t-p-sm-sans">{reviewerRoleLabel(primary.role)}</Badge>
+                    {[...new Set(group.additional.map((reviewer) => reviewer.role))].filter((role) => role !== primary.role).map((role) => (
+                      <Badge key={role} className="border border-white/10 px-8 py-2 t-p-sm-sans">{reviewerRoleLabel(role)}</Badge>
                     ))}
                   </div>
-                  <p className={`t-p-sm-sans ${groupStatus === 'Confirmed' ? 'text-white/60' : 'text-white'}`}>{groupStatus}</p>
+                  <p className={`t-p-sm-sans`}>status: <span className={`t-p-sm-sans ${groupStatus === 'Confirmed' ? 'text-white/80' : 'text-white'}`}>{groupStatus}</span></p>
+                  {invitationsUnlocked && inviteTarget ? (
+                    <button onClick={() => void onInvite(inviteTarget)} disabled={busy} className={primaryButtonClasses}>Invite</button>
+                  ) : invitationsUnlocked && resendTarget ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button onClick={() => void onInvite(resendTarget)} disabled={busy} className={primaryButtonClasses}>Resend invitation</button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Send one room invitation for this person's assigned roles.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : null}
                 </div>
                 <div className="grid gap-10 border-t border-white/20 pt-10">
-                  {group.reviewers.map((reviewer) => {
+                  {activeReviewers.map((reviewer) => {
                     const view = reviewerStatusView(reviewer)
                     const stale = reviewer.status === 'reviewed' && reviewer.versionSeen < pilot.version
                     return (
@@ -1541,43 +1620,31 @@ export function PilotApprovalRoom({
                           {reviewer.notes.length > 0 ? (
                             <ul className="grid gap-4">
                               {reviewer.notes.map((note, noteIndex) => (
-                                <li key={noteIndex} className="t-p-sm-sans text-white/60">Note: {note}</li>
+                                <li key={noteIndex} className="t-p-sm-sans text-white">Note: {note}</li>
                               ))}
                             </ul>
                           ) : null}
-                          {reviewer.status === 'proposed' && !reviewer.email.trim() && invitationsUnlocked ? (
-                            <div className="flex items-center gap-8">
-                              <RoomTextField type="email" placeholder="email address" value={reviewerEmailDrafts[reviewer.id] || ''} onChange={(event) => setReviewerEmailDrafts((current) => ({ ...current, [reviewer.id]: event.target.value }))} />
-                              <button onClick={() => void onInvite({ ...reviewer, email: reviewerEmailDrafts[reviewer.id]?.trim() || '' })} disabled={busy || !reviewerEmailDrafts[reviewer.id]?.trim()} className={primaryButtonClasses}>Invite</button>
-                            </div>
-                          ) : null}
-                          {reviewer.status === 'proposed' && reviewer.email.trim() && invitationsUnlocked ? (
-                            <button onClick={() => void onInvite(reviewer)} disabled={busy} className={primaryButtonClasses}>Invite</button>
-                          ) : null}
-                          {(reviewer.status === 'invited' || reviewer.status === 'opened') && invitationsUnlocked ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button onClick={() => void onInvite(reviewer)} disabled={busy} className={primaryButtonClasses}>Resend invitation</button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Send the invitation email again if the original was lost or expired.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : null}
                         </div>
-                        {accessRole === 'owner' && invitationsUnlocked ? (
+                        {accessRole === 'owner' && invitationsUnlocked && reviewer.id === primary.id ? (
                           <div className="grid content-between gap-8 md:justify-items-end">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="t-p-sm-sans text-white/80 cursor-help">Add another role</p>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Assign this person an additional review role (e.g., technical evaluator + economic buyer). They will receive one invitation for all their roles.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            <RoomSelectField aria-label={`Add another role for ${reviewer.email || reviewer.name || 'reviewer'}`} value={reviewer.role} onChange={(event) => void onChangeRole(reviewer, event.target.value as ReviewerRole)}>
-                              {REVIEWER_ROLES.map((role) => <option key={role} value={role}>{reviewerRoleLabel(role)}</option>)}
-                            </RoomSelectField>
+                            {roleEditor === primary.id ? (
+                              <div className="flex flex-wrap items-end gap-8">
+                                <label className="t-p-sm-sans">
+                                  Additional role
+                                  <RoomSelectField className="mt-4" aria-label={`Additional role for ${primary.email || primary.name || 'reviewer'}`} value={roleToAdd} onChange={(event) => setRoleToAdd(event.target.value as ReviewerRole)}>
+                                    {REVIEWER_ROLES.map((role) => (
+                                      <option key={role} value={role} disabled={group.reviewers.some((assigned) => assigned.status !== 'revoked' && assigned.role === role)}>
+                                        {reviewerRoleLabel(role)}{group.reviewers.some((assigned) => assigned.status !== 'revoked' && assigned.role === role) ? ' (already assigned)' : ''}
+                                      </option>
+                                    ))}
+                                  </RoomSelectField>
+                                </label>
+                                <button onClick={() => void onChangeRole(primary, roleToAdd)} disabled={busy || group.reviewers.some((assigned) => assigned.status !== 'revoked' && assigned.role === roleToAdd)} className={primaryButtonClasses}>Apply role</button>
+                                <button onClick={() => setRoleEditor(null)} disabled={busy} className={plainButtonClasses}>Cancel</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => setRoleEditor(primary.id)} disabled={busy} className={plainButtonClasses}>Add role</button>
+                            )}
                             <div className="flex flex-wrap gap-8">
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1598,13 +1665,41 @@ export function PilotApprovalRoom({
               </div>
             )
           })}
+          {memberEmails.filter((email) => !portalsTeamEmails.includes(email) && !reviewerGroups.some(
+            (group) => group.email === email && group.reviewers.some((reviewer) => reviewer.status !== 'revoked'),
+          )).map((email) => (
+            <div key={email} className="grid gap-6 rounded-sm border border-white/80 px-18 py-16">
+              <div className="flex flex-wrap items-center justify-between gap-8">
+                <div>
+                  <p className="t-p-sm-sans font-medium">{email}</p>
+                  <p className="t-p-sm-sans">No review role assigned</p>
+                </div>
+                {accessRole === 'owner' && invitationsUnlocked ? (
+                  roleEditor === `member:${email}` ? (
+                    <div className="flex flex-wrap items-end gap-8">
+                      <label className="t-p-sm-sans">
+                        Role
+                        <RoomSelectField className="mt-4" aria-label={`Role for ${email}`} value={roleToAdd} onChange={(event) => setRoleToAdd(event.target.value as ReviewerRole)}>
+                          {REVIEWER_ROLES.map((role) => <option key={role} value={role}>{reviewerRoleLabel(role)}</option>)}
+                        </RoomSelectField>
+                      </label>
+                      <button onClick={() => void onAddMemberRole(email, roleToAdd)} disabled={busy} className={primaryButtonClasses}>Apply role</button>
+                      <button onClick={() => setRoleEditor(null)} disabled={busy} className={plainButtonClasses}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setRoleEditor(`member:${email}`)} disabled={busy} className={plainButtonClasses}>Add role</button>
+                  )
+                ) : null}
+              </div>
+            </div>
+          ))}
         </div>
         {invitationsUnlocked ? (
           <>
             <div className="mt-16 flex gap-10 justify-end">
               <button onClick={() => void onInviteAllRequired()} disabled={busy} className={accentButtonClasses}>
                 <Send aria-hidden="true" size={16} strokeWidth={1.8} />
-                Invite required reviewers
+                Invite all reviewers
               </button>
             </div>
             <div className="mt-16 border-t border-white/80">
@@ -1673,13 +1768,15 @@ export function PilotApprovalRoom({
       }
 
       {
-        pilot.state === 'ready_sign' && canSign ? (
+        pilot.state === 'ready_sign' || pilot.unresolved.some((item) => item.key === 'signer') ? (
           <SectionShell
             id="signature"
-            title="Sign and Pay"
-            mode="editable"
+            title={pilot.state === 'ready_sign' && canSign ? 'Sign and Pay' : 'Authorized signer'}
+            mode={pilot.state === 'ready_sign' && canSign ? 'editable' : 'readonly'}
             summary={`By signing, ${String(answers.company || 'the customer')} agrees to the confirmed scope, the ${pilot.proposal?.priceLabel} pilot fee due on signature, and the ${pilot.proposal?.termDays}-day pilot term.`}
           >
+            {pilot.state === 'ready_sign' && canSign ? (
+              <>
             <div className="grid gap-14">
               <label className="t-p-sm-sans text-white/80">
                 Authorized signer name
@@ -1702,6 +1799,10 @@ export function PilotApprovalRoom({
             <button onClick={() => void onSign()} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} mt-18`}>
               Confirm pilot &amp; purchase
             </button>
+              </>
+            ) : (
+              <p className="t-p-sm-sans">Authorized signer details can be entered once the agreement is ready for signature.</p>
+            )}
           </SectionShell>
         ) : null
       }
@@ -1727,30 +1828,14 @@ export function PilotApprovalRoom({
       }
 
       {
-        error ? (
-          <p className="mt-16 t-p-sm-sans text-white" role="alert">{error}</p>
-        ) : null
-      }
-      {
-        notice ? (
-          <p className="mt-16 t-p-sm-sans text-white" role="status">{notice}</p>
-        ) : null
-      }
-      {
-        draftSaveState === 'failed' ? (
-          <p className="mt-16 t-p-sm-sans text-white" role="status">Save failed.</p>
-        ) : null
-      }
-
-      {
         pilot.history.length > 1 ? (
           <section className="mt-24 border-t border-white/80 pt-18 lowercase">
             <h2 className="t-h3-sans">Activity</h2>
             <ul className="mt-12 grid gap-8">
               {[...pilot.history].reverse().slice(0, 8).map((entry, index) => (
-                <li key={entry.at + index} className="t-p-sm-sans text-white/60">
+                <li key={entry.at + index} className="t-p-sm-sans text-white/80">
                   <span className="capitalize">{entry.action.replaceAll('_', ' ')}</span>
-                  <span className="text-white/60"> {new Date(entry.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                  <span className="text-white"> {new Date(entry.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
                   {entry.note ? <span> - {entry.note}</span> : null}
                 </li>
               ))}
@@ -1761,6 +1846,70 @@ export function PilotApprovalRoom({
       <div className="flex justify-end">
         <PilotApprovalRoomTour />
       </div>
+      </div>
+      <div
+        ref={actionsRef}
+        id="pilot-actions"
+        className="fixed bottom-0 -mx-24 mr-48 w-3xl z-20 space-y-12 rounded-t-[2em] border-t bg-[#07112C] px-24 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-16 lowercase md:rounded"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
+          backgroundAttachment: 'fixed',
+        }}
+      >
+
+        {
+          error ? (
+            <p className="t-p-sm-sans text-white" role="alert">{error}</p>
+          ) : null
+        }
+        {
+          notice ? (
+            <p className="t-p-sm-sans text-white" role="status">{notice}</p>
+          ) : null
+        }
+        {
+          draftSaveState === 'failed' ? (
+            <p className="t-p-sm-sans text-white" role="status">Save failed.</p>
+          ) : null
+        }
+
+        {
+          reviewerToRemove ? (
+            <div className="bg-white/10 rounded-sm px-18 py-16" role="alertdialog" aria-modal="true" aria-labelledby="remove-reviewer-title">
+              <p id="remove-reviewer-title" className="t-p-sm-sans font-medium">Remove reviewer</p>
+              <p className="mt-8 t-p-sm-sans">
+                Are you sure you want to remove {reviewerToRemove.name || reviewerToRemove.email} from the room? This action cannot be undone.
+              </p>
+              <div className="mt-14 flex flex-wrap gap-8">
+                <button onClick={() => void confirmRemoveReviewer()} disabled={busy} className={primaryButtonClasses}>
+                  Yes, remove
+                </button>
+                <button onClick={() => setReviewerToRemove(null)} disabled={busy} className={plainButtonClasses}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null
+        }
+
+        <div className="flex flex-wrap items-center gap-8">
+          <StatusPill>{routeBadge}</StatusPill>
+          <StatusPill>
+            {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
+          </StatusPill>
+        </div>
+        <div className="flex items-center gap-8">
+          {canEditDraft ? (
+            <button onClick={() => void onSave()} disabled={busy || !hasUnsavedChanges} className={`${primaryButtonClasses} w-full sm:w-auto`}>
+              <Save aria-hidden="true" size={16} strokeWidth={1.8} />
+              Submit changes
+            </button>
+          ) : null}
+          {globalWorkflowAction ? (
+            <div className="flex flex-wrap gap-8 lg:justify-items-end">{globalWorkflowAction}</div>
+          ) : null}
+        </div>
       </div>
     </TooltipProvider>
   </>
