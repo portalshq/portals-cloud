@@ -233,6 +233,7 @@ export function AssessmentForm({
   )
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [error, setError] = useState('')
+  const [requiresSignIn, setRequiresSignIn] = useState(false)
   const [invalidFields, setInvalidFields] = useState<string[]>([])
   const formRef = useRef<HTMLFormElement | null>(null)
   const hasNavigated = useRef(false)
@@ -483,11 +484,9 @@ export function AssessmentForm({
       setStatus('idle')
     } catch (cause) {
       setStatus('error')
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'We could not complete the assessment. Please try again.',
-      )
+      const errorMessage = cause instanceof Error ? cause.message : 'We could not complete the assessment. Please try again.'
+      setError(errorMessage)
+      setRequiresSignIn(errorMessage.includes('Sign in with your work email'))
     }
   }
 
@@ -654,9 +653,18 @@ export function AssessmentForm({
           </fieldset>
         ))}
         {error ? (
-          <p role="alert" className="t-p-sans">
-            {error}
-          </p>
+          <div role="alert" className="space-y-16">
+            <p className="t-p-sans">{error}</p>
+            {requiresSignIn ? (
+              <CTAButton
+                href="/auth/sign-in?next=/assessment"
+                appearance="plain"
+                analyticsLabel="Sign in to resume assessment"
+              >
+                Email me a sign-in link
+              </CTAButton>
+            ) : null}
+          </div>
         ) : null}
         <div className="flex flex-wrap gap-16">
           {position > 0 ? (
