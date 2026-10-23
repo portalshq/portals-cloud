@@ -832,8 +832,8 @@ test('a reviewer invitation explains the paid-pilot review and assigned terms', 
   assert.ok(directInvite, 'the reviewer receives a direct invitation email')
   assert.equal(directInvite.body.subject, 'You’re invited to review a portals paid pilot')
   assert.match(String(directInvite.body.text), /Ava Nguyen has invited you to review terms for a portals paid pilot\./)
-  assert.match(String(directInvite.body.text), /You will review the security terms\./)
-  assert.match(String(directInvite.body.text), /Open the pilot approval room:/)
+  assert.match(String(directInvite.body.text), /security terms/)
+  assert.match(String(directInvite.body.text), /Review your pilot terms:/)
 })
 
 test('requesting an exception review notifies the customer and Portals', async () => {
@@ -1224,15 +1224,40 @@ test('replayed and concurrent application submissions return the same room', asy
   assert.equal(stored.pilot!.answers.pilotWorkflow, body.answers.pilotWorkflow)
 })
 
-test('claimed returning emails and forged assessment identifiers cannot disclose another lead', async () => {
+test('claimed returning emails and forged assessment identifiers cannot disclose another lead', async (t) => {
+  const fetches = captureFetch(t)
   const victimEmail = `victim-${crypto.randomUUID()}@studio.example`
   const assessment = await post(diagnosticBody(victimEmail))
   const token = profileTokenFrom(assessment)
   const before = JSON.stringify((await getProfileByToken(token))!.qualification)
-  const rejected = await post(pilotBody(victimEmail, {assessmentId: 'forged-id', productionOwner: 'Attacker'}))
-  assert.equal(rejected.status, 403)
-  assert.equal(rejected.headers.getSetCookie().length, 0)
+  // A pilot request on a claimed email is captured without binding the
+  // browser: no profile cookie is minted, no claimed identifiers are
+  // disclosed, and no immediate room token is issued. Room access still
+  // requires the emailed secure link sent to the claimed inbox.
+  const claimed = await post(pilotBody(victimEmail, {assessmentId: 'forged-id', productionOwner: 'Attacker'}))
+  assert.equal(claimed.status, 200)
+  assert.equal(claimed.headers.getSetCookie().filter((c) => c.startsWith('portals_profile=')).length, 0)
+  const claimedJson = await claimed.json()
+  assert.ok(claimedJson.pilotUrl)
+  assert.equal(claimedJson.pilotAuthToken, undefined)
+  assert.equal(claimedJson.profileId, undefined)
+  assert.equal(claimedJson.analyticsPersonId, undefined)
+  assert.equal(claimedJson.downloadUrl, undefined)
   assert.equal(JSON.stringify((await getProfileByToken(token))!.qualification), before)
+  const {profile: claimedProfileRecord, pilot: claimedPilot} = await pilotForProfile(token)
+  assert.ok(claimedPilot)
+  assert.equal(claimedPilot.answers.assessmentId, undefined)
+  assert.equal(claimedPilot.answers.assessmentSnapshot?.profileId, claimedProfileRecord.id)
+  // Room access for the claimed identity arrives through the emailed secure
+  // link, which verifies straight into the pilot room.
+  await processLeadOutbox(2000)
+  const claimedAccessEmail = fetches.find(
+    (entry) => entry.body.to === victimEmail && String(entry.body.text).includes('/auth/verify?token='),
+  )
+  assert.ok(claimedAccessEmail, 'the claimed applicant receives the existing secure email continuation')
+  const claimedSession = await consumeMagicLink(tokenFrom(String(claimedAccessEmail.body.text)))
+  assert.ok(claimedSession)
+  assert.equal(claimedSession.nextPath, claimedJson.pilotUrl)
   const unsignedProvider = await post({...pilotBody(victimEmail), provider: 'apollo'})
   assert.equal(unsignedProvider.status, 400)
   assert.equal(unsignedProvider.headers.getSetCookie().length, 0)
@@ -1282,8 +1307,19 @@ test('unbound claimed-email assessments render results without binding the brows
   assert.equal(profile.qualification!.answers.production_type, 'vfx_animation_virtual_production')
   assert.equal(profile.qualification!.answers.incidentDescription, 'historical-marker')
 
-  // Non-assessment submissions on a claimed email still require sign-in.
-  const rejected = await post(pilotBody(email))
+  // Submissions that are neither assessments nor pilot requests still
+  // require sign-in on a claimed email.
+  const rejected = await post({
+    submissionType: 'contact',
+    idempotencyKey: `contact:${crypto.randomUUID()}`,
+    formVersion: 'contact.v1',
+    provider: 'browser',
+    identity: {email, name: 'Ava Nguyen', company: 'Studio Example', role: 'producer', website: ''},
+    attribution: {sourcePage: '/contact'},
+    consent: {disclosureVersion: DISCLOSURE, marketing: false, analytics: false},
+    companyFax: '',
+    answers: {question: 'Tell me more about the pilot.', interest: ''},
+  })
   assert.equal(rejected.status, 403)
   assert.equal(rejected.headers.getSetCookie().length, 0)
 })

@@ -246,7 +246,7 @@ test('a returning qualified applicant keeps edits, skips discovery, and submits 
   )
   assert.equal(
     confirmation.pilotUrl,
-    '/auth/sign-in?next=%2Faccount%2Fowned%2Fpilot-room%2Ftest'
+    '/auth/sign-in?next=%2Faccount%2Fowned%2Fpilot-room%2Ftest&email=producer%40studio.test'
   )
   assert.equal(
     dom.window.localStorage.getItem('portals_pilot_confirmation:direct'),
