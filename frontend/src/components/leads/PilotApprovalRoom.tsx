@@ -596,7 +596,7 @@ export function PilotApprovalRoom({
   async function onSave(extraResolutions = resolutions) {
     if (canCommitDraft) {
       if (await patch({ action: 'commit_draft', ...saveFields(), resolutions: extraResolutions }, { sync: true })) {
-        setNotice('Changes saved as the latest pilot revision.')
+        setNotice('Your changes have been saved as the latest pilot revision.')
       }
       return
     }
@@ -604,16 +604,16 @@ export function PilotApprovalRoom({
 
   async function onApprove() {
     if (hasUnsavedChanges) {
-      setError('Save changes before approving this pilot.')
+      setError('Please save your changes before approving this pilot.')
       return
     }
     if (pendingExceptionReview) {
-      setError('Submit the requested terms for Portals review before approving.')
+      setError('Please submit the requested terms for Portals review before approving.')
       return
     }
     if (pilot.state === 'scope_confirmed') {
       if (await patch({ action: 'finalize', note: 'agreement finalized for signature' }, { sync: true })) {
-        setNotice('The agreement is ready for signature. Payment will be due after signing.')
+        setNotice('The agreement is ready for signature. Payment is due after signing.')
       }
       return
     }
@@ -624,12 +624,12 @@ export function PilotApprovalRoom({
 
   async function onStartTeamReview() {
     if (hasUnsavedChanges) {
-      setError('Save changes before sharing the pilot for review.')
+      setError('Please save your changes before sharing the pilot for review.')
       return
     }
     if (await patch({ action: 'start_team_review' }, { sync: true })) {
       await onInviteAllRequired()
-      setNotice('Review invitations are ready.')
+      setNotice('Review invitations have been sent.')
     }
   }
 
@@ -638,7 +638,7 @@ export function PilotApprovalRoom({
       action: 'invite_reviewer',
       invite: { role: reviewer.role, email, name: reviewer.name, reviewerId: reviewer.id },
     })) {
-      setNotice(`Invitation sent to ${email}. They can access the room via the link in the email.`)
+      setNotice(`Invitation sent to ${email}. They can access the room using the link in the email.`)
       setReviewerEmailDrafts((current) => {
         const next = { ...current }
         delete next[reviewer.id]
@@ -662,7 +662,7 @@ export function PilotApprovalRoom({
     }
     const invitations = [...pendingByEmail.values()]
     if (invitations.length === 0) {
-      setError('No proposed reviewers with an email to invite yet.')
+      setError('No proposed reviewers with an email address to invite.')
       return
     }
     for (const reviewer of invitations) {
@@ -672,19 +672,19 @@ export function PilotApprovalRoom({
       })
       if (!ok) return
     }
-    setNotice(`Invitations sent to ${invitations.length} reviewer${invitations.length === 1 ? '' : 's'}. They can access the room via the link in the email.`)
+    setNotice(`Invitations sent to ${invitations.length} reviewer${invitations.length === 1 ? '' : 's'}. They can access the room using the link in the email.`)
   }
 
   async function onAddReviewer() {
     if (!draftReviewerEmail.trim()) {
-      setError('Enter an email for the reviewer.')
+      setError('Please enter an email address for the reviewer.')
       return
     }
     if (await patch({
       action: 'invite_reviewer',
       invite: { role: draftRole, email: draftReviewerEmail.trim(), name: draftName.trim() || undefined },
     })) {
-      setNotice(`Invitation sent to ${draftReviewerEmail.trim()}. They can access the room via the link in the email.`)
+      setNotice(`Invitation sent to ${draftReviewerEmail.trim()}. They can access the room using the link in the email.`)
       setDraftName('')
       setDraftReviewerEmail('')
     }
@@ -704,24 +704,24 @@ export function PilotApprovalRoom({
 
   async function onChangeRole(reviewer: Reviewer, role: ReviewerRole) {
     if (await patch({ action: 'reviewer_role', reviewerId: reviewer.id, role })) {
-      setNotice(`${reviewer.email} was added as ${reviewerRoleLabel(role).toLowerCase()}; send an invitation when ready.`)
+      setNotice(`${reviewer.email} has been added as ${reviewerRoleLabel(role).toLowerCase()}. Send an invitation when ready.`)
     }
   }
 
   async function onClaim(reviewer: Reviewer) {
     if (await patch({ action: 'claim_role', reviewerId: reviewer.id })) {
-      setNotice(`You now hold the ${reviewerRoleLabel(reviewer.role).toLowerCase()} role. Please review the terms to confirm.`)
+      setNotice(`You now hold the ${reviewerRoleLabel(reviewer.role).toLowerCase()} role. Please review the terms and confirm.`)
     }
   }
 
   async function onReviewerDecision(decision: 'confirm' | 'changes') {
     if (!myReviewer) return
     if (decision === 'confirm' && hasUnsavedChanges) {
-      setError('Save changes before confirming your review.')
+      setError('Please save your changes before confirming your review.')
       return
     }
     if (decision === 'changes' && !myNote.trim()) {
-      setError('Write the requested change before submitting.')
+      setError('Please describe the requested change before submitting.')
       return
     }
     if (await patch({
@@ -731,7 +731,7 @@ export function PilotApprovalRoom({
       note: myNote.trim() || undefined,
       versionSeen: pilot.version,
     })) {
-      setNotice(decision === 'confirm' && myReviewers.length > 1 ? 'Your reviews are recorded for every assigned role.' : decision === 'confirm' ? 'Your review is recorded.' : 'Your requested changes were recorded.')
+      setNotice(decision === 'confirm' && myReviewers.length > 1 ? 'Your reviews have been recorded for every assigned role.' : decision === 'confirm' ? 'Your review has been recorded.' : 'Your requested changes have been recorded.')
       setMyNote('')
     }
   }
@@ -739,11 +739,11 @@ export function PilotApprovalRoom({
   async function onSectionRequest(section: string) {
     const note = String(requestText[section] || '').trim()
     if (!note) {
-      setError('Write the requested change before submitting.')
+      setError('Please describe the requested change before submitting.')
       return
     }
     if (await patch({ action: 'section_change_request', sectionChange: { section, note } })) {
-      setNotice(`Requested changes for ${section}.`)
+      setNotice(`Your requested changes for ${section} have been submitted.`)
       setOpenRequest(null)
       setRequestText((current) => ({ ...current, [section]: '' }))
     }
@@ -773,25 +773,25 @@ export function PilotApprovalRoom({
 
   async function onSubmitForPortalsReview() {
     if (hasUnsavedChanges) {
-      setError('Save changes before submitting these terms for Portals review.')
+      setError('Please save your changes before submitting these terms for Portals review.')
       return
     }
     if (await patch({ action: 'request_exception', note: 'Portals review requested' }, { sync: true })) {
-      setNotice('Submitted for Portals review.')
+      setNotice('Your request has been submitted for Portals review.')
     }
   }
 
   async function onSign() {
     if (hasUnsavedChanges) {
-      setError('Save changes before signing this pilot.')
+      setError('Please save your changes before signing this pilot.')
       return
     }
     if (!signerName.trim() || !signerEmail.trim()) {
-      setError("Enter the authorized signer's name and email.")
+      setError("Please enter the authorized signer's name and email address.")
       return
     }
     if (!signerConsent) {
-      setError('Check the agreement confirmation before signing.')
+      setError('Please confirm the agreement before signing.')
       return
     }
     if (await patch({ action: 'sign', signer: { name: signerName, email: signerEmail } }, { sync: true })) {
@@ -867,18 +867,18 @@ export function PilotApprovalRoom({
 
   async function onKickoff() {
     if (!kickoffDate) {
-      setError('Choose a launch date before reserving the slot.')
+      setError('Please select a launch date before reserving the slot.')
       return
     }
     const slot = kickoffAvailability.find((item) => item.date === kickoffDate)
     if (await patch({ action: 'launch', launch: { date: kickoffDate, timezone: kickoffTimezone, slotLabel: slot?.label || kickoffDate, availabilityVersion: slot?.version || 'default' } }, { sync: true })) {
-      setNotice('Launch scheduled. The pilot can be activated.')
+      setNotice('Launch scheduled. The pilot can now be activated.')
     }
   }
 
   async function onActivate() {
     if (await patch({ action: 'activate', note: 'pilot activated' }, { sync: true })) {
-      setNotice('The pilot is live.')
+      setNotice('The pilot is now live.')
     }
   }
 
@@ -1024,7 +1024,7 @@ export function PilotApprovalRoom({
           ) : null}
           <div className="flex flex-wrap gap-10">
             <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>Pay the {pilot.proposal?.priceLabel || 'pilot fee'}</button>
-            <button onClick={() => void onInvoice()} disabled={busy} className={plainButtonClasses}>Pay by invoice / ACH</button>
+            <button onClick={() => void onInvoice()} disabled={busy} className={plainButtonClasses}>Pay by invoice</button>
             {pilot.state === 'signed' ? <button onClick={() => void onKickoff()} disabled={busy} className={plainButtonClasses}>Reserve launch</button> : null}
           </div>
         </div>
@@ -1091,7 +1091,7 @@ export function PilotApprovalRoom({
               </a>
             </div>
             <p className="max-w-[42rem] t-p-sm-sans">
-              Review scope, success criteria, security requirements, and commercial terms. Make changes, save them, then approve the pilot when everything is correct.
+              Review the pilot scope, success criteria, security posture, and commercial terms. Make changes, save them, then approve the pilot when everything is correct.
             </p>
             
             {globalWorkflowAction ? (
@@ -1113,7 +1113,7 @@ export function PilotApprovalRoom({
         pilot.state === 'not_eligible' ? (
           <div className="mt-24 bg-white/10 rounded-sm px-18 py-16">
             <p className="t-p-sm-sans">The standard pilot cannot proceed as drafted.</p>
-            <p className="mt-8 t-p-sm-sans">Revise the plan to continue.</p>
+            <p className="mt-8 t-p-sm-sans">Please revise the plan to continue.</p>
             <a href={revisePath} className={`${primaryButtonClasses} mt-14`}>
               <Pencil aria-hidden="true" size={16} strokeWidth={1.8} />
               Revise the plan
@@ -1125,10 +1125,7 @@ export function PilotApprovalRoom({
       {
         (pilot.state === 'reviewing' || pilot.state === 'revision') && canCommitDraft ? (
           <div className="mt-24 bg-white/10 rounded-sm px-18 py-16">
-            <p className="t-p-sm-sans">Review the draft before inviting members for review.</p>
-            {/* <p className="mt-8 max-w-[54rem] t-p-sm-sans">
-            Once the terms are saved, share this room with reviewers so everyone sees the same terms revision.
-          </p> */}
+            <p className="t-p-sm-sans">Review the draft before inviting team members for review.</p>
             <button onClick={() => void onStartTeamReview()} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} mt-14`}>
               Ready to share
               <UserPlus aria-hidden="true" size={16} strokeWidth={1.8} />
@@ -1203,7 +1200,7 @@ export function PilotApprovalRoom({
       {
         pilot.exceptions.length > 0 ? (
           <div id="exceptions" className="mt-24 bg-white/10 rounded-sm px-18 py-16" style={{ scrollMarginTop: '140px' }}>
-            <p className="t-p-sm-sans">In order for us to serve you best, these terms require our review before the pilot can be approved:</p>
+            <p className="t-p-sm-sans">These terms require Portals review before the pilot can be approved:</p>
             <ul className="mt-12 grid gap-24">
               {pilot.exceptions.map((item, index) => (
                 <li key={item.kind + index} className="grid gap-4 t-p-sm-sans">
@@ -1228,7 +1225,7 @@ export function PilotApprovalRoom({
           <div className="mt-24 bg-white/10 rounded-sm px-18 py-16">
             <p className="t-p-sm-sans">Qualification call required</p>
             <p className="mt-8 max-w-[54rem] t-p-sm-sans">
-              This request came through the assessment self-selection path. The completed scope gives Portals enough context to qualify or decline the pilot.
+              This request came through the assessment self-selection path. The completed scope provides Portals with enough context to qualify or decline the pilot.
             </p>
             {!founderAccess && qualificationCalendarUrl ? (
               <a
@@ -1252,7 +1249,7 @@ export function PilotApprovalRoom({
               <AlertTriangle aria-hidden="true" size={18} strokeWidth={1.8} className="mt-2 text-white" />
               <div>
                 <p className="t-p-sm-sans">This field changed while you were reviewing the pilot.</p>
-                <p className="mt-6 t-p-sm-sans">Choose which value to keep, then save again if needed.</p>
+                <p className="mt-6 t-p-sm-sans">Please choose which value to keep, then save again if needed.</p>
               </div>
             </div>
             <div className="mt-14 grid gap-12">
@@ -1301,7 +1298,7 @@ export function PilotApprovalRoom({
         id="scope"
         title="Scope"
         mode={canEditDraft ? 'editable' : 'request'}
-        summary="The operational shape of the pilot: workflow, people, integrations, data, participants, and target start."
+        summary="The operational scope of the pilot: workflow, participants, integrations, data classification, and target start date."
         action={!canEditDraft ? requestAction('Scope') : null}
       >
         <dl className="grid gap-14 t-p-sm-sans">
@@ -1339,7 +1336,7 @@ export function PilotApprovalRoom({
         id="commercial"
         title="Commercial Terms"
         mode={canEditDraft ? 'editable' : 'request'}
-        summary="Terms for this pilot and proposed annual plan."
+        summary="Pilot fee, term, acceptance deadline, annual deployment decision deadline, and annual plan pricing."
         action={!canEditDraft ? requestAction('Commercial terms') : null}
       >
         {pilot.proposal ? (
@@ -1391,7 +1388,7 @@ export function PilotApprovalRoom({
         id="success-criteria"
         title="Success Criteria"
         mode={canEditDraft ? 'editable' : 'request'}
-        summary="Define how this pilot will be judged. Accept each criterion as written, modify it for this pilot, or mark it as not applicable."
+        summary="Define how pilot success will be measured. Accept each criterion as written, modify it for this pilot, or mark it as not applicable."
         action={!canEditDraft ? requestAction('Success criteria') : null}
       >
         <div className="grid gap-[2px]">
@@ -1459,7 +1456,7 @@ export function PilotApprovalRoom({
         id="security"
         title="Security Posture"
         mode="request"
-        summary="These terms describe Portals' current security posture and cannot be edited directly. If your organization has additional requirements, submit them for review."
+        summary="Portals' current security posture. These terms cannot be edited directly. Submit additional requirements for review if needed."
         action={requestAction('Security posture')}
       >
         <div className="grid gap-10">
@@ -1480,7 +1477,7 @@ export function PilotApprovalRoom({
         id="review-status"
         title="Review Status"
         mode="readonly"
-        summary="A compact view of who has confirmed the current terms revision and who still needs to review."
+        summary="Review progress for each section: workflow scope, success criteria, technical scope, security posture, and agreement."
       >
         <dl className="grid gap-10 t-p-sm-sans">
           {reviewRows.map((row) => (
@@ -1496,7 +1493,7 @@ export function PilotApprovalRoom({
         id="reviewers"
         title="Reviewers"
         mode={invitationsUnlocked ? 'editable' : 'readonly'}
-        summary="Confirm who needs access to this room. People with multiple responsibilities are grouped together while each role stays independently reviewable."
+        summary="Confirm who needs access to this room. People with multiple roles are grouped together, but each role is reviewed independently."
       >
         {!invitationsUnlocked ? (
           <p className="mb-14 t-p-sm-sans">Invitations unlock after the draft is ready for team review.</p>
@@ -1643,7 +1640,7 @@ export function PilotApprovalRoom({
         myReviewer ? (
           <SectionShell
             id="your-review"
-            title="Confirm pilot terms"
+            title="Your review"
             mode="request"
             summary={`You are assigned as ${myReviewerRoleLabels} for this pilot. Review the current terms revision, then confirm or request a specific change.`}
           >
@@ -1679,7 +1676,7 @@ export function PilotApprovalRoom({
         pilot.state === 'ready_sign' && canSign ? (
           <SectionShell
             id="signature"
-            title="Sign And Fund"
+            title="Sign and Pay"
             mode="editable"
             summary={`By signing, ${String(answers.company || 'the customer')} agrees to the confirmed scope, the ${pilot.proposal?.priceLabel} pilot fee due on signature, and the ${pilot.proposal?.termDays}-day pilot term.`}
           >
