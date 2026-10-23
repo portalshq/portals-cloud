@@ -12,7 +12,7 @@ import {pilotTermsFromDraft} from '@/lib/leads/pilot-collaboration'
 import {pilotMutableTermsFromState} from '@/lib/leads/pilot-room-revisions'
 import {getPilotById} from '@/lib/leads/store'
 import {CTAButton} from '@/components/CTAButton'
-import {isPortalsTeamReviewerEmail} from '@/lib/leads/pilot-team-reviewer'
+import {isPortalsTeamReviewerEmail, portalsTeamEmailsFromEnv} from '@/lib/leads/pilot-team-reviewer'
 
 function normalizeDates<T>(value: T): T {
   if (value instanceof Date) return value.toISOString() as T
@@ -118,15 +118,11 @@ export async function PilotRoomRoute({
             userEmail={user.email}
             memberEmails={memberEmails}
             portalsTeamEmails={memberEmails.filter((email) =>
-              isPortalsTeamReviewerEmail(email, process.env.LEADS_NOTIFICATION_EMAIL || ''),
+              isPortalsTeamReviewerEmail(email, portalsTeamEmailsFromEnv()),
             )}
             sessionId={sessionId}
             revisePath={roomPath}
-            founderAccess={
-              Boolean(process.env.LEADS_NOTIFICATION_EMAIL) &&
-              user.email.toLowerCase() ===
-              String(process.env.LEADS_NOTIFICATION_EMAIL).trim().toLowerCase()
-            }
+            founderAccess={isPortalsTeamReviewerEmail(user.email, portalsTeamEmailsFromEnv())}
             qualificationCalendarUrl={process.env.PILOT_CALENDAR_URL}
             kickoffAvailability={kickoffAvailability}
           />

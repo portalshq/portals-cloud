@@ -7,20 +7,31 @@ import { Suspense, useState } from 'react'
 
 function SignInPage() {
   const search = useSearchParams()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => {
+    const hint = search.get('email') || ''
+    return hint.includes('@') ? hint : ''
+  })
   const [sent, setSent] = useState(false)
+  const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState(false)
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setBusy(true)
+    setFailed(false)
     try {
-      await fetch('/api/auth/magic-link', {
+      const response = await fetch('/api/auth/magic-link', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email, next: search.get('next') || '/account' }),
       })
-      setSent(true)
+      if (!response.ok) {
+        setFailed(true)
+      } else {
+        setSent(true)
+      }
+    } catch {
+      setFailed(true)
     } finally {
       setBusy(false)
     }
@@ -35,7 +46,7 @@ function SignInPage() {
           </Link>
         </div>
       </header>
-      <form className="w-full rounded border p-24" onSubmit={submit}>
+      <form className="w-full rounded border p-24 backdrop-md bg-white/20" onSubmit={submit}>
         <h1 className="t-h3-sans">sign in to your account</h1>
         <p className="mt-8 t-p-sm-sans">we’ll send a one-time sign-in link to your email.</p>
         <label className="mt-20 block t-p-sm-sans" htmlFor="email">work email</label>
@@ -52,6 +63,7 @@ function SignInPage() {
           {busy ? 'sending…' : 'email me a sign-in link'}
         </CTAButton>
         {sent ? <p className="mt-12 t-p-sm-sans">if your email is registered, check your inbox for a sign-in link.</p> : null}
+        {failed ? <p className="mt-12 t-p-sm-sans">we couldn’t send the sign-in link — please try again.</p> : null}
         {search.get('error') ? <p className="mt-12 t-p-sm-sans">that sign-in link is invalid or has expired. request a new link.</p> : null}
       </form>
     </main>

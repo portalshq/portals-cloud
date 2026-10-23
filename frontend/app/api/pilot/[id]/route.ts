@@ -8,7 +8,11 @@ import type {
   SecurityDecision,
 } from '@/lib/leads/contracts'
 import { pilotControlledOptionLists, pilotRequestAnswersSchema } from '@/lib/leads/contracts'
-import { isProtectedPortalsReviewerMutation } from '@/lib/leads/pilot-team-reviewer'
+import {
+  isPortalsTeamReviewerEmail,
+  isProtectedPortalsReviewerMutation,
+  portalsTeamEmailsFromEnv,
+} from '@/lib/leads/pilot-team-reviewer'
 import {
   applyTransition,
   buildCommercialSnapshot,
@@ -200,8 +204,7 @@ function reviewerMembershipIsStillRequired(
 ): boolean {
   const normalized = email.trim().toLowerCase()
   if (String(pilot.answers.signerEmail || '').trim().toLowerCase() === normalized && role === 'signer') return true
-  const portalsEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
-  if (portalsEmail && portalsEmail === normalized && role === 'approver') return true
+  if (isPortalsTeamReviewerEmail(email, portalsTeamEmailsFromEnv()) && role === 'approver') return true
   return pilot.reviewers.some(
     (reviewer) =>
       reviewer.status !== 'revoked' &&
@@ -568,12 +571,12 @@ export async function PATCH(
   const authResult = await authenticatedPilot(id, request)
   if (authResult instanceof NextResponse) return authResult
   const { user, pilot, accessRole, accountRole } = authResult
-  const portalsTeamEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
+  const portalsTeamEmails = portalsTeamEmailsFromEnv()
   const reviewerTarget = pilot.reviewers.find((reviewer) =>
     reviewer.id === body.reviewerId || reviewer.id === body.invite?.reviewerId,
   )
   const targetEmails = [body.email, body.invite?.email, body.share?.email, reviewerTarget?.email]
-  if (isProtectedPortalsReviewerMutation(body.action, targetEmails, portalsTeamEmail)) {
+  if (isProtectedPortalsReviewerMutation(body.action, targetEmails, portalsTeamEmails)) {
     return NextResponse.json(
       { ok: false, code: 'protected_portals_reviewer', message: 'The Portals team reviewer role is managed by Portals and cannot be changed or claimed.' },
       { status: 403 },
@@ -604,8 +607,7 @@ export async function PATCH(
   const hasAssessmentQualification = pilot.exceptions.some(
     (item) => item.kind === 'assessment-qualification' && !item.resolvedAt,
   )
-  const founderEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
-  const founderAccess = Boolean(founderEmail) && user.email.toLowerCase() === founderEmail
+  const founderAccess = isPortalsTeamReviewerEmail(user.email, portalsTeamEmails)
   if (
     (body.action === 'qualify' ||
       body.action === 'disqualify' ||

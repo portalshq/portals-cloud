@@ -16,7 +16,8 @@ Everything below is already listed in `.env.example`.
 | `LEADS_HASH_KEY` | HMAC for profile cookies, rate limiting, internal auth |
 | `LEADS_ENCRYPTION_KEY` | base64 32-byte AES key for encrypted answers |
 | `LEADS_EMAIL_FROM`, `RESEND_API_KEY` | transactional email delivery |
-| `LEADS_NOTIFICATION_EMAIL` | Portals-team review notifications and approval-room access |
+| `LEADS_NOTIFICATION_EMAIL` | Portals-team review notifications recipient |
+| `PORTALS_TEAM_EMAILS` | Comma-separated staff emails with approval-room access; auto-provisioned at sign-in. Falls back to `LEADS_NOTIFICATION_EMAIL` |
 | `APOLLO_API_KEY` | Master API key for Apollo list, custom-field, contact, account, and deal access. Field and deal-stage IDs are discovered automatically from the Apollo schema. |
 | `APOLLO_CALLBACK_SECRET` | HMAC secret for signed Apollo workflow callbacks |
 | `PILOT_PRICE_AMOUNT` | fallback fee in USD when the proposal has no price |

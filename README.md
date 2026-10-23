@@ -29,6 +29,10 @@ infrastructure.
   delivery capabilities, identity, SDK — is genuinely greenfield. None of this existed
   before this repo.
 
+## Pilot room internal reviewer
+
+The pilot room displays each configured Portals team member as a system-managed **Portals team reviewer** (`portals_team_reviewer`), separate from customer review assignments. Team identity comes from the `PORTALS_TEAM_EMAILS` server variable (comma-separated; falls back to `LEADS_NOTIFICATION_EMAIL`), not an email-domain match. Customers cannot invite, assign customer roles to, remove, or claim internal members through reviewer controls or the pilot API. Team accounts auto-provision on first magic-link sign-in, including backfilled approver/admin access to pilots created before their address was configured.
+
 ## Repo layout
 
 ```

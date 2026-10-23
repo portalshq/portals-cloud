@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest'
 import {
   isPortalsTeamReviewerEmail,
   isProtectedPortalsReviewerMutation,
+  portalsTeamEmailsFromEnv,
   PORTALS_TEAM_REVIEWER_ROLE,
 } from './pilot-team-reviewer'
 
@@ -31,5 +32,36 @@ describe('system-managed Portals team reviewer', () => {
       expect(isProtectedPortalsReviewerMutation(action, [teamEmail], teamEmail)).toBe(false)
     }
     expect(isProtectedPortalsReviewerMutation('claim_role', [], teamEmail)).toBe(false)
+  })
+
+  it('matches every configured team email when given a list', () => {
+    const teamEmails = ['sales@portals.works', 'ops@portals.works']
+    expect(isPortalsTeamReviewerEmail(' OPS@PORTALS.WORKS ', teamEmails)).toBe(true)
+    expect(isPortalsTeamReviewerEmail('sales@portals.works', teamEmails)).toBe(true)
+    expect(isPortalsTeamReviewerEmail('customer@example.com', teamEmails)).toBe(false)
+    expect(isPortalsTeamReviewerEmail('', teamEmails)).toBe(false)
+    expect(isProtectedPortalsReviewerMutation('remove_reviewer', ['ops@portals.works'], teamEmails)).toBe(true)
+    expect(isProtectedPortalsReviewerMutation('remove_reviewer', ['customer@example.com'], teamEmails)).toBe(false)
+    expect(isProtectedPortalsReviewerMutation('remove_reviewer', ['ops@portals.works'], [])).toBe(false)
+  })
+})
+
+describe('portalsTeamEmailsFromEnv', () => {
+  it('parses a comma-separated PORTALS_TEAM_EMAILS list', () => {
+    expect(
+      portalsTeamEmailsFromEnv({
+        PORTALS_TEAM_EMAILS: ' Sales@Portals.Works , ops@portals.works,, SALES@PORTALS.WORKS ',
+      }),
+    ).toEqual(['sales@portals.works', 'ops@portals.works'])
+  })
+
+  it('falls back to LEADS_NOTIFICATION_EMAIL when PORTALS_TEAM_EMAILS is unset or empty', () => {
+    expect(portalsTeamEmailsFromEnv({LEADS_NOTIFICATION_EMAIL: 'ops@portals.test'})).toEqual([
+      'ops@portals.test',
+    ])
+    expect(
+      portalsTeamEmailsFromEnv({PORTALS_TEAM_EMAILS: '  ', LEADS_NOTIFICATION_EMAIL: 'ops@portals.test'}),
+    ).toEqual(['ops@portals.test'])
+    expect(portalsTeamEmailsFromEnv({})).toEqual([])
   })
 })

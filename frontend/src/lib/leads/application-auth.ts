@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { decryptJson, encryptJson, hashValue, randomToken } from './crypto'
 import { normalizeEmail } from './identity'
-import { getPilotById, leadPool, leadsDryRun, setPilotCustomerAccountId, type StoredProfile } from './store'
+import { getPilotById, leadPool, leadsDryRun, listPilotAccountPairs, setPilotCustomerAccountId, type StoredProfile } from './store'
+import { portalsTeamEmailsFromEnv } from './pilot-team-reviewer'
 
 export const APP_SESSION_COOKIE = 'portals_session'
 export const APP_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 14
@@ -266,10 +267,13 @@ export async function ensurePilotCustomerAccount(input: {
   })
   const domain = input.profile.companyDomain || undefined
   const accountName = input.companyName || input.profile.identity.company || domain || email
-  const founderEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim()
-  const founder = founderEmail && normalizeEmail(founderEmail) !== email
-    ? await ensureApplicationUser({ email: founderEmail, displayName: 'portals team' })
-    : null
+  const portalsTeamEmails = portalsTeamEmailsFromEnv().filter((teamEmail) => teamEmail !== email)
+  const portalsTeamUsers: ApplicationUser[] = []
+  for (const teamEmail of portalsTeamEmails) {
+    portalsTeamUsers.push(
+      await ensureApplicationUser({ email: teamEmail, displayName: 'portals team' }),
+    )
+  }
   if (leadsDryRun()) {
     const stored = memoryStore()
     const ownedCustomerId = [...stored.memberships.entries()].find(
@@ -283,13 +287,15 @@ export async function ensurePilotCustomerAccount(input: {
     stored.memberships.set(memberKey(customer.id, user.id), 'owner')
     if (input.pilotId) {
       stored.pilotMemberships.set(pilotMemberKey(input.pilotId, user.id, "owner"), 'owner')
-      if (founder) {
-        stored.pilotMemberships.set(pilotMemberKey(input.pilotId, founder.id, "approver"), 'approver')
+      for (const teamUser of portalsTeamUsers) {
+        stored.pilotMemberships.set(pilotMemberKey(input.pilotId, teamUser.id, "approver"), 'approver')
       }
       await setPilotCustomerAccountId(input.pilotId, customer.id)
     }
-    if (founder) {
-      stored.memberships.set(memberKey(customer.id, founder.id), 'admin')
+    for (const teamUser of portalsTeamUsers) {
+      if (stored.memberships.get(memberKey(customer.id, teamUser.id)) !== 'owner') {
+        stored.memberships.set(memberKey(customer.id, teamUser.id), 'admin')
+      }
     }
     return { user, customer }
   }
@@ -347,12 +353,12 @@ export async function ensurePilotCustomerAccount(input: {
          DO UPDATE SET role = 'owner', revoked_at = NULL`,
         [input.pilotId, user.id],
       )
-      if (founder) {
+      for (const teamUser of portalsTeamUsers) {
         await client.query(
           `INSERT INTO pilot_memberships(pilot_id, user_id, role)
            VALUES ($1,$2,'approver') ON CONFLICT(pilot_id, user_id, role)
            DO UPDATE SET role = 'approver', revoked_at = NULL`,
-          [input.pilotId, founder.id],
+          [input.pilotId, teamUser.id],
         )
       }
       await client.query(
@@ -365,16 +371,66 @@ export async function ensurePilotCustomerAccount(input: {
         [customer.id, input.pilotId, user.id],
       )
     }
-    if (founder) {
+    for (const teamUser of portalsTeamUsers) {
       await client.query(
         `INSERT INTO customer_memberships(customer_account_id, user_id, role)
          VALUES ($1,$2,'admin') ON CONFLICT(customer_account_id, user_id)
-         DO UPDATE SET role = 'admin', revoked_at = NULL`,
-        [customer.id, founder.id],
+         DO UPDATE SET role = CASE
+           WHEN customer_memberships.role = 'owner' THEN 'owner'
+           ELSE 'admin'
+         END, revoked_at = NULL`,
+        [customer.id, teamUser.id],
       )
     }
     await client.query('COMMIT')
     return { user, customer }
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+/**
+ * Grants a configured Portals team user reviewer access to every existing
+ * customer pilot room. Used to provision staff accounts that were configured
+ * after pilots were already created.
+ */
+export async function ensurePortalsTeamAccess(user: ApplicationUser): Promise<void> {
+  const pairs = await listPilotAccountPairs()
+  if (!pairs.length) return
+  if (leadsDryRun()) {
+    const stored = memoryStore()
+    for (const { pilotId, customerAccountId } of pairs) {
+      stored.pilotMemberships.set(pilotMemberKey(pilotId, user.id, 'approver'), 'approver')
+      if (stored.memberships.get(memberKey(customerAccountId, user.id)) !== 'owner') {
+        stored.memberships.set(memberKey(customerAccountId, user.id), 'admin')
+      }
+    }
+    return
+  }
+  const client = await leadPool().connect()
+  try {
+    await client.query('BEGIN')
+    for (const { pilotId, customerAccountId } of pairs) {
+      await client.query(
+        `INSERT INTO pilot_memberships(pilot_id, user_id, role)
+         VALUES ($1,$2,'approver') ON CONFLICT(pilot_id, user_id, role)
+         DO UPDATE SET role = 'approver', revoked_at = NULL`,
+        [pilotId, user.id],
+      )
+      await client.query(
+        `INSERT INTO customer_memberships(customer_account_id, user_id, role)
+         VALUES ($1,$2,'admin') ON CONFLICT(customer_account_id, user_id)
+         DO UPDATE SET role = CASE
+           WHEN customer_memberships.role = 'owner' THEN 'owner'
+           ELSE 'admin'
+         END, revoked_at = NULL`,
+        [customerAccountId, user.id],
+      )
+    }
+    await client.query('COMMIT')
   } catch (error) {
     await client.query('ROLLBACK')
     throw error

@@ -16,6 +16,7 @@ import {
   issueMagicLink,
   type PilotMemberRole,
 } from './application-auth'
+import { isPortalsTeamReviewerEmail, portalsTeamEmailsFromEnv } from './pilot-team-reviewer'
 
 export async function sendEmail({
   idempotencyKey,
@@ -67,7 +68,6 @@ export function recipientRole(pilot: StoredPilot, email: string): {
   displayName?: string
 } | null {
   const normalized = email.trim().toLowerCase()
-  const portalsEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
   if (String(pilot.answers.email || '').trim().toLowerCase() === normalized) {
     return {
       pilotRole: 'owner',
@@ -75,7 +75,7 @@ export function recipientRole(pilot: StoredPilot, email: string): {
       displayName: String(pilot.answers.name || '').trim() || undefined,
     }
   }
-  if (portalsEmail && normalized === portalsEmail) {
+  if (isPortalsTeamReviewerEmail(email, portalsTeamEmailsFromEnv())) {
     return {
       pilotRole: 'approver',
       customerRole: 'member',

@@ -7,10 +7,12 @@ process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {POST} from '../../../app/api/leads/route'
 import {PATCH as PATCH_PILOT} from '../../../app/api/pilot/[id]/route'
+import {POST as POST_MAGIC_LINK} from '../../../app/api/auth/magic-link/route'
 import {processLeadOutbox} from './processor'
 import {
   consumeMagicLink,
   getApplicationUserByEmail,
+  getCustomerAccountForUser,
   invitePilotMember,
   issueMagicLink,
   pilotMembershipRoles,
@@ -1399,4 +1401,116 @@ test('room edits cannot forge assessment evidence or erase required founder qual
   assert.ok(room.exceptions.some((exception: {kind: string}) => exception.kind === 'assessment-qualification'))
   assert.equal((await patchPilot(pilot.id, {action: 'resolve_exceptions'}, {cookie})).status, 403)
   assert.equal((await patchPilot(pilot.id, {action: 'sign', signer: {name: 'Ava', email}}, {cookie})).status, 422)
+})
+
+function postMagicLink(body: Record<string, unknown>) {
+  return POST_MAGIC_LINK(
+    new Request('http://localhost/api/auth/magic-link', {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(body),
+    }),
+  )
+}
+
+test('magic-link sign-in auto-provisions configured Portals team accounts and backfills pilot access', async (t) => {
+  const ownerEmail = `team-owner-${crypto.randomUUID()}@studio.example`
+  const extraTeamEmail = `staff-${crypto.randomUUID()}@portals.test`
+  const fetches = captureFetch(t)
+  const previousTeamEmails = process.env.PORTALS_TEAM_EMAILS
+
+  try {
+    // The pilot room is created before the second staff address is configured.
+    delete process.env.PORTALS_TEAM_EMAILS
+    const created = await post(pilotBody(ownerEmail))
+    assert.equal(created.status, 200)
+    const {pilot} = await pilotForProfile(profileTokenFrom(created))
+    assert.ok(pilot)
+    assert.ok(pilot.customerAccountId)
+    assert.equal(await getApplicationUserByEmail(extraTeamEmail), null)
+
+    process.env.PORTALS_TEAM_EMAILS = `ops@portals.test, ${extraTeamEmail}`
+
+    // Unregistered non-team emails still receive nothing and gain no account.
+    const strangerEmail = `stranger-${crypto.randomUUID()}@portals.test`
+    const strangers = await postMagicLink({email: strangerEmail})
+    assert.equal(strangers.status, 200)
+    assert.deepEqual(await strangers.json(), {ok: true})
+    assert.equal(await getApplicationUserByEmail(strangerEmail), null)
+    assert.equal(fetches.some((entry) => entry.body.to === strangerEmail), false)
+
+    // A configured staff email is provisioned at sign-in with backfilled access.
+    const signIn = await postMagicLink({email: ` ${extraTeamEmail.toUpperCase()} `})
+    assert.equal(signIn.status, 200)
+    assert.deepEqual(await signIn.json(), {ok: true})
+    const staff = await getApplicationUserByEmail(extraTeamEmail)
+    assert.ok(staff, 'the team account is provisioned at first sign-in')
+    assert.equal(staff.status, 'active')
+    assert.equal(await pilotMembershipRole(pilot.id, staff.id), 'approver')
+    const membership = await getCustomerAccountForUser(pilot.customerAccountId!, staff.id)
+    assert.equal(membership?.role, 'admin')
+
+    const sent = fetches.find(
+      (entry) => entry.body.to === extraTeamEmail && String(entry.body.text).includes('/auth/verify?token='),
+    )
+    assert.ok(sent, 'the staff sign-in email is delivered')
+    const session = await consumeMagicLink(tokenFrom(String(sent.body.text)))
+    assert.ok(session, 'the provisioned staff magic link produces a session')
+  } finally {
+    restoreEnvironment('PORTALS_TEAM_EMAILS', previousTeamEmails)
+  }
+})
+
+test('magic-link sign-in reports email delivery failures instead of silently succeeding', async (t) => {
+  const ownerEmail = `send-fail-${crypto.randomUUID()}@studio.example`
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const requestUrl = url instanceof Request ? url.url : String(url)
+    if (requestUrl.includes('.api.sanity.io/')) {
+      return Response.json({result: TEST_PACKAGE_SPECIFICATIONS})
+    }
+    return new Response('resend down', {status: 500})
+  })
+
+  const created = await post(pilotBody(ownerEmail))
+  assert.equal(created.status, 200)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+
+  const failed = await postMagicLink({email: ownerEmail})
+  assert.equal(failed.status, 500)
+  assert.equal((await failed.json()).error, 'email_send_failed')
+})
+
+test('a configured Portals team member holds the founder qualification gate', async (t) => {
+  const ownerEmail = `team-gate-${crypto.randomUUID()}@studio.example`
+  const teamEmail = `gate-${crypto.randomUUID()}@portals.test`
+  captureFetch(t)
+  const previousTeamEmails = process.env.PORTALS_TEAM_EMAILS
+
+  try {
+    process.env.PORTALS_TEAM_EMAILS = `ops@portals.test,${teamEmail}`
+    const created = await post(pilotBody(ownerEmail, {assessmentOrigin: 'assessment_override'}))
+    assert.equal(created.status, 200)
+    assert.equal((await created.json()).pilotState, 'exception_review')
+    const {pilot} = await pilotForProfile(profileTokenFrom(created))
+    assert.ok(pilot)
+
+    const staff = await getApplicationUserByEmail(teamEmail)
+    assert.ok(staff, 'the second team account is provisioned at pilot creation')
+    const session = await consumeMagicLink(
+      await issueMagicLink({userId: staff.id, purpose: 'sign_in'}),
+    )
+    assert.ok(session)
+    const resolved = await patchPilot(
+      pilot.id,
+      {action: 'resolve_exceptions'},
+      {cookie: `portals_session=${session.sessionToken}`},
+    )
+    assert.equal(resolved.status, 200)
+    const room = (await resolved.json()).pilot
+    assert.equal(room.state, 'reviewing')
+    assert.ok(room.exceptions.every((item: {resolvedAt?: string}) => item.resolvedAt))
+  } finally {
+    restoreEnvironment('PORTALS_TEAM_EMAILS', previousTeamEmails)
+  }
 })

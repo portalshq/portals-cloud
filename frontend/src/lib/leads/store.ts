@@ -516,6 +516,23 @@ export async function getPilotsForCustomerAccount(
   return result.rows.map(pilotFromRow)
 }
 
+export async function listPilotAccountPairs(): Promise<Array<{
+  pilotId: string
+  customerAccountId: string
+}>> {
+  if (leadsDryRun()) {
+    return [...memory().pilots.values()]
+      .filter((pilot): pilot is StoredPilot & { customerAccountId: string } =>
+        Boolean(pilot.customerAccountId),
+      )
+      .map((pilot) => ({ pilotId: pilot.id, customerAccountId: pilot.customerAccountId }))
+  }
+  const result = await pool().query<{ id: string; customer_account_id: string }>(
+    'SELECT id, customer_account_id FROM lead_pilots WHERE customer_account_id IS NOT NULL',
+  )
+  return result.rows.map((row) => ({ pilotId: row.id, customerAccountId: row.customer_account_id }))
+}
+
 export type PilotNavigationItem = {
   id: string
   createdAt: string

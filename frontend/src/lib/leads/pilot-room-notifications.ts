@@ -3,6 +3,7 @@ import type {ReviewerRole} from './pilot'
 import type {PilotDraftChange} from './pilot-collaboration'
 import {activePilotMemberEmails} from './application-auth'
 import {normalizeEmail} from './identity'
+import {portalsTeamEmailsFromEnv} from './pilot-team-reviewer'
 import {enqueuePilotEmail, type StoredPilot} from './store'
 
 export type PilotRoomSection =
@@ -98,7 +99,7 @@ function reviewerEmails(pilot: StoredPilot, roles?: ReviewerRole[]): string[] {
 }
 
 async function roomMemberEmails(pilot: StoredPilot): Promise<string[]> {
-  const portalsEmail = normalizeEmail(process.env.LEADS_NOTIFICATION_EMAIL || '')
+  const portalsTeamEmails = portalsTeamEmailsFromEnv()
   return [
     String(pilot.answers.email || ''),
     String(pilot.answers.signerEmail || ''),
@@ -106,7 +107,7 @@ async function roomMemberEmails(pilot: StoredPilot): Promise<string[]> {
     ...(await activePilotMemberEmails(pilot.id)),
   ].filter((email) => {
     const normalized = normalizeEmail(email)
-    return normalized && normalized !== portalsEmail
+    return normalized && !portalsTeamEmails.includes(normalized)
   })
 }
 
@@ -206,7 +207,7 @@ export async function notifyPilotRoomEvent(input: {
   const eventKey = input.eventKey || `${input.event}:${input.pilot.version}:${Date.now()}`
   const targets = new Map<string, string>()
   const ownerEmail = String(input.pilot.answers.email || '')
-  const portalsEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '')
+  const portalsTeamEmails = portalsTeamEmailsFromEnv()
 
   if (input.event === 'terms_changed') {
     const sections = input.sections || []
@@ -224,7 +225,7 @@ export async function notifyPilotRoomEvent(input: {
   } else {
     if (input.event === 'exception_review_requested') {
       pushEmail(targets, ownerEmail, 'exception')
-      pushEmail(targets, portalsEmail, 'portals_review_requested')
+      for (const email of portalsTeamEmails) pushEmail(targets, email, 'portals_review_requested')
     } else {
       pushEmail(targets, ownerEmail, input.event)
     }
@@ -241,7 +242,7 @@ export async function notifyPilotRoomEvent(input: {
         'pilot_active',
       ].includes(input.event)
     ) {
-      pushEmail(targets, portalsEmail, input.event)
+      for (const email of portalsTeamEmails) pushEmail(targets, email, input.event)
     }
   }
 
