@@ -114,6 +114,24 @@ function formatCommercialDate(value: unknown): string | null {
   return typeof value === 'string' ? formatReadableDate(value) : null
 }
 
+function formatCommercialAmount(amount: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
+function annualSubscriptionRateLabel(annualOption: NonNullable<StoredPilot['proposal']>['annualOption']): string {
+  return 'Monthly subscription rate'
+}
+
+function offerAcceptanceCopy(proposal: NonNullable<StoredPilot['proposal']>): string {
+  const deadline = proposal.offerAcceptanceDeadlineLabel || formatCommercialDate(proposal.offerEndsAt)
+  if (!deadline) return 'Not set'
+  return deadline.replace(/^sign by\s*/i, '').replace(/\s+to accept this offer\.?$/i, '')
+}
+
 function changedCount(base: RoomTerms, current: RoomTerms): number {
   return changedPilotTermPaths(base, current).length
 }
@@ -177,7 +195,7 @@ function SectionShell({
   const modeCopy = {
     editable: { label: 'Editable', icon: Pencil },
     request: { label: 'Request changes', icon: Send },
-    readonly: { label: 'Read-only', icon: LockKeyhole },
+    readonly: { label: 'Read only', icon: LockKeyhole },
   }[mode]
   const Icon = modeCopy.icon
   const showBadge = mode !== 'request'
@@ -188,9 +206,8 @@ function SectionShell({
           <div className="flex flex-wrap items-center gap-10">
             <h2 className="t-h3-sans">{title}</h2>
             {showBadge ? (
-              <span className="inline-flex items-center gap-6 t-p-sm-sans">
-                {modeCopy.label}
-                <Icon aria-hidden="true" size={14} strokeWidth={1.8} />
+              <span className="inline-flex mt-8 items-center gap-6 t-p-sm-sans">
+                ({modeCopy.label})
               </span>
             ) : action ? (
               <div className="hidden sm:block">{action}</div>
@@ -1322,28 +1339,39 @@ export function PilotApprovalRoom({
         id="commercial"
         title="Commercial Terms"
         mode={canEditDraft ? 'editable' : 'request'}
-        summary="Terms, fees, annual option, and value estimate attached to this pilot."
+        summary="Terms for this pilot and proposed annual plan."
         action={!canEditDraft ? requestAction('Commercial terms') : null}
       >
         {pilot.proposal ? (
           <dl className="grid gap-14 t-p-sm-sans">
-            <div><dt className="text-white/80">Pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature</dd></div>
-            {pilot.payment?.invoiceId ? <div><dt className="text-white/60">Invoice</dt><dd className="mt-2"><a className="underline" href={String(pilot.payment.hostedInvoiceUrl || '#')} target="_blank" rel="noreferrer">{String(pilot.payment.invoiceId)}</a> · {String(pilot.payment.invoiceStatus || 'open')}</dd></div> : null}
-            {pilot.payment?.paymentStatus ? <div><dt className="text-white/60">Payment status</dt><dd className="mt-2 capitalize">{String(pilot.payment.paymentStatus)}</dd></div> : null}
-            <div><dt className="text-white/80">Term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? `, ${pilot.proposal.termStart} to ${pilot.proposal.termEnd}` : ''}</dd></div>
-            {formatCommercialDate(pilot.proposal.decisionDate) ? <div><dt className="text-white/60">Final decision date</dt><dd className="mt-2">{formatCommercialDate(pilot.proposal.decisionDate)}</dd></div> : null}
+            <div><dt className="text-white/80">One-time pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature.</dd></div>
+            {pilot.payment?.invoiceId ? <div><dt className="text-white/80">Invoice</dt><dd className="mt-2"><a className="underline" href={String(pilot.payment.hostedInvoiceUrl || '#')} target="_blank" rel="noreferrer">{String(pilot.payment.invoiceId)}</a> · {String(pilot.payment.invoiceStatus || 'open')}</dd></div> : null}
+            {pilot.payment?.paymentStatus ? <div><dt className="text-white/80">Payment status</dt><dd className="mt-2 capitalize">{String(pilot.payment.paymentStatus)}</dd></div> : null}
+            <div><dt className="text-white/80">Pilot term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? `, ${formatCommercialDate(pilot.proposal.termStart)} to ${formatCommercialDate(pilot.proposal.termEnd)}` : ''}</dd></div>
+            {formatCommercialDate(pilot.proposal.decisionDate) ? <div><dt className="text-white/80">Pilot offer expires</dt><dd className="mt-2">{formatCommercialDate(pilot.proposal.decisionDate)}</dd></div> : null}
             {pilot.proposal.offerVariantSlug ? (
-              <div><dt className="text-white/80">Offer acceptance deadline</dt><dd className="mt-2">Sign by {pilot.proposal.offerAcceptanceDeadlineLabel || pilot.proposal.offerEndsAt}</dd></div>
-            ) : pilot.proposal.creditDeadline ? (
-              <div><dt className="text-white/80">Annual credit window</dt><dd className="mt-2">Signs by {pilot.proposal.creditDeadline}</dd></div>
+              <div><dt className="text-white/80">Pilot offer acceptance deadline</dt><dd className="mt-2">{offerAcceptanceCopy(pilot.proposal)}</dd></div>
+            ) : null}
+            {pilot.proposal.creditDeadline ? <div><dt className="text-white/80">Annual plan credit deadline</dt><dd className="mt-2">{formatCommercialDate(pilot.proposal.creditDeadline)}. To receive the pilot fee as a credit toward your annual subscription, sign the annual order form by this date.</dd></div> : null}
+            {(pilot.proposal.annualCreditLabel || pilot.proposal.annualOption) ? (
+              <div><dt className="text-white/80">Pilot fee credited toward annual plan</dt><dd className="mt-2">{formatCommercialAmount(pilot.proposal.annualCreditAmount ?? pilot.proposal.priceAmount, pilot.proposal.currency)}{pilot.proposal.creditDeadline ? ` when the annual order form is signed by ${formatCommercialDate(pilot.proposal.creditDeadline)}` : ''}.</dd></div>
             ) : null}
             {pilot.proposal.annualOption ? (
               <div>
-                <dt className="text-white/80">Proposed annual deployment</dt>
-                <dd className="mt-2">{pilot.proposal.annualOption.name} - {pilot.proposal.annualOption.priceLabel}</dd>
-                <dd className="mt-2">{pilot.proposal.annualOption.creditNote}</dd>
+                <dt className="text-white/80">Annual plan</dt>
+                <dd className="mt-2">{pilot.proposal.annualOption.name}</dd>
+                <dl className="mt-12 grid gap-10 border-l border-white/30 pl-14">
+                  <div><dt className="text-white/80">Monthly subscription rate</dt><dd className="mt-2">{pilot.proposal.annualOption.priceLabel} per month (billed annually)</dd></div>
+                  <div>
+                    <dt className="text-white/80">Annual contract total</dt>
+                    <dd className="mt-2">{pilot.proposal.annualOption.annualTotal === null
+                      ? 'Custom annual total, to be stated in the order form'
+                      : `${formatCommercialAmount(pilot.proposal.annualOption.annualTotal, pilot.proposal.annualOption.currency)}`}</dd>
+                  </div>
+                  <div><dt className="text-white/80">Annual plan setup fee</dt><dd className="mt-2">{pilot.proposal.annualOption.onboardingFee ? `${formatCommercialAmount(pilot.proposal.annualOption.onboardingFee, pilot.proposal.annualOption.currency)}, due at account creation.` : 'None.'}</dd></div>
+                </dl>
               </div>
-            ) : null}
+            ) : <div><dt className="text-white/80">Annual plan</dt><dd className="mt-2">Not selected.</dd></div>}
             {value ? (
               <div className="md:col-span-2">
                 <dt className="text-white/80">Auditable value estimate</dt>
