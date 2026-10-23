@@ -1345,13 +1345,11 @@ export function PilotApprovalRoom({
         {pilot.proposal ? (
           <dl className="grid gap-14 t-p-sm-sans">
             <div><dt className="text-white/80">One-time pilot fee</dt><dd className="mt-2">{pilot.proposal.priceLabel}, due on signature.</dd></div>
-            {pilot.payment?.invoiceId ? <div><dt className="text-white/80">Invoice</dt><dd className="mt-2"><a className="underline" href={String(pilot.payment.hostedInvoiceUrl || '#')} target="_blank" rel="noreferrer">{String(pilot.payment.invoiceId)}</a> · {String(pilot.payment.invoiceStatus || 'open')}</dd></div> : null}
-            {pilot.payment?.paymentStatus ? <div><dt className="text-white/80">Payment status</dt><dd className="mt-2 capitalize">{String(pilot.payment.paymentStatus)}</dd></div> : null}
             <div><dt className="text-white/80">Pilot term</dt><dd className="mt-2">{pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? `, ${formatCommercialDate(pilot.proposal.termStart)} to ${formatCommercialDate(pilot.proposal.termEnd)}` : ''}</dd></div>
-            {formatCommercialDate(pilot.proposal.decisionDate) ? <div><dt className="text-white/80">Annual deployment decision deadline</dt><dd className="mt-2">{formatCommercialDate(pilot.proposal.decisionDate)}</dd></div> : null}
             {pilot.proposal.offerVariantSlug ? (
               <div><dt className="text-white/80">Pilot offer acceptance deadline</dt><dd className="mt-2">{offerAcceptanceCopy(pilot.proposal)}</dd></div>
             ) : null}
+            {formatCommercialDate(pilot.proposal.decisionDate) ? <div><dt className="text-white/80">Annual deployment decision deadline</dt><dd className="mt-2">{formatCommercialDate(pilot.proposal.decisionDate)}</dd></div> : null}
             {pilot.proposal.creditDeadline ? <div><dt className="text-white/80">Annual plan credit deadline</dt><dd className="mt-2">{formatCommercialDate(pilot.proposal.creditDeadline)}. To receive the pilot fee as a credit toward your annual subscription, sign the annual order form by this date.</dd></div> : null}
             {(pilot.proposal.annualCreditLabel || pilot.proposal.annualOption) ? (
               <div><dt className="text-white/80">Pilot fee credited toward annual plan</dt><dd className="mt-2">{formatCommercialAmount(pilot.proposal.annualCreditAmount ?? pilot.proposal.priceAmount, pilot.proposal.currency)}{pilot.proposal.creditDeadline ? ` when the annual order form is signed by ${formatCommercialDate(pilot.proposal.creditDeadline)}` : ''}.</dd></div>
@@ -1372,6 +1370,8 @@ export function PilotApprovalRoom({
                 </dl>
               </div>
             ) : <div><dt className="text-white/80">Annual plan</dt><dd className="mt-2">Not selected.</dd></div>}
+            {pilot.payment?.invoiceId ? <div><dt className="text-white/80">Invoice</dt><dd className="mt-2"><a className="underline" href={String(pilot.payment.hostedInvoiceUrl || '#')} target="_blank" rel="noreferrer">{String(pilot.payment.invoiceId)}</a> · {String(pilot.payment.invoiceStatus || 'open')}</dd></div> : null}
+            {pilot.payment?.paymentStatus ? <div><dt className="text-white/80">Payment status</dt><dd className="mt-2 capitalize">{String(pilot.payment.paymentStatus)}</dd></div> : null}
             {value ? (
               <div className="md:col-span-2">
                 <dt className="text-white/80">Auditable value estimate</dt>
