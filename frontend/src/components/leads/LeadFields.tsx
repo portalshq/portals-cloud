@@ -3,40 +3,55 @@
 import type {ChangeEvent, ReactNode} from 'react'
 import {CTAButton} from '@/components/CTAButton'
 import {LeadCheckbox, LeadSelectField, LeadTextField} from '@/components/mui/fields'
-import type {KnownLeadContext} from '@/lib/leads/contracts'
-import {resetKnownProfile} from '@/lib/leads/client'
+import type {KnownLeadContext, LeadIdentity} from '@/lib/leads/contracts'
+import {publicEmailNeedsWebsite, resetKnownProfile} from '@/lib/leads/client'
+import type {PrefilledIdentity} from '@/lib/leads/identity-prefill'
 import {ConditionalReveal} from './ConditionalReveal'
 import type {UrlParams} from '@/lib/leads/url-params'
+import { cn } from '@/lib/utils'
 
 export function LeadField({
   label,
   name,
   children,
+  className
 }: {
   label: string
   name: string
   children: ReactNode
+  className?: string
 }) {
   return (
-    <div className="block t-p-sm-sans text-white">
+    <div className={cn("block t-p-sm-sans text-white", className)}>
       <label htmlFor={name}>{label}</label>
       {children}
     </div>
   )
 }
 
-export function KnownProfileNotice({context}: {context: KnownLeadContext}) {
-  if (!context.known) return null
+export function KnownProfileNotice({
+  identity,
+  onReset,
+}: {
+  identity?: Partial<LeadIdentity>
+  onReset?: () => void | Promise<void>
+}) {
+  const summary = [identity?.name, identity?.email, identity?.company]
+    .filter(Boolean)
+    .join(' · ')
+  if (!summary) return null
   return (
     <div className="flex flex-wrap items-center justify-between gap-12 rounded-sm bg-white/8 px-14 py-12 sm:col-span-2">
-      <p className="t-p-sm-sans text-white">
-        {[context.identity?.name, context.identity?.email, context.identity?.company].filter(Boolean).join(' · ')}
-      </p>
+      <p className="t-p-sm-sans text-white">{summary}</p>
       <CTAButton
         type="button"
         appearance="plain"
         className="!min-w-0 underline underline-offset-4"
         onClick={async () => {
+          if (onReset) {
+            await onReset()
+            return
+          }
           await resetKnownProfile()
         }}
       >
@@ -48,6 +63,7 @@ export function KnownProfileNotice({context}: {context: KnownLeadContext}) {
 
 export function IdentityFields({
   context,
+  prefilledIdentity,
   email,
   onEmailChange,
   requireWebsite,
@@ -55,17 +71,24 @@ export function IdentityFields({
   urlParams = {},
 }: {
   context: KnownLeadContext
+  prefilledIdentity: PrefilledIdentity
   email: string
   onEmailChange: (event: ChangeEvent<HTMLInputElement>) => void
   requireWebsite: boolean
   onStarted: () => void
   urlParams?: UrlParams
 }) {
-  const known = new Set(context.knownFields)
+  const grouped = new Set(prefilledIdentity.fields)
+  const groupedEmail = prefilledIdentity.identity.email
+  const websiteRequired = Boolean(
+    requireWebsite ||
+      context.requiresWebsite ||
+      (groupedEmail && publicEmailNeedsWebsite(groupedEmail)),
+  )
   return (
     <>
-      <KnownProfileNotice context={context} />
-      {!known.has('name') ? (
+      <KnownProfileNotice identity={prefilledIdentity.identity} />
+      {!grouped.has('name') ? (
         <LeadField label="name *" name="name">
           <LeadTextField
             id="name"
@@ -78,7 +101,7 @@ export function IdentityFields({
           />
         </LeadField>
       ) : null}
-      {!known.has('email') ? (
+      {!grouped.has('email') ? (
         <LeadField label="work email *" name="email">
           <LeadTextField
             id="email"
@@ -95,7 +118,7 @@ export function IdentityFields({
           />
         </LeadField>
       ) : null}
-      {!known.has('company') ? (
+      {!grouped.has('company') ? (
         <LeadField label="company *" name="company">
           <LeadTextField
             id="company"
@@ -108,7 +131,7 @@ export function IdentityFields({
           />
         </LeadField>
       ) : null}
-      {!known.has('role') ? (
+      {!grouped.has('role') ? (
         <LeadField label="role *" name="role">
           <LeadSelectField
             id="role"
@@ -128,15 +151,15 @@ export function IdentityFields({
           </LeadSelectField>
         </LeadField>
       ) : null}
-      {!known.has('website') ? (
-        <ConditionalReveal active={Boolean(requireWebsite || context.requiresWebsite)}>
+      {!grouped.has('website') ? (
+        <ConditionalReveal active={websiteRequired}>
           <LeadField label="company website *" name="website">
             <LeadTextField
               id="website"
               name="website"
               type="url"
               autoComplete="url"
-              required={requireWebsite || context.requiresWebsite}
+              required={websiteRequired}
               onChange={onStarted}
               placeholder="company.com"
               defaultValue={urlParams.website || ''}

@@ -57,6 +57,12 @@ import {
   type UrlParams,
 } from '@/lib/leads/url-params'
 import {
+  collectDraftValues,
+  formDraftKey,
+  writeFormDraft,
+} from '@/lib/leads/form-draft'
+import { resolvePrefilledIdentity } from '@/lib/leads/identity-prefill'
+import {
   ConsentFields,
   IdentityFields,
   LeadField,
@@ -238,6 +244,7 @@ export function AssessmentForm({
   const formRef = useRef<HTMLFormElement | null>(null)
   const hasNavigated = useRef(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const resultRef = useRef<HTMLDivElement | null>(null)
   const started = useRef(false)
   const startedAt = useRef(Date.now())
   const idempotencyKey = useRef(newSubmissionId('assessment'))
@@ -264,13 +271,12 @@ export function AssessmentForm({
     () =>
       identityChanged
         ? { known: false, knownFields: [], knownAnswerFields: [] }
-        : {
-          ...context,
-          knownFields: context.knownFields.filter(
-            (field) => !urlParams[field],
-          ),
-        },
-    [identityChanged, context, urlParams],
+        : context,
+    [identityChanged, context],
+  )
+  const prefilledIdentity = useMemo(
+    () => resolvePrefilledIdentity(identityContext, { urlParams }),
+    [identityContext, urlParams],
   )
   const stages = useMemo(() => visibleAssessmentStages(answers), [answers])
   const currentStage = stages.includes(stage)
@@ -347,9 +353,18 @@ export function AssessmentForm({
   }, [currentStage, answers])
 
   useEffect(() => {
-    if (hasNavigated.current) headingRef.current?.focus()
+    if (hasNavigated.current) {
+      formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+      headingRef.current?.focus({ preventScroll: true })
+    }
     hasNavigated.current = true
   }, [currentStage])
+
+  useEffect(() => {
+    if (result) {
+      resultRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    }
+  }, [result])
 
   const onStarted = useCallback(() => {
     if (started.current) return
@@ -432,6 +447,9 @@ export function AssessmentForm({
     const values = Object.fromEntries(
       new FormData(event.currentTarget).entries(),
     )
+    // Snapshot the applicant's own just-typed values before the async submit;
+    // React clears event.currentTarget once dispatch completes.
+    const submittedDraftValues = collectDraftValues(event.currentTarget)
     try {
       const identity = {
         website: '',
@@ -439,8 +457,8 @@ export function AssessmentForm({
           ['name', 'email', 'company', 'role', 'website'].flatMap((key) => {
             const value =
               values[key] ||
-              identityContext.identity?.[
-              key as keyof typeof identityContext.identity
+              prefilledIdentity.identity?.[
+              key as keyof typeof prefilledIdentity.identity
               ]
             return value ? [[key, String(value)]] : []
           }),
@@ -479,6 +497,15 @@ export function AssessmentForm({
         stage: currentStage + 1,
         assessment_version: ASSESSMENT_VERSION,
       })
+      if (response.nextAction === 'pilot_scope') {
+        // Carry the applicant's own just-submitted values into the pilot draft
+        // so /pilot prefills even when this browser holds no profile token —
+        // e.g. a claimed email where binding is deliberately withheld. This
+        // echoes only what the user typed; nothing from the claimed profile is
+        // exposed. PilotScopeForm migrates the draft under its expectedEmail
+        // guard, so a different bound identity never receives it.
+        writeFormDraft(formDraftKey('pilot_request'), submittedDraftValues)
+      }
       clear()
       setResult(response)
       setStatus('idle')
@@ -492,7 +519,7 @@ export function AssessmentForm({
 
   if (result)
     return (
-      <div role="status" className="space-y-24">
+      <div ref={resultRef} role="status" className="space-y-24">
         <h2 className="t-h3-sans">
           {result.diagnosticResult?.title || 'Your production recommendation'}
         </h2>
@@ -618,6 +645,7 @@ export function AssessmentForm({
               <div className="grid gap-20 sm:grid-cols-2">
                 <MemoIdentityFields
                   context={identityContext}
+                  prefilledIdentity={prefilledIdentity}
                   email={email}
                   onEmailChange={onEmailChange}
                   requireWebsite={publicEmailNeedsWebsite(email)}

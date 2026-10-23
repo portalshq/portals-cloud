@@ -99,8 +99,34 @@ test('a returning qualified applicant keeps edits, skips discovery, and submits 
             answerValues: values,
           },
           annualOptions: [
+            {slug: 'production-team', name: 'Production Team', priceLabel: '$60,000 annually from CMS'},
             {slug: 'studio', name: 'Studio', priceLabel: 'Studio annual pricing from CMS'},
           ],
+          packageSpecifications: [{
+            _id: 'production-team-package',
+            status: 'published',
+            packageKind: 'subscription',
+            name: 'Production Team',
+            slug: 'production-team',
+            sortOrder: 1,
+            price: {amount: 5000, annualAmount: 60000, onboardingFee: 2500, displayValue: '$5,000', currency: 'USD', periodLabel: '/month'},
+          }, {
+            _id: 'studio-package',
+            status: 'published',
+            packageKind: 'subscription',
+            name: 'Studio',
+            slug: 'studio',
+            sortOrder: 1,
+            price: {amount: 2400, annualAmount: 28800, onboardingFee: 1750, displayValue: '$2,400', currency: 'USD', periodLabel: '/month'},
+          }, {
+            _id: 'studio-pilot-package',
+            status: 'published',
+            packageKind: 'paidPilot',
+            name: 'Studio Pilot',
+            slug: 'studio-pilot',
+            sortOrder: 10,
+            price: {amount: 3900, displayValue: '$3,900', currency: 'USD', periodLabel: 'one-time'},
+          }],
         })
       )
     )
@@ -197,7 +223,10 @@ test('a returning qualified applicant keeps edits, skips discovery, and submits 
   await click('Continue')
   await set('budgetOwner', 'production')
   await set('budgetReadiness', 'current-cycle')
+  await set('annualDeploymentOption', 'production-team')
+  assert.match(document.body.textContent || '', /proposed production team annual plan and the onboarding fee of \$2,500/)
   await set('annualDeploymentOption', 'studio')
+  assert.match(document.body.textContent || '', /proposed studio annual plan and the pilot fee of \$3,900/)
   await act(async () => {
     ;(
       document.querySelector(
@@ -215,7 +244,10 @@ test('a returning qualified applicant keeps edits, skips discovery, and submits 
   const confirmation = JSON.parse(
     dom.window.localStorage.getItem('portals_pilot_confirmation:owned')!
   )
-  assert.equal(confirmation.pilotUrl, '/account/owned/pilot-room/test')
+  assert.equal(
+    confirmation.pilotUrl,
+    '/auth/sign-in?next=%2Faccount%2Fowned%2Fpilot-room%2Ftest'
+  )
   assert.equal(
     dom.window.localStorage.getItem('portals_pilot_confirmation:direct'),
     null
@@ -223,9 +255,15 @@ test('a returning qualified applicant keeps edits, skips discovery, and submits 
   assert.ok(
     !JSON.stringify(dom.window.localStorage).includes('one-time-test-token')
   )
+  assert.equal(
+    document.querySelector('[role="status"] a')?.getAttribute('href'),
+    '/auth/verify?token=one-time-test-token&next=%2Faccount%2Fowned%2Fpilot-room%2Ftest'
+  )
   assert.ok(
     document
       .querySelector('[role="status"]')
       ?.textContent?.includes('approval room is ready')
   )
+  await click('submit a new pilot request')
+  assert.ok(document.querySelector('form'))
 })

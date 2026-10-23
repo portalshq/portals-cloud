@@ -22,6 +22,7 @@ import {
   validateUrlParamEmail,
   type UrlParams,
 } from '@/lib/leads/url-params'
+import {resolvePrefilledIdentity} from '@/lib/leads/identity-prefill'
 
 export function ContactLeadForm({
   context,
@@ -39,6 +40,10 @@ export function ContactLeadForm({
   const started = useRef(false)
   const { ref: swapRef, reservedHeight, reserve } = usePreservedSwap()
   const { ref: draftRef, restored, flush, clear } = useFormDraft('contact')
+  const prefilledIdentity = useMemo(
+    () => resolvePrefilledIdentity(context, { urlParams }),
+    [context, urlParams],
+  )
 
   useEffect(() => {
     if (restored.email) setEmail(restored.email)
@@ -89,11 +94,11 @@ export function ContactLeadForm({
       // Merge URL params with form values and context (priority: form > context > URL params)
       const submittedIdentity: LeadIdentity = Object.fromEntries(
         Object.entries({
-          email: String(values.email || context.identity?.email || context.answerValues?.email || urlParams.email || ''),
-          name: String(values.name || context.identity?.name || context.answerValues?.name || urlParams.name || ''),
-          company: String(values.company || context.identity?.company || context.answerValues?.company || urlParams.company || ''),
-          role: String(values.role || context.identity?.role || context.answerValues?.role || urlParams.role || ''),
-          website: String(values.website || context.identity?.website || context.answerValues?.website || urlParams.website || ''),
+          email: String(values.email || prefilledIdentity.identity.email || ''),
+          name: String(values.name || prefilledIdentity.identity.name || ''),
+          company: String(values.company || prefilledIdentity.identity.company || ''),
+          role: String(values.role || prefilledIdentity.identity.role || ''),
+          website: String(values.website || prefilledIdentity.identity.website || ''),
         }).filter(([, value]) => value),
       ) as LeadIdentity
 
@@ -202,6 +207,7 @@ export function ContactLeadForm({
 
       <IdentityFields
         context={context}
+        prefilledIdentity={prefilledIdentity}
         email={email}
         onEmailChange={(event) => setEmail(event.target.value)}
         requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
