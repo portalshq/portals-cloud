@@ -449,6 +449,17 @@ function formatCurrencyValue(value: number | undefined): string {
   return `$${value.toLocaleString('en-US')}`
 }
 
+function formatCommercialAmount(value: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {style: 'currency', currency, maximumFractionDigits: 0}).format(value)
+}
+
+function annualSubscriptionRateLabel(annualOption: NonNullable<StoredPilot['proposal']>['annualOption']): string {
+  if (annualOption?.periodLabel?.toLowerCase().includes('month')) return 'monthly equivalent'
+  const amount = Number(annualOption?.priceLabel.replace(/[^\d.]/g, ''))
+  if (annualOption?.annualTotal && amount > 0 && annualOption.annualTotal === amount * 12) return 'monthly equivalent'
+  return 'subscription price'
+}
+
 function formatRange(low: number, high: number, formatter: (value: number) => string): string {
   return low === high ? formatter(low) : `${formatter(low)}–${formatter(high)}`
 }
@@ -1304,16 +1315,22 @@ export function PilotPlanPdfDocument({
               <Text style={styles.sectionTitle}>commercial terms</Text>
               {pilot.proposal ? (
                 <View>
-                  <Text style={styles.item}><Text style={styles.label}>pilot fee:</Text> {pilot.proposal.priceLabel}, due on signature</Text>
-                  <Text style={styles.item}><Text style={styles.label}>term:</Text> {pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? ` · ${pilot.proposal.termStart} to ${pilot.proposal.termEnd}` : ''}</Text>
-                  {pilot.proposal.decisionDate ? <Text style={styles.item}><Text style={styles.label}>final decision date:</Text> {pilot.proposal.decisionDate}</Text> : null}
-                  {pilot.proposal.offerVariantSlug ? <Text style={styles.item}><Text style={styles.label}>offer acceptance deadline:</Text> sign by {pilot.proposal.offerAcceptanceDeadlineLabel || pilot.proposal.offerEndsAt}</Text> : pilot.proposal.creditDeadline ? <Text style={styles.item}><Text style={styles.label}>annual credit window:</Text> sign the annual order form by {pilot.proposal.creditDeadline}</Text> : null}
+                  <Text style={styles.item}><Text style={styles.label}>one-time pilot fee:</Text> {pilot.proposal.priceLabel}, due on signature</Text>
+                  <Text style={styles.item}><Text style={styles.label}>pilot term:</Text> {pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? ` · ${formatReadableDate(pilot.proposal.termStart)} to ${formatReadableDate(pilot.proposal.termEnd)}` : ''}</Text>
+                  {pilot.proposal.decisionDate ? <Text style={styles.item}><Text style={styles.label}>annual deployment decision deadline:</Text> {formatReadableDate(pilot.proposal.decisionDate)}</Text> : null}
+                  {pilot.proposal.offerVariantSlug ? <Text style={styles.item}><Text style={styles.label}>accept pilot offer by:</Text> {(pilot.proposal.offerAcceptanceDeadlineLabel || formatReadableDate(pilot.proposal.offerEndsAt) || 'not set').replace(/^sign by\s*/i, '').replace(/\s+to accept this offer\.?$/i, '')}</Text> : null}
+                  {pilot.proposal.creditDeadline ? <Text style={styles.item}><Text style={styles.label}>credit deadline:</Text> {formatReadableDate(pilot.proposal.creditDeadline)}. Sign the annual order form by this date. This is earlier than the pilot offer deadline.</Text> : null}
+                  {pilot.proposal.annualCreditLabel || pilot.proposal.annualOption ? <Text style={styles.item}><Text style={styles.label}>pilot-fee credit:</Text> {formatCommercialAmount(pilot.proposal.annualCreditAmount ?? pilot.proposal.priceAmount, pilot.proposal.currency)} toward the annual subscription{pilot.proposal.creditDeadline ? ` when the annual order form is signed by ${formatReadableDate(pilot.proposal.creditDeadline)}` : ''}</Text> : null}
                   {pilot.proposal.annualOption ? (
                     <View>
-                      <Text style={styles.item}><Text style={styles.label}>proposed annual deployment:</Text> {pilot.proposal.annualOption.name} — {pilot.proposal.annualOption.priceLabel}</Text>
-                      <Text style={styles.muted}>{pilot.proposal.annualOption.creditNote}</Text>
+                      <Text style={styles.item}><Text style={styles.label}>annual plan:</Text> {pilot.proposal.annualOption.name}</Text>
+                      {annualSubscriptionRateLabel(pilot.proposal.annualOption) === 'monthly equivalent'
+                        ? <Text style={styles.item}><Text style={styles.label}>monthly equivalent (not billed monthly):</Text> {pilot.proposal.annualOption.priceLabel} per month</Text>
+                        : <Text style={styles.item}><Text style={styles.label}>subscription price:</Text> {pilot.proposal.annualOption.priceLabel}</Text>}
+                      <Text style={styles.item}><Text style={styles.label}>annual price:</Text> {typeof pilot.proposal.annualOption.annualTotal === 'number' ? `${formatCommercialAmount(pilot.proposal.annualOption.annualTotal, pilot.proposal.annualOption.currency)}, billed annually` : 'custom annual total, to be stated in the order form'}</Text>
+                      <Text style={styles.item}><Text style={styles.label}>one-time setup fee:</Text> {pilot.proposal.annualOption.onboardingFee ? `${formatCommercialAmount(pilot.proposal.annualOption.onboardingFee, pilot.proposal.annualOption.currency)}, due at account creation` : 'none'}</Text>
                     </View>
-                  ) : null}
+                  ) : <Text style={styles.item}><Text style={styles.label}>annual plan:</Text> not selected</Text>}
                 </View>
               ) : (
                 <Text>commercial terms are being prepared in the approval room.</Text>
