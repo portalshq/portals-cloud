@@ -73,6 +73,11 @@ Applications serve two databases with different ownership:
   channel apps, so every app reads and writes them here. The schema is
   platform-owned; applications are writers, not owners — provision it with
   `runCentralMigrations` (or the vendored SQL) under a DDL role before deploy.
+  Central schema migrations require platform admin permissions and are run by
+  the platform operator, never by an application's deploy or boot sequence:
+  an application's database credentials must not hold DDL rights on the
+  central database, and a release that needs a new central migration waits on
+  the operator to apply it first.
 - **Application database**: channel/app domain data owned by the application —
   sessions, chat, local audience caches, app records. The application owns and
   runs its own migration set here.
