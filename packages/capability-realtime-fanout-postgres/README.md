@@ -34,7 +34,8 @@ await bus.close();
 
 ## Schema
 
-The package requires a `fanout_messages` table:
+The package requires a `fanout_messages` table. Apply the migration shipped in
+[`sql/001_fanout_messages.sql`](./sql/001_fanout_messages.sql):
 
 ```sql
 CREATE TABLE IF NOT EXISTS fanout_messages (

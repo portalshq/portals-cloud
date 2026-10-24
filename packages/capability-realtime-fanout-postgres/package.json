@@ -6,11 +6,13 @@
     "url": "git+https://github.com/portalshq/portals-cloud.git",
     "directory": "packages/capability-realtime-fanout-postgres"
   },
+  "description": "PostgreSQL-backed durable FanoutBus: messages survive process restarts and fan out across processes via polling.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "sql"
   ],
   "exports": {
     ".": {
@@ -19,16 +21,20 @@
     }
   },
   "scripts": {
-    "build": "tsc",
-    "check": "tsc --noEmit"
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@portalshq/capability-realtime-fanout": "^0.1.8",
     "pg": "^8.16.3"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "@types/pg": "^8.23.1",
-    "typescript": "^5.9.3"
+    "@vitest/coverage-v8": "^3.2.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
   },
   "publishConfig": {
     "access": "public",

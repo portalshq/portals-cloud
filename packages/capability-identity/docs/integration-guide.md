@@ -62,6 +62,58 @@ or active-account lookup fails. Treat database and gateway availability errors a
 your request error policy; do not translate outages into successful anonymous identities.
 Use gRPC error `code` for classification. The package performs no automatic retries.
 
+## Two-database model
+
+Applications serve two databases with different ownership:
+
+- **Central database** (`CENTRAL_DATABASE_URL`): the shared `users` registry,
+  `user_preferences`, `user_channel_history`, and channel registries from
+  `sql/001_central_identity.sql`, plus the `@portalshq/monetization`
+  entitlement/billing schema. Grants and identity are platform-shared across
+  channel apps, so every app reads and writes them here. The schema is
+  platform-owned; applications are writers, not owners — provision it with
+  `runCentralMigrations` (or the vendored SQL) under a DDL role before deploy.
+  Central schema migrations require platform admin permissions and are run by
+  the platform operator, never by an application's deploy or boot sequence:
+  an application's database credentials must not hold DDL rights on the
+  central database, and a release that needs a new central migration waits on
+  the operator to apply it first.
+- **Application database**: channel/app domain data owned by the application —
+  sessions, chat, local audience caches, app records. The application owns and
+  runs its own migration set here.
+
+The two migration sets must never run congruently: app migrations on
+`DATABASE_URL` only, central migrations on `CENTRAL_DATABASE_URL` only, and the
+two URLs must resolve to different databases — colocating the schemas lets one
+runner contaminate the other's tables and silently merges the `pgmigrations`
+histories. A configuration where both URLs name one database is a boot-time
+configuration error, not a deployment shortcut.
+
+Viewer records in the app database (`audience_viewers`-style caches) stay
+app-side: they are soft-key sightings of a verified `user_id`, never the
+account of record, and carry no foreign key into central tables.
+
+## Request-path store and suspension tradeoff
+
+`IdentityProvider` accepts any `IdentityStore`. Where that store lives decides
+what a suspended central account does to in-flight requests:
+
+| Request-path store | Pro | Con |
+| --- | --- | --- |
+| `CentralIdentityStore` on the central pool | `users.status='suspended'` is enforced on every `getIdentity`; one authority for active audience state | Every request depends on the shared database's availability and latency; all channel apps share one hot path and one failure domain |
+| Local cache store (e.g. `AudienceViewerStore` — upsert-on-sight in the app database) | Resilient and fast; no cross-database dependency on the money path | A central-only suspension does not reach the app: a viewer suspended in `users` but still holding a valid gateway token keeps access until the gateway itself disables the principal or the token expires |
+
+The accepted position for now is the **local cache store** on the request path.
+Enforcement then relies on the gateway's `require_active` check
+(`auth_principals.disabled_at`, revoked originating API keys), which
+`verifyUser` applies to every call. This leaves a documented gap: suspending a
+user only in the central `users` table does not revoke their access. Options
+when that gap matters: put `CentralIdentityStore` on the request path, run a
+periodic reconciliation that disables the gateway principal when central
+suspends, or add an invalidation channel from the central store to the gateway.
+Whichever store serves requests, writes that provision or update the `users`
+row (`syncFromAuthGateway`) always target the central database.
+
 Run sync in a trusted onboarding/admin flow with a verified subject or an operator-authorized
 subject. `getUserInfo` is a metadata lookup, not proof that the requesting caller owns that ID.
 Soft references only establish existence and cannot approve commercial or access transitions.
@@ -100,6 +152,53 @@ viewers on sight, delegate authoritative verification and history to the platfor
 with the custom-store seam. It serves a different ownership role from either PostgreSQL adapter.
 The implementation was not found in this checkout, so its exact behavior is not verified here.
 Before changing that application, review its actual token validation and platform-history path.
+
+## Prevailing specifications
+
+These describe agreed platform behavior that is not yet shipped in the
+published package; they are recorded here so integrations are built against the
+settled design rather than re-derived per app.
+
+### Audience cohort tag (planned central migration)
+
+All users share one central `users` table, so rows carry a `user_type` cohort
+tag to distinguish audience members from future cohorts (creators, operators,
+service principals). The column lands as `text NOT NULL DEFAULT 'audience'`:
+
+- The default is deliberately the **least-privileged** cohort. A user
+  mistagged `audience` is a support ticket; a user mistagged into a privileged
+  cohort is an incident. Privileged types are granted by an explicit
+  provisioning path, never implied by an absent parameter.
+- `tenant` is not a user type: it is a billing/ownership boundary
+  (`channel_apps.tenant_id`, monetization tenant rules), not a role.
+- `syncFromAuthGateway` sets the tag on INSERT only; the upsert never
+  downgrades an existing row's type on conflict.
+- `user_type` is a global provisioning cohort, not a per-app role. If a person
+  is audience in one app and creator in another, that belongs to a
+  `user_app_roles`-style relation — do not stretch this column to mean it.
+
+### Sign-in via session RPCs (pending client methods)
+
+`UrcAuthApi` already exposes the full browser sign-in lifecycle; the shipped
+client currently wraps only `verifyUser`/`getUserInfo`/`getUserId`. Intended
+usage once the client gains them:
+
+1. `StartAuthSession(client_state)` — `client_state` is a caller-generated
+   UUID (CSRF binding) — returns `session_code` and `login_url`; the browser
+   completes OIDC and lands on the gateway's `/callback`, which stores the
+   session and upserts the principal.
+2. `GetAuthSession(session_code, client_state)` returns `user_token` exactly
+   once: `None` while the OAuth callback is pending (safe to poll) and `None`
+   forever after the one successful consume — the exchange is replay-proof.
+3. `RefreshAuthSession` / `RevokeAuthSession` take the opaque refresh token in
+   the `Authorization: Bearer` **call metadata**, not the request body.
+   Refresh rotates: persist the new refresh token immediately, because the old
+   one dies with the call and a replayed token revokes the whole session
+   family.
+
+The app stores the returned `UserToken` server-side; `user_token` goes to the
+browser only as an `Authorization: Bearer` credential, `refresh_token` never
+leaves the server.
 
 ## Operational checklist
 

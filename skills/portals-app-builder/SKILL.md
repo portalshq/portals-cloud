@@ -19,6 +19,7 @@ Build application code only. Do not modify Portals packages. Keep secrets, token
 Load every relevant generated package module below; these are composable guidance modules, not mutually exclusive subskills.
 
 - [capabilities-redirect.md](references/package-agents/capabilities-redirect.md) - `@portalshq/capabilities-redirect` `0.0.5`
+- [capability-realtime-fanout-postgres.md](references/package-agents/capability-realtime-fanout-postgres.md) - `@portalshq/capability-realtime-fanout-postgres` `0.1.0`
 - [contracts.md](references/package-agents/contracts.md) - `@portalshq/contracts` `0.0.5`
 - [identity.md](references/package-agents/identity.md) - `@portalshq/capability-identity` `0.4.0`
 - [monetization.md](references/package-agents/monetization.md) - `@portalshq/monetization` `0.2.2`

@@ -14,6 +14,7 @@ Each package has a small, standalone module in [`../docs/package-agents/`](../do
 | Register runtime capability implementations | [`@portalshq/registry`](./registry) | usable; in-memory |
 | Live-channel tick lifecycle | [`@portalshq/runtime-core`](./runtime-core) | usable |
 | Chat, lobby, polls, WebSocket fanout | [`@portalshq/capability-realtime-fanout`](./realtime-fanout) | usable; single process |
+| Durable cross-process fan-out bus | [`@portalshq/capability-realtime-fanout-postgres`](./capability-realtime-fanout-postgres) | usable; requires PostgreSQL; 1s polling |
 | HLS playback, captions, browser/React player | [`@portalshq/capability-video-delivery`](./video-delivery) | usable |
 | Server-side Queue Broadcast producer | [`@portalshq/capability-queue-broadcast`](./queue-broadcast) | usable |
 | Redirect visitors to a live channel | [`@portalshq/capabilities-redirect`](./capabilities-redirect) | usable; in-memory registry |
