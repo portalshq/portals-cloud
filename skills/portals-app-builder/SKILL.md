@@ -20,8 +20,8 @@ Load every relevant generated package module below; these are composable guidanc
 
 - [capabilities-redirect.md](references/package-agents/capabilities-redirect.md) - `@portalshq/capabilities-redirect` `0.0.5`
 - [contracts.md](references/package-agents/contracts.md) - `@portalshq/contracts` `0.0.5`
-- [identity.md](references/package-agents/identity.md) - `@portalshq/capability-identity` `0.2.1`
-- [monetization.md](references/package-agents/monetization.md) - `@portalshq/monetization` `0.2.1`
+- [identity.md](references/package-agents/identity.md) - `@portalshq/capability-identity` `0.4.0`
+- [monetization.md](references/package-agents/monetization.md) - `@portalshq/monetization` `0.2.2`
 - [platform-billing.md](references/package-agents/platform-billing.md) - `@portalshq/platform-billing` `0.0.5`
 - [policy.md](references/package-agents/policy.md) - `@portalshq/policy` `0.0.5`
 - [queue-broadcast.md](references/package-agents/queue-broadcast.md) - `@portalshq/capability-queue-broadcast` `0.1.9`
