@@ -1687,6 +1687,13 @@ export async function PATCH(
       })
       await enqueueExceptionReviewTask(updated.id, eventKey)
     }
+    if (transition === 'resolve_exceptions') {
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'exceptions_resolved',
+        eventKey: `exception-resolved:${updated.id}:${updated.updatedAt}`,
+      })
+    }
     if (transition === 'finalize') {
       await notifyPilotRoomEvent({
         pilot: updated,

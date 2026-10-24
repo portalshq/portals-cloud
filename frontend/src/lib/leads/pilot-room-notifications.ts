@@ -19,6 +19,7 @@ export type PilotRoomEvent =
   | 'team_review_started'
   | 'reviewer_invited'
   | 'exception_review_requested'
+  | 'exceptions_resolved'
   | 'change_requested'
   | 'security_change_requested'
   | 'pilot_terms_confirmed'
@@ -226,6 +227,12 @@ export async function notifyPilotRoomEvent(input: {
     if (input.event === 'exception_review_requested') {
       pushEmail(targets, ownerEmail, 'exception')
       for (const email of portalsTeamEmails) pushEmail(targets, email, 'portals_review_requested')
+    } else if (input.event === 'exceptions_resolved') {
+      // Portals finished reviewing the exception items. The production owner
+      // reviews the resolved terms next; the submitter is the owner fallback.
+      const productionOwnerEmail = String(input.pilot.answers.productionOwnerEmail || '').trim()
+      const [ownerReviewerEmail] = reviewerEmails(input.pilot, ['production_owner'])
+      pushEmail(targets, productionOwnerEmail || ownerReviewerEmail || ownerEmail, 'revised')
     } else {
       pushEmail(targets, ownerEmail, input.event)
     }

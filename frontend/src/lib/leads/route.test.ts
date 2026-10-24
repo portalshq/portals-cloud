@@ -870,6 +870,102 @@ test('requesting an exception review notifies the customer and Portals', async (
   )
 })
 
+test('resolving a Portals exception review emails the production owner', async (t) => {
+  const ownerEmail = `exception-resolved-${crypto.randomUUID()}@studio.example`
+  const productionOwnerEmail = `prod-owner-${crypto.randomUUID()}@studio.example`
+  const teamEmail = `resolve-${crypto.randomUUID()}@portals.test`
+  const fetches = captureFetch(t)
+  const previousTeamEmails = process.env.PORTALS_TEAM_EMAILS
+
+  try {
+    process.env.PORTALS_TEAM_EMAILS = `ops@portals.test,${teamEmail}`
+    const created = await post(pilotBody(ownerEmail, {
+      assessmentOrigin: 'assessment_override',
+      productionOwner: 'Blake Chen, Head of Production',
+      productionOwnerEmail,
+    }))
+    assert.equal(created.status, 200)
+    assert.equal((await created.json()).pilotState, 'exception_review')
+    const {pilot} = await pilotForProfile(profileTokenFrom(created))
+    assert.ok(pilot)
+
+    const staff = await getApplicationUserByEmail(teamEmail)
+    assert.ok(staff, 'the team account is provisioned at pilot creation')
+    const session = await consumeMagicLink(
+      await issueMagicLink({userId: staff.id, purpose: 'sign_in'}),
+    )
+    assert.ok(session)
+
+    const resolved = await patchPilot(
+      pilot.id,
+      {action: 'resolve_exceptions'},
+      {cookie: `portals_session=${session.sessionToken}`},
+    )
+    assert.equal(resolved.status, 200)
+    assert.equal((await resolved.json()).pilot.state, 'reviewing')
+
+    const queued = (await takeDueOutbox(100))
+      .filter((row) => row.action_key.startsWith(`${pilot.id}:`))
+      .map((row) => row.action_key)
+    assert.ok(
+      queued.some((key) => key.includes(`:pilot_email:revised:${productionOwnerEmail}:event:exception-resolved:`)),
+      'the production owner receives the resolved-terms email',
+    )
+    assert.ok(
+      !queued.some((key) => key.includes(`:pilot_email:revised:${ownerEmail}:event:exception-resolved:`)),
+      'the submitter is not double-notified when a distinct production owner exists',
+    )
+
+    await processLeadOutbox(1000)
+    const sent = fetches.find((entry) => entry.body.to === productionOwnerEmail)
+    assert.ok(sent, 'the resolved-terms email is delivered to the production owner')
+    assert.equal(sent.body.subject, 'your pilot agreement was revised')
+    assert.match(String(sent.body.text), /https:\/\/portals\.test\/auth\/verify\?token=/)
+  } finally {
+    restoreEnvironment('PORTALS_TEAM_EMAILS', previousTeamEmails)
+  }
+})
+
+test('resolving a Portals exception review falls back to the submitter without a distinct production owner', async (t) => {
+  const ownerEmail = `exception-owner-fallback-${crypto.randomUUID()}@studio.example`
+  const teamEmail = `resolve-fallback-${crypto.randomUUID()}@portals.test`
+  const previousTeamEmails = process.env.PORTALS_TEAM_EMAILS
+
+  try {
+    process.env.PORTALS_TEAM_EMAILS = `ops@portals.test,${teamEmail}`
+    const created = await post(pilotBody(ownerEmail, {assessmentOrigin: 'assessment_override'}))
+    assert.equal(created.status, 200)
+    assert.equal((await created.json()).pilotState, 'exception_review')
+    const {pilot} = await pilotForProfile(profileTokenFrom(created))
+    assert.ok(pilot)
+
+    const staff = await getApplicationUserByEmail(teamEmail)
+    assert.ok(staff)
+    const session = await consumeMagicLink(
+      await issueMagicLink({userId: staff.id, purpose: 'sign_in'}),
+    )
+    assert.ok(session)
+
+    const resolved = await patchPilot(
+      pilot.id,
+      {action: 'resolve_exceptions'},
+      {cookie: `portals_session=${session.sessionToken}`},
+    )
+    assert.equal(resolved.status, 200)
+    assert.equal((await resolved.json()).pilot.state, 'reviewing')
+
+    const queued = (await takeDueOutbox(100))
+      .filter((row) => row.action_key.startsWith(`${pilot.id}:`))
+      .map((row) => row.action_key)
+    assert.ok(
+      queued.some((key) => key.includes(`:pilot_email:revised:${ownerEmail}:event:exception-resolved:`)),
+      'the submitter receives the resolved-terms email when no distinct production owner is set',
+    )
+  } finally {
+    restoreEnvironment('PORTALS_TEAM_EMAILS', previousTeamEmails)
+  }
+})
+
 test('members can submit a shared draft while only the owner advances the pilot', async (t) => {
   const ownerEmail = `draft-owner-${crypto.randomUUID()}@studio.example`
   const participantEmail = `draft-participant-${crypto.randomUUID()}@studio.example`
