@@ -1,5 +1,11 @@
 # @portalshq/capability-identity
 
+## 0.3.0
+
+### Minor Changes
+
+- 31b4bb6: Promote identity from stub to usable: verified access-token resolution, PostgreSQL-backed cross-channel interaction history stamped with the transaction clock, and bounded identifiers and reads.
+
 ## 0.2.1
 
 - Implement typed explicit auth-gateway sync with subject matching and clear unsupported-store errors.
