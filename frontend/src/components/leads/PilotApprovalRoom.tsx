@@ -491,18 +491,18 @@ export function PilotApprovalRoom({
     if (!pendingPaymentKey || pilot.state === 'paid') return
     const attemptsKey = `checkout-wait-${pilot.id}-${pendingPaymentKey}`
     const attempts = Number(sessionStorage.getItem(attemptsKey) || 0)
-    if (attempts >= 6) {
+    if (attempts >= 6 && sessionId) {
       // Only surface the timeout on a real return-from-checkout; a pending
       // invoice or an abandoned session should not alarm on room open.
-      if (sessionId) {
-        setError('Payment is taking longer than expected. Please contact support if payment was completed.')
-      }
-      return
+      setError('Payment is taking longer than expected. Please contact support if payment was completed.')
     }
+    // Keep reconciling at a slower cadence after the initial attempts: the
+    // endpoint is idempotent, and a payment that settles late must still
+    // self-heal without requiring a reload.
     const timer = setTimeout(() => {
       sessionStorage.setItem(attemptsKey, String(attempts + 1))
       void reconcilePaymentAndRefresh()
-    }, 3000)
+    }, attempts >= 6 ? 15000 : 3000)
     return () => clearTimeout(timer)
   }, [pendingPaymentKey, pilot.state, pilot.id])
 
