@@ -1,9 +1,17 @@
 {
   "name": "@portalshq/capability-realtime-fanout-postgres",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud.git",
+    "directory": "packages/capability-realtime-fanout-postgres"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -21,5 +29,9 @@
   "devDependencies": {
     "@types/pg": "^8.23.1",
     "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
