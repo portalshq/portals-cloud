@@ -87,77 +87,6 @@ export const packagePrice = defineType({
       type: 'string',
     }),
     defineField({
-      name: 'annualAmount',
-      title: 'Annual amount',
-      type: 'number',
-      description: 'Total annual amount (e.g., 9000 for $9,000/year). Used for display and validation.',
-    }),
-    defineField({
-      name: 'onboardingFee',
-      title: 'Onboarding fee',
-      type: 'number',
-      description: 'One-time onboarding fee charged at account creation (e.g., 1000 for $1,000).',
-    }),
-    defineField({
-      name: 'addOnSeatPrice',
-      title: 'Add-on seat price',
-      type: 'number',
-      description: 'Price per additional seat (e.g., 150 for $150/month).',
-    }),
-    defineField({
-      name: 'addOnSeatPeriodLabel',
-      title: 'Add-on seat period label',
-      type: 'string',
-      description: 'Billing period for add-on seats (e.g., "/month, billed annually").',
-    }),
-    defineField({
-      name: 'installmentsAvailable',
-      title: 'Installments available',
-      type: 'boolean',
-      description: 'Whether installment payment option is available for this package.',
-      initialValue: false,
-    }),
-    defineField({
-      name: 'installmentSchedule',
-      title: 'Installment schedule',
-      type: 'object',
-      description: 'Installment payment schedule configuration.',
-      fields: [
-        defineField({
-          name: 'count',
-          title: 'Number of installments',
-          type: 'number',
-          description: 'Total number of installment payments (e.g., 4 for quarterly).',
-        }),
-        defineField({
-          name: 'interval',
-          title: 'Payment interval',
-          type: 'string',
-          description: 'Interval between payments (e.g., "quarter", "month").',
-        }),
-        defineField({
-          name: 'firstPaymentIncludesOnboarding',
-          title: 'First payment includes onboarding',
-          type: 'boolean',
-          description: 'Whether the first installment includes the onboarding fee.',
-          initialValue: false,
-        }),
-        defineField({
-          name: 'surcharge',
-          title: 'Installment surcharge',
-          type: 'number',
-          description: 'Additional charge for installment payments (0 for no surcharge).',
-          initialValue: 0,
-        }),
-      ],
-    }),
-    defineField({
-      name: 'internalGuidance',
-      title: 'Internal guidance (not public)',
-      type: 'string',
-      description: 'Internal pricing guidance for sales (e.g., "$150/seat/month, 25-seat minimum"). Never rendered publicly.',
-    }),
-    defineField({
       name: 'discount',
       title: 'Discount',
       type: 'object',
@@ -210,7 +139,6 @@ export const packageLimits = defineType({
     defineField({name: 'activeRepositories', title: 'Active repositories', type: 'specificationValue'}),
     defineField({name: 'workspaces', title: 'Workspaces', type: 'specificationValue'}),
     defineField({name: 'reviewersGuests', title: 'Reviewers and guests', type: 'specificationValue'}),
-    defineField({name: 'addOnSeatsMax', title: 'Add-on seats maximum', type: 'specificationValue', description: 'Maximum number of add-on seats allowed (e.g., 2).'}),
   ],
 })
 
@@ -345,12 +273,6 @@ export const packageSpecification = defineType({
       title: 'CTA label',
       type: 'string',
       initialValue: 'Scope a pilot',
-    }),
-    defineField({
-      name: 'ctaDestination',
-      title: 'CTA destination',
-      type: 'string',
-      description: 'URL path for CTA (e.g., "/assessment", "/pilot", "/checkout"). If empty, uses default routing logic.',
     }),
     defineField({
       name: 'microcopy',

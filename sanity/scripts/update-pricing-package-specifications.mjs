@@ -36,15 +36,6 @@ const updates = [
     slug: 'studio',
     fields: {
       name: 'Studio',
-      price: {
-        _type: 'packagePrice',
-        displayValue: '$2,400',
-        amount: 2400,
-        currency: 'USD',
-        periodLabel: '/month',
-        billingNote: 'Billed annually ($28,800 / year)',
-        annualAmount: 28800,
-      },
       limits: {
         _type: 'packageLimits',
         productionMembers: {_type: 'specificationValue', label: 'production members', displayValue: 'up to 24', numericValue: 24, unit: 'production members', qualifier: 'up to'},
@@ -73,20 +64,6 @@ const updates = [
     id: 'AbE0eRTxRWYSaELT1SuSWw',
     slug: 'production-team',
     fields: {
-      price: {
-        _type: 'packagePrice',
-        displayValue: '$750',
-        amount: 750,
-        currency: 'USD',
-        periodLabel: '/month',
-        billingNote: 'Billed annually ($9,000 / year)',
-        annualAmount: 9000,
-        onboardingFee: 1000,
-        addOnSeatPrice: 150,
-        addOnSeatPeriodLabel: '/month, billed annually',
-        installmentsAvailable: true,
-        installmentSchedule: {count: 4, interval: 'quarter', firstPaymentIncludesOnboarding: true, surcharge: 0},
-      },
       features: [
         '5 production members included',
         'Add up to 2 more members at $150/month each, billed annually',

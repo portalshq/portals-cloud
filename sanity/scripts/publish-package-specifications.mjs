@@ -6,12 +6,12 @@ const specs = [
   {
     status: 'published',
     packageKind: 'paidPilot',
-    name: 'Studio Pilot',
-    shortName: 'Studio Pilot',
-    slug: {_type: 'slug', current: 'studio-pilot'},
+    name: 'Production Pilot',
+    shortName: 'Paid Pilot',
+    slug: {_type: 'slug', current: 'paid-pilot'},
     sortOrder: 10,
     subtitle:
-      'For studios managing concurrent campaigns, episodic, animation, or game pipelines.',
+      'For qualified teams proving Portals against one active production workflow.',
     price: {
       _type: 'packagePrice',
       displayValue: '$5,000',
@@ -48,18 +48,20 @@ const specs = [
         label: 'participants',
         displayValue: 'up to 5',
         numericValue: 5,
-        unit: 'participants',
+        unit: 'active team participants',
         qualifier: 'up to',
       },
     },
     features: [
-      'Up to 5 participants',
-      'One production team',
-      'One active workflow',
-      'One historical project',
-      'Standard onboarding',
-      'Pilot success plan',
-      'Final results review',
+      '1 production team',
+      '1 active workflow',
+      '1 historical project',
+      'Up to 5 participating users',
+      'Defined onboarding',
+      'Agreed success criteria',
+      'First production record established within 48 hours',
+      'Final deployment recommendation',
+      'Annual deployment terms established before the pilot begins',
     ],
     milestones: [
       {
@@ -90,9 +92,9 @@ const specs = [
       'Workflow review, onboarding, support, and final evaluation',
       'Annual deployment terms established before kickoff',
     ],
-    ctaLabel: 'Start a pilot',
-    ctaDestination: '/pilot',
-    microcopy: 'Any promotional pricing or conversion credit follows the selected offer and accepted terms.',
+    ctaLabel: 'Scope a pilot',
+    microcopy:
+      'Annual deployment credit available. Exact pilot pricing, deployment credit, and expiration terms are established before the pilot begins.',
     legalNote:
       'Pilot scope, integrations, annual deployment price, credit terms, success criteria, and final decision date must be agreed in writing before kickoff.',
   },
@@ -109,19 +111,8 @@ const specs = [
       displayValue: '$750',
       amount: 750,
       currency: 'USD',
-      periodLabel: '/month',
-      billingNote: 'Billed annually ($9,000 / year)',
-      annualAmount: 9000,
-      onboardingFee: 1000,
-      addOnSeatPrice: 150,
-      addOnSeatPeriodLabel: '/month, billed annually',
-      installmentsAvailable: true,
-      installmentSchedule: {
-        count: 4,
-        interval: 'quarter',
-        firstPaymentIncludesOnboarding: true,
-        surcharge: 0,
-      },
+      periodLabel: '/month, billed annually',
+      billingNote: 'billed annually',
     },
     limits: {
       _type: 'packageLimits',
@@ -142,33 +133,22 @@ const specs = [
       reviewersGuests: {
         _type: 'specificationValue',
         label: 'reviewers and guests',
-        displayValue: '5 reviewers and 5 guests',
-      },
-      addOnSeatsMax: {
-        _type: 'specificationValue',
-        label: 'add-on seats maximum',
-        displayValue: '2',
-        numericValue: 2,
-        unit: 'add-on seats',
+        displayValue: 'unlimited',
       },
     },
     features: [
-      '5 production members included',
-      'Add up to 2 more members at $150/month each, billed annually',
-      '$1,000 one-time onboarding fee at account creation',
+      '5 production members',
       '3 active production repositories',
-      '5 reviewers and 5 guests',
+      'Unlimited reviewers and guests',
       'Complete version history and rollback',
       'Provenance tracking',
       'Standard sharing',
-      'Standard production integrations',
+      'Standard integrations',
       'Standard support',
-      'Guided onboarding',
+      'Guided initial setup',
     ],
-    serviceItems: ['Standard production integrations', 'Standard support', 'Guided onboarding'],
-    ctaLabel: 'Get started',
-    ctaDestination: '/auth/sign-in?next=%2Fcheckout%2Fproduction-team',
-    microcopy: 'Installment payments available upon request',
+    serviceItems: ['Standard integrations', 'Standard support', 'Guided initial setup'],
+    ctaLabel: 'Scope a pilot',
   },
   {
     status: 'published',
@@ -181,22 +161,20 @@ const specs = [
       'For studios managing concurrent campaigns, episodic, animation, or game pipelines.',
     price: {
       _type: 'packagePrice',
-      displayValue: '$2,400',
-      amount: 2400,
+      displayValue: '$2,500',
+      amount: 2500,
       currency: 'USD',
-      periodLabel: '/month',
-      billingNote: 'Billed annually ($28,800 / year)',
-      annualAmount: 28800,
+      periodLabel: '/month, billed annually',
+      billingNote: 'billed annually',
     },
     limits: {
       _type: 'packageLimits',
       productionMembers: {
         _type: 'specificationValue',
         label: 'production members',
-        displayValue: 'up to 24',
-        numericValue: 24,
+        displayValue: '20',
+        numericValue: 20,
         unit: 'production members',
-        qualifier: 'up to',
       },
       activeRepositories: {
         _type: 'specificationValue',
@@ -210,25 +188,32 @@ const specs = [
         label: 'reviewers and guests',
         displayValue: 'unlimited',
       },
+      workspaces: {
+        _type: 'specificationValue',
+        label: 'production workspaces',
+        displayValue: 'multiple',
+      },
     },
     features: [
-      'Up to 24 production members',
-      'Paid Studio Pilot required',
-      '100% of the pilot fee credited toward your annual agreement when you sign before the pilot ends',
+      '20 production members',
       '15 active production repositories',
       'Unlimited reviewers and guests',
-      'Complete version history and rollback',
-      'Provenance tracking',
-      'Standard sharing',
-      'Standard support',
+      'Everything in Production Team',
+      'API access',
+      'Audit history',
       'Role-based permissions',
+      'Multiple production workspaces',
+      'Standard production integrations',
+      'Guided onboarding',
       'Quarterly workflow review',
     ],
     serviceItems: [
+      'API access',
+      'Audit history',
+      'Guided onboarding',
       'Quarterly workflow review',
     ],
-    ctaLabel: 'Start a pilot',
-    ctaDestination: '/pilot?tier=studio',
+    ctaLabel: 'Scope a pilot',
   },
   {
     status: 'published',
@@ -243,7 +228,6 @@ const specs = [
       displayValue: 'Custom',
       currency: 'USD',
       periodLabel: 'annual agreement',
-      internalGuidance: '$150/seat/month, 25-seat minimum ($45,000/year ACV)',
     },
     limits: {
       _type: 'packageLimits',
@@ -264,15 +248,9 @@ const specs = [
       },
     },
     features: [
-      '25+ production members, contracted capacity',
+      'Contracted production-member capacity',
       'Contracted repositories and workspaces',
       'Everything in Studio',
-      'API access',
-      'Audit history',
-      'Multiple production workspaces',
-      'Single sign-on (SSO)',
-      'Advanced role permissions',
-      'Dedicated support',
       'Procurement and security support',
       'Contractual service commitments',
       'Named customer-success owner',
@@ -291,16 +269,10 @@ const specs = [
 ]
 
 async function upsertBySlug(document) {
-  let existing = await client.fetch(
+  const existing = await client.fetch(
     '*[_type == "packageSpecification" && slug.current == $slug][0]{_id}',
     {slug: document.slug.current},
   )
-
-  if (!existing?._id && document.packageKind === 'paidPilot') {
-    existing = await client.fetch(
-      '*[_type == "packageSpecification" && packageKind == "paidPilot"][0]{_id}',
-    )
-  }
 
   if (existing?._id) {
     const result = await client.patch(existing._id).set(document).commit()
