@@ -4,8 +4,8 @@ Generated from `docs/package-agents/` and current package manifests. Load every 
 
 - [capabilities-redirect.md](./capabilities-redirect.md) - `@portalshq/capabilities-redirect` `0.0.5`
 - [contracts.md](./contracts.md) - `@portalshq/contracts` `0.0.5`
-- [identity.md](./identity.md) - `@portalshq/capability-identity` `0.2.1`
-- [monetization.md](./monetization.md) - `@portalshq/monetization` `0.2.1`
+- [identity.md](./identity.md) - `@portalshq/capability-identity` `0.4.0`
+- [monetization.md](./monetization.md) - `@portalshq/monetization` `0.2.2`
 - [platform-billing.md](./platform-billing.md) - `@portalshq/platform-billing` `0.0.5`
 - [policy.md](./policy.md) - `@portalshq/policy` `0.0.5`
 - [queue-broadcast.md](./queue-broadcast.md) - `@portalshq/capability-queue-broadcast` `0.1.9`

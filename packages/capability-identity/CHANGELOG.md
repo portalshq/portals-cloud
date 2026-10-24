@@ -1,5 +1,17 @@
 # @portalshq/capability-identity
 
+## 0.4.0
+
+- Expose the hosted sign-in session RPCs on `createAuthGatewayClient`:
+  `startAuthSession` returns the `loginUrl` and `sessionCode` to poll,
+  `getAuthSession` resolves `null` while sign-in is pending and the minted
+  `AuthSessionTokens` (user token, expiry, rotating `refreshToken`) once the
+  viewer completes it, `refreshAuthSession` rotates the refresh credential for
+  a new user token, and `revokeAuthSession` ends the session family. Refresh
+  and revoke carry the credential in `authorization` metadata per the RPC
+  contract. No auth-gateway changes are required — the service already
+  implements these methods.
+
 ## 0.3.0
 
 ### Minor Changes
