@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createLiveProduction, type ProductionCheckpoint } from "./index.js";
+import { createLiveProduction, createVideoProvider, type ProductionCheckpoint } from "./index.js";
 
 describe("live production", () => {
+  it("exports the video provider factory from the package entry point", () => {
+    expect(createVideoProvider).toBeTypeOf("function");
+  });
+
   it("stages and releases the scheduled material once", async () => {
     let checkpoint: ProductionCheckpoint | null = null;
     const calls: string[] = [];
