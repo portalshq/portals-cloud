@@ -86,8 +86,15 @@ export async function POST(request: Request): Promise<NextResponse> {
         const bySession = await getPilotByPaymentSession(sessionId)
         const pilot = bySession || (pilotId ? await getPilotById(pilotId) : null)
         if (pilot) {
-          // Side-effects are idempotent via eventKey + ON CONFLICT
-          const {recorded} = await recordPilotCheckoutPaid(pilot, session, `paid:${event.id}`)
+          // Side-effects are idempotent via eventKey + ON CONFLICT; the
+          // client also voids an open counterpart invoice so the customer
+          // cannot be charged twice through the other payment path.
+          const {recorded} = await recordPilotCheckoutPaid(
+            pilot,
+            session,
+            `paid:${event.id}`,
+            createStripePlatformClient(secretKey),
+          )
           if (!recorded) {
             // Not pay-able and not already paid -> ignore
             return NextResponse.json({received: true})
@@ -220,7 +227,12 @@ export async function POST(request: Request): Promise<NextResponse> {
       if (pilotId) {
         const pilot = await getPilotById(pilotId)
         if (pilot) {
-          await recordPilotInvoicePaid(pilot, invoice, `invoice-paid:${event.id}`)
+          await recordPilotInvoicePaid(
+            pilot,
+            invoice,
+            `invoice-paid:${event.id}`,
+            createStripePlatformClient(secretKey),
+          )
         }
       }
     } catch (error) {

@@ -15,6 +15,8 @@ import {
 import {
   recordPilotCheckoutPaid,
   recordPilotInvoicePaid,
+  reconcileStoredPilotPayment,
+  type StripePaymentLookup,
 } from './pilot-payments'
 
 const eligible = {
@@ -162,4 +164,168 @@ test('recordPilotInvoicePaid records nothing for a pilot that cannot be paid', a
 
   assert.equal(recorded, false)
   assert.equal(updated.state, 'reviewing')
+})
+
+function fakeStripeLookup(options: {
+  session?: {id?: string; payment_status?: string; amount_total?: number; customer?: string}
+  sessionError?: Error
+  invoice?: {id?: string; status?: string}
+  invoiceError?: Error
+} = {}) {
+  const calls = {
+    sessionRetrieves: [] as string[],
+    sessionExpires: [] as string[],
+    invoiceRetrieves: [] as string[],
+    invoiceVoids: [] as string[],
+  }
+  const stripe: StripePaymentLookup = {
+    checkout: {
+      sessions: {
+        retrieve: async (id: string) => {
+          calls.sessionRetrieves.push(id)
+          if (options.sessionError) throw options.sessionError
+          const session = options.session || {}
+          return {
+            id: session.id || id,
+            payment_status: session.payment_status || 'unpaid',
+            amount_total: session.amount_total ?? 150000,
+            customer: session.customer || 'cus_test',
+          }
+        },
+        expire: async (id: string) => {
+          calls.sessionExpires.push(id)
+        },
+      },
+    },
+    invoices: {
+      retrieve: async (id: string) => {
+        calls.invoiceRetrieves.push(id)
+        if (options.invoiceError) throw options.invoiceError
+        const invoice = options.invoice || {}
+        return {id: invoice.id || id, status: invoice.status || 'open'}
+      },
+      voidInvoice: async (id: string) => {
+        calls.invoiceVoids.push(id)
+      },
+    },
+  }
+  return {stripe, calls}
+}
+
+async function createSignedPilotWithBothInstruments() {
+  const pilot = await createEligiblePilot()
+  return updatePilot(pilot.id, {
+    state: 'signed',
+    payment: {
+      sessionId: 'cs_test_both',
+      invoiceId: 'in_test_both',
+      invoiceStatus: 'open',
+      paymentMethod: 'invoice',
+      paymentStatus: 'processing',
+    },
+  })
+}
+
+test('reconcile pays via the invoice when the card session is still unpaid', async () => {
+  const signed = await createSignedPilotWithBothInstruments()
+  const {stripe, calls} = fakeStripeLookup({
+    session: {payment_status: 'unpaid'},
+    invoice: {status: 'paid'},
+  })
+
+  const result = await reconcileStoredPilotPayment(stripe, signed)
+
+  // Both stored instruments must be checked: an unpaid session must not mask
+  // a paid invoice for a customer who clicked both payment buttons.
+  assert.deepEqual(calls.sessionRetrieves, ['cs_test_both'])
+  assert.deepEqual(calls.invoiceRetrieves, ['in_test_both'])
+  assert.equal(result.paid, true)
+  assert.equal(result.pilot.state, 'paid')
+  assert.equal(result.pilot.payment?.paymentMethod, 'invoice')
+  assert.equal(result.pilot.payment?.invoiceStatus, 'paid')
+  // The still-open checkout session is expired so the customer cannot pay twice.
+  assert.deepEqual(calls.sessionExpires, ['cs_test_both'])
+  assert.deepEqual(calls.invoiceVoids, [])
+})
+
+test('reconcile pays via the card session and voids the open invoice', async () => {
+  const signed = await createSignedPilotWithBothInstruments()
+  const {stripe, calls} = fakeStripeLookup({
+    session: {payment_status: 'paid', id: 'cs_test_both'},
+    invoice: {status: 'open'},
+  })
+
+  const result = await reconcileStoredPilotPayment(stripe, signed)
+
+  assert.equal(result.paid, true)
+  assert.equal(result.pilot.state, 'paid')
+  assert.equal(result.pilot.payment?.paymentMethod, 'card')
+  // The session settled first, so the invoice lookup was never needed and
+  // the open invoice is voided to prevent a duplicate charge.
+  assert.deepEqual(calls.invoiceRetrieves, [])
+  assert.deepEqual(calls.invoiceVoids, ['in_test_both'])
+  assert.deepEqual(calls.sessionExpires, [])
+})
+
+test('reconcile reports both statuses when neither instrument is paid', async () => {
+  const signed = await createSignedPilotWithBothInstruments()
+  const {stripe} = fakeStripeLookup({
+    session: {payment_status: 'unpaid'},
+    invoice: {status: 'open'},
+  })
+
+  const result = await reconcileStoredPilotPayment(stripe, signed)
+
+  assert.equal(result.paid, false)
+  assert.equal(result.retrieved, true)
+  assert.equal(result.sessionStatus, 'unpaid')
+  assert.equal(result.invoiceStatus, 'open')
+  assert.equal(result.pilot.state, 'signed')
+})
+
+test('reconcile falls back to the invoice when the session lookup fails', async () => {
+  const signed = await createSignedPilotWithBothInstruments()
+  const {stripe, calls} = fakeStripeLookup({
+    sessionError: new Error('stripe unreachable'),
+    invoice: {status: 'paid'},
+  })
+
+  const result = await reconcileStoredPilotPayment(stripe, signed)
+
+  assert.equal(result.paid, true)
+  assert.equal(result.pilot.state, 'paid')
+  assert.equal(result.pilot.payment?.paymentMethod, 'invoice')
+  assert.deepEqual(calls.sessionRetrieves, ['cs_test_both'])
+  assert.deepEqual(calls.invoiceRetrieves, ['in_test_both'])
+})
+
+test('reconcile reports not retrieved when every Stripe lookup fails', async () => {
+  const signed = await createSignedPilotWithBothInstruments()
+  const {stripe} = fakeStripeLookup({
+    sessionError: new Error('stripe unreachable'),
+    invoiceError: new Error('stripe unreachable'),
+  })
+
+  const result = await reconcileStoredPilotPayment(stripe, signed)
+
+  assert.equal(result.paid, false)
+  assert.equal(result.retrieved, false)
+  assert.equal(result.pilot.state, 'signed')
+})
+
+test('reconcile short-circuits for an already-paid pilot without Stripe calls', async () => {
+  const pilot = await createEligiblePilot()
+  const paid = await updatePilot(pilot.id, {
+    state: 'paid',
+    payment: {sessionId: 'cs_test_paid', paymentStatus: 'paid', paidAt: new Date().toISOString()},
+  })
+  const {stripe, calls} = fakeStripeLookup()
+
+  const result = await reconcileStoredPilotPayment(stripe, paid)
+
+  assert.equal(result.paid, true)
+  assert.deepEqual(calls.sessionRetrieves, [])
+  assert.deepEqual(calls.invoiceRetrieves, [])
+  assert.deepEqual(calls.sessionExpires, [])
+  assert.deepEqual(calls.invoiceVoids, [])
 })

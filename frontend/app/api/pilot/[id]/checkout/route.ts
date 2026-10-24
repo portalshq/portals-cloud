@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server'
 import {cookies} from 'next/headers'
 import type Stripe from 'stripe'
-import {createStripePlatformBilling} from '@portalshq/platform-billing'
+import {createStripePlatformBilling, createStripePlatformClient} from '@portalshq/platform-billing'
 import {pilotRoomPathForPilotOrFallback} from '@/lib/leads/account-paths'
 import {APP_SESSION_COOKIE, currentApplicationUser, pilotMembershipWithAccountRole} from '@/lib/leads/application-auth'
 import {applyTransition, hasPendingMaterialException} from '@/lib/leads/pilot'
@@ -91,6 +91,27 @@ export async function POST(
   }
 
   const billing = createStripePlatformBilling(secretKey)
+
+  // Reuse the stored checkout session while it is still open so the customer
+  // can never hold two payable card sessions for the same pilot; the invoice
+  // path is likewise single-issue. Expired or abandoned sessions fall through
+  // to a fresh session below.
+  const existingSessionId = String(pilot.payment?.sessionId || '')
+  if (existingSessionId) {
+    try {
+      const stripe = createStripePlatformClient(secretKey)
+      const existing = await stripe.checkout.sessions.retrieve(existingSessionId)
+      if (existing.status === 'open' && existing.payment_status === 'unpaid' && existing.url) {
+        console.log(`[pilot-checkout] reusing open session pilot=${pilot.id} session=${existingSessionId}`)
+        return NextResponse.json({ok: true, url: existing.url})
+      }
+      console.log(
+        `[pilot-checkout] stored session unusable pilot=${pilot.id} session=${existingSessionId} status=${existing.status} payment=${existing.payment_status}`,
+      )
+    } catch (cause) {
+      console.warn(`[pilot-checkout] stored session retrieve failed pilot=${pilot.id} session=${existingSessionId}:`, cause)
+    }
+  }
 
   // Production pilot uses a custom price_data approach, not a pre-configured product
   let session: Stripe.Checkout.Session
