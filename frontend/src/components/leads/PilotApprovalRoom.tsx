@@ -1280,7 +1280,7 @@ export function PilotApprovalRoom({
       }
 
       {
-        pilot.exceptions.length > 0 ? (
+        pilot.exceptions.some((item) => !item.resolvedAt) ? (
           <div id="exceptions" className="mt-24 bg-white/10 rounded-sm px-18 py-16" style={{ scrollMarginTop: '140px' }}>
             <p className="t-p-sm-sans">These terms need review before the pilot can be approved.</p>
             <ul className="mt-12 grid gap-24">
@@ -1850,7 +1850,7 @@ export function PilotApprovalRoom({
       }
 
       {
-        sessionId && pilot.state !== 'paid' ? (
+        sessionId && !pilot.payment?.paidAt ? (
           <div className="mt-24 border border-white/80 bg-white/10 px-18 py-16">
             <p className="t-p-sm-sans font-medium">Payment received. Finalizing your pilot record.</p>
             <p className="mt-8 t-p-sm-sans text-white/80">This page refreshes the pilot status without leaving the room.</p>
@@ -1925,7 +1925,7 @@ export function PilotApprovalRoom({
         }
 
         <div className="flex flex-wrap items-center gap-8">
-          <StatusPill>{routeBadge}</StatusPill>
+          {editable ? <StatusPill>{routeBadge}</StatusPill> : null}
           <StatusPill>
             {hasUnsavedChanges ? `${unsavedChanges} unsaved change${unsavedChanges === 1 ? '' : 's'}` : 'All changes saved'}
           </StatusPill>
