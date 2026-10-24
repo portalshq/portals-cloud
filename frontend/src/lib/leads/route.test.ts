@@ -7,6 +7,7 @@ process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {POST} from '../../../app/api/leads/route'
 import {PATCH as PATCH_PILOT} from '../../../app/api/pilot/[id]/route'
+import {POST as POST_RECONCILE_PAYMENT} from '../../../app/api/pilot/[id]/checkout/reconcile/route'
 import {POST as POST_MAGIC_LINK} from '../../../app/api/auth/magic-link/route'
 import {processLeadOutbox} from './processor'
 import {
@@ -1510,6 +1511,76 @@ test('signing records the signer in the answers and clears the signer item', asy
   assert.equal(signed.answers.signerName, 'Ava Nguyen')
   assert.equal(signed.answers.signerEmail, email)
   assert.ok(!signed.unresolved.some((item) => item.key === 'signer'))
+})
+
+function reconcilePilotPayment(
+  id: string,
+  init: {cookie?: string} = {},
+) {
+  const headers: Record<string, string> = {'content-type': 'application/json'}
+  if (init.cookie) headers.cookie = init.cookie
+  return POST_RECONCILE_PAYMENT(
+    new Request(`http://localhost/api/pilot/${id}/checkout/reconcile`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({}),
+    }),
+    {params: Promise.resolve({id})},
+  )
+}
+
+test('the payment reconcile endpoint gates access and stays unpaid in dry-run', async () => {
+  const email = `reconcile-${crypto.randomUUID()}@studio.example`
+  const participantEmail = `reconcile-guest-${crypto.randomUUID()}@studio.example`
+  const assessment = await post(diagnosticBody(email))
+  const token = profileTokenFrom(assessment)
+  await post(pilotBody(email), {cookie: `portals_profile=${token}`})
+  const {pilot} = await pilotForProfile(token)
+  assert.ok(pilot)
+
+  assert.equal((await reconcilePilotPayment(pilot.id)).status, 403)
+  assert.equal((await reconcilePilotPayment(crypto.randomUUID())).status, 404)
+
+  const guest = await invitePilotMember({
+    pilotId: pilot.id,
+    email: participantEmail,
+    displayName: 'Guest',
+    role: 'participant',
+  })
+  const guestSession = await consumeMagicLink(
+    await issueMagicLink({userId: guest.user.id, purpose: 'sign_in'}),
+  )
+  assert.equal(
+    (await reconcilePilotPayment(pilot.id, {cookie: `portals_session=${guestSession!.sessionToken}`})).status,
+    403,
+  )
+
+  const owner = await getApplicationUserByEmail(email)
+  const ownerSession = await consumeMagicLink(
+    await issueMagicLink({userId: owner!.id, purpose: 'sign_in'}),
+  )
+  const cookie = `portals_session=${ownerSession!.sessionToken}`
+
+  await updatePilot(pilot.id, {
+    state: 'signed',
+    payment: {sessionId: 'cs_test_reconcile', paymentMethod: 'card', paymentStatus: 'processing'},
+  })
+  const unpaid = await reconcilePilotPayment(pilot.id, {cookie})
+  const unpaidJson = await unpaid.json()
+  assert.equal(unpaid.status, 200)
+  assert.equal(unpaidJson.ok, true)
+  assert.equal(unpaidJson.paid, false)
+  assert.equal((await getPilotById(pilot.id))?.state, 'signed', 'dry-run reconcile must not mark paid')
+
+  await updatePilot(pilot.id, {
+    state: 'paid',
+    payment: {sessionId: 'cs_test_reconcile', paymentMethod: 'card', paymentStatus: 'paid', paidAt: new Date().toISOString()},
+  })
+  const paid = await reconcilePilotPayment(pilot.id, {cookie})
+  const paidJson = await paid.json()
+  assert.equal(paid.status, 200)
+  assert.equal(paidJson.ok, true)
+  assert.equal(paidJson.paid, true)
 })
 
 test('room edits cannot forge assessment evidence or erase required founder qualification', async () => {

@@ -482,9 +482,14 @@ export function PilotApprovalRoom({
     hasLocalDraftChangesRef.current = hasLocalDraftChanges
   }, [currentTerms, hasLocalDraftChanges])
 
+  const pendingPaymentKey =
+    sessionId ||
+    (pilot.payment?.invoiceId && pilot.payment?.paymentStatus === 'processing'
+      ? pilot.payment.invoiceId
+      : '')
   useEffect(() => {
-    if (!sessionId || pilot.state === 'paid') return
-    const attemptsKey = `checkout-wait-${pilot.id}-${sessionId}`
+    if (!pendingPaymentKey || pilot.state === 'paid') return
+    const attemptsKey = `checkout-wait-${pilot.id}-${pendingPaymentKey}`
     const attempts = Number(sessionStorage.getItem(attemptsKey) || 0)
     if (attempts >= 6) {
       setError('Payment is taking longer than expected. Please contact support if payment was completed.')
@@ -492,10 +497,10 @@ export function PilotApprovalRoom({
     }
     const timer = setTimeout(() => {
       sessionStorage.setItem(attemptsKey, String(attempts + 1))
-      void refreshPilot()
+      void reconcilePaymentAndRefresh()
     }, 3000)
     return () => clearTimeout(timer)
-  }, [sessionId, pilot.state, pilot.id])
+  }, [pendingPaymentKey, pilot.state, pilot.id])
 
   useEffect(() => {
     if (accessRole === 'owner') return
@@ -572,6 +577,18 @@ export function PilotApprovalRoom({
     } catch {
       // refresh is opportunistic
     }
+  }
+
+  async function reconcilePaymentAndRefresh() {
+    try {
+      // Verifies the stored Stripe session/invoice directly so the room can
+      // advance even when webhook delivery is delayed or unavailable locally.
+      // The webhook remains the authoritative paid signal.
+      await fetch(`/api/pilot/${pilot.id}/checkout/reconcile`, {method: 'POST'})
+    } catch {
+      // reconcile is best effort; the poll below still picks up webhook updates
+    }
+    await refreshPilot()
   }
 
   function syncFromPilot(nextPilot: StoredPilot, nextDraftTerms?: RoomTerms) {

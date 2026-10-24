@@ -1,7 +1,6 @@
-import {after, NextResponse} from 'next/server'
+import {NextResponse} from 'next/server'
 import type Stripe from 'stripe'
 import {createStripePlatformBilling, createStripePlatformClient} from '@portalshq/platform-billing'
-import {applyTransition} from '@/lib/leads/pilot'
 import {
   createBillingCustomer,
   createBillingInvoice,
@@ -14,9 +13,10 @@ import {
   leadsDryRun,
   mutatePilot,
 } from '@/lib/leads/store'
-import {enqueueCrmEvent, processCrmOutbox} from '@/lib/leads/crm-events'
-import {linkPilotStripeCustomer} from '@/lib/leads/application-auth'
-import {notifyPilotRoomEvent} from '@/lib/leads/pilot-room-notifications'
+import {
+  recordPilotCheckoutPaid,
+  recordPilotInvoicePaid,
+} from '@/lib/leads/pilot-payments'
 
 export const runtime = 'nodejs'
 
@@ -86,48 +86,12 @@ export async function POST(request: Request): Promise<NextResponse> {
         const bySession = await getPilotByPaymentSession(sessionId)
         const pilot = bySession || (pilotId ? await getPilotById(pilotId) : null)
         if (pilot) {
-          await linkPilotStripeCustomer(
-            pilot.id,
-            typeof session.customer === 'string' ? session.customer : (session.customer as Stripe.Customer | null)?.id,
-          )
-          let updated = pilot
-          const allowed = applyTransition(pilot.state, 'pay').allowed
-          if (allowed) {
-            const res = await mutatePilot(pilot.id, (existing) => {
-              if (!applyTransition(existing.state, 'pay').allowed) return {result: existing}
-              return {
-                patch: {
-                  state: existing.state === 'launch' ? 'launch' as const : 'paid' as const,
-                  payment: {
-                    ...(existing.payment || {}),
-                    sessionId,
-                    paymentMethod: 'card',
-                    paymentStatus: 'paid',
-                    paidAt: new Date().toISOString(),
-                  },
-                  historyNote: `payment received (${session.amount_total ? `$${(session.amount_total / 100).toLocaleString('en-US')}` : 'confirmed'})`,
-                },
-                result: existing,
-              }
-            })
-            updated = res.pilot
-          } else if (pilot.state !== 'paid' && pilot.state !== 'launch') {
+          // Side-effects are idempotent via eventKey + ON CONFLICT
+          const {recorded} = await recordPilotCheckoutPaid(pilot, session, `paid:${event.id}`)
+          if (!recorded) {
             // Not pay-able and not already paid -> ignore
             return NextResponse.json({received: true})
           }
-          // Side-effects are idempotent via eventKey + ON CONFLICT
-          await notifyPilotRoomEvent({
-            pilot: updated,
-            event: 'paid',
-            eventKey: `paid:${event.id}`,
-          })
-          await enqueueCrmEvent({
-            sourceType: 'pilot',
-            sourceId: pilot.id,
-            eventType: 'pilot_paid',
-            eventKey: `stripe:${event.id}:apollo-paid`,
-          })
-          after(() => processCrmOutbox(10))
         }
       } catch (error) {
         console.error('Pilot webhook handling failed:', error)
@@ -256,25 +220,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       if (pilotId) {
         const pilot = await getPilotById(pilotId)
         if (pilot) {
-          const {pilot: updated} = await mutatePilot(pilotId, (current) => {
-            if (!['signed', 'launch'].includes(current.state)) return {result: current}
-            return {
-              patch: {
-                state: current.state === 'launch' ? 'launch' as const : 'paid' as const,
-                payment: {
-                  ...(current.payment || {}),
-                  invoiceId: invoice.id,
-                  invoiceStatus: 'paid',
-                  paidAt: new Date().toISOString(),
-                  paymentMethod: 'invoice',
-                  paymentStatus: 'paid',
-                },
-                historyNote: 'invoice payment received',
-              },
-              result: current,
-            }
-          })
-          await notifyPilotRoomEvent({pilot: updated, event: 'paid', eventKey: `invoice-paid:${event.id}`})
+          await recordPilotInvoicePaid(pilot, invoice, `invoice-paid:${event.id}`)
         }
       }
     } catch (error) {

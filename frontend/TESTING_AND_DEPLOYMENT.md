@@ -114,6 +114,7 @@ http://localhost:3000/workflow/assessment?how_did_you_hear=linkedin&what_brought
 - `stripe trigger checkout.session.completed` with a session whose `payment_status` is not `paid` must **not** transition the pilot (the route guards on `payment_status === 'paid'`).
 - Re-firing the same event is idempotent: `applyTransition(state, 'pay')` gates the second write, so no duplicate state change, history entry, or `paid` email.
 - Retries: the checkout route persists `payment.sessionId` before returning the redirect, and the webhook looks the pilot up by `payment ->> 'sessionId'` before falling back to `metadata.pilotId`, so a retried event after an interrupted update still resolves.
+- Reconcile fallback: `POST /api/pilot/{id}/checkout/reconcile` verifies the stored Stripe checkout session (or issued invoice) against the Stripe API and applies the same paid transition when Stripe confirms payment. The room calls it on return from checkout and while an invoice payment is processing, so a paid pilot advances even when webhook delivery is delayed or unavailable — including local runs without `stripe listen`. It is owner/signer-scoped and never trusts a client-supplied session id.
 - The manual `PATCH … {action: "pay"}` fallback remains available when Stripe is not configured.
 
 ## Deployment (Vercel)
