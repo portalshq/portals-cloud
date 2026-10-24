@@ -97,6 +97,17 @@ Lore uses TCP/gRPC and UDP/QUIC on `41337`; its health port (`41339`) remains
 loopback-only. Caddy terminates public TLS and routes Auth HTTP/gRPC and Lore
 gRPC. It never proxies Lore QUIC or the Vercel application.
 
+UrcAuthApi (Auth gRPC, `8084`) authenticates the *user* credential only: RPCs
+carry no per-application caller identity — `capability-identity` clients send
+empty metadata — so network reachability is currently the whole caller
+boundary. Until the gateway accepts an application credential, restrict the
+Caddy route for Auth gRPC to the known egress addresses of deployed channel
+apps; anything else that can reach the listener can call `VerifyUser` and the
+other RPCs. Auth clients speak gRPC over TCP only (HTTP/2; no UDP — the UDP
+mapping exists solely for Lore QUIC) and must use TLS against
+`auth.portals.works:443` (`AUTH_GATEWAY_TLS=true`); the h2c listener stays on
+loopback.
+
 The ProductCharacters delivery worker is outside Portals' MVP and runs no
 container here. Portals retains its Vercel CRM cron; no Mac CRM scheduler,
 worker wake endpoint, or legacy one-minute timer is required.

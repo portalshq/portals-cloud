@@ -28,6 +28,12 @@ Environment variables are read by the application, not implicitly by this packag
 Use database TLS and least-privilege runtime credentials; run migrations separately with
 DDL credentials. Stop accepting requests before closing the gRPC client and database pool.
 
+The gateway transport is gRPC over HTTP/2 on TCP only — no UDP. Calls carry the
+*user* credential but no application-level caller credential (metadata is empty), so
+network reachability is the only caller boundary: restrict the gateway listener to
+deployed application egress addresses and always terminate the path under TLS outside
+loopback.
+
 ```typescript
 import pg from "pg";
 import {
