@@ -484,15 +484,19 @@ export function PilotApprovalRoom({
 
   const pendingPaymentKey =
     sessionId ||
-    (pilot.payment?.invoiceId && pilot.payment?.paymentStatus === 'processing'
-      ? pilot.payment.invoiceId
+    (pilot.payment?.paymentStatus === 'processing'
+      ? String(pilot.payment.invoiceId || pilot.payment.sessionId || '')
       : '')
   useEffect(() => {
     if (!pendingPaymentKey || pilot.state === 'paid') return
     const attemptsKey = `checkout-wait-${pilot.id}-${pendingPaymentKey}`
     const attempts = Number(sessionStorage.getItem(attemptsKey) || 0)
     if (attempts >= 6) {
-      setError('Payment is taking longer than expected. Please contact support if payment was completed.')
+      // Only surface the timeout on a real return-from-checkout; a pending
+      // invoice or an abandoned session should not alarm on room open.
+      if (sessionId) {
+        setError('Payment is taking longer than expected. Please contact support if payment was completed.')
+      }
       return
     }
     const timer = setTimeout(() => {
