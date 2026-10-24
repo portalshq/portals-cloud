@@ -51,7 +51,11 @@ const provider = new IdentityProvider(
 ```
 
 See the [integration guide](docs/integration-guide.md) for provisioning, profile sync,
-custom-store migration, and a complete runnable example.
+custom-store migration, and a complete runnable example. The guide also records the
+two-database deployment model (central identity/entitlement schema versus the
+application's own schema — the migration sets never run on the same database), the
+request-path store tradeoff around central account suspension, and the agreed
+audience `user_type` cohort tag and session-RPC sign-in specifications.
 
 ## Database migration
 
