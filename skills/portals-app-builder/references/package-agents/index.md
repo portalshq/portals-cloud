@@ -3,6 +3,7 @@
 Generated from `docs/package-agents/` and current package manifests. Load every module relevant to the requested experience.
 
 - [capabilities-redirect.md](./capabilities-redirect.md) - `@portalshq/capabilities-redirect` `0.0.5`
+- [capability-realtime-fanout-postgres.md](./capability-realtime-fanout-postgres.md) - `@portalshq/capability-realtime-fanout-postgres` `0.1.0`
 - [contracts.md](./contracts.md) - `@portalshq/contracts` `0.0.5`
 - [identity.md](./identity.md) - `@portalshq/capability-identity` `0.2.1`
 - [monetization.md](./monetization.md) - `@portalshq/monetization` `0.2.1`
