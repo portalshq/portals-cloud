@@ -7,6 +7,7 @@ process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {POST} from '../../../app/api/leads/route'
 import {PATCH as PATCH_PILOT} from '../../../app/api/pilot/[id]/route'
+import {POST as POST_INVOICE} from '../../../app/api/pilot/[id]/invoice/route'
 import {POST as POST_RECONCILE_PAYMENT} from '../../../app/api/pilot/[id]/checkout/reconcile/route'
 import {POST as POST_MAGIC_LINK} from '../../../app/api/auth/magic-link/route'
 import {processLeadOutbox} from './processor'
@@ -1606,6 +1607,145 @@ test('room edits cannot forge assessment evidence or erase required founder qual
   assert.ok(room.exceptions.some((exception: {kind: string}) => exception.kind === 'assessment-qualification'))
   assert.equal((await patchPilot(pilot.id, {action: 'resolve_exceptions'}, {cookie})).status, 403)
   assert.equal((await patchPilot(pilot.id, {action: 'sign', signer: {name: 'Ava', email}}, {cookie})).status, 422)
+})
+
+test('pilot lifecycle actions are restricted to the owner, founder, and reviewers', async (t) => {
+  const ownerEmail = `gates-owner-${crypto.randomUUID()}@studio.example`
+  const participantEmail = `gates-participant-${crypto.randomUUID()}@studio.example`
+  const reviewerEmail = `gates-reviewer-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+
+  const participant = await invitePilotMember({
+    pilotId: pilot.id,
+    email: participantEmail,
+    displayName: 'Participant',
+    role: 'participant',
+  })
+  const participantSession = await consumeMagicLink(
+    await issueMagicLink({userId: participant.user.id, purpose: 'sign_in'}),
+  )
+  assert.ok(participantSession)
+  const participantCookie = `portals_session=${participantSession.sessionToken}`
+
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(
+    await issueMagicLink({userId: owner.id, purpose: 'sign_in'}),
+  )
+  assert.ok(ownerSession)
+  const ownerCookie = `portals_session=${ownerSession.sessionToken}`
+
+  // Non-owner members cannot demote, escalate, or resolve the lifecycle.
+  for (const action of ['revise', 'request_exception', 'resolve_exceptions']) {
+    const denied = await patchPilot(pilot.id, {action}, {cookie: participantCookie})
+    assert.equal(denied.status, 403, `${action} must be denied for non-owner members`)
+  }
+
+  // The owner can still demote and escalate their own pilot.
+  const revised = await patchPilot(pilot.id, {action: 'revise'}, {cookie: ownerCookie})
+  assert.equal(revised.status, 200)
+  const escalated = await patchPilot(pilot.id, {action: 'request_exception'}, {cookie: ownerCookie})
+  assert.equal(escalated.status, 200)
+  // Exception resolution belongs to Portals even for the room owner.
+  const ownerResolve = await patchPilot(pilot.id, {action: 'resolve_exceptions'}, {cookie: ownerCookie})
+  assert.equal(ownerResolve.status, 403)
+
+  // A change request from a non-reviewer member records history but cannot
+  // demote the pilot.
+  await updatePilot(pilot.id, {state: 'scope_confirmed'})
+  const memberRequest = await patchPilot(pilot.id, {
+    action: 'section_change_request',
+    sectionChange: {section: 'Scope', note: 'Please revisit the workflow details'},
+  }, {cookie: participantCookie})
+  assert.equal(memberRequest.status, 200)
+  assert.equal((await getPilotById(pilot.id))?.state, 'scope_confirmed')
+
+  // The same request from an assigned reviewer demotes to revision.
+  const reviewerMember = await invitePilotMember({
+    pilotId: pilot.id,
+    email: reviewerEmail,
+    displayName: 'Reviewer',
+    role: 'approver',
+  })
+  const reviewerSession = await consumeMagicLink(
+    await issueMagicLink({userId: reviewerMember.user.id, purpose: 'sign_in'}),
+  )
+  assert.ok(reviewerSession)
+  const scopedPilot = await getPilotById(pilot.id)
+  assert.ok(scopedPilot)
+  await updatePilot(pilot.id, {
+    reviewers: [
+      {
+        id: crypto.randomUUID(),
+        role: 'security_reviewer',
+        name: 'Reviewer',
+        email: reviewerEmail,
+        status: 'invited',
+        invitedAt: new Date().toISOString(),
+        versionSeen: scopedPilot.version,
+        notes: [],
+      },
+    ],
+  })
+  const reviewerRequest = await patchPilot(pilot.id, {
+    action: 'section_change_request',
+    sectionChange: {section: 'Security posture', note: 'Please document the SSO requirement'},
+  }, {cookie: `portals_session=${reviewerSession.sessionToken}`})
+  assert.equal(reviewerRequest.status, 200)
+  assert.equal((await getPilotById(pilot.id))?.state, 'revision')
+
+  // Signing freezes the agreed terms: the update action is rejected once the
+  // pilot leaves the editable states.
+  await updatePilot(pilot.id, {state: 'signed'})
+  const postSignUpdate = await patchPilot(
+    pilot.id,
+    {action: 'update', answers: {pilotWorkflow: 'Changed after signing'}},
+    {cookie: ownerCookie},
+  )
+  assert.equal(postSignUpdate.status, 400)
+  const unchanged = await getPilotById(pilot.id)
+  assert.notEqual(unchanged?.answers.pilotWorkflow, 'Changed after signing')
+})
+
+test('a recorded pilot payment is never reverted to a pending state', async () => {
+  const ownerEmail = `pay-guard-${crypto.randomUUID()}@studio.example`
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(
+    await issueMagicLink({userId: owner.id, purpose: 'sign_in'}),
+  )
+  assert.ok(ownerSession)
+  const cookie = `portals_session=${ownerSession.sessionToken}`
+
+  // Model the mid-request race: the pilot is still 'signed' when the payment
+  // lands (webhook or reconcile recorded it after the route read the pilot).
+  const paidAt = new Date().toISOString()
+  await updatePilot(pilot.id, {
+    state: 'signed',
+    payment: {sessionId: 'cs_test_paid', paymentMethod: 'card', paymentStatus: 'paid', paidAt},
+  })
+
+  // A late pending-instrument write must not overwrite the recorded payment.
+  const invoice = await POST_INVOICE(
+    new Request(`http://localhost/api/pilot/${pilot.id}/invoice`, {
+      method: 'POST',
+      headers: {cookie},
+    }),
+    {params: Promise.resolve({id: pilot.id})},
+  )
+  assert.equal(invoice.status, 200)
+  const after = await getPilotById(pilot.id)
+  assert.equal(after?.payment?.paidAt, paidAt)
+  assert.equal(after?.payment?.paymentStatus, 'paid')
+  assert.equal(after?.payment?.paymentMethod, 'card')
+  assert.equal(after?.payment?.invoiceId, undefined)
 })
 
 function postMagicLink(body: Record<string, unknown>) {

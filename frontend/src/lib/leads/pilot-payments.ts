@@ -161,6 +161,16 @@ export async function recordPilotInvoicePaid(
   return {pilot: updated, recorded}
 }
 
+/**
+ * True once a payment has been durably recorded on the pilot. Writes that
+ * only describe a pending instrument (`paymentStatus: 'processing'`,
+ * `paymentMethod`, `issuedAt`, invoice failure status) must not overwrite a
+ * recorded payment, so every pending-instrument mutation checks this first.
+ */
+export function pilotPaymentRecorded(pilot: StoredPilot): boolean {
+  return Boolean(pilot.payment?.paidAt)
+}
+
 export type PilotPaymentReconcileResult = {
   pilot: StoredPilot
   paid: boolean

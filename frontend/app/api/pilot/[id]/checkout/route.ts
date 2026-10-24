@@ -13,6 +13,7 @@ import {
   updatePilot,
 } from '@/lib/leads/store'
 import {notifyPilotRoomEvent} from '@/lib/leads/pilot-room-notifications'
+import {pilotPaymentRecorded} from '@/lib/leads/pilot-payments'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -149,11 +150,15 @@ export async function POST(
     )
   }
 
-  // Atomically persist sessionId without clobbering concurrent webhook paidAt
-  await mutatePilot(id, (existing) => ({
-    patch: {payment: {...existing.payment, sessionId: session.id, paymentMethod: 'card', paymentStatus: 'processing'}},
-    result: undefined as unknown as typeof pilot,
-  }))
+  // Atomically persist sessionId without clobbering a concurrent webhook or
+  // reconcile that already recorded the payment in the meantime.
+  await mutatePilot(id, (existing) => {
+    if (pilotPaymentRecorded(existing)) return {result: existing}
+    return {
+      patch: {payment: {...existing.payment, sessionId: session.id, paymentMethod: 'card', paymentStatus: 'processing'}},
+      result: existing,
+    }
+  })
 
   return NextResponse.json({ok: true, url: session.url})
 }

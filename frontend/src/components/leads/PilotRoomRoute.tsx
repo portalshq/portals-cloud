@@ -13,6 +13,7 @@ import {pilotMutableTermsFromState} from '@/lib/leads/pilot-room-revisions'
 import {getPilotById} from '@/lib/leads/store'
 import {CTAButton} from '@/components/CTAButton'
 import {isPortalsTeamReviewerEmail, portalsTeamEmailsFromEnv} from '@/lib/leads/pilot-team-reviewer'
+import {formatReadableDate} from '@/lib/utils'
 
 function normalizeDates<T>(value: T): T {
   if (value instanceof Date) return value.toISOString() as T
@@ -78,7 +79,7 @@ export async function PilotRoomRoute({
   const configuredKickoffDates = String(process.env.PILOT_KICKOFF_DATES || '').split(',').map((date) => date.trim()).filter(Boolean)
   const kickoffAvailability = configuredKickoffDates.map((date) => ({
     date,
-    label: date,
+    label: formatReadableDate(date) || date,
     timezone: process.env.PILOT_KICKOFF_TIMEZONE || 'America/New_York',
     version: 'env-v1',
   }))

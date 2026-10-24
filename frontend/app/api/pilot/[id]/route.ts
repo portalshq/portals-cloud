@@ -604,23 +604,30 @@ export async function PATCH(
       return NextResponse.json({ ok: false, message: roleEmailError }, { status: 400 })
     }
   }
-  const hasAssessmentQualification = pilot.exceptions.some(
-    (item) => item.kind === 'assessment-qualification' && !item.resolvedAt,
-  )
   const founderAccess = isPortalsTeamReviewerEmail(user.email, portalsTeamEmails)
   if (
     (body.action === 'qualify' ||
       body.action === 'disqualify' ||
-      (body.action === 'resolve_exceptions' && hasAssessmentQualification)) &&
+      body.action === 'resolve_exceptions') &&
     !founderAccess
   ) {
     return NextResponse.json(
-      { ok: false, message: 'only the founder can resolve this qualification exception' },
+      { ok: false, message: 'only the Portals team can resolve pilot exceptions' },
       { status: 403 },
     )
   }
   if (body.action === 'sign' && accessRole !== 'owner' && accessRole !== 'signer') {
     return NextResponse.json({ ok: false, message: 'only an assigned signer can sign the agreement' }, { status: 403 })
+  }
+  // Demoting or escalating the whole pilot is the submitter's call (or the
+  // Portals team's): reviewers and participants request changes through
+  // section_change_request instead.
+  if (
+    (body.action === 'revise' || body.action === 'request_exception') &&
+    accessRole !== 'owner' &&
+    !founderAccess
+  ) {
+    return NextResponse.json({ ok: false, message: 'only the submitter can change the pilot state' }, { status: 403 })
   }
   if (['confirm_scope', 'finalize', 'pay', 'launch', 'activate'].includes(body.action)) {
     if (accessRole !== 'owner') {
@@ -834,15 +841,17 @@ export async function PATCH(
             )
           : locked.reviewers
         
-        // Transition to revision state if not already there
+        // Transition to revision state only when the requester holds a review
+        // role: a change request from any other room member must not demote
+        // the pilot.
         const revisionTransition = applyTransition(locked.state, 'revise')
-        const nextState = revisionTransition.allowed ? revisionTransition.state : locked.state
+        const nextState = reviewer && revisionTransition.allowed ? revisionTransition.state : locked.state
         
         return {
           patch: {
             reviewers,
             state: nextState,
-            historyNote: `${user.email} requested changes to ${section}${revisionTransition.allowed ? '; pilot moved to revision' : ''}`,
+            historyNote: `${user.email} requested changes to ${section}${nextState !== locked.state ? '; pilot moved to revision' : ''}`,
             by: user.email,
           },
           result: undefined,
@@ -1403,6 +1412,11 @@ export async function PATCH(
     if (body.action === 'update') {
       if (accessRole !== 'owner') {
         return NextResponse.json({ ok: false, message: 'only the submitter can edit the plan' }, { status: 403 })
+      }
+      // Signing freezes the agreed terms: post-signature edits would diverge
+      // the stored record from the hashed acceptance snapshot.
+      if (!EDITABLE_DRAFT_STATES.includes(pilot.state)) {
+        return NextResponse.json({ ok: false, message: 'pilot terms cannot be edited in the current state' }, { status: 400 })
       }
       const roleEmailError = validatePilotRoleEmailDomains(body.answers || {})
       if (roleEmailError) {

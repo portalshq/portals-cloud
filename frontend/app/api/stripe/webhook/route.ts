@@ -14,6 +14,7 @@ import {
   mutatePilot,
 } from '@/lib/leads/store'
 import {
+  pilotPaymentRecorded,
   recordPilotCheckoutPaid,
   recordPilotInvoicePaid,
 } from '@/lib/leads/pilot-payments'
@@ -262,10 +263,16 @@ export async function POST(request: Request): Promise<NextResponse> {
       if (pilotId) {
         const pilot = await getPilotById(pilotId)
         if (pilot) {
-          await mutatePilot(pilotId, (current) => ({
-            patch: {payment: {...current.payment, invoiceId: invoice.id, invoiceStatus: 'payment_failed', paymentStatus: 'failed'}},
-            result: current,
-          }))
+          await mutatePilot(pilotId, (current) => {
+            // Never revert a recorded payment: a failed attempt on one
+            // instrument must not erase a payment that already cleared on
+            // the other.
+            if (pilotPaymentRecorded(current)) return {result: current}
+            return {
+              patch: {payment: {...current.payment, invoiceId: invoice.id, invoiceStatus: 'payment_failed', paymentStatus: 'failed'}},
+              result: current,
+            }
+          })
         }
       }
     } catch (error) {
