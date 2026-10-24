@@ -27,14 +27,13 @@ px-client:
   lore_client_version: "0.8.4-portals.9"
   # NOTE: v0.5.8 lacks Sigstore bundles. New release with lore-auth-v1 support needed.
 
-  # Lore CLI is a separately published binary dependency of Px. Keep the
-  # checked-out submodule pinned to upstream_commit until the minimal security
-  # patch is committed to portalshq/lore; source_commit deliberately remains
-  # empty while that fork commit and signed release do not yet exist.
+  # Lore CLI is a separately published binary dependency of Px. source_commit
+  # must track the checked-out submodule commit (enforced by the security
+  # tests); upstream_commit records the EpicGames/lore sync point.
 lore-client:
   version: "0.8.4-portals.11"
   source_repository: "https://github.com/portalshq/lore"
-  source_commit: "55c7ae4befa941be73a870b916a6db09833c638c"
+  source_commit: "8067c8b98ca414f6ea4ba3e815def3a5e5898ca4"
   upstream_repository: "https://github.com/EpicGames/lore"
   upstream_commit: "d0b366c41ec41b339ef67ac35b0205c50731626b"
   release_tag: "v0.8.4-portals.11"
