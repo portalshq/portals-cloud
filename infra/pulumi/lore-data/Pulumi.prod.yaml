@@ -3,5 +3,3 @@ config:
   portals-lore-data:environment: prod
   portals-lore-data:recoveryControlsEnabled: "true"
   aws:region: us-east-2
-  portals-lore-data:expectedAwsAccountId: "168692731058"
-  portals-lore-data:bucketName: portals-prod-lore-chunks-168692731058

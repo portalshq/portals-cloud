@@ -267,8 +267,12 @@ export function assertPinsHaveReceipts(pins: VersionPins): void {
     ["control-plane", pins.controlPlaneImageUri],
     ...(pins.backendImageUri ? [["backend", pins.backendImageUri] as const] : []),
   ] as const) {
-    // Docker Hub Lore evidence belongs to its own registry-specific ledger.
-    const dockerHub = service === "lore" && image.startsWith("portalshq/lore@");
+    // Images without an explicit registry host are Docker Hub publishes; their
+    // evidence lives in the registry-specific ledger and records the published
+    // repository name (e.g. control-plane deploys portalshq/auth-gateway).
+    const repository = image.split("@", 1)[0];
+    const registryHost = repository.split("/", 1)[0];
+    const dockerHub = !/[.:]/.test(registryHost) && registryHost !== "localhost";
     const receiptFile = dockerHub
       ? path.join(path.dirname(resolveVersionsFile()), "verified-dockerhub-images.json")
       : file;
@@ -278,10 +282,17 @@ export function assertPinsHaveReceipts(pins: VersionPins): void {
     const receipt = ledger?.schemaVersion === (dockerHub ? 1 : 2)
       ? ledger?.receipts?.[image]
       : undefined;
-    if (!receipt || receipt.service !== service) {
+    const publishedName = repository.split("/").pop() ?? service;
+    const boundService = dockerHub
+      ? receipt?.service === service || receipt?.service === publishedName
+      : receipt?.service === service;
+    if (!receipt || !boundService) {
+      const promoteScript = dockerHub
+        ? `verify-and-promote-dockerhub-${service === "control-plane" ? "auth" : "lore"}.sh`
+        : "verify-and-promote-image.sh";
       throw new Error(
         `${service} pin ${image} has no matching receipt in ${receiptFile}; ` +
-          `run infra/pulumi/scripts/${dockerHub ? "verify-and-promote-dockerhub-lore.sh" : "verify-and-promote-image.sh"}`,
+          `run infra/pulumi/scripts/${promoteScript}`,
       );
     }
   }
