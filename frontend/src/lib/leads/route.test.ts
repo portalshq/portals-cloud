@@ -1257,7 +1257,7 @@ test('v4 High and Mid results enter pilot application and keep internal tags out
     assert.ok(!JSON.stringify(json).includes('A_STATE_PERSON_DEPENDENT'))
     const profile = await getProfileByToken(profileTokenFrom(response))
     assert.ok(profile?.qualification?.scores.diagnostic)
-    assert.equal(profile.qualification.answers.pilotWorkflow, answers.most_urgent_active_workflow)
+    assert.equal(profile.qualification.answers.pilotWorkflow, (answers as Record<string, unknown>).most_urgent_active_workflow)
     assert.ok(String(profile.qualification.answers.productionBaseline).includes('Time to transfer'))
   }
 })
@@ -1298,9 +1298,10 @@ test('assessment evidence reaches rooms without browser tampering or owner repla
     assert.equal(JSON.stringify(profile.qualification!.answers), original)
     assert.equal(pilot.answers.productionOwnerEmail, 'owner@studio.example')
     assert.equal(pilot.answers.productionOwner, 'Another producer')
-    assert.equal(pilot.answers.assessmentSnapshot.profileId, profile.id)
-    assert.equal(pilot.answers.assessmentSnapshot.answers.production_status, fixture.production_status)
-    assert.ok(pilot.answers.assessmentSnapshot.submissionId)
+    const snapshot = pilot.answers.assessmentSnapshot as {profileId?: string; submissionId?: string; answers?: Record<string, unknown>} | undefined
+    assert.equal(snapshot?.profileId, profile.id)
+    assert.equal(snapshot?.answers?.production_status, fixture.production_status)
+    assert.ok(snapshot?.submissionId)
     assert.notEqual(pilot.answers.productionBaseline, 'Forged baseline')
     assert.match(pilot.answers.successCriteria, /exact approved production version/)
     if (before.tier === 'low') assert.equal(pilot.state, 'exception_review')
@@ -1346,7 +1347,7 @@ test('claimed returning emails and forged assessment identifiers cannot disclose
   const {profile: claimedProfileRecord, pilot: claimedPilot} = await pilotForProfile(token)
   assert.ok(claimedPilot)
   assert.equal(claimedPilot.answers.assessmentId, undefined)
-  assert.equal(claimedPilot.answers.assessmentSnapshot?.profileId, claimedProfileRecord.id)
+  assert.equal((claimedPilot.answers.assessmentSnapshot as {profileId?: string} | undefined)?.profileId, claimedProfileRecord.id)
   // Room access for the claimed identity arrives through the emailed secure
   // link, which verifies straight into the pilot room.
   await processLeadOutbox(2000)
@@ -1462,7 +1463,7 @@ test('a qualified assessment reaches accepted terms, simulated payment and activ
   const finalized = await act({action: 'finalize'}, 'ready_sign')
   const signed = await act({action: 'sign', signer: {name: 'Ava Nguyen', email}, answers: {pilotWorkflow: 'Unapproved signature-time terms'}}, 'signed')
   assert.ok(signed.signing.termsAcceptanceId)
-  const acceptance = await getTermsAcceptanceByPilotAndEmail(pilot.id, email, signed.signing.termsHash!, signed.signing.scopeHash!)
+  const acceptance = await getTermsAcceptanceByPilotAndEmail(pilot.id, email, signed.signing.termsHash!, signed.signing.scopeHash! as string)
   assert.ok(acceptance)
   assert.equal((acceptance.termsSnapshot as {scope: {answers: Record<string, unknown>}}).scope.answers.pilotWorkflow, finalized.answers.pilotWorkflow)
   assert.equal((await patchPilot(pilot.id, {action: 'draft', draftAnswers: {pilotWorkflow: 'Late change'}}, {cookie})).status, 400)
@@ -1667,7 +1668,7 @@ test('magic-link sign-in auto-provisions configured Portals team accounts and ba
 
 test('magic-link sign-in reports email delivery failures instead of silently succeeding', async (t) => {
   const ownerEmail = `send-fail-${crypto.randomUUID()}@studio.example`
-  t.mock.method(globalThis, 'fetch', async (url) => {
+  t.mock.method(globalThis, 'fetch', async (url: RequestInfo | URL) => {
     const requestUrl = url instanceof Request ? url.url : String(url)
     if (requestUrl.includes('.api.sanity.io/')) {
       return Response.json({result: TEST_PACKAGE_SPECIFICATIONS})
