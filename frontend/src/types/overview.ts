@@ -43,6 +43,9 @@ export function overviewColumnMotionStyle(visible: boolean, scrollDirection: 'up
         filter: visible ? 'blur(0px)' : 'blur(10px)',
         transform: visible ? 'translateX(0px)' : `translateX(${scrollDirection === 'up' ? '-1px' : '1px'})`,
         pointerEvents: visible ? 'auto' : 'none',
-        transition: `opacity ${visible ? blurEnterDurationMs : blurExitDurationMs}ms ${visible ? blurEnterEasing : blurExitEasing} ${visible ? delayMs : 0}ms, filter ${visible ? blurEnterDurationMs : blurExitDurationMs}ms ${visible ? blurEnterEasing : blurExitEasing} ${visible ? delayMs : 0}ms, transform ${visible ? blurEnterDurationMs : blurExitDurationMs}ms ${visible ? blurEnterEasing : blurExitEasing} ${visible ? delayMs : 0}ms`,
+        transitionProperty: 'opacity, filter, transform',
+        transitionDuration: `${visible ? blurEnterDurationMs : blurExitDurationMs}ms`,
+        transitionTimingFunction: visible ? blurEnterEasing : blurExitEasing,
+        transitionDelay: `${visible ? delayMs : 0}ms`,
     };
 }

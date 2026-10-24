@@ -65,8 +65,8 @@ Then verify:
 ## Visual rules (extends `DESIGN.md`)
 
 `DESIGN.md` describes the cinematic homepage. Subpages use the same tokens without
-the WebGL dependency: default bg `#010528`, hairlines `white/15–20`, fills
-`white/5–12`. Banned (do not reintroduce): `#343434`, `#101010`, `#d4a15c`,
+the WebGL dependency: default bg `#010528`, fills
+`white/10-15`. Banned (do not reintroduce): `#343434`, `#101010`, `#d4a15c`,
 `bg-white/8`, forced `!lowercase` on containers. Reuse
 `src/components/marketing/MarketingPageShell.tsx` instead of per-page headers.
 

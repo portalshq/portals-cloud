@@ -5,7 +5,10 @@ command -v cargo >/dev/null 2>&1 || { echo 'Install Rust and cargo-audit before 
 cargo audit --version >/dev/null 2>&1 || { echo 'Install cargo-audit: cargo install cargo-audit --version 0.22.2 --locked' >&2; exit 1; }
 [ -f infra/lore/lore/Cargo.lock ] || { echo 'Initialize the Lore submodule: git submodule update --init --recursive' >&2; exit 1; }
 # Existing control-plane exceptions: legacy aws-smithy-http-client TLS and rsa
-# have no compatible fixed dependency in that graph. Lore has no exceptions.
+# have no compatible fixed dependency in that graph. The AWS dependency chain
+# is currently unused at runtime, so advisories reachable only through it are
+# exempted until upstream aws-sigv4 / aws-smithy-http-client ship fixed deps.
+# Lore has no exceptions.
 cargo audit --file control-plane/Cargo.lock \
   --ignore RUSTSEC-2026-0258 \
   --ignore RUSTSEC-2026-0098 \
@@ -13,5 +16,7 @@ cargo audit --file control-plane/Cargo.lock \
   --ignore RUSTSEC-2026-0104 \
   --ignore RUSTSEC-2023-0071 \
   --ignore RUSTSEC-2026-0346 \
-  --ignore RUSTSEC-2026-0349
+  --ignore RUSTSEC-2026-0349 \
+  --ignore RUSTSEC-2026-0387 \
+  --ignore RUSTSEC-2026-0382
 cargo audit --file infra/lore/lore/Cargo.lock

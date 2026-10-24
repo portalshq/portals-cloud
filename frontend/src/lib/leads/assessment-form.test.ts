@@ -251,14 +251,18 @@ test('progressive form validates, preserves navigation/drafts, and submits acces
       }),
     ),
   )
+  // A conflicting URL identity groups like a known profile instead of
+  // rendering editable inputs over another person's profile.
   assert.equal(
-    document.querySelector<HTMLInputElement>('[name="email"]')?.value,
-    'new@studio.test',
+    document.querySelector<HTMLInputElement>('[name="email"]'),
+    null,
   )
   assert.equal(
-    document.querySelector<HTMLInputElement>('[name="company"]')?.value,
-    'new studio',
+    document.querySelector<HTMLInputElement>('[name="company"]'),
+    null,
   )
+  assert.ok(document.body.textContent?.includes('new@studio.test'))
+  assert.ok(document.body.textContent?.includes('not you?'))
   assert.equal(
     document.querySelector<HTMLSelectElement>('[name="production_status"]')
       ?.value,

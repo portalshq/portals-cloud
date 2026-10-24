@@ -16,7 +16,8 @@ Everything below is already listed in `.env.example`.
 | `LEADS_HASH_KEY` | HMAC for profile cookies, rate limiting, internal auth |
 | `LEADS_ENCRYPTION_KEY` | base64 32-byte AES key for encrypted answers |
 | `LEADS_EMAIL_FROM`, `RESEND_API_KEY` | transactional email delivery |
-| `LEADS_NOTIFICATION_EMAIL` | Portals-team review notifications and approval-room access |
+| `LEADS_NOTIFICATION_EMAIL` | Portals-team review notifications recipient |
+| `PORTALS_TEAM_EMAILS` | Comma-separated staff emails with approval-room access; auto-provisioned at sign-in. Falls back to `LEADS_NOTIFICATION_EMAIL` |
 | `APOLLO_API_KEY` | Master API key for Apollo list, custom-field, contact, account, and deal access. Field and deal-stage IDs are discovered automatically from the Apollo schema. |
 | `APOLLO_CALLBACK_SECRET` | HMAC secret for signed Apollo workflow callbacks |
 | `PILOT_PRICE_AMOUNT` | fallback fee in USD when the proposal has no price |
@@ -113,6 +114,8 @@ http://localhost:3000/workflow/assessment?how_did_you_hear=linkedin&what_brought
 - `stripe trigger checkout.session.completed` with a session whose `payment_status` is not `paid` must **not** transition the pilot (the route guards on `payment_status === 'paid'`).
 - Re-firing the same event is idempotent: `applyTransition(state, 'pay')` gates the second write, so no duplicate state change, history entry, or `paid` email.
 - Retries: the checkout route persists `payment.sessionId` before returning the redirect, and the webhook looks the pilot up by `payment ->> 'sessionId'` before falling back to `metadata.pilotId`, so a retried event after an interrupted update still resolves.
+- Reconcile fallback: `POST /api/pilot/{id}/checkout/reconcile` verifies every stored Stripe payment instrument — the checkout session **and** the issued invoice — against the Stripe API and applies the same paid transition for whichever Stripe confirms first. The room calls it on return from checkout and whenever a payment is still processing, so a paid pilot advances even when webhook delivery is delayed or unavailable — including local runs without `stripe listen`. It is owner/signer-scoped and never trusts a client-supplied session id.
+- Dual payment paths: a signed pilot can hold an open checkout session and an issued invoice at once. `POST /api/pilot/{id}/checkout` reuses the stored session while it remains open (single card session per pilot), the invoice route is already single-issue, and completing either path voids or expires the counterpart so the customer cannot be charged twice.
 - The manual `PATCH … {action: "pay"}` fallback remains available when Stripe is not configured.
 
 ## Deployment (Vercel)
@@ -123,8 +126,9 @@ http://localhost:3000/workflow/assessment?how_did_you_hear=linkedin&what_brought
    - Event: `checkout.session.completed`
    - Copy the signing secret into `STRIPE_WEBHOOK_SECRET` (separate secret per environment).
 3. Confirm the daily cron in `vercel.json` (`0 0 * * *` → `/api/internal/leads/retry`) is enabled and that Vercel sends the `CRON_SECRET` bearer header; the route 401s without a matching hash. New room events also request an in-process outbox run, while the daily cron remains the durable retry path for the free Vercel plan.
-4. Confirm the Sanity production dataset publishes the `paid-pilot` document and Studio price specs. The commercial snapshot synthesizes the $30,000 Studio annual option when specs are missing, but real specs should be preferred.
-5. Sanity check the production config gate: `productionConfigurationError` in `app/api/leads/route.ts` responds 503 with the list of missing variables until the environment is complete.
+4. Confirm the Sanity production dataset publishes the `studio-pilot`, Studio, Production Team, and Enterprise package specs. Pilot orders require a complete persisted price/currency/term snapshot; missing CMS terms block checkout instead of falling back to application constants.
+5. Configure the Stripe IDs for Production Team annual/quarterly, onboarding, Studio annual, Studio Pilot base, and the annual add-on in each environment. Catalog synchronization and the read-only pricing audit require the Sanity package specs and Stripe test mode; run `npm run sync:stripe-pricing` (dry run by default), then `npm run sync:stripe-pricing -- --apply` to write test-catalog changes, and `npm run audit:pricing-congruence`. Use test-catalog IDs on staging and separately created live-catalog IDs in production. The paid-pilot promotional amount remains offer-driven and is charged from the immutable accepted proposal.
+6. Sanity check the production config gate: `productionConfigurationError` in `app/api/leads/route.ts` responds 503 with the list of missing variables until the environment is complete.
 
 ## Post-deploy verification
 

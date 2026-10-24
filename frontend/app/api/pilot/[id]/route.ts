@@ -9,6 +9,11 @@ import type {
 } from '@/lib/leads/contracts'
 import { pilotControlledOptionLists, pilotRequestAnswersSchema } from '@/lib/leads/contracts'
 import {
+  isPortalsTeamReviewerEmail,
+  isProtectedPortalsReviewerMutation,
+  portalsTeamEmailsFromEnv,
+} from '@/lib/leads/pilot-team-reviewer'
+import {
   applyTransition,
   buildCommercialSnapshot,
   buildSecurityDecisions,
@@ -27,9 +32,11 @@ import {
 } from '@/lib/leads/pilot'
 import {
   APP_SESSION_COOKIE,
+  activePilotMemberEmails,
   ApplicationRole,
   countPilotParticipants,
   currentApplicationUser,
+  getApplicationUserByEmail,
   invitePilotMember,
   pilotMembershipWithAccountRole,
   revokePilotMember,
@@ -49,6 +56,7 @@ import {
 } from '@/lib/leads/store'
 import { hashValue } from '@/lib/leads/crypto'
 import {
+  createPilotDraft,
   pilotTermsFromDraft,
   resolvePilotDraftCommit,
   updatePilotDraft,
@@ -65,6 +73,7 @@ import {
   type PilotDirectAnswers,
 } from '@/lib/leads/pilot-room-fields'
 import { emailDomain, requiresCompanyEmailDomain, validatePilotRoleEmailDomains } from '@/lib/leads/identity'
+import {getPublishedPackageSpecifications} from '@/lib/package-specifications'
 
 type PatchAction =
   | 'update'
@@ -105,6 +114,7 @@ type PatchBody = {
   share?: { role: 'participant' | 'approver' | 'signer'; email: string }
   invite?: { role: ReviewerRole; email: string; name?: string; reviewerId?: string }
   reviewerId?: string
+  email?: string
   decision?: 'confirm' | 'changes'
   role?: ReviewerRole
   baseVersion?: number
@@ -150,6 +160,13 @@ class StaleReviewError extends Error {
   }
 }
 
+class ReviewerStateError extends Error {
+  readonly code = 'reviewer_revoked'
+  constructor() {
+    super('This reviewer was removed from the pilot. Contact the pilot owner to be re-invited.')
+  }
+}
+
 function materialChange(pilot: StoredPilot, body: PatchBody): boolean {
   if (body.answers) return true
   if (body.criteria && JSON.stringify(body.criteria) !== JSON.stringify(pilot.successCriteria)) {
@@ -187,8 +204,7 @@ function reviewerMembershipIsStillRequired(
 ): boolean {
   const normalized = email.trim().toLowerCase()
   if (String(pilot.answers.signerEmail || '').trim().toLowerCase() === normalized && role === 'signer') return true
-  const portalsEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
-  if (portalsEmail && portalsEmail === normalized && role === 'approver') return true
+  if (isPortalsTeamReviewerEmail(email, portalsTeamEmailsFromEnv()) && role === 'approver') return true
   return pilot.reviewers.some(
     (reviewer) =>
       reviewer.status !== 'revoked' &&
@@ -201,6 +217,7 @@ function reviewerMembershipIsStillRequired(
 function recompute(
   pilot: StoredPilot,
   body: PatchBody,
+  packageSpecifications: Awaited<ReturnType<typeof getPublishedPackageSpecifications>>,
 ): {
   answers: Record<string, unknown>
   route: ReturnType<typeof classifyPilot>['route']
@@ -232,7 +249,7 @@ function recompute(
     route: classification.route,
   })
   const baseProposal = answersChanged || body.startDate !== undefined
-    ? buildCommercialSnapshot(answers as PilotAnswers, [], {
+    ? buildCommercialSnapshot(answers as PilotAnswers, packageSpecifications, {
       startDate: startDate || undefined,
     })
     : pilot.proposal
@@ -530,6 +547,7 @@ export async function GET(
   return NextResponse.json({
     ok: true,
     pilot: result.pilot,
+    memberEmails: await activePilotMemberEmails(result.pilot.id),
     draftTerms: pilotTermsFromDraft(result.pilot.draft, mutableTermsFromPilot(result.pilot)),
     accessRole: result.accessRole,
     accountRole: result.accountRole,
@@ -553,6 +571,17 @@ export async function PATCH(
   const authResult = await authenticatedPilot(id, request)
   if (authResult instanceof NextResponse) return authResult
   const { user, pilot, accessRole, accountRole } = authResult
+  const portalsTeamEmails = portalsTeamEmailsFromEnv()
+  const reviewerTarget = pilot.reviewers.find((reviewer) =>
+    reviewer.id === body.reviewerId || reviewer.id === body.invite?.reviewerId,
+  )
+  const targetEmails = [body.email, body.invite?.email, body.share?.email, reviewerTarget?.email]
+  if (isProtectedPortalsReviewerMutation(body.action, targetEmails, portalsTeamEmails)) {
+    return NextResponse.json(
+      { ok: false, code: 'protected_portals_reviewer', message: 'The Portals team reviewer role is managed by Portals and cannot be changed or claimed.' },
+      { status: 403 },
+    )
+  }
   if (body.action === 'submit_draft') {
     return NextResponse.json(
       { ok: false, message: 'submit_draft is no longer supported; use commit_draft' },
@@ -575,24 +604,30 @@ export async function PATCH(
       return NextResponse.json({ ok: false, message: roleEmailError }, { status: 400 })
     }
   }
-  const hasAssessmentQualification = pilot.exceptions.some(
-    (item) => item.kind === 'assessment-qualification' && !item.resolvedAt,
-  )
-  const founderEmail = String(process.env.LEADS_NOTIFICATION_EMAIL || '').trim().toLowerCase()
-  const founderAccess = Boolean(founderEmail) && user.email.toLowerCase() === founderEmail
+  const founderAccess = isPortalsTeamReviewerEmail(user.email, portalsTeamEmails)
   if (
     (body.action === 'qualify' ||
       body.action === 'disqualify' ||
-      (body.action === 'resolve_exceptions' && hasAssessmentQualification)) &&
+      body.action === 'resolve_exceptions') &&
     !founderAccess
   ) {
     return NextResponse.json(
-      { ok: false, message: 'only the founder can resolve this qualification exception' },
+      { ok: false, message: 'only the Portals team can resolve pilot exceptions' },
       { status: 403 },
     )
   }
   if (body.action === 'sign' && accessRole !== 'owner' && accessRole !== 'signer') {
     return NextResponse.json({ ok: false, message: 'only an assigned signer can sign the agreement' }, { status: 403 })
+  }
+  // Demoting or escalating the whole pilot is the submitter's call (or the
+  // Portals team's): reviewers and participants request changes through
+  // section_change_request instead.
+  if (
+    (body.action === 'revise' || body.action === 'request_exception') &&
+    accessRole !== 'owner' &&
+    !founderAccess
+  ) {
+    return NextResponse.json({ ok: false, message: 'only the submitter can change the pilot state' }, { status: 403 })
   }
   if (['confirm_scope', 'finalize', 'pay', 'launch', 'activate'].includes(body.action)) {
     if (accessRole !== 'owner') {
@@ -685,6 +720,7 @@ export async function PATCH(
     }
 
     if (body.action === 'commit_draft') {
+      const packageSpecifications = await getPublishedPackageSpecifications()
       const { pilot: updated, result } = await mutatePilot(id, (locked) => {
         if (!EDITABLE_DRAFT_STATES.includes(locked.state)) {
           throw new Error('pilot terms cannot be edited in the current state')
@@ -719,7 +755,7 @@ export async function PATCH(
           startDate: resolved.terms.startDate,
           answers: resolved.terms.answers,
         }
-        const next = recompute(locked, commitBody)
+        const next = recompute(locked, commitBody, packageSpecifications)
         const committed = commitPilotTermRevision({
           pilot: locked,
           nextTerms: resolved.terms,
@@ -729,7 +765,16 @@ export async function PATCH(
           contributors: draft.changes,
         })
         if (committed.changes.length === 0) {
-          return { result: { committed, noOp: true } }
+          return {
+            patch: {
+              draft: createPilotDraft({
+                terms: resolved.terms,
+                baseVersion: locked.version,
+                actor: user.email,
+              }),
+            },
+            result: { committed, noOp: true },
+          }
         }
         const reviewers = reconcileTermReviewers(locked.reviewers, next.answers, committed.version)
         return {
@@ -778,23 +823,35 @@ export async function PATCH(
             candidate.email.toLowerCase() === user.email.toLowerCase(),
         )
         const now = new Date().toISOString()
+        const reviewers = reviewer
+          ? locked.reviewers.map((candidate) =>
+              candidate.id === reviewer.id
+                ? {
+                  ...candidate,
+                  status: 'reviewed' as const,
+                  // Acting inside the room is the invite acknowledgement.
+                  invitedAt: candidate.invitedAt || now,
+                  openedAt: candidate.openedAt || now,
+                  reviewedAt: now,
+                  requestedChanges: true,
+                  versionSeen: locked.version,
+                  notes: [...candidate.notes, contextualNote],
+                }
+                : candidate,
+            )
+          : locked.reviewers
+        
+        // Transition to revision state only when the requester holds a review
+        // role: a change request from any other room member must not demote
+        // the pilot.
+        const revisionTransition = applyTransition(locked.state, 'revise')
+        const nextState = reviewer && revisionTransition.allowed ? revisionTransition.state : locked.state
+        
         return {
           patch: {
-            reviewers: reviewer
-              ? locked.reviewers.map((candidate) =>
-                candidate.id === reviewer.id
-                  ? {
-                    ...candidate,
-                    status: 'reviewed' as const,
-                    reviewedAt: now,
-                    requestedChanges: true,
-                    versionSeen: locked.version,
-                    notes: [...candidate.notes, contextualNote],
-                  }
-                  : candidate,
-              )
-              : locked.reviewers,
-            historyNote: `${user.email} requested changes to ${section}`,
+            reviewers,
+            state: nextState,
+            historyNote: `${user.email} requested changes to ${section}${nextState !== locked.state ? '; pilot moved to revision' : ''}`,
             by: user.email,
           },
           result: undefined,
@@ -976,8 +1033,9 @@ export async function PATCH(
       if (!reviewer) {
         return NextResponse.json({ ok: false, message: 'reviewer not found' }, { status: 404 })
       }
-      if (reviewer.status === 'revoked' || reviewer.status === 'proposed') {
-        return NextResponse.json({ ok: false, message: 'reviewer is no longer active' }, { status: 403 })
+      if (reviewer.status === 'revoked') {
+        const error = new ReviewerStateError()
+        return NextResponse.json({ ok: false, code: error.code, message: error.message }, { status: 403 })
       }
       if (
         accessRole !== 'owner' &&
@@ -988,7 +1046,7 @@ export async function PATCH(
       if (decision === 'changes' && !String(body.note || '').trim()) return NextResponse.json({ ok: false, message: 'a requested change must include a note' }, { status: 400 })
       if (!Number.isInteger(body.versionSeen) || body.versionSeen !== pilot.version) {
         return NextResponse.json(
-          { ok: false, code: 'stale_review', message: 'This pilot changed before the review could be confirmed.' },
+          { ok: false, code: 'stale_review', message: 'The pilot terms were updated after you started reviewing. Please review the latest version above, then confirm your review.' },
           { status: 409 },
         )
       }
@@ -996,8 +1054,8 @@ export async function PATCH(
         if (body.versionSeen !== locked.version) throw new StaleReviewError()
         const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewerId)
         if (!lockedReviewer) throw new Error('reviewer not found')
-        if (lockedReviewer.status === 'revoked' || lockedReviewer.status === 'proposed') {
-          throw new Error('reviewer is no longer active')
+        if (lockedReviewer.status === 'revoked') {
+          throw new ReviewerStateError()
         }
         if (
           accessRole !== 'owner' &&
@@ -1017,11 +1075,26 @@ export async function PATCH(
               .map((candidate) => candidate.id)
             : [reviewerId],
         )
+        const relatedReviewerRoles = new Set(
+          decision === 'confirm'
+            ? locked.reviewers
+              .filter(
+                (candidate) =>
+                  candidate.status !== 'revoked' &&
+                  candidate.email.trim().toLowerCase() === lockedReviewer.email.trim().toLowerCase(),
+              )
+              .map((candidate) => candidate.role.replace('_', ' '))
+            : [lockedReviewer.role],
+        )
         const reviewers = locked.reviewers.map((candidate) =>
           relatedReviewerIds.has(candidate.id)
             ? {
               ...candidate,
               status: 'reviewed' as const,
+              // Acting inside the room is the invite acknowledgement: stamp the
+              // invite/open markers when the reviewer was never formally invited.
+              invitedAt: candidate.invitedAt || now,
+              openedAt: candidate.openedAt || now,
               reviewedAt: now,
               requestedChanges: decision === 'changes',
               versionSeen: locked.version,
@@ -1032,7 +1105,7 @@ export async function PATCH(
         return {
           patch: {
             reviewers,
-            historyNote: `${lockedReviewer.email} ${decision === 'changes' ? 'requested changes' : 'confirmed'} (${decision === 'confirm' && relatedReviewerIds.size > 1 ? 'all assigned roles' : lockedReviewer.role.replaceAll('_', ' ')})`,
+            historyNote: `${lockedReviewer.email} ${decision === 'changes' ? 'requested changes' : 'confirmed'} (${decision === 'confirm' && relatedReviewerIds.size > 1 ? [...relatedReviewerRoles.values()].join(', ') : lockedReviewer.role.replaceAll('_', ' ')})`,
             by: body.by,
           },
           result: {
@@ -1088,11 +1161,21 @@ export async function PATCH(
         if (accessRole !== 'owner' && lockedReviewer.email.toLowerCase() !== user.email.toLowerCase()) {
           throw new Error('you can only add notes to your own review')
         }
+        const now = new Date().toISOString()
         return {
           patch: {
             reviewers: locked.reviewers.map((candidate) =>
               candidate.id === lockedReviewer.id
-                ? { ...candidate, notes: [...candidate.notes, note] }
+                ? {
+                  ...candidate,
+                  // Acting inside the room is the invite acknowledgement: a
+                  // proposed reviewer leaving a note has demonstrably opened it.
+                  status: candidate.status === 'proposed' ? 'opened' : candidate.status,
+                  invitedAt: candidate.invitedAt || now,
+                  openedAt: candidate.openedAt || now,
+                  versionSeen: Math.max(candidate.versionSeen, locked.version),
+                  notes: [...candidate.notes, note],
+                }
                 : candidate,
             ),
             historyNote: `${lockedReviewer.email} added a review note`,
@@ -1140,48 +1223,47 @@ export async function PATCH(
       if (accessRole !== 'owner') {
         return NextResponse.json({ ok: false, message: 'only the submitter can change reviewer roles' }, { status: 403 })
       }
-      const reviewer = pilot.reviewers.find((candidate) => candidate.id === body.reviewerId)
-      if (!reviewer) {
-        return NextResponse.json({ ok: false, message: 'reviewer not found' }, { status: 404 })
-      }
       if (!isReviewerRole(body.role)) {
         return NextResponse.json({ ok: false, message: 'a valid reviewer role is required' }, { status: 400 })
       }
+      const reviewer = pilot.reviewers.find((candidate) => candidate.id === body.reviewerId)
+      const email = String(reviewer?.email || body.email || '').trim().toLowerCase()
+      if (!email) {
+        return NextResponse.json({ ok: false, message: 'a pilot member email is required' }, { status: 400 })
+      }
+      if (!reviewer && !(await activePilotMemberEmails(pilot.id)).some((memberEmail) => memberEmail.toLowerCase() === email)) {
+        return NextResponse.json({ ok: false, message: 'reviewer not found among pilot members' }, { status: 404 })
+      }
+      const member = reviewer ? null : await getApplicationUserByEmail(email)
       const role = body.role
       const { pilot: updated } = await mutatePilot(id, (locked) => {
-        const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewer.id)
-        if (!lockedReviewer) throw new Error('reviewer not found')
-        if (lockedReviewer.role === role) {
-          return {
-            patch: {
-              historyNote: `${lockedReviewer.email} already holds the ${role.replaceAll('_', ' ')} role`,
-              by: body.by,
-            },
-            result: undefined,
-          }
-        }
         const existingRole = locked.reviewers.find(
           (candidate) =>
-            candidate.id !== lockedReviewer.id &&
             candidate.status !== 'revoked' &&
             candidate.role === role &&
-            candidate.email.trim().toLowerCase() === lockedReviewer.email.trim().toLowerCase(),
+            candidate.email.trim().toLowerCase() === email,
         )
         if (existingRole) {
-          return {
-            patch: {
-              historyNote: `${lockedReviewer.email} already holds the ${role.replaceAll('_', ' ')} role`,
-              by: body.by,
-            },
-            result: undefined,
-          }
+          throw new Error(`${email} already holds the ${role.replaceAll('_', ' ')} role`)
+        }
+        const previousRole = [...locked.reviewers].reverse().find(
+          (candidate) => candidate.email.trim().toLowerCase() === email,
+        )
+        const roleAssignment = previousRole || {
+          id: '',
+          role,
+          name: member?.displayName || '',
+          email,
+          status: 'proposed' as const,
+          versionSeen: locked.version,
+          notes: [],
         }
         return {
           patch: {
             reviewers: [
               ...locked.reviewers,
               {
-                ...lockedReviewer,
+                ...roleAssignment,
                 id: randomUUID(),
                 role,
                 // Adding a role is not an invitation. The owner can explicitly
@@ -1196,7 +1278,7 @@ export async function PATCH(
                 notes: [],
               },
             ],
-            historyNote: `${lockedReviewer.email} added as ${role.replaceAll('_', ' ')}`,
+            historyNote: `${email} added as ${role.replaceAll('_', ' ')}`,
             by: body.by,
           },
           result: undefined,
@@ -1216,7 +1298,6 @@ export async function PATCH(
       const { pilot: updated } = await mutatePilot(id, (locked) => {
         const lockedReviewer = locked.reviewers.find((candidate) => candidate.id === reviewer.id)
         if (!lockedReviewer) throw new Error('reviewer not found')
-        const now = new Date().toISOString()
         return {
           patch: {
             reviewers: locked.reviewers.map((candidate) =>
@@ -1227,14 +1308,13 @@ export async function PATCH(
                     String(locked.answers.productionOwner || '').split(',')[0].trim() ||
                     user.email,
                   email: user.email.toLowerCase(),
-                  status: 'reviewed' as const,
-                  reviewedAt: now,
-                  requestedChanges: false,
+                  // Keep status as 'proposed' so the owner must still review
+                  // Do not auto-confirm the review
                   versionSeen: locked.version,
                 }
                 : candidate,
             ),
-            historyNote: `the submitter holds the ${lockedReviewer.role.replaceAll('_', ' ')} role`,
+            historyNote: `the submitter now holds the ${lockedReviewer.role.replaceAll('_', ' ')} role and must review`,
             by: body.by,
           },
           result: undefined,
@@ -1262,13 +1342,14 @@ export async function PATCH(
           { status: 422 },
         )
       }
-      const next = recompute(pilot, body)
+      const next = recompute(pilot, body, await getPublishedPackageSpecifications())
       const unresolved = computePilotProgressUnresolved({
         state: pilot.state,
         version: pilot.version,
         unresolved: next.unresolved,
         exceptions: next.exceptions,
         reviewers: pilot.reviewers,
+        approvalPath: String(next.answers.approvalPath || ''),
       })
       if (unresolved.length > 0) {
         return NextResponse.json(
@@ -1332,11 +1413,16 @@ export async function PATCH(
       if (accessRole !== 'owner') {
         return NextResponse.json({ ok: false, message: 'only the submitter can edit the plan' }, { status: 403 })
       }
+      // Signing freezes the agreed terms: post-signature edits would diverge
+      // the stored record from the hashed acceptance snapshot.
+      if (!EDITABLE_DRAFT_STATES.includes(pilot.state)) {
+        return NextResponse.json({ ok: false, message: 'pilot terms cannot be edited in the current state' }, { status: 400 })
+      }
       const roleEmailError = validatePilotRoleEmailDomains(body.answers || {})
       if (roleEmailError) {
         return NextResponse.json({ ok: false, message: roleEmailError }, { status: 400 })
       }
-      const next = recompute(pilot, body)
+      const next = recompute(pilot, body, await getPublishedPackageSpecifications())
       const frozen = TEAM_REVIEW_STATES.includes(pilot.state)
       const version = frozen && materialChange(pilot, body) ? pilot.version + 1 : pilot.version
       const updated = await updatePilot(id, {
@@ -1399,10 +1485,16 @@ export async function PATCH(
       // (UNIQUE constraint is on pilot_id, terms_hash, pilot_scope_hash - not actor_email)
       const existingAcceptance = await getTermsAcceptanceByPilotAndEmail(id, email, termsHash, scopeHash)
       if (existingAcceptance) {
-        return NextResponse.json(
-          { ok: false, message: 'Terms already accepted by this signer' },
-          { status: 409 },
-        )
+        // Allow re-signing if the previous acceptance was for a different signer name
+        // (e.g., signer changed from person A to B, then back to A with same email)
+        const previousName = String(existingAcceptance.actor_name || '')
+        if (previousName.trim() === name.trim()) {
+          return NextResponse.json(
+            { ok: false, message: 'Terms already accepted by this signer' },
+            { status: 409 },
+          )
+        }
+        // Different name with same email - allow the new signature
       }
       
       const acceptanceId = randomUUID()
@@ -1438,6 +1530,12 @@ export async function PATCH(
       })
       const updated = await updatePilot(id, {
         state: stateChange.state,
+        // Persist the captured signer identity so answer-derived artifacts
+        // (unresolved items, CRM projections, drafts) stay consistent.
+        answers: {...answers, signerName: name, signerEmail: email},
+        // The signer item was raised while the signature section was still
+        // editable; signing satisfies it, so clear it from the persisted list.
+        unresolved: pilot.unresolved.filter((item) => item.key !== 'signer'),
         signing: {
           ...(pilot.signing || {}),
           name,
@@ -1552,7 +1650,7 @@ export async function PATCH(
     if (transition === 'activate' && !pilot.payment?.paidAt) {
       return NextResponse.json({ ok: false, message: 'payment must clear before the pilot can be activated' }, { status: 422 })
     }
-    const next = recompute(pilot, body)
+    const next = recompute(pilot, body, await getPublishedPackageSpecifications())
     if (transition === 'resolve_exceptions') {
       next.exceptions = next.exceptions.map((item) => ({
         ...item,
@@ -1609,6 +1707,13 @@ export async function PATCH(
       })
       await enqueueExceptionReviewTask(updated.id, eventKey)
     }
+    if (transition === 'resolve_exceptions') {
+      await notifyPilotRoomEvent({
+        pilot: updated,
+        event: 'exceptions_resolved',
+        eventKey: `exception-resolved:${updated.id}:${updated.updatedAt}`,
+      })
+    }
     if (transition === 'finalize') {
       await notifyPilotRoomEvent({
         pilot: updated,
@@ -1630,6 +1735,12 @@ export async function PATCH(
       return NextResponse.json(
         { ok: false, code: 'stale_review', message: error.message },
         { status: 409 },
+      )
+    }
+    if (error instanceof ReviewerStateError) {
+      return NextResponse.json(
+        { ok: false, code: error.code, message: error.message },
+        { status: 403 },
       )
     }
     return NextResponse.json(

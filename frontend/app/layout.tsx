@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import { Providers } from './providers'
 import { baseSiteMetadata, orgWebSiteJsonLd } from '@/lib/seo'
@@ -14,8 +15,10 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
-        <script
+        <Script
+          id="three-importmap"
           type="importmap"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               imports: {

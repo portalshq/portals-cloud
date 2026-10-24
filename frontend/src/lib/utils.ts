@@ -16,8 +16,10 @@ export function formatNumber(index: number) {
 export function formatReadableDate(dateString: string | null | undefined): string | null {
   if (!dateString) return null
   try {
-    // Parse the date as YYYY-MM-DD to avoid timezone issues
-    const [year, month, day] = dateString.split('-').map(Number)
+    // Parse the YYYY-MM-DD calendar date and ignore any time component so
+    // ISO datetimes ('2026-10-27T04:00:00.000Z') format like date-only
+    // strings without a timezone-dependent day shift.
+    const [year, month, day] = dateString.slice(0, 10).split('-').map(Number)
     if (isNaN(year) || isNaN(month) || isNaN(day)) return dateString
     // Validate month and day ranges
     if (month < 1 || month > 12 || day < 1 || day > 31) return dateString

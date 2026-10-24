@@ -37,7 +37,8 @@ export function ProductionMemoryPage({ context, sanityDocument, useCases }: { co
   }, [])
 
   return <><main data-page="production-memory" className="text-white">
-    <section className="ui-grid min-h-[100vh] lg:min-h-[90vh] items-center py-80 lg:py-48 pm-snap-section"><div className="col-span-full max-w-6xl"><p className="t-p-sans mb-24">the repository for AI-native production</p><h1 className="t-d1-sans max-w-5xl">Production Memory</h1><p className="t-p-sans mt-24 max-w-2xl text-white">AI production teams generate thousands of images, videos, and iterations daily. Every asset carries a history of prompts, model settings, references, revisions and approvals. Without a system to preserve and retrieve that history, teams lose the ability to reproduce, extend, and trust their best work.</p><div className="mt-40 flex flex-wrap gap-16">
+    <section className="ui-grid min-h-[100vh] lg:min-h-[90vh] items-center py-80 lg:py-48 pm-snap-section"><div className="col-span-full max-w-6xl"><p className="t-p-sans mb-24">the repository for AI-native production</p><h1 className="t-d1-sans max-w-5xl">Production Memory</h1><p className="t-p-sans mt-24 max-w-3xl text-white">AI production teams generate thousands of images, videos, and iterations daily. Every asset carries a history of prompts, model settings, references, revisions and approvals.
+      <br/><br/>Without a production memory system to preserve and retrieve that history, teams lose the ability to reproduce, extend, and trust their best work.</p><div className="mt-40 flex flex-wrap gap-16">
       <CTAButton href="#download" appearance="plain" analyticsLabel="Download the Production Memory Brief" analyticsIntent="resource_download">Download the Production Memory Brief</CTAButton>
       <CTAButton href="/assessment" analyticsLabel="Assess Your Production Workflow" analyticsIntent="assessment">Assess Your Production Workflow</CTAButton>
     </div></div></section>

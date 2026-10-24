@@ -12,6 +12,7 @@ import {
 import { CTAButton } from '@/components/CTAButton'
 import { SmoothAnchor } from '@/components/SmoothAnchor'
 import { PilotScopeForm } from '@/components/leads/PilotScopeForm'
+import { Badge } from '@/components/ui/badge'
 import type { KnownLeadContext } from '@/lib/leads/contracts'
 import type {
   DocumentSection,
@@ -100,16 +101,29 @@ function StaticPilotBackground() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0"
-      style={{
-        backgroundImage:
-          'linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
-      }}
-    />
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
+        }}
+      />
+      <svg className="absolute inset-0 h-full w-full opacity-30 mix-blend-soft-light" aria-hidden="true" preserveAspectRatio="none">
+        <defs>
+          <filter id="pilot-page-noise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.003" numOctaves="3" seed="8" stitchTiles="stitch" />
+            <feColorMatrix type="saturate" values="0" />
+          </filter>
+        </defs>
+        <rect width="100%" height="100%" filter="url(#pilot-page-noise)" />
+      </svg>
+    </div>
   )
 }
 
-function Hero({ document, context, offer, offerTerms, pilotMode }: { document: ResourceDocument; context: KnownLeadContext; offer?: string; offerTerms?: OfferTerms; pilotMode?: 'standard' | 'assisted' }) {
+function Hero({ document, context, offer, offerTerms, pilotMode, initialAnswers }: { document: ResourceDocument; context: KnownLeadContext; offer?: string; offerTerms?: OfferTerms; pilotMode?: 'standard' | 'assisted'; initialAnswers?: Record<string, unknown> }) {
   const landing = document.landingPage ?? {}
   const specification = paidPilotSpec(document)
   const router = useRouter()
@@ -121,10 +135,10 @@ function Hero({ document, context, offer, offerTerms, pilotMode }: { document: R
   const assistedParams = () => new URLSearchParams({ ...(offer ? { offer } : {}), mode: 'assisted' })
   const talkThroughHref = isPilotPage
     ? '#scope'
-    : `/pilot?${assistedParams().toString()}#scope`
+    : `/pilot?${assistedParams().toString()}`
   const startHref = isPilotPage
     ? '#scope'
-    : `/pilot?${new URLSearchParams({ ...(offer ? { offer } : {}) }).toString()}#scope`
+    : `/pilot?${new URLSearchParams({ ...(offer ? { offer } : {}) }).toString()}`
 
   const metrics = [
     [offerTerms ? `${offerTerms.pilotDurationDays} days` : packageMilestoneLabel(specification, 'pilot period'), 'evaluation window'],
@@ -153,9 +167,9 @@ function Hero({ document, context, offer, offerTerms, pilotMode }: { document: R
               <div className="mt-24 flex gap-16 flex-row">
                 <CTAButton
                   href={startHref}
-                  analyticsLabel="Create my pilot plan"
+                  analyticsLabel="Start a pilot"
                 >
-                  <span>Create my pilot plan</span>
+                  <span>Start a pilot</span>
                 </CTAButton>
                 <CTAButton
                   href={talkThroughHref}
@@ -215,12 +229,12 @@ function Objective({ document }: { document: ResourceDocument }) {
         </div>
         <div className="col-span-full lg:col-span-10 lg:col-start-14">
           <p className="t-p-lg-serif text-white">Test whether your team can continue approved work with less reconstruction, fewer wrong-input generations, and clearer handoffs.</p>
-          <div className="mt-24 rounded lg:rounded-[10px] border bg-white/10 px-16 py-8 backdrop-blur-[20px] flex items-start gap-x-16 t-p-sans leading-[1.2em]">
+          <Badge className="mt-24 flex items-start gap-x-16 t-p-sans leading-[1.2em] border px-16 py-8 backdrop-blur-[10px]">
             <span className="flex h-[1.364em] items-center">
               <span className="size-8 shrink-0 bg-current" />
             </span>
             Test one defined workflow using real production work. Agree the scope and success measures before kickoff.
-          </div>
+          </Badge>
           <div className="mt-24 space-y-16 t-p-sans text-white">
             <p>{PRIMARY_PILOT_SUCCESS_TEST}</p>
           </div>
@@ -303,13 +317,13 @@ function SuccessCriteria({ document, offerTerms }: { document: ResourceDocument;
         </h2>
         <div className="ui-grid gap-y-40 py-sms !text-black bg-white rounded-[1em] lg:rounded-[2em]">
           <div className="col-span-full xl:col-span-10">
-            <p className="max-w-[35em] t-p-lg-serif">
+            <p className="t-p-lg-serif text-balance">
               {PRIMARY_PILOT_SUCCESS_TEST}
             </p>
           </div>
           <ol className="col-span-full space-y-24 xl:col-span-11 xl:col-start-12">
             {['Locate the exact approved version and the sources used to create it.', 'Recover the relevant prompts, references, approvals, and production decisions.', 'Have another qualified creator continue or extend the work within agreed output tolerances.'].map((item, index) => (
-              <li key={item} className="grid grid-cols-[48px_1fr] gap-12 items-baseline">
+              <li key={item} className="grid grid-cols-[48px_1fr] gap-8 lg:gap-12 items-baseline">
                 <span className="t-p-sans">
                   {String(index + 1).padStart(2, '0')}
                 </span>
@@ -416,6 +430,8 @@ function PilotForm({
   pilotMode,
   assessmentOrigin,
   annualOptions,
+  packageSpecifications,
+  initialAnswers,
 }: {
   specSummary: string
   context: KnownLeadContext
@@ -430,6 +446,8 @@ function PilotForm({
   pilotMode?: 'standard' | 'assisted'
   assessmentOrigin: 'standard' | 'assessment_override'
   annualOptions: Array<{ slug: string; name: string; priceLabel: string }>
+  packageSpecifications: PackageSpecification[]
+  initialAnswers?: Record<string, unknown>
 }) {
   return (
     <section id="scope" data-header-theme="light" className="scroll-mt-20">
@@ -454,7 +472,7 @@ function PilotForm({
 
         <div className="col-span-full xl:col-span-13 xl:col-start-12 transition-[min-height] duration-500 ease-out motion-reduce:transition-none">
           {/* <p className="mb-20 t-p-sm-sans">{specSummary}</p> */}
-          <PilotScopeForm annualOptions={annualOptions} specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
+          <PilotScopeForm annualOptions={annualOptions} specSummary={specSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={packageSpecifications} initialAnswers={initialAnswers} />
         </div>
       </div>
     </section>
@@ -548,6 +566,8 @@ export function PaidPilotLandingPage({
   pilotMode,
   assessmentOrigin = 'standard',
   annualOptions = [],
+  packageSpecifications,
+  initialAnswers,
 }: {
   document: ResourceDocument
   context: KnownLeadContext
@@ -556,7 +576,10 @@ export function PaidPilotLandingPage({
   pilotMode?: 'standard' | 'assisted'
   assessmentOrigin?: 'standard' | 'assessment_override'
   annualOptions?: Array<{ slug: string; name: string; priceLabel: string }>
+  packageSpecifications?: PackageSpecification[]
+  initialAnswers?: Record<string, unknown>
 }) {
+  const resolvedPackageSpecifications = packageSpecifications ?? document.packageSpecifications ?? []
   useEffect(() => {
     void trackEvent('paid_pilot_page_viewed', { assessment_arrival: Boolean(context.assessmentCompleted), qualification_tier: context.qualificationTier })
     if (context.assessmentCompleted && (context.qualificationTier === 'high' || context.qualificationTier === 'medium')) {
@@ -583,14 +606,14 @@ export function PaidPilotLandingPage({
       />
       <StaticPilotBackground />
       <div className="relative z-10">
-        <Hero document={document} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} />
+        <Hero document={document} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} initialAnswers={initialAnswers} />
         <div
           aria-hidden="true"
           className="pointer-events-none h-px w-full"
           data-webgl-marker="scrollTo"
           data-webgl-position="0.96"
         />
-        <PilotForm annualOptions={annualOptions} specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} />
+        <PilotForm annualOptions={annualOptions} specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={resolvedPackageSpecifications} initialAnswers={initialAnswers} />
         <Objective document={document} />
         <ScopeAndMilestone document={document} />
         <SuccessCriteria document={document} offerTerms={offerTerms} />

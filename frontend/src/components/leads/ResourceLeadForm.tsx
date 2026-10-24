@@ -24,6 +24,7 @@ import {
   validateUrlParamEmail,
   type UrlParams,
 } from '@/lib/leads/url-params'
+import {resolvePrefilledIdentity} from '@/lib/leads/identity-prefill'
 
 type Option = {value: string; label: string}
 
@@ -56,6 +57,10 @@ export function ResourceLeadForm({
   const started = useRef(false)
   const {ref: swapRef, reservedHeight, reserve} = usePreservedSwap()
   const {ref: draftRef, restored, flush, clear} = useFormDraft(submissionType)
+  const prefilledIdentity = useMemo(
+    () => resolvePrefilledIdentity(context, {urlParams}),
+    [context, urlParams],
+  )
 
   useEffect(() => {
     if (restored.email) setEmail(restored.email)
@@ -117,11 +122,11 @@ export function ResourceLeadForm({
       // Merge URL params with form values and context (priority: form > context > URL params)
       const submittedIdentity: LeadIdentity = Object.fromEntries(
         Object.entries({
-          email: String(values.email || context.identity?.email || context.answerValues?.email || urlParams.email || ''),
-          name: String(values.name || context.identity?.name || context.answerValues?.name || urlParams.name || ''),
-          company: String(values.company || context.identity?.company || context.answerValues?.company || urlParams.company || ''),
-          role: String(values.role || context.identity?.role || context.answerValues?.role || urlParams.role || ''),
-          website: String(values.website || context.identity?.website || context.answerValues?.website || urlParams.website || ''),
+          email: String(values.email || prefilledIdentity.identity.email || ''),
+          name: String(values.name || prefilledIdentity.identity.name || ''),
+          company: String(values.company || prefilledIdentity.identity.company || ''),
+          role: String(values.role || prefilledIdentity.identity.role || ''),
+          website: String(values.website || prefilledIdentity.identity.website || ''),
         }).filter(([, value]) => value),
       ) as LeadIdentity
       
@@ -192,7 +197,7 @@ export function ResourceLeadForm({
         <h3 className="t-h1-sans">Your document is ready.</h3>
         <p className="t-p-sans text-white max-w-3xl">
           {state.result.message ||
-            'Download the Production Memory Brief, then assess how reliably your team preserves approved versions, production context, and reusable creative knowledge.'}
+            (title ? `${title}, then assess how reliably your team preserves approved versions, production context, and reusable creative knowledge.` : 'Download the document, then assess how reliably your team preserves approved versions, production context, and reusable creative knowledge.')}
         </p>
         <div className="flex flex-col gap-16 sm:flex-row lg:justify-center">
           {state.result.downloadUrl ? (
@@ -207,9 +212,8 @@ export function ResourceLeadForm({
               {downloadLabel}
             </CTAButton>
           ) : null}
-          <CTAButton href="/workflow/assessment" analyticsLabel="Assess Your Workflow">
-            Assess production workflow
-            <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
+          <CTAButton appearance="plain" href="/workflow/assessment" analyticsLabel="Assess Your Workflow">
+            Assess my production workflow
           </CTAButton>
         </div>
       </div>
@@ -232,13 +236,14 @@ export function ResourceLeadForm({
       </div>
       {quickDownload ? (
         <>
-          <KnownProfileNotice context={context} />
+          <KnownProfileNotice identity={context.identity} />
           <ConsentFields onStarted={onStarted} showMarketing={false} />
         </>
       ) : (
         <>
           <IdentityFields
             context={context}
+            prefilledIdentity={prefilledIdentity}
             email={email}
             onEmailChange={(event) => setEmail(event.target.value)}
             requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}

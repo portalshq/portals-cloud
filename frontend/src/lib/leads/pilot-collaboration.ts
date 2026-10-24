@@ -7,7 +7,11 @@ import type {
   PilotDraftConflict,
   PilotMutableTerms,
 } from './pilot-collaboration-types'
-import {PILOT_DIRECT_ANSWER_FIELDS, PILOT_DIRECT_ANSWER_LABELS} from './pilot-room-fields'
+import {
+  normalizePilotStartDate,
+  PILOT_DIRECT_ANSWER_FIELDS,
+  PILOT_DIRECT_ANSWER_LABELS,
+} from './pilot-room-fields'
 export type {
   ConflictResolution,
   PilotCollaborativeDraft,
@@ -46,7 +50,7 @@ function actorId(actor?: string): string | undefined {
 
 function cloneTerms(terms: PilotMutableTerms): PilotMutableTerms {
   return {
-    startDate: terms.startDate || null,
+    startDate: normalizePilotStartDate(terms.startDate),
     criteria: terms.criteria.map((criterion) => ({...criterion})),
     answers: {...terms.answers},
   }
@@ -91,7 +95,7 @@ function fieldKind(_field: string): 'structured' | 'text' {
 }
 
 function getField(terms: PilotMutableTerms, field: string): unknown {
-  if (field === 'startDate') return terms.startDate || null
+  if (field === 'startDate') return normalizePilotStartDate(terms.startDate)
   const answerMatch = field.match(/^answers\.([A-Za-z0-9_]+)$/)
   if (answerMatch) return terms.answers?.[answerMatch[1] as keyof typeof terms.answers] || ''
   const removalMatch = field.match(/^criteria\.([^.]+)\.__removed$/)
@@ -105,7 +109,7 @@ function getField(terms: PilotMutableTerms, field: string): unknown {
 function setField(terms: PilotMutableTerms, field: string, value: unknown): PilotMutableTerms {
   const next = cloneTerms(terms)
   if (field === 'startDate') {
-    next.startDate = value ? String(value) : null
+    next.startDate = normalizePilotStartDate(value ? String(value) : null)
     return next
   }
   const answerMatch = field.match(/^answers\.([A-Za-z0-9_]+)$/)
@@ -135,9 +139,11 @@ export function changedPilotFields(
   opts: {at?: string; by?: string} = {},
 ): PilotDraftChange[] {
   const at = opts.at || new Date().toISOString()
+  const canonicalBase = cloneTerms(base)
+  const canonicalNext = cloneTerms(next)
   const changes: PilotDraftChange[] = []
   const push = (field: string, label: string, value: unknown) => {
-    if (sameValue(getField(base, field), value)) return
+    if (sameValue(getField(canonicalBase, field), value)) return
     changes.push({
       field,
       label,
@@ -147,15 +153,15 @@ export function changedPilotFields(
       updatedBy: opts.by,
     })
   }
-  push('startDate', 'Pilot start date', next.startDate || null)
-  for (const field of PILOT_DIRECT_ANSWER_FIELDS) push(`answers.${field}`, PILOT_DIRECT_ANSWER_LABELS[field], next.answers?.[field] || '')
+  push('startDate', 'Pilot start date', canonicalNext.startDate)
+  for (const field of PILOT_DIRECT_ANSWER_FIELDS) push(`answers.${field}`, PILOT_DIRECT_ANSWER_LABELS[field], canonicalNext.answers?.[field] || '')
   const keys = new Set([
-    ...base.criteria.map((criterion) => criterion.key),
-    ...next.criteria.map((criterion) => criterion.key),
+    ...canonicalBase.criteria.map((criterion) => criterion.key),
+    ...canonicalNext.criteria.map((criterion) => criterion.key),
   ])
   for (const key of keys) {
-    const current = criterionByKey(next, key)
-    const prior = criterionByKey(base, key)
+    const current = criterionByKey(canonicalNext, key)
+    const prior = criterionByKey(canonicalBase, key)
     const source = current || prior
     if (!source) continue
     if (!current && prior) {
@@ -323,13 +329,16 @@ export function resolvePilotDraftCommit(input: {
   conflicts: PilotDraftConflict[]
   appliedChanges: PilotDraftChange[]
 } {
-  let merged = cloneTerms(input.currentTerms)
+  const baseTerms = cloneTerms(input.baseTerms)
+  const currentTerms = cloneTerms(input.currentTerms)
+  const incomingTerms = cloneTerms(input.incomingTerms)
+  let merged = cloneTerms(currentTerms)
   const conflicts: PilotDraftConflict[] = []
-  const incomingChanges = changedPilotFields(input.baseTerms, input.incomingTerms)
+  const incomingChanges = changedPilotFields(baseTerms, incomingTerms)
   for (const change of incomingChanges) {
-    const baseValue = getField(input.baseTerms, change.field)
-    const currentValue = getField(input.currentTerms, change.field)
-    const mineValue = getField(input.incomingTerms, change.field)
+    const baseValue = getField(baseTerms, change.field)
+    const currentValue = getField(currentTerms, change.field)
+    const mineValue = getField(incomingTerms, change.field)
     const currentChanged = !sameValue(baseValue, currentValue)
     const currentDiffers = !sameValue(currentValue, mineValue)
     const resolution = input.resolutions?.[change.field]
@@ -354,6 +363,6 @@ export function resolvePilotDraftCommit(input: {
   return {
     terms: merged,
     conflicts,
-    appliedChanges: changedPilotFields(input.currentTerms, merged),
+    appliedChanges: changedPilotFields(currentTerms, merged),
   }
 }

@@ -2,7 +2,7 @@ import {cookies} from 'next/headers'
 import type {Metadata} from 'next'
 
 export const metadata: Metadata = {robots: {index: false, follow: false}}
-import {notFound, redirect} from 'next/navigation'
+import {redirect} from 'next/navigation'
 import {AccountSidebar} from '@/components/account/AccountSidebar'
 import {
   APP_SESSION_COOKIE,
@@ -29,7 +29,10 @@ export default async function AccountLayout({
   const requestedAccountHref = accountPath(accountIdSlug)
   if (!user) redirect(`/auth/sign-in?next=${encodeURIComponent(requestedAccountHref)}`)
   const account = await getCustomerAccountForUser(accountIdSlug, user.id)
-  if (!account) notFound()
+  // Pilot-room pages authorize through the room's own membership after
+  // verifying that the room belongs to this account. Do not let the account
+  // shell hide an otherwise-authorized room member before that check runs.
+  if (!account) return <div className="min-h-[100dvh]">{children}</div>
   const accountHref = accountPath(account.id)
   const [pilots, allAccounts] = await Promise.all([
     getPilotNavigationForCustomerAccount(account.id),
@@ -39,7 +42,7 @@ export default async function AccountLayout({
 
   return (
     <div className="min-h-[100dvh]">
-      <div className="mx-auto grid min-h-[100dvh] max-w-[96rem] lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <div className="min-h-[100dvh] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_16rem]">
         <AccountSidebar
           accountName={account.name}
           accountHref={accountHref}
@@ -59,7 +62,7 @@ export default async function AccountLayout({
               : undefined
           }
         />
-        <div className="min-w-0">{children}</div>
+        <div className="min-w-0 pt-80 lg:pt-0 lg:col-start-2">{children}</div>
       </div>
     </div>
   )

@@ -51,6 +51,8 @@ jobs:
       - run: npm ci
       - name: Recover locked Linux build-tool binaries
         run: node scripts/install-build-native.mjs
+      - run: npm run build --workspace=packages/realtime-fanout
+      - run: npm run build --workspace=packages/capability-realtime-fanout-postgres
       - run: npm run build --workspace=packages/monetization
       - run: npm run build --workspace=packages/capability-interaction-orchestrator
       - run: npm run typecheck --workspace=packages/capability-interaction-orchestrator

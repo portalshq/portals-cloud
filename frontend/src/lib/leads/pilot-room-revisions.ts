@@ -10,6 +10,11 @@ import type {StoredPilot} from './store'
 import type {SuccessCriterion} from './contracts'
 import {pilotDirectAnswersFrom} from './pilot-room-fields'
 
+function dateOnly(value?: string | null): string | null {
+  if (!value) return null
+  return /^\d{4}-\d{2}-\d{2}T/.test(value) ? value.slice(0, 10) : value
+}
+
 export function pilotMutableTermsFromState(input: {
   resolvedStartDate?: string | null
   proposal?: CommercialSnapshot | null
@@ -17,7 +22,7 @@ export function pilotMutableTermsFromState(input: {
   answers?: Record<string, unknown>
 }): PilotMutableTerms {
   return {
-    startDate: input.resolvedStartDate || null,
+    startDate: dateOnly(input.resolvedStartDate),
     criteria: input.successCriteria.map((criterion) => ({...criterion})),
     answers: pilotDirectAnswersFrom(input.answers),
   }

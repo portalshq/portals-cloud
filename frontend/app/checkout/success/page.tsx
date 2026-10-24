@@ -1,6 +1,7 @@
 import type {Metadata} from 'next'
 import {CTAButton} from '@/components/CTAButton'
 import {safeInternalPath} from '@/lib/leads/account-paths'
+import {CheckoutSuccessRedirect} from './CheckoutSuccessRedirect'
 
 export const metadata: Metadata = {
   title: 'Checkout success | portals',
@@ -34,25 +35,23 @@ export default async function CheckoutSuccessPage({
       : next
 
   return (
-    <main className="min-h-screen bg-[#010528] text-white">
-      <section className="ui-grid py-fluid-[76,106]">
-        <div className="col-span-full max-w-3xl">
-          <p className="t-p-sans uppercase tracking-[.16em] text-white/45">checkout complete</p>
-          <h1 className="t-d2-sans mt-24 max-w-5xl">thank you — payment received.</h1>
-          <p className="t-p-lg-serif mt-32 max-w-3xl text-white/80">
-            Your purchase is confirmed. Return to your pilot room to schedule launch.
-          </p>
-          {sessionId ? (
-            <p className="t-p-sans mt-24 max-w-2xl text-white/45">session {sessionId}</p>
-          ) : null}
-          <div className="mt-40 flex flex-wrap gap-16">
-            <CTAButton href={returnHref} analyticsLabel="checkout success primary">
-              {returningToRoom ? 'Return to pilot room' : 'Schedule pilot launch'}
-            </CTAButton>
-            <CTAButton href="/contact" appearance="plain" analyticsLabel="checkout success contact">
-              contact portals
-            </CTAButton>
-          </div>
+    <main className="flex min-h-screen flex-col justify-center bg-[#010528] px-24 py-120 text-white">
+      <section className="mx-auto w-full max-w-3xl">
+        <h1 className="t-d2-sans max-w-3xl">thank you — payment received.</h1>
+        <p className="t-p-lg-serif mt-32 max-w-3xl">
+          Your purchase is confirmed. {returningToRoom ? 'Returning you to your pilot room shortly.' : 'Taking you to your account shortly.'}
+        </p>
+        <CheckoutSuccessRedirect href={returnHref} />
+        {/* {sessionId ? (
+          <p className="t-p-sans mt-24 max-w-2xl text-white/80">session {sessionId}</p>
+        ) : null} */}
+        <div className="mt-40 flex flex-wrap gap-16">
+          <CTAButton href={returnHref} analyticsLabel="checkout success primary">
+            {returningToRoom ? 'Return to pilot room' : 'Go to account'}
+          </CTAButton>
+          {/* <CTAButton href="/contact" appearance="plain" analyticsLabel="checkout success contact">
+            contact portals
+          </CTAButton> */}
         </div>
       </section>
     </main>

@@ -9,6 +9,7 @@ import {
   type PersonalizedQualification,
 } from '@/components/pdf/PersonalizedLeadPdfDocuments'
 import {buildCommercialSnapshot, buildSecurityDecisions, buildSuccessCriteria} from './pilot'
+import {TEST_PACKAGE_SPECIFICATIONS} from './test-package-specifications'
 import type {StoredPilot} from './store'
 import type {ResourceDocument} from '@/types/resource'
 import {calculateQualification, qualificationTier} from './scoring'
@@ -148,7 +149,7 @@ function storedPilot(overrides: Partial<StoredPilot> = {}): StoredPilot {
     answers: pilotAnswers,
     exceptions: [],
     unresolved: [],
-    proposal: buildCommercialSnapshot(pilotAnswers as never, [], {
+    proposal: buildCommercialSnapshot(pilotAnswers as never, TEST_PACKAGE_SPECIFICATIONS, {
       startDate: '2026-08-10',
     }),
     successCriteria: buildSuccessCriteria(pilotAnswers as never),

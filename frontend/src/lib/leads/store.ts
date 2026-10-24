@@ -86,6 +86,7 @@ export type StoredSubmission = {
 type PersistInput = Omit<StoredSubmission, 'id' | 'profile'> & {
   currentProfileToken?: string
   qualificationAnswers?: Record<string, unknown>
+  suppressProfileToken?: boolean
 }
 
 type PersistResult = {
@@ -513,6 +514,23 @@ export async function getPilotsForCustomerAccount(
     [customerAccountId],
   )
   return result.rows.map(pilotFromRow)
+}
+
+export async function listPilotAccountPairs(): Promise<Array<{
+  pilotId: string
+  customerAccountId: string
+}>> {
+  if (leadsDryRun()) {
+    return [...memory().pilots.values()]
+      .filter((pilot): pilot is StoredPilot & { customerAccountId: string } =>
+        Boolean(pilot.customerAccountId),
+      )
+      .map((pilot) => ({ pilotId: pilot.id, customerAccountId: pilot.customerAccountId }))
+  }
+  const result = await pool().query<{ id: string; customer_account_id: string }>(
+    'SELECT id, customer_account_id FROM lead_pilots WHERE customer_account_id IS NOT NULL',
+  )
+  return result.rows.map((row) => ({ pilotId: row.id, customerAccountId: row.customer_account_id }))
 }
 
 export type PilotNavigationItem = {
@@ -1196,7 +1214,8 @@ async function upsertProfile(
       ) || null
     }
     const tokenNeeded =
-      !profile || !input.currentProfileToken || tokenProfile?.id !== profile.id
+      !input.suppressProfileToken &&
+      (!profile || !input.currentProfileToken || tokenProfile?.id !== profile.id)
     profile ||= {
       id: randomUUID(),
       identity: input.identity,
@@ -1234,7 +1253,8 @@ async function upsertProfile(
     : null
   profile ||= await findProfileByEmail(input.identity, client)
   const tokenNeeded =
-    !profile || !input.currentProfileToken || tokenProfile?.id !== profile.id
+    !input.suppressProfileToken &&
+    (!profile || !input.currentProfileToken || tokenProfile?.id !== profile.id)
 
   if (!profile) {
     profile = {

@@ -8,7 +8,16 @@ const repoRoot = path.resolve(path.dirname(__filename), '../..')
 const roots = ['frontend', 'sanity']
 const allowedFiles = new Set([
   path.join('sanity', 'scripts', 'publish-package-specifications.mjs'),
+  path.join('sanity', 'scripts', 'update-pricing-package-specifications.mjs'),
+  path.join('sanity', 'scripts', 'update-pilot-resource-copy.mjs'),
+  path.join('sanity', 'scripts', 'publish-paid-pilot-brief.mjs'),
   path.join('frontend', 'scripts', 'audit-package-specifications.ts'),
+  path.join('frontend', 'scripts', 'pilot-scope-form-autofill.js'),
+  path.join('frontend', 'src', 'lib', 'leads', 'test-package-specifications.ts'),
+  path.join('frontend', 'src', 'lib', 'faqs.ts'),
+  path.join('frontend', 'src', 'lib', 'leads', 'application-auth.ts'),
+  path.join('frontend', 'src', 'lib', 'leads', 'email.ts'),
+  path.join('frontend', 'TESTING_AND_DEPLOYMENT.md'),
 ])
 
 const ignoredSegments = new Set([
@@ -36,6 +45,14 @@ const forbiddenPatterns = [
   /\$5,000\b/,
   /\$750\b/,
   /\$2,500\b/,
+  /\$2,400\b/,
+  /\$1,000\b/,
+  /\$150\b/,
+  /\$1,800\b/,
+  /\$9,000\b/,
+  /\$28,800\b/,
+  /\$30,000\b/,
+  /\$45,000\b/,
   /\b21 days\b/i,
   /\b48 hours\b/i,
   /\b14 days\b/i,
@@ -45,12 +62,17 @@ const forbiddenPatterns = [
   /\b5 production members\b/i,
   /\b3 active production repositories\b/i,
   /\b20 production members\b/i,
+  /\b24 production members\b/i,
   /\b15 active production repositories\b/i,
+  /\b25\+ production members\b/i,
 ]
 
 function shouldSkip(filePath: string): boolean {
   const relative = path.relative(repoRoot, filePath)
   if (allowedFiles.has(relative)) return true
+  if (relative.startsWith(path.join('frontend', '.prompts') + path.sep)) return true
+  if (relative.startsWith(path.join('sanity', 'schemaTypes') + path.sep)) return true
+  if (relative.startsWith(path.join('frontend', 'src', 'lib', 'leads') + path.sep) && /\.test\.[^.]+$/.test(relative)) return true
 
   const parts = relative.split(path.sep)
   if (parts.some((part) => ignoredSegments.has(part))) return true

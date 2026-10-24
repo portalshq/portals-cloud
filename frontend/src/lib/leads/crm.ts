@@ -530,6 +530,7 @@ export function contactFields(submission: StoredSubmission): Record<string, unkn
     stakeholder_involved: answers.stakeholderInvolved,
     production_owner: answers.productionOwner,
     production_owner_email: answers.productionOwnerEmail,
+    pilot_tier: answers.pilotTier,
     approval_path: answers.approvalPath,
     primary_objection: answers.primaryObjection,
     objection_detail: answers.objectionDetail,
@@ -713,7 +714,7 @@ async function upsertPilotDeal(schema: ApolloSchema, submission: StoredSubmissio
     name: `paid pilot - ${submission.identity.company || submission.profile.companyDomain}`,
     account_id: accountId,
     contact_ids: [contactId],
-    amount: String(pilot.proposal?.priceAmount || Number(process.env.PILOT_PRICE_AMOUNT || 5000)),
+    amount: pilot.proposal?.priceAmount ? String(pilot.proposal.priceAmount) : undefined,
     opportunity_stage_id: stageId,
     typed_custom_fields: fieldValues(schema, 'deal', {
       portals_submission_id: submission.id,

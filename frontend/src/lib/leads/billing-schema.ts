@@ -13,7 +13,7 @@ export type BillingCustomer = {
   updatedAt: Date
 }
 
-export type ProductType = 'production-team' | 'studio' | 'studio-pilot' | 'onboarding'
+export type ProductType = 'production-team' | 'production-team-addon' | 'studio' | 'studio-pilot' | 'onboarding'
 
 export type SubscriptionStatus =
   | 'active'

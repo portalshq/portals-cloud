@@ -63,10 +63,12 @@ body {
   display: block;
   position: relative;
   min-height: 900vh;
+  overflow-x: clip;
 }
 
 .saga-overview-mobile {
   display: none;
+  overflow-x: clip;
 }
 
 .saga-overview-mobile-subsections {
@@ -87,6 +89,14 @@ body {
   top: 0;
   min-height: 100vh;
   overflow: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saga-overview-mobile .saga-overview-mobile-reveal,
+  .saga-overview-mobile .production-lineage * {
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
 }
 
 @supports (height: 100svh) {
@@ -173,6 +183,45 @@ body {
 
   .saga-overview-mobile {
     display: block;
+    min-height: 900vh;
+  }
+
+  .saga-overview-mobile-pin {
+    display: grid;
+    height: 100svh;
+    align-items: stretch;
+    padding-block: calc(var(--Header-h) + 8px) 24px;
+  }
+
+  .saga-overview-mobile-stack,
+  .saga-overview-mobile-item {
+    min-height: 0;
+  }
+
+  .saga-overview-mobile-item {
+    height: 100%;
+    align-items: stretch;
+  }
+
+  .saga-overview-mobile-stage {
+    min-height: 0;
+    grid-template-rows: auto minmax(64px, 1fr) auto auto;
+    row-gap: 16px;
+  }
+
+  .saga-overview-mobile-lineage {
+    min-height: 0;
+  }
+
+  .saga-overview-mobile-copy {
+    min-width: 0;
+    min-height: 0;
+    height: 400px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 30%) transparent;
+    align-content: start;
   }
 
   .saga-overview-heading {
@@ -190,6 +239,15 @@ body {
 
   .saga-overview-list {
     visibility: hidden;
+    height: 0;
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+
+  .saga-overview-mobile .saga-overview-list {
+    visibility: visible;
+    height: auto;
+    overflow: visible;
   }
 
   .saga-overview-subsections {
@@ -223,5 +281,25 @@ body {
   .saga-overview-snap-point {
     scroll-snap-align: start;
     scroll-snap-stop: normal;
+  }
+}
+
+@media (max-width: 63.99rem) and (max-height: 760px) {
+  .saga-overview-mobile-stage {
+    row-gap: 12px;
+  }
+
+  .saga-overview-mobile-copy {
+    row-gap: 16px;
+  }
+
+  .saga-overview-mobile-copy .t-p-lg-serif {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  .saga-overview-mobile-copy .t-h3-sans {
+    font-size: 22px;
+    line-height: 1.04;
   }
 }

@@ -16,6 +16,7 @@ import {
   reviewerTokenRole,
   STANDARD_SUCCESS_KEYS,
 } from './pilot'
+import {TEST_PACKAGE_SPECIFICATIONS} from './test-package-specifications'
 
 const eligible = {
   pilotWorkflow: 'campaign variant production',
@@ -161,7 +162,7 @@ test('value model accepts the live assessment people ranges', () => {
 test('commercial snapshot prices from the pilot spec amount and composes the annual credit', () => {
   const snapshot = buildCommercialSnapshot(
     {...eligible, targetStartPeriod: 'asap'},
-    [],
+    TEST_PACKAGE_SPECIFICATIONS,
     {startDate: '2026-09-01', termDays: 21},
   )
 
@@ -171,6 +172,35 @@ test('commercial snapshot prices from the pilot spec amount and composes the ann
   assert.equal(snapshot.termStart, '2026-09-01')
   assert.equal(snapshot.termEnd, '2026-09-21')
   assert.ok(snapshot.creditDeadline && snapshot.creditDeadline > '2026-09-21')
+  assert.equal(snapshot.annualCreditAmount, 5000)
+  assert.equal(snapshot.annualOption?.periodLabel, '/month')
+  assert.equal(snapshot.annualOption?.annualTotal, 28800)
+  assert.equal(snapshot.annualOption?.billingTerms, 'Billed annually')
+  assert.match(snapshot.annualOption?.creditNote || '', /applied against the annual deployment/)
+})
+
+test('a live offer overrides the pilot base package in the commercial snapshot', () => {
+  const snapshot = buildCommercialSnapshot(
+    {...eligible, targetStartPeriod: 'asap'},
+    TEST_PACKAGE_SPECIFICATIONS,
+    {
+      startDate: '2026-09-01',
+      offer: {
+        _id: 'offer-1', _rev: 'rev-1', slug: 'fast-start', basePackageSlug: 'studio-pilot',
+        status: 'active', startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-10-01T00:00:00.000Z',
+        pilotPriceAmount: 3750, pilotPriceLabel: '$3,750', annualCreditAmount: 5000,
+        annualCreditLabel: '$5,000', pilotDurationDays: 21,
+        annualCreditRedemptionPolicy: 'standard-pilot-conversion-window',
+      },
+    },
+  )
+
+  assert.equal(snapshot.priceAmount, 3750)
+  assert.equal(snapshot.priceLabel, '$3,750')
+  assert.equal(snapshot.annualCreditAmount, 5000)
+  assert.equal(snapshot.offerVariantSlug, 'fast-start')
+  assert.equal(snapshot.annualCreditLabel, '$5,000')
+  assert.equal(snapshot.annualOption?.billingTerms, 'Billed annually')
 })
 
 test('unresolved items cover signer, start date, and annual acknowledgment', () => {
@@ -180,6 +210,14 @@ test('unresolved items cover signer, start date, and annual acknowledgment', () 
   assert.ok(keys.includes('start-date'))
   assert.ok(keys.includes('signer'))
   assert.ok(keys.includes('annual-ack'))
+  assert.equal(unresolved.find((item) => item.key === 'signer')?.href, '#signature')
+  assert.equal(unresolved.find((item) => item.key === 'start-date')?.href, '#pilot-start-date')
+  assert.equal(unresolved.find((item) => item.key === 'integration')?.href, '#integration-method')
+  assert.equal(unresolved.find((item) => item.key === 'classification')?.href, '#data-classification')
+  assert.equal(unresolved.find((item) => item.key === 'approval')?.href, '#approval-path')
+  assert.equal(unresolved.find((item) => item.key === 'annual')?.href, '#annual-deployment-option')
+  assert.equal(unresolved.find((item) => item.key === 'annual-ack')?.href, '#annual-price-acknowledgement')
+  assert.match(unresolved.find((item) => item.key === 'signer')?.resolution || '', /name and email in the signature section/)
 })
 
 test('a resolved configuration has no unresolved items', () => {
@@ -224,6 +262,69 @@ test('pilot progress includes pending reviewer approvals and lifecycle actions',
     })[0]?.key,
     'payment',
   )
+})
+
+test('approver requirement resolves from the reviewer roster, not scope answers', () => {
+  assert.ok(
+    !computeUnresolved({...eligible, approvalPath: 'procurement'}, {route: 'zero-call'})
+      .some((item) => item.key === 'approver'),
+  )
+  const approver = (overrides: Partial<{email: string; status: 'proposed' | 'revoked'}> = {}) => ({
+    id: 'approver-1',
+    role: 'approver' as const,
+    name: 'Ben Wu',
+    email: 'ben@studio.example',
+    required: false,
+    status: 'proposed' as const,
+    requestedChanges: false,
+    versionSeen: 0,
+    notes: [],
+    ...overrides,
+  })
+  const progress = (reviewers: ReturnType<typeof approver>[], approvalPath?: string, unresolved = [] as Parameters<typeof computePilotProgressUnresolved>[0]['unresolved']) =>
+    computePilotProgressUnresolved({state: 'reviewing', version: 1, unresolved, exceptions: [], reviewers, approvalPath})
+  const legacy = [{key: 'approver', label: 'Legacy', resolution: 'Legacy', href: '#approver-email'}]
+
+  const missing = progress([], 'procurement').find((item) => item.key === 'approver')
+  assert.equal(missing?.href, '#reviewers')
+  assert.match(missing?.resolution || '', /reviewers section/)
+  assert.ok(progress([], 'other').some((item) => item.key === 'approver'))
+  assert.ok(!progress([approver()], 'procurement').some((item) => item.key === 'approver'))
+  assert.ok(progress([approver({status: 'revoked'})], 'procurement').some((item) => item.key === 'approver'))
+  assert.ok(progress([approver({email: '  '})], 'procurement').some((item) => item.key === 'approver'))
+  assert.equal(progress([approver()], 'procurement', legacy).some((item) => item.key === 'approver'), false)
+  assert.equal(progress([], 'economic-buyer', legacy).some((item) => item.key === 'approver'), false)
+  assert.equal(progress([], undefined).some((item) => item.key === 'approver'), false)
+  const replaced = progress([], 'procurement', legacy).filter((item) => item.key === 'approver')
+  assert.equal(replaced.length, 1)
+  assert.equal(replaced[0].href, '#reviewers')
+})
+
+test('signer exception is actionable only while the signature section is editable', () => {
+  const signerUnresolved = [{key: 'signer', label: 'Identify the authorized signer', resolution: 'Test', href: '#signature'}]
+  const progressFor = (state: Parameters<typeof computePilotProgressUnresolved>[0]['state']) =>
+    computePilotProgressUnresolved({
+      state,
+      version: 1,
+      unresolved: signerUnresolved,
+      exceptions: [],
+      reviewers: [],
+    })
+
+  // Before the agreement is ready for signature the item stays hidden.
+  assert.ok(!progressFor('reviewing').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('team_review').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('scope_confirmed').some((item) => item.key === 'signer'))
+
+  // ready_sign is the only state where the signer can still be identified.
+  assert.ok(progressFor('ready_sign').some((item) => item.key === 'signer'))
+
+  // After signing the identity is recorded in pilot.signing, so the persisted
+  // item must not resurface as an unresolvable task.
+  assert.ok(!progressFor('signed').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('paid').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('launch').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('active').some((item) => item.key === 'signer'))
 })
 
 test('dual-role reviewers have one consolidated pending item and satisfy every assigned role together', () => {
@@ -398,10 +499,10 @@ test('security decisions mark SSO as an exception when required', () => {
   assert.equal(training?.decision, 'confirm')
 })
 
-test('commercial snapshot synthesizes the studio annual option without specs', () => {
+test('commercial snapshot omits the annual option when specs are missing', () => {
   const snapshot = buildCommercialSnapshot(
     {...eligible, annualDeploymentOption: 'studio'},
-    [],
+    TEST_PACKAGE_SPECIFICATIONS.slice(0, 1),
     {startDate: '2026-08-10'},
   )
 
@@ -411,15 +512,13 @@ test('commercial snapshot synthesizes the studio annual option without specs', (
   assert.equal(snapshot.termEnd, '2026-08-30')
   assert.equal(snapshot.decisionDate, '2026-08-31')
   assert.equal(snapshot.creditDeadline, '2026-09-14')
-  assert.equal(snapshot.annualOption?.slug, 'studio')
-  assert.equal(snapshot.annualOption?.annualTotal, 30000)
-  assert.match(String(snapshot.annualOption?.creditNote), /credited if the annual order form/)
+  assert.equal(snapshot.annualOption, undefined)
 })
 
 test('commercial snapshot omits the annual option when not chosen', () => {
   const snapshot = buildCommercialSnapshot(
     {...eligible, annualDeploymentOption: 'not-known'},
-    [],
+    TEST_PACKAGE_SPECIFICATIONS,
     {},
   )
 

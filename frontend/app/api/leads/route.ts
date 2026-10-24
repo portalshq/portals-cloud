@@ -369,7 +369,8 @@ async function syncPilotRecord(
       ...(submitterEmail ? { email: submitterEmail } : {}),
       ...(submitterName ? { name: submitterName } : {}),
     }
-    const proposal = pilot.proposal || buildCommercialSnapshot(answers, [], {
+    const packageSpecifications = pilot.proposal ? [] : await getPublishedPackageSpecifications()
+    const proposal = pilot.proposal || buildCommercialSnapshot(answers, packageSpecifications, {
       startDate: pilot.resolvedStartDate || undefined,
     })
     const at = new Date().toISOString()
@@ -456,7 +457,7 @@ async function syncPilotRecord(
   }
 
   const profile = await getProfileById(profileId)
-  const packages = leadsDryRun() ? [] : await getPublishedPackageSpecifications()
+  const packages = await getPublishedPackageSpecifications()
   const offer = await resolveCurrentPilotOffer(leadRequest.offer, leadRequest.identity?.email).catch((cause) => {
     console.error('pilot offer resolution failed', cause)
     return null
@@ -602,11 +603,30 @@ async function handleLeadRequest(
 
   // Returning identities must resume through their existing session or email
   // verification, rather than minting a profile token from a claimed address.
-  if (!profile && effectiveLeadRequest.provider === 'browser' && await getProfileByEmail(identity.email)) {
+  const claimedProfile =
+    !profile && effectiveLeadRequest.provider === 'browser'
+      ? await getProfileByEmail(identity.email)
+      : null
+  // Assessments and pilot requests are the exception: assessment results render
+  // for the applicant without an account, and a pilot request creates its
+  // approval room up front so room access can be granted through the emailed
+  // secure link instead of interrupting the form with sign-in. The submission
+  // is still captured on the claimed profile, but no profile token is issued,
+  // so this browser never gains access to the stored identity, prior answers,
+  // or documents. Account binding happens through verified sign-in.
+  const unboundClaimedSubmission = Boolean(
+    claimedProfile &&
+      ['assessment', 'pilot_request'].includes(effectiveLeadRequest.submissionType),
+  )
+  if (claimedProfile && !unboundClaimedSubmission) {
     return NextResponse.json({ok: false, error: 'Sign in with your work email to resume securely.'}, {status: 403})
   }
-  const priorAnswers = profile
-    ? await latestQualificationAnswers(profile.id)
+  // An unbound claimed submission still merges into the claimed profile, so its
+  // stored answers must seed the merge — otherwise persistQualification would
+  // overwrite the profile's historical fields with the fresh diagnostic alone.
+  const mergeBaseProfile = profile || claimedProfile
+  const priorAnswers = mergeBaseProfile
+    ? await latestQualificationAnswers(mergeBaseProfile.id)
     : {}
   let qualificationAnswers = mergeQualificationAnswers(
     priorAnswers,
@@ -659,7 +679,7 @@ async function handleLeadRequest(
         ...effectiveLeadRequest,
         identity,
         answers: inheritPilotAssessment(priorAnswers, effectiveLeadRequest.answers, {
-          profileId: profile?.id,
+          profileId: (profile || claimedProfile)?.id,
           assessedAt: typeof priorAnswers.assessmentSubmittedAt === 'string' ? priorAnswers.assessmentSubmittedAt : profile?.qualification?.updatedAt,
           submissionId: typeof priorAnswers.assessmentSubmissionId === 'string' ? priorAnswers.assessmentSubmissionId : undefined,
           explicitFields: suppliedAnswerFields,
@@ -709,6 +729,7 @@ async function handleLeadRequest(
     },
     verified,
     currentProfileToken: profileToken,
+    suppressProfileToken: unboundClaimedSubmission,
     qualificationAnswers: scoreable && finalLeadRequest.submissionType !== 'pilot_request' ? qualificationAnswers : undefined,
   })
   const persisted = finalLeadRequest.submissionType === 'pilot_request'
@@ -717,10 +738,21 @@ async function handleLeadRequest(
   if (normalizeEmail(persisted.submission.identity.email || '') !== normalizeEmail(identity.email || '')) {
     return NextResponse.json({ok: false, error: 'This submission could not be resumed.'}, {status: 409})
   }
-  const finalResponse = {
+  const finalResponse: LeadResponse = {
     ...persisted.submission.response,
     profileId: persisted.submission.profile.id,
     analyticsPersonId: persisted.submission.profile.analyticsPersonId,
+  }
+  // Document downloads require a bound profile token, which is intentionally
+  // withheld for unbound claimed-email submissions. Drop the CTA instead of
+  // returning a URL that would only produce a 401. The claimed profile's
+  // identifiers are also withheld: profileId is unusable without a token, and
+  // analyticsPersonId would alias this unverified browser to the claimed
+  // profile's analytics identity.
+  if (unboundClaimedSubmission) {
+    delete finalResponse.downloadUrl
+    delete finalResponse.profileId
+    delete finalResponse.analyticsPersonId
   }
   const pilotResponse =
     finalLeadRequest.submissionType === 'pilot_request'

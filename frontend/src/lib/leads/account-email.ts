@@ -38,9 +38,9 @@ export async function sendApplicationAccessEmail(input: {
   await sendEmail({
     idempotencyKey: input.idempotencyKey,
     to: input.user.email,
-    subject: 'sign in to your portals account',
+    subject: 'sign in',
     text: [
-      'use this secure link to sign in to your portals account:',
+      'use this secure link to sign in to your account:',
       url,
       '',
       'this link expires in 15 minutes and can be used once.',
@@ -86,14 +86,19 @@ export async function sendPilotReviewInviteEmail(input: {
       text: [
         `${inviter} has invited you to review terms for a portals paid pilot.`,
         '',
-        `You will review the ${reviewAreas.join(' and ')}.`,
+        reviewAreas.length === 0
+          ? ''
+          : reviewAreas.length === 1
+          ? reviewAreas[0]
+          : reviewAreas.slice(0, -1).join(', ') +
+            (reviewAreas.length > 2 ? ', and ' : ' and ') +
+            reviewAreas.slice(-1)[0],
         '',
-        'Open the pilot approval room:',
+        'Review your pilot terms:',
         url,
         '',
         'This secure link expires in 15 minutes and can be used once.',
-        '',
-        'portals',
+        'portals.works',
       ].join('\n'),
     })
     await completePilotEmailDeduplication({

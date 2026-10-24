@@ -7,10 +7,14 @@ process.env.LEADS_NOTIFICATION_EMAIL = 'ops@portals.test'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://portals.test'
 import {POST} from '../../../app/api/leads/route'
 import {PATCH as PATCH_PILOT} from '../../../app/api/pilot/[id]/route'
+import {POST as POST_INVOICE} from '../../../app/api/pilot/[id]/invoice/route'
+import {POST as POST_RECONCILE_PAYMENT} from '../../../app/api/pilot/[id]/checkout/reconcile/route'
+import {POST as POST_MAGIC_LINK} from '../../../app/api/auth/magic-link/route'
 import {processLeadOutbox} from './processor'
 import {
   consumeMagicLink,
   getApplicationUserByEmail,
+  getCustomerAccountForUser,
   invitePilotMember,
   issueMagicLink,
   pilotMembershipRoles,
@@ -25,6 +29,8 @@ import {
   updatePilot,
   type StoredPilot,
 } from './store'
+import {TEST_PACKAGE_SPECIFICATIONS} from './test-package-specifications'
+import {commitPilotTermRevision, pilotMutableTermsFromState} from './pilot-room-revisions'
 
 const DISCLOSURE = '2026-08-01'
 
@@ -39,8 +45,12 @@ function tokenFrom(text: string): string {
 function captureFetch(t: TestContext) {
   const fetches: Captured[] = []
   const captured: typeof fetch = async (url, init) => {
+    const requestUrl = url instanceof Request ? url.url : String(url)
+    if (requestUrl.includes('.api.sanity.io/')) {
+      return Response.json({result: TEST_PACKAGE_SPECIFICATIONS})
+    }
     fetches.push({
-      url: String(url),
+      url: requestUrl,
       body: init?.body ? JSON.parse(String(init.body)) : {},
     })
     return new Response(JSON.stringify({id: 'sent'}), {status: 200})
@@ -510,6 +520,102 @@ test('a dual-role reviewer keeps both memberships and one confirmation completes
   )
 })
 
+test('reviewer decisions acknowledge the invite; removed reviewers are rejected', async (t) => {
+  const ownerEmail = `review-state-owner-${crypto.randomUUID()}@studio.example`
+  const reviewerEmail = `review-state-reviewer-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+  const teamReviewPilot = await updatePilot(pilot.id, {state: 'team_review'})
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+  const ownerCookie = `portals_session=${ownerSession.sessionToken}`
+  const proposedReviewer = {
+    id: crypto.randomUUID(),
+    role: 'technical_evaluator' as const,
+    name: 'Reviewer',
+    email: reviewerEmail,
+    status: 'proposed' as const,
+    versionSeen: teamReviewPilot.version,
+    notes: [],
+  }
+  await updatePilot(teamReviewPilot.id, {reviewers: [proposedReviewer]})
+
+  // Acting inside the room is the invite acknowledgement: a proposed reviewer
+  // can be confirmed without a formal invitation being sent first.
+  const proposed = await patchPilot(teamReviewPilot.id, {
+    action: 'reviewer_decision',
+    reviewerId: proposedReviewer.id,
+    decision: 'confirm',
+    versionSeen: teamReviewPilot.version,
+  }, {cookie: ownerCookie})
+  assert.equal(proposed.status, 200)
+  const acknowledged = (await getPilotById(teamReviewPilot.id))!.reviewers.find(
+    (reviewer) => reviewer.id === proposedReviewer.id,
+  )
+  assert.ok(acknowledged)
+  assert.equal(acknowledged.status, 'reviewed')
+  assert.ok(acknowledged.invitedAt)
+  assert.ok(acknowledged.openedAt)
+  assert.ok(acknowledged.reviewedAt)
+
+  await patchPilot(teamReviewPilot.id, {
+    action: 'remove_reviewer',
+    reviewerId: proposedReviewer.id,
+  }, {cookie: ownerCookie})
+  const revoked = await patchPilot(teamReviewPilot.id, {
+    action: 'reviewer_decision',
+    reviewerId: proposedReviewer.id,
+    decision: 'confirm',
+    versionSeen: (await getPilotById(teamReviewPilot.id))!.version,
+  }, {cookie: ownerCookie})
+  assert.equal(revoked.status, 403)
+  assert.deepEqual(await revoked.json(), {
+    ok: false,
+    code: 'reviewer_revoked',
+    message: 'This reviewer was removed from the pilot. Contact the pilot owner to be re-invited.',
+  })
+})
+
+test('a room member confirms their seeded proposed review without an invitation', async (t) => {
+  const ownerEmail = `self-confirm-owner-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+
+  const created = await post(pilotBody(ownerEmail, {productionOwnerEmail: ownerEmail}))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+
+  const seeded = pilot.reviewers.find((reviewer) => reviewer.role === 'production_owner')
+  assert.ok(seeded)
+  assert.equal(seeded.status, 'proposed')
+  assert.equal(seeded.email.toLowerCase(), ownerEmail.toLowerCase())
+
+  const confirmation = await patchPilot(pilot.id, {
+    action: 'reviewer_decision',
+    reviewerId: seeded.id,
+    decision: 'confirm',
+    versionSeen: pilot.version,
+  }, {cookie: `portals_session=${ownerSession.sessionToken}`})
+  assert.equal(confirmation.status, 200)
+
+  const updated = await getPilotById(pilot.id)
+  assert.ok(updated)
+  const confirmed = updated.reviewers.find((reviewer) => reviewer.id === seeded.id)
+  assert.ok(confirmed)
+  assert.equal(confirmed.status, 'reviewed')
+  assert.ok(confirmed.invitedAt)
+  assert.ok(confirmed.openedAt)
+  assert.equal(confirmed.versionSeen, updated.version)
+})
+
 test('removing a reviewer revokes only the membership role no longer assigned', async (t) => {
   const ownerEmail = `remove-owner-${crypto.randomUUID()}@studio.example`
   const reviewerEmail = `remove-reviewer-${crypto.randomUUID()}@studio.example`
@@ -614,6 +720,50 @@ test('reviewer role additions stay proposed until an explicit invitation is sent
   assert.ok(reviewerUser)
   assert.deepEqual(await pilotMembershipRoles(teamReviewPilot.id, reviewerUser.id), ['participant'])
   assert.equal(fetches.filter((entry) => entry.body.to === reviewerEmail).length, 0)
+
+  const invitePerson = await patchPilot(teamReviewPilot.id, {
+    action: 'invite_reviewer',
+    invite: {role: 'economic_buyer', email: reviewerEmail},
+  }, {cookie: ownerCookie})
+  assert.equal(invitePerson.status, 200)
+  const invitedRoles = (await getPilotById(teamReviewPilot.id))!.reviewers.filter(
+    (candidate) => candidate.email === reviewerEmail,
+  )
+  assert.deepEqual(invitedRoles.map((candidate) => candidate.status), ['invited', 'invited'])
+})
+
+test('an existing pilot member with no reviewer role can be assigned one', async (t) => {
+  const ownerEmail = `roleless-owner-${crypto.randomUUID()}@studio.example`
+  const memberEmail = `roleless-member-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+  const teamReviewPilot = await updatePilot(pilot.id, {state: 'team_review'})
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+  const ownerCookie = `portals_session=${ownerSession.sessionToken}`
+  await invitePilotMember({pilotId: teamReviewPilot.id, email: memberEmail, role: 'participant'})
+
+  const added = await patchPilot(teamReviewPilot.id, {
+    action: 'reviewer_role',
+    email: memberEmail,
+    role: 'technical_evaluator',
+  }, {cookie: ownerCookie})
+  assert.equal(added.status, 200)
+  const assigned = (await getPilotById(teamReviewPilot.id))!.reviewers.find(
+    (reviewer) => reviewer.email === memberEmail && reviewer.role === 'technical_evaluator',
+  )
+  assert.equal(assigned?.status, 'proposed')
+
+  const outsider = await patchPilot(teamReviewPilot.id, {
+    action: 'reviewer_role',
+    email: `not-a-member-${crypto.randomUUID()}@studio.example`,
+    role: 'economic_buyer',
+  }, {cookie: ownerCookie})
+  assert.equal(outsider.status, 404)
 })
 
 test('reviewer invitation endpoints reject unknown roles', async (t) => {
@@ -686,8 +836,8 @@ test('a reviewer invitation explains the paid-pilot review and assigned terms', 
   assert.ok(directInvite, 'the reviewer receives a direct invitation email')
   assert.equal(directInvite.body.subject, 'You’re invited to review a portals paid pilot')
   assert.match(String(directInvite.body.text), /Ava Nguyen has invited you to review terms for a portals paid pilot\./)
-  assert.match(String(directInvite.body.text), /You will review the security terms\./)
-  assert.match(String(directInvite.body.text), /Open the pilot approval room:/)
+  assert.match(String(directInvite.body.text), /security terms/)
+  assert.match(String(directInvite.body.text), /Review your pilot terms:/)
 })
 
 test('requesting an exception review notifies the customer and Portals', async () => {
@@ -720,6 +870,102 @@ test('requesting an exception review notifies the customer and Portals', async (
     queued.some((key) => key.includes(':pilot_email:portals_review_requested:ops@portals.test:event:exception-review:')),
     'the Portals inbox receives the review request',
   )
+})
+
+test('resolving a Portals exception review emails the production owner', async (t) => {
+  const ownerEmail = `exception-resolved-${crypto.randomUUID()}@studio.example`
+  const productionOwnerEmail = `prod-owner-${crypto.randomUUID()}@studio.example`
+  const teamEmail = `resolve-${crypto.randomUUID()}@portals.test`
+  const fetches = captureFetch(t)
+  const previousTeamEmails = process.env.PORTALS_TEAM_EMAILS
+
+  try {
+    process.env.PORTALS_TEAM_EMAILS = `ops@portals.test,${teamEmail}`
+    const created = await post(pilotBody(ownerEmail, {
+      assessmentOrigin: 'assessment_override',
+      productionOwner: 'Blake Chen, Head of Production',
+      productionOwnerEmail,
+    }))
+    assert.equal(created.status, 200)
+    assert.equal((await created.json()).pilotState, 'exception_review')
+    const {pilot} = await pilotForProfile(profileTokenFrom(created))
+    assert.ok(pilot)
+
+    const staff = await getApplicationUserByEmail(teamEmail)
+    assert.ok(staff, 'the team account is provisioned at pilot creation')
+    const session = await consumeMagicLink(
+      await issueMagicLink({userId: staff.id, purpose: 'sign_in'}),
+    )
+    assert.ok(session)
+
+    const resolved = await patchPilot(
+      pilot.id,
+      {action: 'resolve_exceptions'},
+      {cookie: `portals_session=${session.sessionToken}`},
+    )
+    assert.equal(resolved.status, 200)
+    assert.equal((await resolved.json()).pilot.state, 'reviewing')
+
+    const queued = (await takeDueOutbox(100))
+      .filter((row) => row.action_key.startsWith(`${pilot.id}:`))
+      .map((row) => row.action_key)
+    assert.ok(
+      queued.some((key) => key.includes(`:pilot_email:revised:${productionOwnerEmail}:event:exception-resolved:`)),
+      'the production owner receives the resolved-terms email',
+    )
+    assert.ok(
+      !queued.some((key) => key.includes(`:pilot_email:revised:${ownerEmail}:event:exception-resolved:`)),
+      'the submitter is not double-notified when a distinct production owner exists',
+    )
+
+    await processLeadOutbox(1000)
+    const sent = fetches.find((entry) => entry.body.to === productionOwnerEmail)
+    assert.ok(sent, 'the resolved-terms email is delivered to the production owner')
+    assert.equal(sent.body.subject, 'your pilot agreement was revised')
+    assert.match(String(sent.body.text), /https:\/\/portals\.test\/auth\/verify\?token=/)
+  } finally {
+    restoreEnvironment('PORTALS_TEAM_EMAILS', previousTeamEmails)
+  }
+})
+
+test('resolving a Portals exception review falls back to the submitter without a distinct production owner', async (t) => {
+  const ownerEmail = `exception-owner-fallback-${crypto.randomUUID()}@studio.example`
+  const teamEmail = `resolve-fallback-${crypto.randomUUID()}@portals.test`
+  const previousTeamEmails = process.env.PORTALS_TEAM_EMAILS
+
+  try {
+    process.env.PORTALS_TEAM_EMAILS = `ops@portals.test,${teamEmail}`
+    const created = await post(pilotBody(ownerEmail, {assessmentOrigin: 'assessment_override'}))
+    assert.equal(created.status, 200)
+    assert.equal((await created.json()).pilotState, 'exception_review')
+    const {pilot} = await pilotForProfile(profileTokenFrom(created))
+    assert.ok(pilot)
+
+    const staff = await getApplicationUserByEmail(teamEmail)
+    assert.ok(staff)
+    const session = await consumeMagicLink(
+      await issueMagicLink({userId: staff.id, purpose: 'sign_in'}),
+    )
+    assert.ok(session)
+
+    const resolved = await patchPilot(
+      pilot.id,
+      {action: 'resolve_exceptions'},
+      {cookie: `portals_session=${session.sessionToken}`},
+    )
+    assert.equal(resolved.status, 200)
+    assert.equal((await resolved.json()).pilot.state, 'reviewing')
+
+    const queued = (await takeDueOutbox(100))
+      .filter((row) => row.action_key.startsWith(`${pilot.id}:`))
+      .map((row) => row.action_key)
+    assert.ok(
+      queued.some((key) => key.includes(`:pilot_email:revised:${ownerEmail}:event:exception-resolved:`)),
+      'the submitter receives the resolved-terms email when no distinct production owner is set',
+    )
+  } finally {
+    restoreEnvironment('PORTALS_TEAM_EMAILS', previousTeamEmails)
+  }
 })
 
 test('members can submit a shared draft while only the owner advances the pilot', async (t) => {
@@ -776,6 +1022,151 @@ test('members can submit a shared draft while only the owner advances the pilot'
   assert.equal(reloaded?.resolvedStartDate, '2026-10-01')
   assert.equal(reloaded?.revisions.at(-1)?.committedBy, participantEmail)
   assert.equal(reloaded?.revisions.at(-1)?.submittedBy, participantEmail)
+})
+
+test('choosing the current value resolves and clears a pilot draft conflict without a new revision', async (t) => {
+  const ownerEmail = `draft-conflict-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot: createdPilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(createdPilot)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+  const cookie = `portals_session=${ownerSession.sessionToken}`
+
+  const baseTerms = {...pilotMutableTermsFromState(createdPilot), startDate: '2026-10-23'}
+  const baseline = commitPilotTermRevision({pilot: createdPilot, nextTerms: baseTerms, actor: ownerEmail})
+  const baselinePilot = await updatePilot(createdPilot.id, {
+    version: baseline.version,
+    draft: baseline.draft,
+    revisions: baseline.revisions,
+    resolvedStartDate: baseTerms.startDate,
+  })
+
+  const draft = await patchPilot(baselinePilot.id, {
+    action: 'draft',
+    baseVersion: baselinePilot.version,
+    criteria: baselinePilot.successCriteria,
+    startDate: '2026-10-25',
+    fieldPaths: ['startDate'],
+  }, {cookie})
+  assert.equal(draft.status, 200)
+
+  const currentTerms = {...baseTerms, startDate: '2026-10-24'}
+  const currentRevision = commitPilotTermRevision({
+    pilot: (await getPilotById(baselinePilot.id))!,
+    nextTerms: currentTerms,
+    actor: 'concurrent-editor@studio.example',
+  })
+  await updatePilot(baselinePilot.id, {
+    version: currentRevision.version,
+    revisions: currentRevision.revisions,
+    resolvedStartDate: currentTerms.startDate,
+  })
+
+  const conflict = await patchPilot(baselinePilot.id, {
+    action: 'commit_draft',
+    criteria: baselinePilot.successCriteria,
+    startDate: '2026-10-25',
+    fieldPaths: ['startDate'],
+  }, {cookie})
+  assert.equal(conflict.status, 409)
+  assert.equal((await conflict.json()).conflicts[0].field, 'startDate')
+
+  const resolved = await patchPilot(baselinePilot.id, {
+    action: 'commit_draft',
+    criteria: baselinePilot.successCriteria,
+    startDate: '2026-10-24',
+    fieldPaths: ['startDate'],
+    resolutions: {startDate: 'current'},
+  }, {cookie})
+  assert.equal(resolved.status, 200)
+  const finalPilot = await getPilotById(baselinePilot.id)
+  assert.equal(finalPilot?.resolvedStartDate, '2026-10-24')
+  assert.equal(finalPilot?.version, currentRevision.version)
+  assert.deepEqual(finalPilot?.draft?.changes, [])
+})
+
+test('choosing your value commits the conflict and preserves other pilot edits', async (t) => {
+  const ownerEmail = `draft-conflict-mine-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot: createdPilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(createdPilot)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(await issueMagicLink({userId: owner.id, purpose: 'sign_in'}))
+  assert.ok(ownerSession)
+  const cookie = `portals_session=${ownerSession.sessionToken}`
+
+  const baseTerms = {
+    ...pilotMutableTermsFromState(createdPilot),
+    startDate: '2026-10-23',
+    answers: {...pilotMutableTermsFromState(createdPilot).answers, productionOwnerEmail: ownerEmail},
+  }
+  const baseline = commitPilotTermRevision({pilot: createdPilot, nextTerms: baseTerms, actor: ownerEmail})
+  const baselinePilot = await updatePilot(createdPilot.id, {
+    version: baseline.version,
+    draft: baseline.draft,
+    revisions: baseline.revisions,
+    resolvedStartDate: baseTerms.startDate,
+    answers: {...createdPilot.answers, productionOwnerEmail: ownerEmail},
+  })
+
+  const mineTerms = {
+    ...baseTerms,
+    startDate: '2026-10-25',
+    answers: {...baseTerms.answers, productionOwnerEmail: 'updated-owner@studio.example'},
+  }
+  const draft = await patchPilot(baselinePilot.id, {
+    action: 'draft',
+    baseVersion: baselinePilot.version,
+    criteria: mineTerms.criteria,
+    startDate: mineTerms.startDate,
+    draftAnswers: mineTerms.answers,
+    fieldPaths: ['startDate', 'answers.productionOwnerEmail'],
+  }, {cookie})
+  assert.equal(draft.status, 200)
+
+  const currentTerms = {...baseTerms, startDate: '2026-10-24'}
+  const currentRevision = commitPilotTermRevision({
+    pilot: (await getPilotById(baselinePilot.id))!,
+    nextTerms: currentTerms,
+    actor: 'concurrent-editor@studio.example',
+  })
+  await updatePilot(baselinePilot.id, {
+    version: currentRevision.version,
+    revisions: currentRevision.revisions,
+    resolvedStartDate: currentTerms.startDate,
+  })
+
+  const conflict = await patchPilot(baselinePilot.id, {
+    action: 'commit_draft',
+    criteria: mineTerms.criteria,
+    startDate: mineTerms.startDate,
+    draftAnswers: mineTerms.answers,
+    fieldPaths: ['startDate', 'answers.productionOwnerEmail'],
+  }, {cookie})
+  assert.equal(conflict.status, 409)
+  assert.deepEqual((await conflict.json()).conflicts.map((item: {field: string}) => item.field), ['startDate'])
+
+  const resolved = await patchPilot(baselinePilot.id, {
+    action: 'commit_draft',
+    criteria: mineTerms.criteria,
+    startDate: mineTerms.startDate,
+    draftAnswers: mineTerms.answers,
+    fieldPaths: ['startDate', 'answers.productionOwnerEmail'],
+    resolutions: {startDate: 'mine'},
+  }, {cookie})
+  assert.equal(resolved.status, 200)
+
+  const finalPilot = await getPilotById(baselinePilot.id)
+  assert.equal(finalPilot?.resolvedStartDate, '2026-10-25')
+  assert.equal(finalPilot?.answers.productionOwnerEmail, 'updated-owner@studio.example')
+  assert.equal(finalPilot?.version, currentRevision.version + 1)
+  assert.deepEqual(finalPilot?.draft?.changes, [])
 })
 
 test('a disqualified pilot request is held for clarification', async (t) => {
@@ -867,7 +1258,7 @@ test('v4 High and Mid results enter pilot application and keep internal tags out
     assert.ok(!JSON.stringify(json).includes('A_STATE_PERSON_DEPENDENT'))
     const profile = await getProfileByToken(profileTokenFrom(response))
     assert.ok(profile?.qualification?.scores.diagnostic)
-    assert.equal(profile.qualification.answers.pilotWorkflow, answers.most_urgent_active_workflow)
+    assert.equal(profile.qualification.answers.pilotWorkflow, (answers as Record<string, unknown>).most_urgent_active_workflow)
     assert.ok(String(profile.qualification.answers.productionBaseline).includes('Time to transfer'))
   }
 })
@@ -908,9 +1299,10 @@ test('assessment evidence reaches rooms without browser tampering or owner repla
     assert.equal(JSON.stringify(profile.qualification!.answers), original)
     assert.equal(pilot.answers.productionOwnerEmail, 'owner@studio.example')
     assert.equal(pilot.answers.productionOwner, 'Another producer')
-    assert.equal(pilot.answers.assessmentSnapshot.profileId, profile.id)
-    assert.equal(pilot.answers.assessmentSnapshot.answers.production_status, fixture.production_status)
-    assert.ok(pilot.answers.assessmentSnapshot.submissionId)
+    const snapshot = pilot.answers.assessmentSnapshot as {profileId?: string; submissionId?: string; answers?: Record<string, unknown>} | undefined
+    assert.equal(snapshot?.profileId, profile.id)
+    assert.equal(snapshot?.answers?.production_status, fixture.production_status)
+    assert.ok(snapshot?.submissionId)
     assert.notEqual(pilot.answers.productionBaseline, 'Forged baseline')
     assert.match(pilot.answers.successCriteria, /exact approved production version/)
     if (before.tier === 'low') assert.equal(pilot.state, 'exception_review')
@@ -933,15 +1325,40 @@ test('replayed and concurrent application submissions return the same room', asy
   assert.equal(stored.pilot!.answers.pilotWorkflow, body.answers.pilotWorkflow)
 })
 
-test('claimed returning emails and forged assessment identifiers cannot disclose another lead', async () => {
+test('claimed returning emails and forged assessment identifiers cannot disclose another lead', async (t) => {
+  const fetches = captureFetch(t)
   const victimEmail = `victim-${crypto.randomUUID()}@studio.example`
   const assessment = await post(diagnosticBody(victimEmail))
   const token = profileTokenFrom(assessment)
   const before = JSON.stringify((await getProfileByToken(token))!.qualification)
-  const rejected = await post(pilotBody(victimEmail, {assessmentId: 'forged-id', productionOwner: 'Attacker'}))
-  assert.equal(rejected.status, 403)
-  assert.equal(rejected.headers.getSetCookie().length, 0)
+  // A pilot request on a claimed email is captured without binding the
+  // browser: no profile cookie is minted, no claimed identifiers are
+  // disclosed, and no immediate room token is issued. Room access still
+  // requires the emailed secure link sent to the claimed inbox.
+  const claimed = await post(pilotBody(victimEmail, {assessmentId: 'forged-id', productionOwner: 'Attacker'}))
+  assert.equal(claimed.status, 200)
+  assert.equal(claimed.headers.getSetCookie().filter((c) => c.startsWith('portals_profile=')).length, 0)
+  const claimedJson = await claimed.json()
+  assert.ok(claimedJson.pilotUrl)
+  assert.equal(claimedJson.pilotAuthToken, undefined)
+  assert.equal(claimedJson.profileId, undefined)
+  assert.equal(claimedJson.analyticsPersonId, undefined)
+  assert.equal(claimedJson.downloadUrl, undefined)
   assert.equal(JSON.stringify((await getProfileByToken(token))!.qualification), before)
+  const {profile: claimedProfileRecord, pilot: claimedPilot} = await pilotForProfile(token)
+  assert.ok(claimedPilot)
+  assert.equal(claimedPilot.answers.assessmentId, undefined)
+  assert.equal((claimedPilot.answers.assessmentSnapshot as {profileId?: string} | undefined)?.profileId, claimedProfileRecord.id)
+  // Room access for the claimed identity arrives through the emailed secure
+  // link, which verifies straight into the pilot room.
+  await processLeadOutbox(2000)
+  const claimedAccessEmail = fetches.find(
+    (entry) => entry.body.to === victimEmail && String(entry.body.text).includes('/auth/verify?token='),
+  )
+  assert.ok(claimedAccessEmail, 'the claimed applicant receives the existing secure email continuation')
+  const claimedSession = await consumeMagicLink(tokenFrom(String(claimedAccessEmail.body.text)))
+  assert.ok(claimedSession)
+  assert.equal(claimedSession.nextPath, claimedJson.pilotUrl)
   const unsignedProvider = await post({...pilotBody(victimEmail), provider: 'apollo'})
   assert.equal(unsignedProvider.status, 400)
   assert.equal(unsignedProvider.headers.getSetCookie().length, 0)
@@ -950,6 +1367,62 @@ test('claimed returning emails and forged assessment identifiers cannot disclose
   const otherPilot = (await pilotForProfile(profileTokenFrom(other))).pilot!
   assert.equal(otherPilot.answers.assessmentSnapshot, undefined)
   assert.equal(otherPilot.answers.assessment_version, undefined)
+})
+
+test('unbound claimed-email assessments render results without binding the browser', async () => {
+  const email = `unbound-${crypto.randomUUID()}@studio.example`
+  const first = await post(diagnosticBody(email, {
+    ...highAssessment,
+    // A schema-allowed field that is neither a v4 question id nor a
+    // pilotAssessmentPrefill target, so it only survives via a proper
+    // prior-answers merge.
+    incidentDescription: 'historical-marker',
+  }))
+  assert.equal(first.status, 200)
+  const ownerToken = profileTokenFrom(first)
+
+  // A fresh browser claiming the same email gets its own results but is never
+  // bound to the stored profile: no token cookie is issued, the document
+  // download CTA (which requires the token) is omitted, and the claimed
+  // profile's identifiers are withheld so this browser cannot alias the
+  // owner's analytics identity.
+  const resumed = await post(diagnosticBody(email, vfxAssessment))
+  assert.equal(resumed.status, 200)
+  const resumedJson = await resumed.json()
+  assert.equal(resumedJson.ok, true)
+  assert.ok(resumedJson.diagnosticResult)
+  assert.equal(resumedJson.downloadUrl, undefined)
+  assert.equal(resumedJson.profileId, undefined)
+  assert.equal(resumedJson.analyticsPersonId, undefined)
+  assert.equal(
+    resumed.headers.getSetCookie().filter((c) => c.startsWith('portals_profile=')).length,
+    0,
+  )
+
+  // The owner's existing token still resolves and now holds the fresh
+  // diagnostic, matching re-assessment replacement semantics. Stored
+  // historical (non-question) fields survive the merge instead of being
+  // overwritten by the fresh diagnostic alone.
+  const profile = await getProfileByToken(ownerToken)
+  assert.ok(profile)
+  assert.equal(profile.qualification!.answers.production_type, 'vfx_animation_virtual_production')
+  assert.equal(profile.qualification!.answers.incidentDescription, 'historical-marker')
+
+  // Submissions that are neither assessments nor pilot requests still
+  // require sign-in on a claimed email.
+  const rejected = await post({
+    submissionType: 'contact',
+    idempotencyKey: `contact:${crypto.randomUUID()}`,
+    formVersion: 'contact.v1',
+    provider: 'browser',
+    identity: {email, name: 'Ava Nguyen', company: 'Studio Example', role: 'producer', website: ''},
+    attribution: {sourcePage: '/contact'},
+    consent: {disclosureVersion: DISCLOSURE, marketing: false, analytics: false},
+    companyFax: '',
+    answers: {question: 'Tell me more about the pilot.', interest: ''},
+  })
+  assert.equal(rejected.status, 403)
+  assert.equal(rejected.headers.getSetCookie().length, 0)
 })
 
 test('a qualified assessment reaches accepted terms, simulated payment and activation through the API', async (t) => {
@@ -991,7 +1464,7 @@ test('a qualified assessment reaches accepted terms, simulated payment and activ
   const finalized = await act({action: 'finalize'}, 'ready_sign')
   const signed = await act({action: 'sign', signer: {name: 'Ava Nguyen', email}, answers: {pilotWorkflow: 'Unapproved signature-time terms'}}, 'signed')
   assert.ok(signed.signing.termsAcceptanceId)
-  const acceptance = await getTermsAcceptanceByPilotAndEmail(pilot.id, email, signed.signing.termsHash!, signed.signing.scopeHash!)
+  const acceptance = await getTermsAcceptanceByPilotAndEmail(pilot.id, email, signed.signing.termsHash!, signed.signing.scopeHash! as string)
   assert.ok(acceptance)
   assert.equal((acceptance.termsSnapshot as {scope: {answers: Record<string, unknown>}}).scope.answers.pilotWorkflow, finalized.answers.pilotWorkflow)
   assert.equal((await patchPilot(pilot.id, {action: 'draft', draftAnswers: {pilotWorkflow: 'Late change'}}, {cookie})).status, 400)
@@ -1003,6 +1476,113 @@ test('a qualified assessment reaches accepted terms, simulated payment and activ
   const active = await act({action: 'activate'}, 'active')
   assert.ok(active.payment.paidAt)
   assert.deepEqual(active.answers.assessmentSnapshot, finalized.answers.assessmentSnapshot)
+})
+
+test('signing records the signer in the answers and clears the signer item', async () => {
+  const email = `signer-item-${crypto.randomUUID()}@studio.example`
+  const assessment = await post(diagnosticBody(email))
+  const token = profileTokenFrom(assessment)
+  const created = await post(pilotBody(email, {
+    signerName: '', signerEmail: '',
+    successCriteria: '', successCriterionKeysJson: '',
+  }), {cookie: `portals_profile=${token}`})
+  assert.equal(created.status, 200)
+  const {pilot} = await pilotForProfile(token)
+  assert.ok(pilot)
+  // The application never named a signer, so the room raised the signer item.
+  assert.ok(pilot.unresolved.some((item) => item.key === 'signer'))
+  const owner = await getApplicationUserByEmail(email)
+  const session = await consumeMagicLink(await issueMagicLink({userId: owner!.id, purpose: 'sign_in'}))
+  const cookie = `portals_session=${session!.sessionToken}`
+  const act = async (body: Record<string, unknown>, expectedState: string) => {
+    const response = await patchPilot(pilot.id, body, {cookie})
+    const json = await response.json()
+    assert.equal(response.status, 200, JSON.stringify(json))
+    assert.equal(json.pilot.state, expectedState)
+    return json.pilot as StoredPilot
+  }
+  const startDate = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
+  await act({action: 'update', startDate}, 'reviewing')
+  // The signer is only required at signature, so scope confirmation still passes.
+  await act({action: 'confirm_scope'}, 'scope_confirmed')
+  const finalized = await act({action: 'finalize'}, 'ready_sign')
+  assert.ok(finalized.unresolved.some((item) => item.key === 'signer'))
+  const signed = await act({action: 'sign', signer: {name: 'Ava Nguyen', email}}, 'signed')
+  assert.equal(signed.signing.name, 'Ava Nguyen')
+  assert.equal(signed.signing.email, email)
+  assert.equal(signed.answers.signerName, 'Ava Nguyen')
+  assert.equal(signed.answers.signerEmail, email)
+  assert.ok(!signed.unresolved.some((item) => item.key === 'signer'))
+})
+
+function reconcilePilotPayment(
+  id: string,
+  init: {cookie?: string} = {},
+) {
+  const headers: Record<string, string> = {'content-type': 'application/json'}
+  if (init.cookie) headers.cookie = init.cookie
+  return POST_RECONCILE_PAYMENT(
+    new Request(`http://localhost/api/pilot/${id}/checkout/reconcile`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({}),
+    }),
+    {params: Promise.resolve({id})},
+  )
+}
+
+test('the payment reconcile endpoint gates access and stays unpaid in dry-run', async () => {
+  const email = `reconcile-${crypto.randomUUID()}@studio.example`
+  const participantEmail = `reconcile-guest-${crypto.randomUUID()}@studio.example`
+  const assessment = await post(diagnosticBody(email))
+  const token = profileTokenFrom(assessment)
+  await post(pilotBody(email), {cookie: `portals_profile=${token}`})
+  const {pilot} = await pilotForProfile(token)
+  assert.ok(pilot)
+
+  assert.equal((await reconcilePilotPayment(pilot.id)).status, 403)
+  assert.equal((await reconcilePilotPayment(crypto.randomUUID())).status, 404)
+
+  const guest = await invitePilotMember({
+    pilotId: pilot.id,
+    email: participantEmail,
+    displayName: 'Guest',
+    role: 'participant',
+  })
+  const guestSession = await consumeMagicLink(
+    await issueMagicLink({userId: guest.user.id, purpose: 'sign_in'}),
+  )
+  assert.equal(
+    (await reconcilePilotPayment(pilot.id, {cookie: `portals_session=${guestSession!.sessionToken}`})).status,
+    403,
+  )
+
+  const owner = await getApplicationUserByEmail(email)
+  const ownerSession = await consumeMagicLink(
+    await issueMagicLink({userId: owner!.id, purpose: 'sign_in'}),
+  )
+  const cookie = `portals_session=${ownerSession!.sessionToken}`
+
+  await updatePilot(pilot.id, {
+    state: 'signed',
+    payment: {sessionId: 'cs_test_reconcile', paymentMethod: 'card', paymentStatus: 'processing'},
+  })
+  const unpaid = await reconcilePilotPayment(pilot.id, {cookie})
+  const unpaidJson = await unpaid.json()
+  assert.equal(unpaid.status, 200)
+  assert.equal(unpaidJson.ok, true)
+  assert.equal(unpaidJson.paid, false)
+  assert.equal((await getPilotById(pilot.id))?.state, 'signed', 'dry-run reconcile must not mark paid')
+
+  await updatePilot(pilot.id, {
+    state: 'paid',
+    payment: {sessionId: 'cs_test_reconcile', paymentMethod: 'card', paymentStatus: 'paid', paidAt: new Date().toISOString()},
+  })
+  const paid = await reconcilePilotPayment(pilot.id, {cookie})
+  const paidJson = await paid.json()
+  assert.equal(paid.status, 200)
+  assert.equal(paidJson.ok, true)
+  assert.equal(paidJson.paid, true)
 })
 
 test('room edits cannot forge assessment evidence or erase required founder qualification', async () => {
@@ -1027,4 +1607,255 @@ test('room edits cannot forge assessment evidence or erase required founder qual
   assert.ok(room.exceptions.some((exception: {kind: string}) => exception.kind === 'assessment-qualification'))
   assert.equal((await patchPilot(pilot.id, {action: 'resolve_exceptions'}, {cookie})).status, 403)
   assert.equal((await patchPilot(pilot.id, {action: 'sign', signer: {name: 'Ava', email}}, {cookie})).status, 422)
+})
+
+test('pilot lifecycle actions are restricted to the owner, founder, and reviewers', async (t) => {
+  const ownerEmail = `gates-owner-${crypto.randomUUID()}@studio.example`
+  const participantEmail = `gates-participant-${crypto.randomUUID()}@studio.example`
+  const reviewerEmail = `gates-reviewer-${crypto.randomUUID()}@studio.example`
+  captureFetch(t)
+
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+
+  const participant = await invitePilotMember({
+    pilotId: pilot.id,
+    email: participantEmail,
+    displayName: 'Participant',
+    role: 'participant',
+  })
+  const participantSession = await consumeMagicLink(
+    await issueMagicLink({userId: participant.user.id, purpose: 'sign_in'}),
+  )
+  assert.ok(participantSession)
+  const participantCookie = `portals_session=${participantSession.sessionToken}`
+
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(
+    await issueMagicLink({userId: owner.id, purpose: 'sign_in'}),
+  )
+  assert.ok(ownerSession)
+  const ownerCookie = `portals_session=${ownerSession.sessionToken}`
+
+  // Non-owner members cannot demote, escalate, or resolve the lifecycle.
+  for (const action of ['revise', 'request_exception', 'resolve_exceptions']) {
+    const denied = await patchPilot(pilot.id, {action}, {cookie: participantCookie})
+    assert.equal(denied.status, 403, `${action} must be denied for non-owner members`)
+  }
+
+  // The owner can still demote and escalate their own pilot.
+  const revised = await patchPilot(pilot.id, {action: 'revise'}, {cookie: ownerCookie})
+  assert.equal(revised.status, 200)
+  const escalated = await patchPilot(pilot.id, {action: 'request_exception'}, {cookie: ownerCookie})
+  assert.equal(escalated.status, 200)
+  // Exception resolution belongs to Portals even for the room owner.
+  const ownerResolve = await patchPilot(pilot.id, {action: 'resolve_exceptions'}, {cookie: ownerCookie})
+  assert.equal(ownerResolve.status, 403)
+
+  // A change request from a non-reviewer member records history but cannot
+  // demote the pilot.
+  await updatePilot(pilot.id, {state: 'scope_confirmed'})
+  const memberRequest = await patchPilot(pilot.id, {
+    action: 'section_change_request',
+    sectionChange: {section: 'Scope', note: 'Please revisit the workflow details'},
+  }, {cookie: participantCookie})
+  assert.equal(memberRequest.status, 200)
+  assert.equal((await getPilotById(pilot.id))?.state, 'scope_confirmed')
+
+  // The same request from an assigned reviewer demotes to revision.
+  const reviewerMember = await invitePilotMember({
+    pilotId: pilot.id,
+    email: reviewerEmail,
+    displayName: 'Reviewer',
+    role: 'approver',
+  })
+  const reviewerSession = await consumeMagicLink(
+    await issueMagicLink({userId: reviewerMember.user.id, purpose: 'sign_in'}),
+  )
+  assert.ok(reviewerSession)
+  const scopedPilot = await getPilotById(pilot.id)
+  assert.ok(scopedPilot)
+  await updatePilot(pilot.id, {
+    reviewers: [
+      {
+        id: crypto.randomUUID(),
+        role: 'security_reviewer',
+        name: 'Reviewer',
+        email: reviewerEmail,
+        status: 'invited',
+        invitedAt: new Date().toISOString(),
+        versionSeen: scopedPilot.version,
+        notes: [],
+      },
+    ],
+  })
+  const reviewerRequest = await patchPilot(pilot.id, {
+    action: 'section_change_request',
+    sectionChange: {section: 'Security posture', note: 'Please document the SSO requirement'},
+  }, {cookie: `portals_session=${reviewerSession.sessionToken}`})
+  assert.equal(reviewerRequest.status, 200)
+  assert.equal((await getPilotById(pilot.id))?.state, 'revision')
+
+  // Signing freezes the agreed terms: the update action is rejected once the
+  // pilot leaves the editable states.
+  await updatePilot(pilot.id, {state: 'signed'})
+  const postSignUpdate = await patchPilot(
+    pilot.id,
+    {action: 'update', answers: {pilotWorkflow: 'Changed after signing'}},
+    {cookie: ownerCookie},
+  )
+  assert.equal(postSignUpdate.status, 400)
+  const unchanged = await getPilotById(pilot.id)
+  assert.notEqual(unchanged?.answers.pilotWorkflow, 'Changed after signing')
+})
+
+test('a recorded pilot payment is never reverted to a pending state', async () => {
+  const ownerEmail = `pay-guard-${crypto.randomUUID()}@studio.example`
+  const created = await post(pilotBody(ownerEmail))
+  const {pilot} = await pilotForProfile(profileTokenFrom(created))
+  assert.ok(pilot)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+  const ownerSession = await consumeMagicLink(
+    await issueMagicLink({userId: owner.id, purpose: 'sign_in'}),
+  )
+  assert.ok(ownerSession)
+  const cookie = `portals_session=${ownerSession.sessionToken}`
+
+  // Model the mid-request race: the pilot is still 'signed' when the payment
+  // lands (webhook or reconcile recorded it after the route read the pilot).
+  const paidAt = new Date().toISOString()
+  await updatePilot(pilot.id, {
+    state: 'signed',
+    payment: {sessionId: 'cs_test_paid', paymentMethod: 'card', paymentStatus: 'paid', paidAt},
+  })
+
+  // A late pending-instrument write must not overwrite the recorded payment.
+  const invoice = await POST_INVOICE(
+    new Request(`http://localhost/api/pilot/${pilot.id}/invoice`, {
+      method: 'POST',
+      headers: {cookie},
+    }),
+    {params: Promise.resolve({id: pilot.id})},
+  )
+  assert.equal(invoice.status, 200)
+  const after = await getPilotById(pilot.id)
+  assert.equal(after?.payment?.paidAt, paidAt)
+  assert.equal(after?.payment?.paymentStatus, 'paid')
+  assert.equal(after?.payment?.paymentMethod, 'card')
+  assert.equal(after?.payment?.invoiceId, undefined)
+})
+
+function postMagicLink(body: Record<string, unknown>) {
+  return POST_MAGIC_LINK(
+    new Request('http://localhost/api/auth/magic-link', {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(body),
+    }),
+  )
+}
+
+test('magic-link sign-in auto-provisions configured Portals team accounts and backfills pilot access', async (t) => {
+  const ownerEmail = `team-owner-${crypto.randomUUID()}@studio.example`
+  const extraTeamEmail = `staff-${crypto.randomUUID()}@portals.test`
+  const fetches = captureFetch(t)
+  const previousTeamEmails = process.env.PORTALS_TEAM_EMAILS
+
+  try {
+    // The pilot room is created before the second staff address is configured.
+    delete process.env.PORTALS_TEAM_EMAILS
+    const created = await post(pilotBody(ownerEmail))
+    assert.equal(created.status, 200)
+    const {pilot} = await pilotForProfile(profileTokenFrom(created))
+    assert.ok(pilot)
+    assert.ok(pilot.customerAccountId)
+    assert.equal(await getApplicationUserByEmail(extraTeamEmail), null)
+
+    process.env.PORTALS_TEAM_EMAILS = `ops@portals.test, ${extraTeamEmail}`
+
+    // Unregistered non-team emails still receive nothing and gain no account.
+    const strangerEmail = `stranger-${crypto.randomUUID()}@portals.test`
+    const strangers = await postMagicLink({email: strangerEmail})
+    assert.equal(strangers.status, 200)
+    assert.deepEqual(await strangers.json(), {ok: true})
+    assert.equal(await getApplicationUserByEmail(strangerEmail), null)
+    assert.equal(fetches.some((entry) => entry.body.to === strangerEmail), false)
+
+    // A configured staff email is provisioned at sign-in with backfilled access.
+    const signIn = await postMagicLink({email: ` ${extraTeamEmail.toUpperCase()} `})
+    assert.equal(signIn.status, 200)
+    assert.deepEqual(await signIn.json(), {ok: true})
+    const staff = await getApplicationUserByEmail(extraTeamEmail)
+    assert.ok(staff, 'the team account is provisioned at first sign-in')
+    assert.equal(staff.status, 'active')
+    assert.equal(await pilotMembershipRole(pilot.id, staff.id), 'approver')
+    const membership = await getCustomerAccountForUser(pilot.customerAccountId!, staff.id)
+    assert.equal(membership?.role, 'admin')
+
+    const sent = fetches.find(
+      (entry) => entry.body.to === extraTeamEmail && String(entry.body.text).includes('/auth/verify?token='),
+    )
+    assert.ok(sent, 'the staff sign-in email is delivered')
+    const session = await consumeMagicLink(tokenFrom(String(sent.body.text)))
+    assert.ok(session, 'the provisioned staff magic link produces a session')
+  } finally {
+    restoreEnvironment('PORTALS_TEAM_EMAILS', previousTeamEmails)
+  }
+})
+
+test('magic-link sign-in reports email delivery failures instead of silently succeeding', async (t) => {
+  const ownerEmail = `send-fail-${crypto.randomUUID()}@studio.example`
+  t.mock.method(globalThis, 'fetch', async (url: RequestInfo | URL) => {
+    const requestUrl = url instanceof Request ? url.url : String(url)
+    if (requestUrl.includes('.api.sanity.io/')) {
+      return Response.json({result: TEST_PACKAGE_SPECIFICATIONS})
+    }
+    return new Response('resend down', {status: 500})
+  })
+
+  const created = await post(pilotBody(ownerEmail))
+  assert.equal(created.status, 200)
+  const owner = await getApplicationUserByEmail(ownerEmail)
+  assert.ok(owner)
+
+  const failed = await postMagicLink({email: ownerEmail})
+  assert.equal(failed.status, 500)
+  assert.equal((await failed.json()).error, 'email_send_failed')
+})
+
+test('a configured Portals team member holds the founder qualification gate', async (t) => {
+  const ownerEmail = `team-gate-${crypto.randomUUID()}@studio.example`
+  const teamEmail = `gate-${crypto.randomUUID()}@portals.test`
+  captureFetch(t)
+  const previousTeamEmails = process.env.PORTALS_TEAM_EMAILS
+
+  try {
+    process.env.PORTALS_TEAM_EMAILS = `ops@portals.test,${teamEmail}`
+    const created = await post(pilotBody(ownerEmail, {assessmentOrigin: 'assessment_override'}))
+    assert.equal(created.status, 200)
+    assert.equal((await created.json()).pilotState, 'exception_review')
+    const {pilot} = await pilotForProfile(profileTokenFrom(created))
+    assert.ok(pilot)
+
+    const staff = await getApplicationUserByEmail(teamEmail)
+    assert.ok(staff, 'the second team account is provisioned at pilot creation')
+    const session = await consumeMagicLink(
+      await issueMagicLink({userId: staff.id, purpose: 'sign_in'}),
+    )
+    assert.ok(session)
+    const resolved = await patchPilot(
+      pilot.id,
+      {action: 'resolve_exceptions'},
+      {cookie: `portals_session=${session.sessionToken}`},
+    )
+    assert.equal(resolved.status, 200)
+    const room = (await resolved.json()).pilot
+    assert.equal(room.state, 'reviewing')
+    assert.ok(room.exceptions.every((item: {resolvedAt?: string}) => item.resolvedAt))
+  } finally {
+    restoreEnvironment('PORTALS_TEAM_EMAILS', previousTeamEmails)
+  }
 })

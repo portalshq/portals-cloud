@@ -5,6 +5,7 @@ import {
   createBillingCustomer,
   createBillingCheckoutSession,
 } from '@/lib/leads/store'
+import {getPublishedPackageSpecification, packageAnnualAmount} from '@/lib/package-specifications'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const billing = createStripePlatformBilling(secretKey)
   const productConfig = getProductConfig('studioAnnual')
+  const studioSpec = await getPublishedPackageSpecification('studio')
+  const annualAmount = packageAnnualAmount(studioSpec || undefined)
+  if (!annualAmount) return NextResponse.json({ok: false, message: 'Studio pricing is unavailable'}, {status: 503})
 
   try {
     const {customer, created} = await billing.findOrCreateCustomer({
@@ -71,8 +75,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       status: session.status || 'unknown',
       metadata: {
         ...session.metadata,
-        amount: productConfig.amount.toString(),
-        currency: productConfig.currency,
+        amount: annualAmount.toString(),
+        currency: studioSpec?.price?.currency || '',
       },
     })
 

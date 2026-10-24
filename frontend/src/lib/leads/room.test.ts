@@ -309,6 +309,54 @@ test('draft commit detects concurrent changes to the same structured field', () 
   assert.equal(resolved.conflicts[0].field, 'startDate')
 })
 
+test('pilot start dates persisted as timestamps compare as the same calendar date', () => {
+  const pilot = {
+    resolvedStartDate: '2026-10-23T04:00:00.000Z',
+    successCriteria: buildSuccessCriteria(eligible),
+    answers: {},
+  }
+  const terms = pilotMutableTermsFromState(pilot)
+  assert.equal(terms.startDate, '2026-10-23')
+  assert.deepEqual(
+    changedPilotTermPaths({...terms, startDate: pilot.resolvedStartDate}, terms),
+    [],
+  )
+  const resolved = resolvePilotDraftCommit({
+    baseTerms: {...terms, startDate: '2026-10-23T04:00:00.000Z'},
+    currentTerms: terms,
+    incomingTerms: {...terms, startDate: '2026-10-23T04:00:00.000Z'},
+  })
+  assert.equal(resolved.conflicts.length, 0)
+  assert.equal(resolved.appliedChanges.length, 0)
+})
+
+test('draft conflict choices commit either the current date or the submitted date', () => {
+  const base: PilotMutableTerms = {
+    startDate: '2026-10-23T04:00:00.000Z',
+    criteria: buildSuccessCriteria(eligible),
+  }
+  const currentTerms = {...base, startDate: '2026-10-24'}
+  const incomingTerms = {...base, startDate: '2026-10-25'}
+
+  const keepCurrent = resolvePilotDraftCommit({
+    baseTerms: base,
+    currentTerms,
+    incomingTerms,
+    resolutions: {startDate: 'current'},
+  })
+  assert.equal(keepCurrent.conflicts.length, 0)
+  assert.equal(keepCurrent.terms.startDate, '2026-10-24')
+
+  const keepMine = resolvePilotDraftCommit({
+    baseTerms: base,
+    currentTerms,
+    incomingTerms,
+    resolutions: {startDate: 'mine'},
+  })
+  assert.equal(keepMine.conflicts.length, 0)
+  assert.equal(keepMine.terms.startDate, '2026-10-25')
+})
+
 test('draft commit asks for resolution when concurrent scalar text changes collide', () => {
   const criteria = buildSuccessCriteria(eligible)
   const key = criteria[0].key

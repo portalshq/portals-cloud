@@ -33,6 +33,18 @@ export type PackageSpecification = {
     currency?: string
     periodLabel?: string
     billingNote?: string
+    annualAmount?: number
+    onboardingFee?: number
+    addOnSeatPrice?: number
+    addOnSeatPeriodLabel?: string
+    installmentsAvailable?: boolean
+    installmentSchedule?: {
+      count?: number
+      interval?: string
+      firstPaymentIncludesOnboarding?: boolean
+      surcharge?: number
+    }
+    internalGuidance?: string
     discount?: {
       percentage?: number
       discountAmount?: number
@@ -50,6 +62,7 @@ export type PackageSpecification = {
     activeRepositories?: SpecificationValue
     workspaces?: SpecificationValue
     reviewersGuests?: SpecificationValue
+    addOnSeatsMax?: SpecificationValue
   }
   features?: string[]
   milestones?: SpecificationValue[]
@@ -58,6 +71,7 @@ export type PackageSpecification = {
   excludedItems?: string[]
   standardIntegrationPaths?: string[]
   ctaLabel?: string
+  ctaDestination?: string
   microcopy?: string
   legalNote?: string
 }

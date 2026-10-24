@@ -3,6 +3,7 @@
 import type {LeadRequest, LeadResponse} from './contracts'
 import {
   anonymousAnalyticsId,
+  clearFormParams,
   identifyAnalyticsPerson,
   trackEvent,
 } from './analytics-client'
@@ -86,6 +87,10 @@ export async function resetKnownProfile(): Promise<void> {
   
   // Clear form drafts first to prevent restoration after reload
   clearAllFormDrafts()
+
+  // Clear persisted URL/form params so client-prefilled identity does not
+  // repopulate after reload
+  clearFormParams()
   
   try {
     await fetch('/api/leads', {
@@ -113,7 +118,16 @@ export async function resetKnownProfile(): Promise<void> {
   clearAllFormDrafts()
   
   if (typeof window !== 'undefined') {
-    window.location.replace(window.location.href)
+    try {
+      // Strip identity query params so prefilled values do not repopulate
+      const resetUrl = new URL(window.location.href)
+      for (const key of ['name', 'email', 'company', 'role', 'website']) {
+        resetUrl.searchParams.delete(key)
+      }
+      window.location.replace(resetUrl.toString())
+    } catch {
+      window.location.replace(window.location.href)
+    }
   }
 }
 

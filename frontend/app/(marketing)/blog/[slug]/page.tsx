@@ -105,7 +105,7 @@ export default async function Page({params}: {params: Promise<{slug: string}>}) 
           </p>
           <div className="mt-40 flex flex-wrap gap-16">
             <CTAButton href="/production-memory" appearance="plain">
-              What is production memory
+              What is production memory?
             </CTAButton>
             <CTAButton href="/assessment">Assess my production workflow</CTAButton>
           </div>

@@ -449,6 +449,14 @@ function formatCurrencyValue(value: number | undefined): string {
   return `$${value.toLocaleString('en-US')}`
 }
 
+function formatCommercialAmount(value: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {style: 'currency', currency, maximumFractionDigits: 0}).format(value)
+}
+
+function annualSubscriptionRateLabel(annualOption: NonNullable<StoredPilot['proposal']>['annualOption']): string {
+  return 'monthly subscription rate'
+}
+
 function formatRange(low: number, high: number, formatter: (value: number) => string): string {
   return low === high ? formatter(low) : `${formatter(low)}–${formatter(high)}`
 }
@@ -826,8 +834,8 @@ function Page4PilotCase({ data, document }: { data: PersonalizedQualification; d
   const historicalProjects = packageLimitLabel(spec, 'historicalProjects')
   const model = getValueModel(data)
   const recovery = recoveryScenario(model)
-  const pilotPrice = spec?.price?.amount || 5000
-  const breakEvenHours = Math.ceil(pilotPrice / 100)
+  const pilotPrice = spec?.price?.amount
+  const breakEvenHours = pilotPrice ? Math.ceil(pilotPrice / 100) : null
 
   const measures = [
     ['approved retrieval', 'under 1 minute', 'timed retrieval test'],
@@ -863,7 +871,7 @@ function Page4PilotCase({ data, document }: { data: PersonalizedQualification; d
           <Text style={styles.featureColumnBody}>25–50% annual capacity recovery case</Text>
         </View>
         <View style={styles.featureColumn}>
-          <Text style={styles.featureColumnTitle}>{breakEvenHours} hours</Text>
+          <Text style={styles.featureColumnTitle}>{breakEvenHours ? `${breakEvenHours} hours` : 'measure in pilot'}</Text>
           <Text style={styles.featureColumnBody}>reclaimed capacity equal to the pilot fee</Text>
         </View>
       </View>
@@ -1254,7 +1262,7 @@ export function PilotPlanPdfDocument({
           <Text style={styles.sectionTitle}>objective</Text>
           <Text>{workflow}</Text>
           <Text style={styles.body}>
-            prove that portals can preserve and recover the complete production history of this workflow so the team can find, understand, reproduce, and extend valuable work. the first 48 hours deliver one fragmented project as a complete, searchable production record.
+            prove that portals can preserve and recover the complete production history of this workflow so the team can find, understand, reproduce, and extend valuable work. the initial delivery establishes one fragmented project as a complete, searchable production record.
           </Text>
         </View>
 
@@ -1304,16 +1312,20 @@ export function PilotPlanPdfDocument({
               <Text style={styles.sectionTitle}>commercial terms</Text>
               {pilot.proposal ? (
                 <View>
-                  <Text style={styles.item}><Text style={styles.label}>pilot fee:</Text> {pilot.proposal.priceLabel}, due on signature</Text>
-                  <Text style={styles.item}><Text style={styles.label}>term:</Text> {pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? ` · ${pilot.proposal.termStart} to ${pilot.proposal.termEnd}` : ''}</Text>
-                  {pilot.proposal.decisionDate ? <Text style={styles.item}><Text style={styles.label}>final decision date:</Text> {pilot.proposal.decisionDate}</Text> : null}
-                  {pilot.proposal.offerVariantSlug ? <Text style={styles.item}><Text style={styles.label}>offer acceptance deadline:</Text> sign by {pilot.proposal.offerAcceptanceDeadlineLabel || pilot.proposal.offerEndsAt}</Text> : pilot.proposal.creditDeadline ? <Text style={styles.item}><Text style={styles.label}>annual credit window:</Text> sign the annual order form by {pilot.proposal.creditDeadline}</Text> : null}
+                  <Text style={styles.item}><Text style={styles.label}>one-time pilot fee:</Text> {pilot.proposal.priceLabel}, due on signature</Text>
+                  <Text style={styles.item}><Text style={styles.label}>pilot term:</Text> {pilot.proposal.termDays} days{pilot.proposal.termStart && pilot.proposal.termEnd ? ` · ${formatReadableDate(pilot.proposal.termStart)} to ${formatReadableDate(pilot.proposal.termEnd)}` : ''}</Text>
+                  {pilot.proposal.offerVariantSlug ? <Text style={styles.item}><Text style={styles.label}>pilot offer acceptance deadline:</Text> {(pilot.proposal.offerAcceptanceDeadlineLabel || formatReadableDate(pilot.proposal.offerEndsAt) || 'not set').replace(/^sign by\s*/i, '').replace(/\s+to accept this offer\.?$/i, '')}</Text> : null}
+                  {pilot.proposal.decisionDate ? <Text style={styles.item}><Text style={styles.label}>annual deployment decision deadline:</Text> {formatReadableDate(pilot.proposal.decisionDate)}</Text> : null}
+                  {pilot.proposal.creditDeadline ? <Text style={styles.item}><Text style={styles.label}>annual plan credit deadline:</Text> {formatReadableDate(pilot.proposal.creditDeadline)}. To receive the pilot fee as a credit toward your annual subscription, sign the annual order form by this date.</Text> : null}
+                  {pilot.proposal.annualCreditLabel || pilot.proposal.annualOption ? <Text style={styles.item}><Text style={styles.label}>pilot fee credited toward annual plan:</Text> {formatCommercialAmount(pilot.proposal.annualCreditAmount ?? pilot.proposal.priceAmount, pilot.proposal.currency)}{pilot.proposal.creditDeadline ? ` when the annual order form is signed by ${formatReadableDate(pilot.proposal.creditDeadline)}` : ''}</Text> : null}
                   {pilot.proposal.annualOption ? (
                     <View>
-                      <Text style={styles.item}><Text style={styles.label}>proposed annual deployment:</Text> {pilot.proposal.annualOption.name} — {pilot.proposal.annualOption.priceLabel}</Text>
-                      <Text style={styles.muted}>{pilot.proposal.annualOption.creditNote}</Text>
+                      <Text style={styles.item}><Text style={styles.label}>annual plan:</Text> {pilot.proposal.annualOption.name}</Text>
+                      <Text style={styles.item}><Text style={styles.label}>monthly subscription rate:</Text> {pilot.proposal.annualOption.priceLabel} per month (billed annually)</Text>
+                      <Text style={styles.item}><Text style={styles.label}>annual contract total:</Text> {typeof pilot.proposal.annualOption.annualTotal === 'number' ? `${formatCommercialAmount(pilot.proposal.annualOption.annualTotal, pilot.proposal.annualOption.currency)}` : 'custom annual total, to be stated in the order form'}</Text>
+                      <Text style={styles.item}><Text style={styles.label}>annual plan setup fee:</Text> {pilot.proposal.annualOption.onboardingFee ? `${formatCommercialAmount(pilot.proposal.annualOption.onboardingFee, pilot.proposal.annualOption.currency)}, due at account creation` : 'none'}</Text>
                     </View>
-                  ) : null}
+                  ) : <Text style={styles.item}><Text style={styles.label}>annual plan:</Text> not selected</Text>}
                 </View>
               ) : (
                 <Text>commercial terms are being prepared in the approval room.</Text>
@@ -1366,7 +1378,7 @@ export function PilotPlanPdfDocument({
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>decision path</Text>
-          <Text>deploy portals, extend the pilot under a defined scope, or conclude that portals is not the right fit at this time. the final decision date is {pilot.proposal?.decisionDate || 'stated in the room'}.</Text>
+          <Text>deploy portals, extend the pilot under a defined scope, or conclude that portals is not the right fit at this time. the annual deployment decision deadline is {pilot.proposal?.decisionDate || 'stated in the room'}.</Text>
           <Text style={styles.muted}>signature and payment are completed in the pilot approval room: portals.works{pilotRoomPathForPilotOrFallback(pilot)}</Text>
         </View>
 

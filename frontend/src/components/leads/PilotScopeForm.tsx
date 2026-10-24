@@ -42,6 +42,9 @@ import {
   validateUrlParamEmail,
   type UrlParams,
 } from '@/lib/leads/url-params'
+import { resolvePrefilledIdentity } from '@/lib/leads/identity-prefill'
+import { findPackageSpecification, packageOnboardingFee, packagePriceLabel, PACKAGE_SPEC_SLUGS } from '@/lib/package-specifications'
+import type { PackageSpecification } from '@/types/resource'
 
 const STAGES = [
   { key: 'eligibility', label: 'eligibility' },
@@ -50,6 +53,13 @@ const STAGES = [
   { key: 'purchase', label: 'approval' },
   { key: 'confirmation', label: 'confirmation' },
 ] as const
+
+function pilotSignInHref(roomHref: string, emailHint?: string): string {
+  if (roomHref.startsWith('/auth/sign-in?')) return roomHref
+  const params = new URLSearchParams({ next: roomHref })
+  if (emailHint) params.set('email', emailHint)
+  return `/auth/sign-in?${params.toString()}`
+}
 
 type SubmitState =
   | { status: 'idle' }
@@ -76,6 +86,7 @@ export function PilotScopeForm({
   initialAnswers,
   assessmentOrigin = 'standard',
   annualOptions = [],
+  packageSpecifications = [],
 }: {
   specSummary: string
   context: KnownLeadContext
@@ -92,6 +103,7 @@ export function PilotScopeForm({
   initialAnswers?: Record<string, unknown>
   assessmentOrigin?: 'standard' | 'assessment_override'
   annualOptions?: Array<{ slug: string; name: string; priceLabel: string }>
+  packageSpecifications?: PackageSpecification[]
 }) {
   const carriedAnswers = {
     ...(context.answerValues || {}),
@@ -103,6 +115,20 @@ export function PilotScopeForm({
   const [liveAnswers, setLiveAnswers] = useState<Record<string, string | boolean>>(
     () => Object.fromEntries(Object.entries(carriedAnswers)) as Record<string, string | boolean>,
   )
+  const annualDeploymentOption = String(liveAnswers.annualDeploymentOption || '')
+  const annualPackageSpec = findPackageSpecification(packageSpecifications, annualDeploymentOption)
+  const onboardingFee = annualPackageSpec?.slug === PACKAGE_SPEC_SLUGS.productionTeam
+    ? packageOnboardingFee(annualPackageSpec)
+    : null
+  const paidPilotSpec = findPackageSpecification(packageSpecifications, PACKAGE_SPEC_SLUGS.paidPilot)
+  const pilotFeeLabel = offerTerms?.pilotPriceLabel || packagePriceLabel(paidPilotSpec)
+  const onboardingFeeLabel = onboardingFee === null
+    ? ''
+    : new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: annualPackageSpec?.price?.currency || 'USD',
+      maximumFractionDigits: 0,
+    }).format(onboardingFee)
   const [stageError, setStageError] = useState('')
   const [submissionId, setSubmissionId] = useState(() =>
     newSubmissionId('pilot-request'),
@@ -124,6 +150,7 @@ export function PilotScopeForm({
     migrateMatchingFormDraft(formDraftKey('pilot_request'), formDraftKey(`pilot_request:${draftScope}`), expectedEmail)
   }, [draftScope, pilotId, context.identity?.email])
   const { ref: draftRef, restored, flush, clear } = useFormDraft(`pilot_request:${draftScope}`, carriedAnswers)
+  const prefilledIdentity = resolvePrefilledIdentity(context, { carriedAnswers, urlParams })
   const knownAnswers = new Set(context.knownAnswerFields)
   const missing = (field: string) => !knownAnswers.has(field) && !carriedAnswers[field]
   const isRevision = Boolean(pilotId)
@@ -183,7 +210,7 @@ export function PilotScopeForm({
     }
     setSubmitState({
       status: 'success',
-      pilotUrl: stored.pilotUrl,
+      pilotUrl: stored.pilotUrl ? pilotSignInHref(stored.pilotUrl, context.identity?.email || new URL(window.location.href).searchParams.get('email') || undefined) : undefined,
       calendarUrl: stored.calendarUrl,
       downloadUrl: stored.downloadUrl,
       pilotRoute: stored.pilotRoute,
@@ -269,7 +296,7 @@ export function PilotScopeForm({
 
     // Validate email domain on stage 0 (eligibility) progression
     if (stage === 0) {
-      const currentEmail = email || (typeof context.identity?.email === 'string' ? context.identity.email : '') || (typeof carriedAnswers.email === 'string' ? carriedAnswers.email : '') || urlParams.email || ''
+      const currentEmail = email || prefilledIdentity.identity.email || ''
       if (currentEmail) {
         const domain = emailDomain(currentEmail)
         if (requiresCompanyEmailDomain(domain)) {
@@ -487,8 +514,8 @@ export function PilotScopeForm({
       setSubmitState({ status: 'error', message: 'Some saved details need updating. Review the form and try again.' })
       return
     }
-    const applicantEmail = String(values.email || context.identity?.email || carriedAnswers.email || urlParams.email || '').trim()
-    const applicantName = String(values.name || context.identity?.name || carriedAnswers.name || urlParams.name || '').trim()
+    const applicantEmail = String(values.email || prefilledIdentity.identity.email || '').trim()
+    const applicantName = String(values.name || prefilledIdentity.identity.name || '').trim()
     if (!answers.productionOwnerEmail && applicantEmail && (!answers.productionOwner || answers.productionOwner === applicantName)) answers.productionOwnerEmail = applicantEmail
     if (!String(answers.productionOwner || '').trim() && applicantName) answers.productionOwner = applicantName
 
@@ -517,11 +544,11 @@ export function PilotScopeForm({
         ...(offer ? { offer } : {}),
         identity: Object.fromEntries(
           Object.entries({
-            email: String(values.email || context.identity?.email || carriedAnswers.email || urlParams.email || ''),
-            name: String(values.name || context.identity?.name || carriedAnswers.name || urlParams.name || ''),
-            company: String(values.company || context.identity?.company || carriedAnswers.company || urlParams.company || ''),
-            role: String(values.role || context.identity?.role || carriedAnswers.role || urlParams.role || ''),
-            website: String(values.website || context.identity?.website || carriedAnswers.website || urlParams.website || ''),
+            email: String(values.email || prefilledIdentity.identity.email || ''),
+            name: String(values.name || prefilledIdentity.identity.name || ''),
+            company: String(values.company || prefilledIdentity.identity.company || ''),
+            role: String(values.role || prefilledIdentity.identity.role || ''),
+            website: String(values.website || prefilledIdentity.identity.website || ''),
           }).filter(([, value]) => value),
         ) as LeadIdentity,
         attribution: buildAttribution({
@@ -549,7 +576,9 @@ export function PilotScopeForm({
       clear()
       if (!isRevision) {
         writePilotConfirmation({
-          pilotUrl: result.pilotUrl,
+          // Never persist the one-time verify token. A resumed confirmation
+          // should ask the applicant to authenticate for this room.
+          pilotUrl: result.pilotUrl ? pilotSignInHref(result.pilotUrl, applicantEmail || undefined) : undefined,
           calendarUrl: result.calendarUrl,
           downloadUrl: result.downloadUrl,
           pilotRoute: result.pilotRoute,
@@ -560,7 +589,7 @@ export function PilotScopeForm({
         status: 'success',
         pilotUrl: result.pilotAuthToken && result.pilotUrl
           ? `/auth/verify?token=${encodeURIComponent(result.pilotAuthToken)}&next=${encodeURIComponent(result.pilotUrl)}`
-          : result.pilotUrl,
+          : result.pilotUrl ? pilotSignInHref(result.pilotUrl, applicantEmail || undefined) : undefined,
         calendarUrl: result.calendarUrl,
         downloadUrl: result.downloadUrl,
         pilotRoute: result.pilotRoute,
@@ -591,15 +620,10 @@ export function PilotScopeForm({
               strokeWidth={1.6}
             />
             <h3 className="t-h1-sans">
-              {/* {submitState.pilotRoute === 'disqualified'
-              ? 'we need a few clarifications.'
-              : submitState.pilotRoute === 'one-call'
-              ? 'your pilot approval room is ready.'
-              : 'your pilot approval room is ready.'} */}
-              your pilot approval room is ready.
+              Your pilot approval room is ready.
             </h3>
           </div>
-          <p className="mt-16 t-p-lg-sans text-white">
+          <p className="mt-16 t-p-sans text-white">
             {/* {submitState.pilotRoute === 'disqualified'
             ? 'Your request cannot proceed as a standard pilot yet. Review the notes in your room, revise the scope, and resubmit.'
             : submitState.pilotRoute === 'one-call'
@@ -617,7 +641,7 @@ export function PilotScopeForm({
               contacted.
             </p>
           ) : null}
-          {!submitState.preview ? <p className="mt-14 t-p-sm-sans text-white/80">Your room is protected. Use the secure link in your work email, or sign in when you open it.</p> : null}
+          {!submitState.preview ? <p className="mt-14 t-p-sm-sans text-white">Access your room using a secure link sent to your work email.</p> : null}
           <div className="mt-24 flex flex-col gap-12 sm:flex-row">
             {submitState.pilotUrl ? (
               <CTAButton
@@ -627,8 +651,8 @@ export function PilotScopeForm({
               >
                 <span>
                   {submitState.pilotRoute === 'one-call'
-                    ? 'review my pilot plan'
-                    : 'review my pilot plan'}
+                    ? 'Review my pilot plan'
+                    : 'Review my pilot plan'}
                 </span>
                 <ArrowRight aria-hidden="true" size={18} strokeWidth={1.8} />
               </CTAButton>
@@ -646,7 +670,7 @@ export function PilotScopeForm({
             </CTAButton>
           ) : null} */}
           </div>
-          {/* {!isRevision ? (
+          {!isRevision ? (
           <div className="mt-24">
             <CTAButton
               type="button"
@@ -659,7 +683,7 @@ export function PilotScopeForm({
               <span>submit a new pilot request</span>
             </CTAButton>
           </div>
-        ) : null} */}
+        ) : null}
           {/* {submitState.calendarUrl ? (
           <p className="mt-16 t-p-sans text-white">
             need a pilot terms review?{' '}
@@ -731,6 +755,7 @@ export function PilotScopeForm({
         <div className="sm:col-span-2">
           <IdentityFields
             context={context}
+            prefilledIdentity={prefilledIdentity}
             email={email}
             onEmailChange={(event) => setEmail(event.target.value)}
             requireWebsite={publicEmailNeedsWebsite(email) || Boolean(context.requiresWebsite)}
@@ -937,14 +962,14 @@ export function PilotScopeForm({
         <div className="sm:col-span-2">
           <h3 className="t-h3-sans">Primary success test</h3>
           <p className="mt-12 t-p-sans">{PRIMARY_PILOT_SUCCESS_TEST}</p>
-          {carriedAnswers.productionStateBottleneck ? <p className="mt-12 t-p-sm-sans text-white/80">Your assessment priority: {String(carriedAnswers.productionStateBottleneck)}</p> : null}
+          {carriedAnswers.productionStateBottleneck ? <p className="mt-12 t-p-sm-sans text-white">Your assessment priority: {String(carriedAnswers.productionStateBottleneck)}</p> : null}
           {carriedAnswers.productionBaseline ? <p className="mt-12 t-p-sm-sans text-white/80">{String(carriedAnswers.productionBaseline)}</p> : null}
-          <p className="mt-12 t-p-sm-sans text-white/80">We agree the applicable measurements in your pilot room. Stored prompts and sources can be retrieved exactly; generated outputs are evaluated within agreed tolerances.</p>
+          {/* <p className="mt-12 t-p-sm-sans text-white">Finalize the applicable measurements in your pilot room. Stored prompts and sources can be retrieved exactly; generated outputs are evaluated within agreed tolerances.</p> */}
           <input type="hidden" name="successCriterionKeysJson" defaultValue={String(initialAnswers?.successCriterionKeysJson || JSON.stringify(STANDARD_SUCCESS_KEYS))} />
         </div>
         <details className="sm:col-span-2">
           <summary className="cursor-pointer t-p-sm-sans underline underline-offset-4">Adjust success criteria (optional)</summary>
-          <LeadField label="success test or scope adjustment" name="successCriteria">
+          <LeadField className='mt-8' label="success test or scope adjustment" name="successCriteria">
             <LeadTextareaField id="successCriteria" name="successCriteria" minRows={3} defaultValue={String(initialAnswers?.successCriteria || PRIMARY_PILOT_SUCCESS_TEST)} />
           </LeadField>
         </details>
@@ -1013,7 +1038,7 @@ export function PilotScopeForm({
             defaultChecked={Boolean(initialAnswers?.annualPriceAcknowledged)}
           />
           <span>
-            I have reviewed the proposed annual deployment and the pilot fee{offerTerms ? ` of ${offerTerms.pilotPriceLabel}` : ''}. Any credit follows the written terms. Creating this plan does not accept an agreement or authorize payment.
+            I have reviewed the proposed {annualPackageSpec ? `${annualPackageSpec.name.toLowerCase()} annual plan` : 'pilot plan'} and the {onboardingFee !== null ? `onboarding fee of ${onboardingFeeLabel}` : `pilot fee${pilotFeeLabel ? ` of ${pilotFeeLabel}` : ''}`}. Creating this pilot plan does not accept an agreement or authorize payment.
           </span>
         </label>
         {liveAnswers.approvalPath === 'procurement' ? (
@@ -1083,12 +1108,12 @@ export function PilotScopeForm({
         {submitState.status === 'error' ? (
           <p className="mt-12 t-p-sans text-white" role="alert">
             {submitState.message}
-            {submitState.message.includes('Sign in') ? <a className="ml-8 underline" href="/auth/sign-in?next=%2Fpilot%23scope">Sign in to resume</a> : null}
+            {submitState.message.includes('Sign in') ? <a className="ml-8 underline" href="/auth/sign-in">Sign in</a> : null}
           </p>
         ) : null}
       </div>
 
-      <div className="flex items-center justify-end gap-16 sm:col-span-2">
+      <div className="flex items-center justify-end lg:justify-start gap-16 sm:col-span-2">
         {stage > 0 ? (
           <CTAButton
             type="button"

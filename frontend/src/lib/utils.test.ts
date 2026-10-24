@@ -20,6 +20,12 @@ test('formatReadableDate formats valid ISO date as DD Mon YYYY', () => {
   assert.equal(formatReadableDate('2024-06-01'), '01 Jun 2024')
 })
 
+test('formatReadableDate formats ISO datetimes by their calendar date', () => {
+  assert.equal(formatReadableDate('2026-10-27T04:00:00.000Z'), '27 Oct 2026')
+  assert.equal(formatReadableDate('2026-10-27T23:59:59.999Z'), '27 Oct 2026')
+  assert.equal(formatReadableDate('2026-02-04T12:30:00+05:30'), '04 Feb 2026')
+})
+
 test('formatReadableDate handles invalid date by returning original string', () => {
   assert.equal(formatReadableDate('invalid-date'), 'invalid-date')
   assert.equal(formatReadableDate('not-a-date'), 'not-a-date')

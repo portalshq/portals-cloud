@@ -13,7 +13,7 @@ export const highAssessment: AssessmentValues = {
   time_to_transfer: 'one_day',
   context_storage_locations: [
     'generation_workflow_or_graph',
-    'slack_teams_email',
+    'slack_channel',
     'creator_memory_or_undocumented',
   ],
   captured_production_state: [

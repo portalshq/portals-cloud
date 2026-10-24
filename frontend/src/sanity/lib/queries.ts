@@ -17,6 +17,7 @@ export const PACKAGE_SPECIFICATION_FIELDS = /* groq */ `
   milestones,
   serviceItems,
   ctaLabel,
+  ctaDestination,
   microcopy,
   legalNote
 `

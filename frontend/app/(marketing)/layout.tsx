@@ -29,8 +29,8 @@ export default async function MarketingLayout({
   const detailLabels = await getDetailLabels()
 
   return (
-    <div className="min-h-[100dvh] flex flex-col text-foreground font-sans">
-      <div data-marketing-page-content className="flex-1 z-(--z-main) flex flex-col">
+    <div className="min-h-[100dvh] flex w-full min-w-0 flex-col text-foreground font-sans">
+      <div data-marketing-page-content className="flex min-w-0 flex-1 flex-col z-(--z-main)">
         <MarketingHeader detailLabels={detailLabels} />
         {children}
       </div>
