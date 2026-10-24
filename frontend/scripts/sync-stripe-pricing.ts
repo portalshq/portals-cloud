@@ -54,13 +54,13 @@ async function ensurePrice(productId: string, lookupKey: string, amount: number,
   })
 }
 
-async function setDefaultAndArchivePrevious(productId: string, nextPriceId: string | undefined) {
+async function setDefaultAndArchivePrevious(productId: string, nextPriceId: string | undefined, keepActivePriceIds: string[] = []) {
   if (!apply || !nextPriceId) return
   const product = await stripe.products.retrieve(productId)
   if (product.deleted) throw new Error(`Stripe product ${productId} is deleted`)
   const previousId = typeof product.default_price === 'string' ? product.default_price : product.default_price?.id
   await stripe.products.update(productId, {default_price: nextPriceId})
-  if (previousId && previousId !== nextPriceId) {
+  if (previousId && previousId !== nextPriceId && !keepActivePriceIds.includes(previousId)) {
     const previous = await stripe.prices.retrieve(previousId)
     if (previous.active) await stripe.prices.update(previousId, {active: false})
   }
@@ -68,12 +68,15 @@ async function setDefaultAndArchivePrevious(productId: string, nextPriceId: stri
 
 const onboardingProductId = process.env.STRIPE_PRODUCT_ONBOARDING_ID
 const studioProductId = process.env.STRIPE_PRODUCT_STUDIO_ID
+const pilotProductId = process.env.STRIPE_PRODUCT_STUDIO_PILOT_ID
 const productionProductId = process.env.STRIPE_PRODUCT_PRODUCTION_TEAM_ID
 const addOnProductId = process.env.STRIPE_PRODUCT_ADD_ON_SEAT_ID
-if (!onboardingProductId || !studioProductId || !productionProductId) throw new Error('Existing Stripe product IDs are required')
+if (!onboardingProductId || !studioProductId || !pilotProductId || !productionProductId) throw new Error('Existing Stripe product IDs are required, including STRIPE_PRODUCT_STUDIO_PILOT_ID')
 
 const onboarding = await ensurePrice(onboardingProductId, 'production-team-onboarding-current', amountInCents(production.price?.onboardingFee), currency(production.price))
+const productionAnnual = await ensurePrice(productionProductId, 'production-team-annual-current', amountInCents(production.price?.annualAmount), currency(production.price), {interval: 'year'})
 const studioAnnual = await ensurePrice(studioProductId, 'studio-annual-current', amountInCents(studio.price?.annualAmount), currency(studio.price), {interval: 'year'})
+const studioPilotPrice = await ensurePrice(pilotProductId, 'studio-pilot-base-current', amountInCents(studioPilot.price?.amount), currency(studioPilot.price))
 const schedule = production.price?.installmentSchedule
 if (!schedule?.count || schedule.interval !== 'quarter') throw new Error('Production Team quarterly installment schedule is missing')
 const quarterlyAmount = amountInCents(production.price?.annualAmount) / schedule.count
@@ -98,8 +101,12 @@ if (resolvedAddOnProductId) {
 }
 
 if (onboarding) console.log(`STRIPE_PRICE_ONBOARDING_ID=${onboarding.id}`)
+if (productionAnnual) console.log(`STRIPE_PRICE_PRODUCTION_TEAM_ID=${productionAnnual.id}`)
 if (studioAnnual) console.log(`STRIPE_PRICE_STUDIO_ID=${studioAnnual.id}`)
+if (studioPilotPrice) console.log(`STRIPE_PRICE_STUDIO_PILOT_ID=${studioPilotPrice.id}`)
 if (quarterly) console.log(`STRIPE_PRICE_PRODUCTION_TEAM_QUARTERLY_ID=${quarterly.id}`)
 if (onboarding) await setDefaultAndArchivePrevious(onboardingProductId, onboarding.id)
+if (productionAnnual) await setDefaultAndArchivePrevious(productionProductId, productionAnnual.id, quarterly ? [quarterly.id] : [])
 if (studioAnnual) await setDefaultAndArchivePrevious(studioProductId, studioAnnual.id)
+if (studioPilotPrice) await setDefaultAndArchivePrevious(pilotProductId, studioPilotPrice.id)
 console.log(apply ? 'Stripe test catalog sync complete.' : 'No changes written. Pass --apply to update the Stripe test catalog.')

@@ -19,10 +19,11 @@ export default async function AccountPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-24 py-40">
-      <p className="t-p-sm-sans text-[#52617D]">portals account</p>
-      <h1 className="mt-8 t-h3-sans">You’re signed in</h1>
-      <p className="mt-12 t-p-sm-sans text-[#52617D]">
-        {user.email} has an application account. Use an invitation link to open a specific pilot room.
+      <h1 className="mt-8 t-h3-sans">
+        You’re signed in <span className="t-p-sm-sans">{user.email}</span>
+      </h1>
+      <p className="mt-12 t-p-sm-sans">
+        Use an invitation link or the menu to access a pilot room.
       </p>
     </main>
   )

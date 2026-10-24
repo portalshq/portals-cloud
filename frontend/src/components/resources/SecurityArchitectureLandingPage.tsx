@@ -76,17 +76,8 @@ function Hero({document}: {document: ResourceDocument}) {
             {landing.description || document.abstract}
           </p>
           <div className="mt-32 flex flex-col gap-12 sm:flex-row">
-            <CTAButton href="#download" analyticsLabel="Download the Security Brief" analyticsIntent="security_download">
-              <ArrowDownToLine aria-hidden="true" size={18} strokeWidth={1.8} />
+            <CTAButton appearance="plain" href="#download" analyticsLabel="Download the Security Brief" analyticsIntent="security_download">
               <span>Download security details</span>
-            </CTAButton>
-            <CTAButton
-              href="/pilot#scope"
-              analyticsLabel="Scope a Paid Pilot"
-              analyticsIntent="pilot_scope"
-            >
-              <span>Scope a paid pilot</span>
-              <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
             </CTAButton>
           </div>
         </div>
@@ -307,10 +298,6 @@ function DownloadSection({
             downloadLabel="Download security brief"
             sourcePage="/security-and-architecture"
           />
-          <CTAButton className="mt-20" href="/pilot#scope" analyticsLabel="Scope a Paid Pilot" analyticsIntent="pilot_scope">
-            <span>Scope a paid pilot</span>
-            <ArrowUpRight aria-hidden="true" size={18} strokeWidth={1.8} />
-          </CTAButton>
         </div>
       </div>
     </section>

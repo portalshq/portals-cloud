@@ -1,6 +1,7 @@
 'use client'
 
 import { CTAButton } from '@/components/CTAButton';
+import { PhotoStack } from '@/components/PhotoStack';
 import { ProductionLineage } from '@/components/ProductionLineage';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -64,7 +65,7 @@ const overviewItems: OverviewItem[] = [
     heading: 'Identity',
     iconPath: iconPaths[2],
     textA: [
-      'A character is not just a folder of PNGs — a campaign is not just a stack of final files.',
+      // 'A character is not just a folder of PNGs — a campaign is not just a stack of final files.',
       'Every approved asset keeps a stable, addressable identity, so teams reuse the right version with certainty.',
     ],
     list: [
@@ -269,11 +270,11 @@ function ListColumn({ item }: { item: OverviewItem }) {
       {item.list.map((text) => (
         <li key={text}>
           <Badge className="border px-16 py-8 backdrop-blur-[10px] w-full">
-            <div className="flex flex-row items-center gap-x-16 t-p-sm-sans leading-[1.2em] whitespace-nowrap">
+            <div className="flex flex-row items-center gap-x-16 t-p-sm-sans leading-[1.2em]">
               <span className="flex h-[1.364em] items-center shrink-0">
                 <span className="size-8 bg-current" />
               </span>
-              <span className="shrink-0">{text}</span>
+              <span>{text}</span>
             </div>
           </Badge>
         </li>
@@ -308,13 +309,26 @@ function OverviewContent({ item, index, visibleIndex, transitionStage, scrollDir
   );
 }
 
-function OverviewMobileItem({ item, index }: { item: OverviewItem; index: number }) {
+function OverviewMobileItem({ item, index, visibleIndex, transitionStage, scrollDirection, visibleColumn, progressLineRef }: {
+  item: OverviewItem;
+  index: number;
+  visibleIndex: number;
+  transitionStage: OverviewTransitionStage;
+  scrollDirection: 'up' | 'down';
+  visibleColumn: number;
+  progressLineRef: (node: HTMLDivElement | null) => void;
+}) {
+  const active = visibleIndex === index && transitionStage !== 'hidden' && transitionStage !== 'exiting';
+  const revealStyle = (stagger: number) => overviewMotionStyle(visibleIndex, index, transitionStage, scrollDirection, stagger);
+  const copyStyle = (column: number): CSSProperties => ({
+    ...revealStyle(column + 2),
+    ...overviewColumnMotionStyle(active && visibleColumn >= column, scrollDirection, (column + 2) * overviewBlurStaggerMs),
+  });
+
   return (
-    <div className="ui-grid relative items-center text-white">
-      {index === 0 && <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollTo" data-webgl-position="0.96" />}
-      {index > 0 && <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="colorRamps" />}
-      <div className="col-span-full grid grid-cols-subgrid gap-y-30">
-        <div className="col-span-full grid auto-rows-auto grid-cols-subgrid gap-y-16">
+    <div className="saga-overview-mobile-item ui-grid relative col-start-1 row-start-1 items-center text-white" aria-hidden={!active} style={{ pointerEvents: active ? 'auto' : 'none' }}>
+      <div className="saga-overview-mobile-stage col-span-full grid grid-cols-subgrid gap-y-30">
+        <div className="saga-overview-mobile-reveal col-span-full grid auto-rows-auto grid-cols-subgrid gap-y-16" style={revealStyle(0)}>
           <div className="col-span-3 row-start-1 flex items-start justify-end">
             <NumberLabel index={index} />
           </div>
@@ -332,13 +346,24 @@ function OverviewMobileItem({ item, index }: { item: OverviewItem; index: number
             </h3>
           </div>
         </div>
-        <div className="col-span-full space-y-18">
-          <div className="relative -mx-sms h-px bg-white/20" />
+        <div className="saga-overview-mobile-lineage saga-overview-mobile-reveal pointer-events-none col-span-11 col-start-2 flex items-center overflow-visible sm:col-span-21 sm:col-start-4" style={{ ...revealStyle(1), filter: 'none' }}>
+          <ProductionLineage stage={index} transitionStage={visibleIndex === index ? transitionStage : 'hidden'} scrollDirection={scrollDirection} labels animateAllNodes />
         </div>
-        <div className="col-span-11 col-start-2 space-y-24 sm:col-span-21 sm:col-start-4">
-          <Paragraphs lines={item.textA} className="t-p-lg-serif" />
-          <ListColumn item={item} />
-          <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={false} />
+        <div className="saga-overview-mobile-reveal col-span-full space-y-18" style={revealStyle(1)}>
+          <div className="relative -mx-sms h-2 bg-white/20">
+            <div ref={progressLineRef} data-progress-line className="saga-overview-progress-line absolute top-0 left-0 h-2 w-full origin-left bg-white" />
+          </div>
+        </div>
+        <div className="saga-overview-mobile-copy col-span-11 col-start-2 grid gap-y-24 sm:col-span-21 sm:col-start-4">
+          <div className="saga-overview-mobile-reveal" aria-hidden={!active} style={copyStyle(0)}>
+            <Paragraphs lines={item.textA} className="t-p-lg-serif" />
+          </div>
+          <div className="saga-overview-mobile-reveal" aria-hidden={!active || visibleColumn < 1} style={copyStyle(1)}>
+            <ListColumn item={item} />
+          </div>
+          <div className="saga-overview-mobile-reveal" aria-hidden={!active || visibleColumn < 2} style={copyStyle(2)}>
+            <Paragraphs lines={item.textC} className="t-h3-sans" boldLast={false} />
+          </div>
         </div>
       </div>
     </div>
@@ -348,6 +373,7 @@ function OverviewMobileItem({ item, index }: { item: OverviewItem; index: number
 function OverviewSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const progressLineRef = useRef<HTMLDivElement>(null);
+  const mobileProgressLineRefs = useRef(new Map<number, HTMLDivElement>());
   const requestedIndexRef = useRef(0);
   const [scrollIndex, setScrollIndex] = useState(0);
   const [visibleIndex, setVisibleIndex] = useState(0);
@@ -377,8 +403,13 @@ function OverviewSection() {
       setVisibleColumn(stageProgress >= 2 / 3 ? 2 : stageProgress >= 1 / 3 ? 1 : 0);
       const nextScrollPhase: OverviewScrollPhase = unclampedProgress < 0 ? 'before' : unclampedProgress > 1 ? 'after' : 'viewing';
 
-      if (progressLineRef.current && renderedProgress !== renderedProgressRef.current) {
-        progressLineRef.current.style.transform = `translate3d(0, 0, 0) scaleX(${renderedProgress})`;
+      if (renderedProgress !== renderedProgressRef.current) {
+        if (progressLineRef.current) {
+          progressLineRef.current.style.transform = `translate3d(0, 0, 0) scaleX(${renderedProgress})`;
+        }
+        mobileProgressLineRefs.current.forEach((line) => {
+          line.style.transform = `translate3d(0, 0, 0) scaleX(${renderedProgress})`;
+        });
         renderedProgressRef.current = renderedProgress;
       }
 
@@ -447,6 +478,33 @@ function OverviewSection() {
   useEffect(() => {
     if (scrollPhase !== 'viewing') return undefined;
 
+    if (window.matchMedia('(max-width: 63.99rem)').matches) {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        if (visibleIndex !== scrollIndex) setVisibleIndex(scrollIndex);
+        if (transitionStage !== 'idle') setTransitionStage('idle');
+        return undefined;
+      }
+
+      if (scrollIndex !== visibleIndex) {
+        if (transitionStage === 'hidden') return undefined;
+        if (transitionStage !== 'exiting') {
+          setTransitionStage('exiting');
+          return undefined;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+          setVisibleIndex(requestedIndexRef.current);
+          setTransitionStage('entering');
+        }, overviewExitTotalMs);
+        return () => window.clearTimeout(timeoutId);
+      }
+
+      if (transitionStage === 'exiting') {
+        setTransitionStage('entering');
+        return undefined;
+      }
+    }
+
     if (scrollIndex !== visibleIndex) {
       setVisibleIndex(scrollIndex);
       setTransitionStage('entering');
@@ -486,7 +544,7 @@ function OverviewSection() {
                   ))}
                 </div>
 
-                <div className="pointer-events-none col-span-full col-start-4 top-0 right-0 hidden items-center overflow-hidden lg:flex">
+                <div className="pointer-events-none col-span-full col-start-4 top-0 right-0 hidden items-center overflow-visible lg:[@media(height>760px)]:flex">
                   <ProductionLineage
                     stage={transitionStage === 'hidden' ? -1 : visibleIndex}
                     transitionStage={transitionStage}
@@ -584,10 +642,37 @@ function OverviewSection() {
           </div>
         </div>
 
-        <div className="saga-overview-mobile space-y-fluid-[106,212] py-fluid-[76,106]">
-          {overviewItems.map((item, index) => (
-            <OverviewMobileItem key={item.heading} item={item} index={index} />
-          ))}
+        <div className="saga-overview-mobile relative">
+          <div className="saga-overview-pin saga-overview-mobile-pin relative z-10">
+            <div className="saga-overview-mobile-stack grid h-full w-full">
+              {overviewItems.map((item, index) => (
+                <OverviewMobileItem
+                  key={item.heading}
+                  item={item}
+                  index={index}
+                  visibleIndex={visibleIndex}
+                  transitionStage={transitionStage}
+                  scrollDirection={scrollDirection}
+                  visibleColumn={visibleColumn}
+                  progressLineRef={(node) => {
+                    if (node) mobileProgressLineRefs.current.set(index, node);
+                    else mobileProgressLineRefs.current.delete(index);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            {overviewItems.map((item, index) => (
+              <div
+                key={`${item.heading}-mobile-marker`}
+                className="saga-overview-snap-point absolute left-0 size-px"
+                style={{ top: `calc(2px + ${index} * (100% - 100svh) / ${itemCount})` }}
+                data-webgl-marker={index === 0 ? 'scrollTo' : 'colorRamps'}
+                data-webgl-position={index === 0 ? '0.96' : undefined}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -741,24 +826,34 @@ function ProblemSection() {
         <div className="col-span-full grid grid-cols-1 lg:grid-cols-3 space-y-[4px]">
           {problemCards.map((card, index) => (
             <div key={card.title}>
-              <article className={`min-h-194 h-full p-24 rounded-sm text-white flex flex-col ${index % 2 === 1 ? 'bg-white/10' : 'bg-white/10 lg:bg-transparent'}`}>
-                <div className="mb-20 flex items-center gap-x-8">
+              <article className={`min-h-194 h-full p-24 rounded-sm gap-y-20 text-white flex flex-col ${index % 2 === 1 ? 'bg-white/10' : 'bg-white/10 lg:bg-transparent'}`}>
+                <div className="flex items-center gap-x-8">
                   <span className="size-8 bg-white" />
                   <span className="t-m2">{card.label}</span>
                 </div>
-                <h3 className="t-h3-sans mb-[0.4em]">{card.title}</h3>
-                <blockquote className="mt-12 col-span-full t-p-sans leading-[1.25] italic text-white">
+                <h3 className="t-h3-sans">{card.title}</h3>
+                <blockquote className="col-span-full t-p-sans leading-[1.25] italic text-white">
                   {card.quote}
                   <cite>{' '}{card.cite}</cite>
                 </blockquote>
                 {card.title === 'Reproduce' && (
                   <>
-                    <img
+                    <PhotoStack
+                    images={[
+                      '/images/vcs/components/version-stack-01.png',
+                      '/images/vcs/components/version-stack-02.png',
+                      '/images/vcs/components/version-stack-03.png',
+                      '/images/vcs/components/version-stack-04.png',
+                    ]}
+                    className="m-auto w-auto max-h-[400px] object-contain"
+                    cardStyle={{ background: '#11448f', border: 'solid 2px #f5ebe0', borderRadius: '1.5px'}}
+                    />
+                    {/* <img
                       src="/images/vcs/components/version-stack.png"
                       alt="A stack of related campaign photo versions"
                       className="m-auto max-h-[400px] w-full object-contain"
-                    />
-                    <p className="mt-12 t-p-sans text-center">Reuse creative recipes to generate new on-brand outputs.</p>
+                    /> */}
+                    <p className="t-p-sans text-center text-balance">Reuse creative recipes to generate new on-brand outputs.</p>
                   </>
                 )}
                 {card.title === 'Identify' && (
@@ -766,24 +861,24 @@ function ProblemSection() {
                     <img
                       src="/images/vcs/components/front-photo-print.png"
                       alt="A single portrait print of the campaign model"
-                      className="m-auto max-h-[400px] w-full -rotate-[7deg] object-contain"
+                      className="m-auto max-h-[400px] w-auto border-[2px] border-[#f5ebe0] rounded-[1.5px] object-contain"
                     />
-                    <p className="mt-12 t-p-sans text-center">Pin visual properties and references of approved images.</p>
+                    <p className="mt-12 t-p-sans text-center text-balance">Pin visual properties and references of approved images.</p>
                   </>
                 )}
                 {card.title === 'Preserve' && (
                   <>
-                    <div className="grid w-full max-w-[351px] m-auto h-[400px] items-end grid-cols-2 gap-1 lg:w-fit lg:max-w-none lg:grid-cols-[max-content] xl:grid-cols-[repeat(2,max-content)]">
+                    <div className="grid w-full max-w-[351px] m-auto h-auto items-end grid-cols-2 lg:w-fit lg:max-w-none lg:grid-cols-[max-content] xl:grid-cols-[repeat(2,max-content)]">
                       {[
                         ['/images/vcs/components/front-photo-print.png', 'A single bordered portrait print'],
-                        ['/images/vcs/components/model-variation-04.png', 'The model in a cobalt knit with a side braid'],
                         ['/images/vcs/components/preserve-portrait-03.png', 'The model in a flowing cobalt blouse'],
+                        ['/images/vcs/components/model-variation-04.png', 'The model in a cobalt knit with a side braid'],
                         ['/images/vcs/components/preserve-portrait-02.png', 'The model in a cobalt blazer'],
                       ].map(([src, alt], index) => (
-                        <img key={src} src={src} alt={alt} className={`h-[190px] max-w-full lg:max-w-none object-contain ${index === 0 ? '-rotate-[8.5deg] scale-[129%] overflow-visible p-0 m-0' : 'border-[8px] border-[#f5ebe0] rounded-[1px]'} ${index % 2 === 1 ? 'lg:hidden xl:block' : ''}`} />
+                        <img key={src} src={src} alt={alt} className={`h-[190px] w-full max-w-full lg:max-w-none object-cover ${index === 0 ? '-rotate-[1.5deg] scale-[102%] object-top p-0 m-0' : ''} border-[2px] border-[#f5ebe0] rounded-[1px] ${index % 2 === 1 ? 'lg:hidden xl:block' : ''}`} />
                       ))}
                     </div>
-                    <p className="mt-12 t-p-sans text-center">Keep defining traits consistent across variations.</p>
+                    <p className="mt-12 t-p-sans text-center text-balance">Keep defining traits consistent across variations.</p>
                   </>
                 )}
               </article>
@@ -805,7 +900,7 @@ function SolutionSection() {
             AI{`\u2011`}native creative teams
           </h2>
           <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
-            Preserve every approved asset, its history, and the context that produced it. Extend approved work using identity instead of rebuilding from scratch — reduce rework, eliminate manual context reconstruction, accelerate delivery, and scale output without adding headcount.
+            Preserve every asset, its history, and the context that produced it. Extend approved work using identity instead of rebuilding from scratch: reduce rework, eliminate manual context reconstruction, accelerate delivery, and scale output without adding operational debt.
           </p>
           <p className="t-p-lg-sans text-justify max-w-[30em] mx-auto leading-[1.25] text-white">
             Built for high-volume teams without changing the tools they already use.
@@ -873,7 +968,7 @@ function CapabilitiesSection() {
           {capabilities.map((capability) => (
             <article key={capability.title} className="p-24">
               <h3 className="t-h3-sans mb-16">{capability.title}</h3>
-              <p className="t-p-sans text-white">{capability.text}</p>
+              <p className="t-p-sans text-white text-balance">{capability.text}</p>
             </article>
           ))}
         </div>
@@ -918,7 +1013,7 @@ function PxSection() {
           {pxFoundations.map((item) => (
             <article key={item.title?.toString()} className="flex flex-col p-24">
               <h3 className="t-h3-sans mb-16">{item.title}</h3>
-              <p className="t-p-sans text-white">{item.text}</p>
+              <p className="t-p-sans text-white text-balance">{item.text}</p>
             </article>
           ))}
         </div>
@@ -975,9 +1070,9 @@ function WorkflowSection() {
   return (
     <section data-header-theme="light">
       <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] text-white">
-        <div className="col-span-full space-y-24 lg:col-span-9">
-          <h2 className="t-d2-sans">One system behind every AI tool</h2>
-          <p className="t-p-lg-serif">
+        <div className="col-span-full space-y-24 lg:col-span-10">
+          <h2 className="t-d2-sans text-balance">One system behind every AI tool</h2>
+          <p className="t-p-lg-serif text-balance">
             Continue using the tools your team already depends on.
           </p>
         </div>
@@ -1005,7 +1100,7 @@ function AudienceSection() {
           {audiences.map((audience) => (
             <article key={audience.title} className="py-24 lg:px-16">
               <h3 className="t-h3-sans mb-16">{audience.title}</h3>
-              <p className="t-p-sans text-white">{audience.text}</p>
+              <p className="t-p-sans text-white text-balance">{audience.text}</p>
             </article>
           ))}
         </div>
@@ -1038,19 +1133,20 @@ function PricingSection({
 
   return (
     <section data-header-theme="light" id="pricing">
-      <div className="ui-grid gap-y-fluid-[30,52] py-fluid-[76,106] w-fit mx-auto text-white">
+      <div className="ui-grid w-full min-w-0 gap-y-fluid-[30,52] py-fluid-[76,106] mx-auto text-white">
         {/* <div className="col-span-full lg:col-span-6">
           <SectionKicker>pricing</SectionKicker>
         </div> */}
-        <div className="col-span-full lg:mx-auto">
-          <h2 className="t-d2-sans max-w-[12.58em] text-balance lg:text-center">A clear path from adoption to enterprise scale</h2>
+        <div className="col-span-full max-w-5xl text-balance lg:mx-auto">
+          <h2 className="t-d2-sans text-balance lg:text-center">Scale production without losing organizational context.</h2>
+          <p className="mt-30 t-p-sans text-balance lg:text-center">Build on successful assets, decisions, and workflows. Turn accumulated production history into compounding production intelligence.</p>
         </div>
         <div className="col-span-full grid grid-cols-1 gap-px max-w-xl xl:max-w-1/3 lg:mx-auto rounded">
           {pilotTier ? [pilotTier].map((tier) => (
-            <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border border-white/50  bg-[radial-gradient(circle_at_bottom_left,_rgba(255,255,255,0.35)_0%,_rgba(255,255,255,0.1)_100%)]">
+            <article key={tier.name} className="flex min-h-194 flex-col p-24 col-start-2 rounded border border-white/50  bg-[radial-gradient(circle_at_bottom_left,_rgba(255,255,255,0.40)_0%,_rgba(255,255,255,0.1)_100%)]">
               <h3 className="t-h3-sans">{tier.name}</h3>
               <div className="my-20 flex flex-row flex-wrap items-baseline gap-x-8">
-                <span className="t-p-sm-sans text-white/80 !lowercase">{tier.period}</span>
+                <span className="t-p-sm-sans text-white lowercase">{tier.period}</span>
               </div>
               <p className="t-p-sm-sans">{tier.subtitle}</p>
               <ul className="my-24 flex flex-1 flex-col gap-y-8">
@@ -1068,7 +1164,7 @@ function PricingSection({
         </div>
         <div className="col-span-full grid grid-cols-1 gap-8 xl:gap-12 xl:grid-cols-3">
           {pricingTiers.map((tier) => (
-            <article key={tier.name} className={cn(["relative lg:mx-auto flex min-h-194 flex-col p-24 max-w-xl rounded border border-white/50",
+            <article key={tier.name} className={cn(["relative lg:mx-auto flex min-h-194 flex-col p-24 rounded border border-white/50",
               tier.name ==="Production Team" && 'bg-white/10',
             tier.name ==="Studio" && 'bg-white/20',
             tier.name === "Enterprise" && 'bg-white/30',
@@ -1079,10 +1175,9 @@ function PricingSection({
                 </h3>
                 {tier.banner && <Badge className='h-fit p-8 t-p-sm-sans'>{tier.banner}</Badge>}
               </div>
-              <div className="my-20">
-                <p className="t-h3-sans">{tier.price} {tier.period}</p>
-                {tier.billingNote && <p className="mt-8 t-p-sans">{tier.billingNote}</p>}
-                {tier.micro && <p className="mt-8 t-p-sans">{tier.micro}</p>}
+              <div className="mb-20">
+                <p className="t-h3-sans">{tier.price} <span className="t-p-sm-sans lowercase">{tier.period}{tier.billingNote && <span>, {tier.billingNote}</span>}</span></p>
+                {tier.micro && <p className="mt-8 t-p-sm-sans">{tier.micro}</p>}
               </div>
               <p className="t-p-sm-sans">{tier.subtitle}</p>
               <ul className="my-24 flex flex-1 flex-col gap-y-8">
@@ -1187,15 +1282,15 @@ export function VCS({
               Discover the bottlenecks costing you time, output, and margin in 4 minutes. Receive personalized recommendations.
             </p>
             <div className="saga-hero-assess grid grid-cols-[max-content_max-content] gap-30">
+              <CTAButton href="/use-cases" appearance="plain" analyticsLabel="Explore Use Cases" analyticsIntent="education">
+                Explore use cases
+              </CTAButton>
               <CTAButton
                 href="/assessment"
                 analyticsLabel="Assess Your Workflow"
                 analyticsIntent="assessment"
               >
                 Find my production bottlenecks
-              </CTAButton>
-              <CTAButton className="!hidden" href="/use-cases" analyticsLabel="Explore Use Cases" analyticsIntent="education">
-                Explore use cases
               </CTAButton>
             </div>
           </div>

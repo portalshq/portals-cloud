@@ -27,7 +27,7 @@ export default async function ContactPage({
       <div className="pointer-events-none h-px w-full" aria-hidden="true" data-webgl-marker="scrollTo" data-webgl-position="0.96" />
       <section data-header-theme="light" className="ui-grid pt-Header-h py-fluid-[76,106]">
         <div className="col-span-full max-w-[900px] flex flex-col gap-y-32 py-48">
-          <h1 className="max-w-[12em] t-d2-sans">Contact Us</h1>
+          <h1 className="max-w-[12em] t-d2-sans">Contact us</h1>
           <p className="max-w-[38em] t-p-lg-sans text-white">
             Ask a question for a direct response, or assess your production workflow in four minutes.
           </p>

@@ -9,6 +9,8 @@
     "start": "next start",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "audit:package-specifications": "tsx scripts/audit-package-specifications.ts",
+    "audit:pricing-congruence": "tsx scripts/audit-pricing-congruence.ts",
+    "sync:stripe-pricing": "tsx scripts/sync-stripe-pricing.ts",
     "generate-pdfs": "export $(grep -v '^#' .env.local | xargs) && tsx scripts/generate-pdfs.ts",
     "migrate:leads": "tsx scripts/migrate-leads.ts",
     "provision:apollo": "tsx scripts/provision-apollo.ts",

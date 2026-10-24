@@ -2,6 +2,8 @@ For all UI styling and color token rules, read DESIGN.md.
 
 ## UI and UX best practices
 
+All same-page anchors must use smooth scrolling. Use the shared `SmoothAnchor` component or the established same-page anchor behavior in `CTAButton`; preserve any route-specific behavior such as opening collapsed sections before scrolling.
+
 Always order customer-facing specifications (pricing, deadlines, terms, options, and any timeline-related information) by chronological relevance to the customer journey. The order should reflect the sequence in which a customer encounters and acts on each item, not by arbitrary grouping or technical implementation order.
 
 All customer-facing copy must be:

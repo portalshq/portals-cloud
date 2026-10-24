@@ -1,16 +1,7 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Drop-in replacement for everything from `const lineageOutputs` through the end
-// of `ProductionLineage` in the VCS file.
-//
-// 1) Update the React import at the top of the file:
-//      import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-// 2) Delete the old constants lineageSvgWidth, lineageSvgHeight, lineageTailLength,
-//    lineageLabelLift (no longer used). Everything else outside this block is untouched.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { blurEnterDurationMs, blurEnterEasing, blurExitDurationMs, blurExitEasing, overviewMotionStyle, OverviewTransitionStage } from "@/types/overview";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { PhotoStack } from "@/components/PhotoStack";
 
 const lineageOutputs = [
     { src: '/images/vcs/components/preserve-portrait-01.png', label: 'portrait crop' },
@@ -35,7 +26,7 @@ const compactLineageImages = [
 
 type LineagePoint = { x: number; y: number };
 type LineageEdges = { entry: LineagePoint; exit: LineagePoint };
-type LineageDot = LineagePoint & { node: number; visibleStage: number; role: 'entry' | 'exit' };
+type LineageDot = LineagePoint & { node: number; visibleStage: number; role: 'entry' | 'exit' | 'tail' };
 type LineageSegment = { d: string; stage: number; from: number; to: number };
 type LineageLabelKey = 'source' | 'select' | 'branch' | 'deliver';
 type LineageLayout = {
@@ -58,7 +49,6 @@ const emptyLineageLayout: LineageLayout = {
     selectedScale: 1,
 };
 
-// Single source of truth for the print's tilt: used for rendering AND for finding its true edge.
 const selectedRotationDeg = -8.5;
 const roundPoint = (value: number) => Math.round(value * 10) / 10;
 const midpoint = (a: LineagePoint, b: LineagePoint): LineagePoint => ({
@@ -89,7 +79,8 @@ function visibleLineageNodes(stage: number, width: number): number[] {
     if (stage < 0) return [];
     if (width < 1280) return stage === 0 ? [0] : [stage - 1, stage];
     if (stage < 3) return Array.from({ length: stage + 1 }, (_, index) => index);
-    return stage === 3 ? [2, 3] : [2, 3, 4];
+    if (stage === 3) return [2, 3];
+    return width >= 1536 ? [2, 3, 4] : [3, 4];
 }
 
 function measureLineageLayout(track: HTMLElement, stage: number): LineageLayout | null {
@@ -101,7 +92,13 @@ function measureLineageLayout(track: HTMLElement, stage: number): LineageLayout 
         .map((name) => track.querySelector<HTMLElement>(`[data-node="${name}"]`));
     if (nodes.some((node) => !node)) return null;
     const visible = visibleLineageNodes(stage, window.innerWidth);
-    const slotCenters = window.innerWidth < 1280 ? [width * .18, width * .5] : [width / 6, width / 2, width * 5 / 6];
+    const grid = track.closest('.ui-grid');
+    const gridStyle = grid ? window.getComputedStyle(grid) : null;
+    const columnStep = (parseFloat(gridStyle?.gridTemplateColumns ?? '') || width / 24)
+        + (parseFloat(gridStyle?.columnGap ?? '') || 0);
+    const slotCenters = window.innerWidth < 1280
+        ? [width * .18, width * (window.innerWidth < 1024 ? .7 : .5)]
+        : [width / 6, width / 2 - columnStep, width * 5 / 6 - columnStep];
     const firstVisible = visible[0] ?? 0;
     const positions = nodes.map((node, index) => {
         const slot = visible.includes(index) ? visible.indexOf(index) : index - firstVisible;
@@ -122,9 +119,26 @@ function measureLineageLayout(track: HTMLElement, stage: number): LineageLayout 
         };
     };
 
+    const stackEdgesOf = (nodeName: string): LineageEdges | null => {
+        const stack = track.querySelector<HTMLElement>(`[data-node="${nodeName}"] [data-photo-stack]`);
+        if (!stack) return null;
+        const cardRects = Array.from(stack.querySelectorAll<HTMLElement>('.photo-stack-card'), (card) => card.getBoundingClientRect());
+        if (!cardRects.length) return null;
+
+        const trackRect = track.getBoundingClientRect();
+        const left = Math.min(...cardRects.map((rect) => rect.left));
+        const right = Math.max(...cardRects.map((rect) => rect.right));
+        const centerY = (Math.min(...cardRects.map((rect) => rect.top)) + Math.max(...cardRects.map((rect) => rect.bottom))) / 2;
+        const y = roundPoint(centerY - trackRect.top);
+        return {
+            entry: { x: roundPoint(left - trackRect.left), y },
+            exit: { x: roundPoint(right - trackRect.left), y },
+        };
+    };
+
     const source = edgesOf(imageOf('source'), 0);
-    const versions = edgesOf(imageOf('versions'), 1);
-    const campaign = edgesOf(imageOf('campaign-outputs'), 4);
+    const versions = stackEdgesOf('versions') ?? edgesOf(imageOf('versions'), 1);
+    const campaign = stackEdgesOf('campaign-outputs') ?? edgesOf(imageOf('campaign-outputs'), 4);
     const outputs = Array.from(track.querySelectorAll<HTMLImageElement>('[data-node="outputs"] img'), (image) => edgesOf(image, 3));
 
     // The selected print is rotated. Scale it so its rotated bounds fit the track height, then
@@ -169,7 +183,10 @@ function measureLineageLayout(track: HTMLElement, stage: number): LineageLayout 
             { ...output.exit, node: 3, visibleStage: 3, role: 'exit' },
         );
     }
-    dots.push({ ...campaign.entry, node: 4, visibleStage: 4, role: 'entry' });
+    dots.push(
+        { ...campaign.entry, node: 4, visibleStage: 4, role: 'entry' },
+        { ...campaign.exit, node: 4, visibleStage: 4, role: 'exit' },
+    );
 
     const segments: LineageSegment[] = [
         { d: lineageLinkPath(source.exit, versions.entry), stage: 1, from: 0, to: 1 },
@@ -187,7 +204,15 @@ function measureLineageLayout(track: HTMLElement, stage: number): LineageLayout 
         { d: `M${splitX} ${bottomY}H${bottomLast.exit.x}`, stage: 3, from: 2, to: 3 },
     );
 
-    // Merge: both rows → campaign outputs.
+    // Continue every grid exit through its row, then merge into campaign outputs.
+    for (const row of rows) {
+        for (let index = 0; index < row.length - 1; index += 1) {
+            const output = row[index];
+            const next = row[index + 1];
+            if (!output || !next) continue;
+            segments.push({ d: lineageLinkPath(output.exit, next.entry), stage: 4, from: 3, to: 4 });
+        }
+    }
     const rowsExitX = Math.max(topLast.exit.x, bottomLast.exit.x);
     const bendX = roundPoint((rowsExitX + campaign.entry.x) / 2);
     segments.push(
@@ -197,15 +222,15 @@ function measureLineageLayout(track: HTMLElement, stage: number): LineageLayout 
 
     // Tail past the final node: exactly one gap long.
     const tail: LineagePoint = { x: roundPoint(campaign.exit.x + gap), y: campaign.exit.y };
-    dots.push({ ...tail, node: 4, visibleStage: 4, role: 'entry' });
+    dots.push({ ...tail, node: 4, visibleStage: 4, role: 'tail' });
     segments.push({ d: `M${campaign.exit.x} ${campaign.exit.y}H${tail.x}`, stage: 4, from: 4, to: 4 });
 
     const labels: Record<LineageLabelKey, LineagePoint> = {
         source: midpoint(source.exit, versions.entry),
         select: midpoint(versions.exit, selected.entry),
-        // center of the vertical spine between the two output rows
-        branch: midpoint({ x: splitX, y: topY }, { x: splitX, y: bottomY }),
-        deliver: midpoint(campaign.exit, tail),
+        // Center the label on the horizontal lead-in before the rows split.
+        branch: midpoint(selected.exit, { x: splitX, y: selected.exit.y }),
+        deliver: tail,
     };
 
     return {
@@ -219,12 +244,13 @@ function measureLineageLayout(track: HTMLElement, stage: number): LineageLayout 
     };
 }
 
-export function ProductionLineage({ stage, transitionStage, scrollDirection, labels = true, compact = false }: {
+export function ProductionLineage({ stage, transitionStage, scrollDirection, labels = true, compact = false, animateAllNodes = false }: {
     stage: number;
     transitionStage: OverviewTransitionStage;
     scrollDirection: 'up' | 'down';
     labels?: boolean;
     compact?: boolean;
+    animateAllNodes?: boolean;
 }) {
     const trackRef = useRef<HTMLDivElement>(null);
     const lastLayoutKeyRef = useRef('');
@@ -259,6 +285,8 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
         measure();
         const observer = new ResizeObserver(measure);
         observer.observe(track);
+        track.querySelectorAll('[data-photo-stack]').forEach((stack) => observer.observe(stack));
+        track.querySelectorAll('.photo-stack-card').forEach((card) => observer.observe(card));
         track.querySelectorAll('img').forEach((image) => observer.observe(image));
 
         return () => observer.disconnect();
@@ -287,7 +315,7 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
         const image = compactLineageImages[stage];
         return (
             <div className="production-lineage-compact" role="group" aria-label={`Production lineage stage ${stage + 1}`}>
-                {image ? <img src={image.src} alt={image.alt} /> : (
+                {stage === 1 ? <PhotoStack layout="diagonal" className="m-auto w-auto max-h-[400px] object-contain" cardStyle={{ background: '#11448f', border: 'solid 2px #f5ebe0', borderRadius: '1.5px'}}/> : image ? <img src={image.src} alt={image.alt} /> : (
                     <div className="compact-output-grid" aria-label="Six campaign variations">
                         {lineageOutputs.map((output) => <img key={output.src} src={output.src} alt={output.label} />)}
                     </div>
@@ -296,14 +324,15 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
                     .production-lineage-compact { width: 100%; height: 100%; min-height: 0; display: grid; place-items: center; overflow: hidden; }
                     .production-lineage-compact > img { display: block; width: 100%; height: 100%; object-fit: contain; }
                     .compact-output-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 3px; width: 100%; height: 100%; align-items: stretch; }
-                    .compact-output-grid img { width: 100%; height: 100%; min-height: 0; object-fit: cover; border: 2px solid #f5ebe0; }
+                    .compact-output-grid img { width: 100%; height: 100%; min-height: 0; object-fit: cover; object-position: center top; border: 2px solid #f5ebe0; }
                 `}</style>
             </div>
         );
     }
 
     const connectorVisible = (step: number) => step === stage && transitionStage !== 'hidden' && transitionStage !== 'exiting';
-    const visibleNodes = visibleLineageNodes(stage, typeof window === 'undefined' ? 1440 : window.innerWidth);
+    // Match the server on the first render; measurement selects the real viewport before paint.
+    const visibleNodes = visibleLineageNodes(stage, lineageLayout && typeof window !== 'undefined' ? window.innerWidth : 1440);
     const lineageNodeVisible = (node: number) => visibleNodes.includes(node);
     const nodePosition = (node: number): CSSProperties => ({
         left: positions[node] ?? 0,
@@ -327,13 +356,21 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
             scrollDirection,
         );
     };
-    const nodeMotionStyle = (node: number): CSSProperties => ({
-        ...motionStyle(node),
-        ...nodePosition(node),
-        ...(lineageNodeVisible(node) && (node !== stage || (transitionStage !== 'hidden' && transitionStage !== 'exiting'))
-            ? { opacity: 1, filter: 'blur(0px)' }
-            : { opacity: 0, filter: 'blur(10px)', pointerEvents: 'none' }),
-    });
+    const nodeMotionStyle = (node: number): CSSProperties => {
+        if (animateAllNodes) {
+            return {
+                ...overviewMotionStyle(stage, lineageNodeVisible(node) ? stage : -1, transitionStage, scrollDirection, 1),
+                ...nodePosition(node),
+            };
+        }
+        return {
+            ...motionStyle(node),
+            ...nodePosition(node),
+            ...(lineageNodeVisible(node) && (node !== stage || (transitionStage !== 'hidden' && transitionStage !== 'exiting'))
+                ? { opacity: 1, filter: 'blur(0px)' }
+                : { opacity: 0, filter: 'blur(10px)', pointerEvents: 'none' }),
+        };
+    };
     const connectorMotionStyle = (step: number): CSSProperties => connectorVisible(step)
         ? overviewMotionStyle(stage, step, transitionStage, scrollDirection)
         : {
@@ -346,7 +383,7 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
             transitionTimingFunction: blurExitEasing,
             transitionDelay: '0ms',
         };
-    // Labels are centered (via CSS translate) on the midpoint of their segment.
+    // CSS centers each badge below its anchor (segment midpoint or delivery end dot).
     const edgeLabelStyle = (step: number, key: LineageLabelKey): CSSProperties => {
         const point = lineageLayout?.labels?.[key];
         const retained = step < stage && lineageNodeVisible(step - 1) && lineageNodeVisible(step);
@@ -364,7 +401,9 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
         transitionDelay: connectorVisible(4) ? `${blurEnterDurationMs}ms` : '0ms',
     });
     const dotMotionStyle = (dot: LineageDot): CSSProperties => {
-        if (!lineageNodeVisible(dot.node) || dot.visibleStage > stage) return connectorMotionStyle(-1);
+        const isOuterDot = (dot.node === visibleNodes[0] && dot.role === 'entry')
+            || (dot.node === visibleNodes.at(-1) && dot.role === 'exit' && dot.node !== 4);
+        if (isOuterDot || !lineageNodeVisible(dot.node) || dot.visibleStage > stage) return connectorMotionStyle(-1);
         return dot.node === stage
             ? connectorMotionStyle(stage)
             : { ...overviewMotionStyle(stage, stage, 'idle', scrollDirection, 2), transitionDelay: '0ms' };
@@ -406,12 +445,12 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
                 </svg>
 
                 <div className={`lineage-node lineage-source ${0 < stage ? 'is-past' : ''}`} data-node="source" style={nodeMotionStyle(0)} aria-hidden={!lineageNodeVisible(0)}>
-                    <img src="/images/vcs/components/selected-version-sleeve.png" alt="Approved campaign portrait held in a clear archival sleeve" className='border-[8px] border-[#f5ebe0] rounded-[1.5px]' />
-                    {labels && <span className="lineage-node-label">approved source</span>}
+                    <img src="/images/vcs/components/selected-version-sleeve.png" alt="Approved campaign portrait held in a clear archival sleeve" className='border-[2px] border-[#f5ebe0] rounded-[1.5px]' />
+                    {labels && <Badge className="lineage-node-label">approved source</Badge>}
                 </div>
                 <div className={`lineage-node lineage-stack ${1 < stage ? 'is-past' : ''}`} data-node="versions" style={nodeMotionStyle(1)} aria-hidden={!lineageNodeVisible(1)}>
-                    <img src="/images/vcs/components/three-model-photo-stack.png" alt="Stack of campaign photo versions" />
-                    {labels && <span className="lineage-node-label">version history</span>}
+                    <PhotoStack layout="diagonal" className="m-auto w-auto max-h-[400px] object-contain" cardStyle={{ background: '#11448f', border: 'solid 2px #f5ebe0', borderRadius: '1.5px'}}/>
+                    {labels && <Badge className="lineage-node-label">version history</Badge>}
                 </div>
                 <div
                     className={`lineage-node lineage-selected ${2 < stage ? 'is-past' : ''}`}
@@ -422,7 +461,8 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
                     <img
                         src="/images/vcs/components/front-photo-print.png"
                         alt="Selected approved campaign portrait on a bordered photo print"
-                        style={{ transform: `rotate(${selectedRotationDeg}deg) scale(${selectedScale})` }}
+                        className='border-[2px] border-[#f5ebe0] rounded-[1.5px]'
+                        style={{ transform: `scale(${selectedScale})` }}
                     />
                     {labels && <Badge className="lineage-node-label">selected version</Badge>}
                     {labels && (
@@ -439,10 +479,10 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
 
                 {labels && (
                     <>
-                        <span className={`lineage-edge-label lineage-edge-source ${1 < stage ? 'is-past' : ''}`} style={edgeLabelStyle(1, 'source')}>new version</span>
-                        <span className={`lineage-edge-label lineage-edge-select ${2 < stage ? 'is-past' : ''}`} style={edgeLabelStyle(2, 'select')}>select approved</span>
-                        <span className={`lineage-edge-label lineage-edge-branch ${3 < stage ? 'is-past' : ''}`} style={edgeLabelStyle(3, 'branch')}>branch from source</span>
-                        <span className={`lineage-edge-label lineage-edge-deliver ${4 < stage ? 'is-past' : ''}`} style={deliverLabelMotionStyle()}>deliver outputs</span>
+                        <Badge className={`lineage-edge-label lineage-edge-source ${1 < stage ? 'is-past' : ''}`} style={edgeLabelStyle(1, 'source')}>new version</Badge>
+                        <Badge className={`lineage-edge-label lineage-edge-select ${2 < stage ? 'is-past' : ''}`} style={edgeLabelStyle(2, 'select')}>select approved</Badge>
+                        <Badge className={`lineage-edge-label lineage-edge-branch ${3 < stage ? 'is-past' : ''}`} style={edgeLabelStyle(3, 'branch')}>branch from source</Badge>
+                        <Badge className={`lineage-edge-label lineage-edge-deliver ${4 < stage ? 'is-past' : ''}`} style={deliverLabelMotionStyle()}>deliver outputs</Badge>
                     </>
                 )}
 
@@ -474,7 +514,18 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
                     ))}
                 </div>
                 <div className={`lineage-node lineage-campaign-outputs ${4 < stage ? 'is-past' : ''}`} data-node="campaign-outputs" style={nodeMotionStyle(4)} aria-hidden={!lineageNodeVisible(4)}>
-                    <img src="/images/vcs/components/version-stack.png" alt="Campaign output versions arranged as an archival photo stack" />
+                    {/* <img src="/images/vcs/components/version-stack.png" alt="Campaign output versions arranged as an archival photo stack" /> */}
+                    <PhotoStack
+                        layout="diagonal"
+                        images={[
+                            '/images/vcs/components/version-stack-01.png',
+                            '/images/vcs/components/version-stack-02.png',
+                            '/images/vcs/components/version-stack-03.png',
+                            '/images/vcs/components/version-stack-04.png',
+                        ]}
+                        className="m-auto w-[350px] max-h-[400px] object-contain"
+                        cardStyle={{ background: '#11448f', border: 'solid 2px #f5ebe0', borderRadius: '1.5px'}}
+                        />
                     {labels && <Badge className="lineage-node-label">campaign outputs</Badge>}
                 </div>
             </div>
@@ -492,19 +543,25 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
           min-height: 0;
           flex: 0 1 auto;
           color: white;
-          overflow: hidden;
+          overflow: visible;
           margin: auto;
         }
         /* Nodes occupy measured slots; the SVG uses the same pixel coordinates. */
         .production-lineage-track {
           position: absolute; inset: 0; width: 100%; height: 100%;
         }
+        @media (max-width: 63.99rem) {
+          .production-lineage { height: 100%; container-type: inline-size; }
+          .production-lineage-track {
+            inset: auto 0; top: 50%; translate: 0 -50%;
+            height: min(100%, 42cqw);
+          }
+          .production-lineage[data-stage='0'] .production-lineage-track { height: min(100%, 100cqw); }
+          .production-lineage[data-stage='1'] .production-lineage-track { height: min(100%, 48cqw); }
+          .production-lineage[data-stage='4'] .production-lineage-track { height: min(100%, 33cqw); }
+        }
         @media (min-width: 64rem) and (max-width: 79.99rem) {
           .production-lineage { height: clamp(0px, calc(30svh - 100px), 240px); }
-          .production-lineage[data-stage='4'] .lineage-selected {
-            opacity: 1 !important; filter: blur(0) !important;
-            transform: translateX(0) !important; translate: 0 0 !important;
-          }
         }
         .production-lineage-lines {
           position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; overflow: visible;
@@ -518,23 +575,28 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
         }
         .lineage-node {
           position: absolute; top: 0; width: max-content; height: 100%;
-          display: flex; align-items: center; justify-content: center;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         /* Height-driven: the box is exactly the artwork, so box edge === visible edge. */
         .lineage-node img {
           display: block; flex: none; box-sizing: border-box;
           height: 100%; width: auto; max-width: none;
         }
-        .lineage-node-label, .lineage-edge-label, .lineage-output-label {
+        .production-lineage :global(.lineage-node-label),
+        .production-lineage :global(.lineage-edge-label),
+        .production-lineage :global(.lineage-output-label) {
           position: absolute; z-index: 2; white-space: nowrap;
           font-family: var(--font-die-grotesk-b); font-size: clamp(6px, .65vw, 9px); font-weight: 400; line-height: 1.05;
         }
-        .lineage-node-label { bottom: 6px; left: 50%; translate: -50% 0; }
+        .production-lineage :global(.lineage-node-label) { bottom: 6px; left: 50%; translate: -50% 0; }
         /* translate, not transform: the inline motion style sets transform, which
            would otherwise win and drop the label off its connector. left/top are inline
-           and measured: the exact midpoint of the segment. */
-        .lineage-edge-label { translate: -50% -50%; }
-        /* Two centered rows; each image scales to its row height, uncropped. */
+           and measured: the segment midpoint or delivery end dot. Badge renders its own
+           DOM element, so these selectors cross the styled-jsx boundary. */
+        .production-lineage :global(.lineage-edge-label) {
+          width: max-content; translate: -50% 0; margin-top: 8px;
+        }
+        /* Equal frames retain the top row's proportions and crop taller images at the bottom. */
         .lineage-output-grid {
           position: absolute; top: 0; width: max-content; height: 100%;
           display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -544,29 +606,30 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
           display: flex; align-items: center; column-gap: var(--lineage-inner-gap);
           height: calc((100% - var(--lineage-inner-gap)) / 2); min-height: 0;
         }
-        .lineage-output { position: relative; flex: none; height: 100%; overflow: hidden; background: #07121d; }
+        .lineage-output { position: relative; flex: none; height: 100%; aspect-ratio: 1199 / 1312; overflow: visible; background: #272799; }
         .lineage-output img {
           display: block; box-sizing: border-box;
-          height: 100%; width: auto; max-width: none;
-          border: 6px solid #f5ebe0;
+          height: 100%; width: 100%; max-width: none;
+          object-fit: cover; object-position: center top;
+          border: 2px solid #f5ebe0;
           border-radius: 1.5px;
           box-shadow: 0 3px 10px rgba(0,0,0,.3);
         }
-        .lineage-output-label { left: 50%; bottom: 0; translate: -50% 0; }
+        .production-lineage :global(.lineage-output-label) { left: 50%; bottom: 0; translate: -50% 0; }
         @media (min-width: 64rem) and (max-height: 760px) {
-          .production-lineage { height: clamp(0px, calc(21svh - 120px), 120px); }
+          .production-lineage { display: none; }
         }
         .lineage-provenance {
           position: absolute;
-          top: 0;
+          top: -4px;
           left: 50%;
-          transform: translateX(-50%);
+          transform: translate(-50%, -50%);
           display: flex;
           flex-direction: column;
           align-items: center;
           z-index: 3;
         }
-        .lineage-provenance-label {
+        .production-lineage :global(.lineage-provenance-label) {
           display: inline-flex;
           flex-direction: column;
           gap: 1px;
@@ -582,9 +645,9 @@ export function ProductionLineage({ stage, transitionStage, scrollDirection, lab
         @media (max-width: 63.99rem) {
           .lineage-provenance { display: none; }
         }
-        .production-lineage[data-labels='off'] .lineage-node-label,
-        .production-lineage[data-labels='off'] .lineage-edge-label,
-        .production-lineage[data-labels='off'] .lineage-output-label,
+        .production-lineage[data-labels='off'] :global(.lineage-node-label),
+        .production-lineage[data-labels='off'] :global(.lineage-edge-label),
+        .production-lineage[data-labels='off'] :global(.lineage-output-label),
         .production-lineage[data-labels='off'] .lineage-provenance { display: none; }
       `}</style>
         </div>

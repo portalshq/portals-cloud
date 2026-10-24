@@ -235,8 +235,8 @@ function SectionShell({
   const Icon = modeCopy.icon
   const showBadge = mode !== 'request'
   return (
-    <section id={id} className="border-t border-white/80 py-28 lowercase" style={{ scrollMarginTop }}>
-      <div className="flex items-start justify-between gap-16">
+    <section id={id} className="border-t border-white/80 py-28" style={{ scrollMarginTop }}>
+      <div className="flex items-start justify-between gap-16 lowercase">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-10">
             <h2 className="t-h3-sans">{title}</h2>
@@ -274,6 +274,7 @@ function SectionShell({
         id={`${id}-content`}
         style={{
           display: 'grid',
+          textTransform: 'lowercase',
           gridTemplateRows: open ? '1fr' : '0fr',
           opacity: open ? 1 : 0,
           visibility: open ? 'visible' : 'hidden',
@@ -978,7 +979,7 @@ export function PilotApprovalRoom({
   async function onInvoice() {
     setBusy(true)
     setError('')
-    setNotice('')
+    setNotice('Payment processing. Keep this window open.')
     try {
       const response = await fetch(`/api/pilot/${pilot.id}/invoice`, {
         method: 'POST',
@@ -1139,9 +1140,9 @@ export function PilotApprovalRoom({
       )
     }
     if (pilot.state === 'signed' || (pilot.state === 'launch' && !pilot.payment?.paidAt)) {
+
       return (
         <div className="grid gap-10">
-          {pilot.payment?.paymentStatus === 'processing' ? <p className="t-p-sm-sans text-white/70">Payment processing. You can keep this room open; the status will update from Stripe.</p> : null}
           {pilot.state === 'signed' && kickoffAvailability.length > 0 ? (
             <label className="t-p-sm-sans text-white/70">
               Preferred launch slot
@@ -1151,7 +1152,7 @@ export function PilotApprovalRoom({
             </label>
           ) : null}
           <div className="flex flex-wrap gap-10">
-            <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>Pay the {pilot.proposal?.priceLabel || 'pilot fee'}</button>
+            <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>Pay now {pilot.proposal?.priceLabel ? `(${pilot.proposal.priceLabel})` : ''}</button>
             <button onClick={() => void onInvoice()} disabled={busy} className={plainButtonClasses}>Pay by invoice</button>
           </div>
         </div>
@@ -1198,7 +1199,7 @@ export function PilotApprovalRoom({
       <TooltipProvider>
         <div ref={pageContentRef} className="min-w-0 max-w-full [overflow-wrap:anywhere]">
 
-      <div className="z-20 mt-20">
+      <div className="z-20 my-24">
         <div className="grid gap-8 lg:items-start mb-20">
 
             <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-12 gap-y-4">
@@ -1221,7 +1222,26 @@ export function PilotApprovalRoom({
               Review the pilot scope, success criteria, security posture, and commercial terms. Make changes, save them, then approve the pilot when everything is correct.
             </p>
         </div>
-      </div>
+
+        {
+        pilot.state === 'active' ? (
+          <div className="mt-24 grid gap-16 rounded-sm bg-[#07112C]/30 px-18 py-16 text-white">
+            <p className="t-p-sm-sans">The pilot is live. The final evaluation will be assessed against the agreed criteria.</p>
+            {/* <CTAButton href="/account" analyticsLabel="pilot room return to account">
+              Return to account
+            </CTAButton> */}
+          </div>
+        ) : null
+      }
+
+      {
+        sessionId && !pilot.payment?.paidAt ? (
+          <div className="mt-24 rounded-sm border border-white/80 bg-white/10 px-18 py-16">
+            <p className="t-p-sm-sans font-medium">Payment received. Finalizing your pilot record.</p>
+            <p className="mt-8 t-p-sm-sans text-white/80">This page refreshes the pilot status without leaving the room.</p>
+          </div>
+        ) : null
+      }
 
       {
         pilot.state === 'paid' || (pilot.state === 'launch' && pilot.payment?.paidAt) ? (
@@ -1231,6 +1251,8 @@ export function PilotApprovalRoom({
           </div>
         ) : null
       }
+
+
 
       {
         pilot.state === 'not_eligible' ? (
@@ -1282,7 +1304,7 @@ export function PilotApprovalRoom({
       {
         pilot.exceptions.some((item) => !item.resolvedAt) ? (
           <div id="exceptions" className="mt-24 bg-white/10 rounded-sm px-18 py-16" style={{ scrollMarginTop: '140px' }}>
-            <p className="t-p-sm-sans">These terms need review before the pilot can be approved.</p>
+            <p className="t-p-sm-sans font-medium">These terms need review before the pilot can be approved.</p>
             <ul className="mt-12 grid gap-24">
               {pilot.exceptions.map((item, index) => (
                 <li key={item.kind + index} className="grid gap-4 t-p-sm-sans">
@@ -1362,6 +1384,8 @@ export function PilotApprovalRoom({
           </div>
         ) : null
       }
+      </div>
+
 
       <SectionShell
         id="scope"
@@ -1554,8 +1578,8 @@ export function PilotApprovalRoom({
         summary="Review progress for each section: workflow scope, success criteria, technical scope, security posture, and agreement."
       >
         <dl className="grid gap-10 t-p-sm-sans">
-          {reviewRows.map((row) => (
-            <div key={row.section} className="grid gap-4 border-b border-white/80 pb-10">
+          {reviewRows.map((row, index) => (
+            <div key={row.section} className={`grid gap-4 ${index === reviewRows.length - 1 ? '' : 'border-b border-white/80 pb-10'}`}>
               <dt className="text-white/80">{row.section}</dt>
               <dd className={toneClasses(row.view.tone)}>{row.view.label}</dd>
             </div>  
@@ -1567,12 +1591,11 @@ export function PilotApprovalRoom({
         id="reviewers"
         title="Reviewers"
         mode={invitationsUnlocked ? 'editable' : 'readonly'}
-        summary="Confirm who needs access to this room. People with multiple roles are grouped together, but each role is reviewed independently."
+        summary="Confirm who needs access to this room. Reviewers may hold more than one role. One reviewer per role is required for a review task."
       >
         {!invitationsUnlocked ? (
-          <p className="mb-14 t-p-sm-sans">Invitations unlock after the draft is ready for team review.</p>
+          <p className="mb-14 t-p-sm-sans">Reviewer invitations unlock after the draft is ready for team review.</p>
         ) : null}
-        <p className="mb-12 t-p-sm-sans">Each person appears once. Role badges show all review roles assigned to that person.</p>
         <div className="grid gap-12">
           {portalsTeamEmails.map((email) => (
             <div key={`portals:${email}`} data-reviewer-role={PORTALS_TEAM_REVIEWER_ROLE} className="grid gap-6 rounded-sm border border-white/80 px-18 py-16">
@@ -1835,26 +1858,6 @@ export function PilotApprovalRoom({
               <p className="t-p-sm-sans">Authorized signer details can be entered once the agreement is ready for signature.</p>
             )}
           </SectionShell>
-        ) : null
-      }
-
-      {
-        pilot.state === 'active' ? (
-          <div className="mt-24 grid gap-16 bg-[#07112C] px-18 py-16 text-white">
-            <p className="t-p-sm-sans">The pilot is live. The final evaluation will be assessed against the agreed criteria.</p>
-            <CTAButton href="/account" analyticsLabel="pilot room return to account">
-              Return to account
-            </CTAButton>
-          </div>
-        ) : null
-      }
-
-      {
-        sessionId && !pilot.payment?.paidAt ? (
-          <div className="mt-24 border border-white/80 bg-white/10 px-18 py-16">
-            <p className="t-p-sm-sans font-medium">Payment received. Finalizing your pilot record.</p>
-            <p className="mt-8 t-p-sm-sans text-white/80">This page refreshes the pilot status without leaving the room.</p>
-          </div>
         ) : null
       }
 

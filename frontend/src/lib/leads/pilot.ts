@@ -1083,7 +1083,7 @@ export function computePilotProgressUnresolved(input: PilotProgressInput): Unres
     add({
       key: 'payment',
       label: 'Record the pilot fee payment',
-      resolution: 'Pay the pilot fee to schedule kickoff.',
+      resolution: 'Pay the pilot fee to schedule launch.',
       href: '#pilot-actions',
     })
   }

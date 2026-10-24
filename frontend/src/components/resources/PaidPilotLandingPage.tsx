@@ -101,12 +101,25 @@ function StaticPilotBackground() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0"
-      style={{
-        backgroundImage:
-          'linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
-      }}
-    />
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'linear-gradient(180deg, rgba(1, 5, 40, 0.12) 0%, rgba(1, 5, 40, 0.74) 100%), linear-gradient(135deg, #010528 0%, #142E78 38%, #2F66B5 68%, #79C7DA 100%)',
+        }}
+      />
+      <svg className="absolute inset-0 h-full w-full opacity-30 mix-blend-soft-light" aria-hidden="true" preserveAspectRatio="none">
+        <defs>
+          <filter id="pilot-page-noise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.003" numOctaves="3" seed="8" stitchTiles="stitch" />
+            <feColorMatrix type="saturate" values="0" />
+          </filter>
+        </defs>
+        <rect width="100%" height="100%" filter="url(#pilot-page-noise)" />
+      </svg>
+    </div>
   )
 }
 
@@ -553,6 +566,7 @@ export function PaidPilotLandingPage({
   pilotMode,
   assessmentOrigin = 'standard',
   annualOptions = [],
+  packageSpecifications,
   initialAnswers,
 }: {
   document: ResourceDocument
@@ -562,9 +576,10 @@ export function PaidPilotLandingPage({
   pilotMode?: 'standard' | 'assisted'
   assessmentOrigin?: 'standard' | 'assessment_override'
   annualOptions?: Array<{ slug: string; name: string; priceLabel: string }>
+  packageSpecifications?: PackageSpecification[]
   initialAnswers?: Record<string, unknown>
 }) {
-  const packageSpecifications = document.packageSpecifications || []
+  const resolvedPackageSpecifications = packageSpecifications ?? document.packageSpecifications ?? []
   useEffect(() => {
     void trackEvent('paid_pilot_page_viewed', { assessment_arrival: Boolean(context.assessmentCompleted), qualification_tier: context.qualificationTier })
     if (context.assessmentCompleted && (context.qualificationTier === 'high' || context.qualificationTier === 'medium')) {
@@ -598,7 +613,7 @@ export function PaidPilotLandingPage({
           data-webgl-marker="scrollTo"
           data-webgl-position="0.96"
         />
-        <PilotForm annualOptions={annualOptions} specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={packageSpecifications} initialAnswers={initialAnswers} />
+        <PilotForm annualOptions={annualOptions} specSummary={formSpecSummary} context={context} offer={offer} offerTerms={offerTerms} pilotMode={pilotMode} assessmentOrigin={assessmentOrigin} packageSpecifications={resolvedPackageSpecifications} initialAnswers={initialAnswers} />
         <Objective document={document} />
         <ScopeAndMilestone document={document} />
         <SuccessCriteria document={document} offerTerms={offerTerms} />

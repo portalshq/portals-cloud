@@ -72,6 +72,7 @@ export default async function PaidPilotPage({
       document={document}
       context={context}
       annualOptions={annualOptions}
+      packageSpecifications={packages}
       offer={offer}
       offerTerms={offerVariant ? {
           pilotPriceLabel: offerVariant.pilotPriceLabel,

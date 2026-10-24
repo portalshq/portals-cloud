@@ -37,7 +37,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     target: '#your-review',
-    title: 'Your Review',
+    title: 'Confirm Pilot Terms',
     description: 'As an assigned reviewer, review the current terms revision. Confirm the terms or request specific changes with notes.',
   },
   {

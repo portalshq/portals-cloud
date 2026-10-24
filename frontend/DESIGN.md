@@ -1,7 +1,7 @@
 ---
 name: Portals
 description: Immersive editorial design system for the Portals production repository
-sourceOfTruth: "src/pages/vcs-current.tsx"
+sourceOfTruth: "src/views/vcs/a.tsx"
 theme:
   direction: "cinematic, editorial, fluid, immersive"
   foreground: "#ffffff"
@@ -37,7 +37,7 @@ shape:
   controlRadius: "4px"
   defaultRadius: "0px"
 motion:
-  standardDuration: "500ms"
+  standardDuration: "240ms"
   overviewEnter: "1250ms"
   overviewExit: "400ms"
   overviewStagger: "150ms"
@@ -53,7 +53,7 @@ The defining impression is **cinematic continuity**. The background, typography,
 
 The current design language is:
 
-- Immersive rather than card-based.
+- Immersive rather than card-based for the editorial marketing narrative; focused transaction flows may use explicit selection cards.
 - Editorial rather than dashboard-like.
 - Color-rich rather than achromatic.
 - Fluid and responsive rather than governed by a small fixed type scale.
@@ -73,10 +73,11 @@ Color progression is a core part of the identity and gives each scroll chapter a
 White is the universal foreground:
 
 - Primary text and icons: `#ffffff`
-- Secondary table text: white at 80% opacity
+- Text is fully opaque white by default. `text-white/80` is the sole translucent text treatment; use it sparingly for brief field names or compact secondary metadata. Never use lower-opacity text classes.
+- Disabled-control opacity is an interaction state, not a text-hierarchy token; do not apply opacity to supporting copy to make it recede.
 - Quiet borders and fills: white at 10–30% opacity
 
-The system does not use a separate brand accent for calls to action. Hierarchy comes from size, font contrast, opacity, layout, and glass treatment.
+The system does not use a separate brand accent for calls to action. Text hierarchy comes from type role, scale, spacing, and placement—not progressively weaker opacity. Surface and border opacity remain separate tools and do not set a precedent for translucent text.
 
 ### Translucency
 
@@ -94,7 +95,7 @@ These treatments should remain sparse. They are functional lenses over the movin
 ### Color rules
 
 - Keep text white across all color-ramp states.
-- Use opacity, not new hues, for secondary information.
+- Keep text fully white by default. Reserve `text-white/80` for sparse, short labels or metadata that genuinely needs a quieter tier; do not reduce paragraph, helper, or explanatory-copy opacity.
 - Preserve enough darkness or saturation behind text to maintain contrast.
 - Treat the WebGL palette as a continuous environmental field, not as discrete section background tokens.
 - Do not introduce amber, slate, beige, or solid charcoal themes; they are not part of this page.
@@ -133,7 +134,7 @@ Used for supporting copy, headings, branding, controls, tables, and lists.
 
 ### Utility mono — Aeonik Fono
 
-`t-m2` is a fluid `13.74–22.11px`, uppercase, 100% line-height utility style. It is used for:
+`t-m2` is a fluid `13.74–22.11px`, 100% line-height utility style. Use its mono voice for:
 
 - Two-digit overview indices
 - Problem-card numbers
@@ -150,8 +151,9 @@ Number markers use single padding: `01`, `02`, `03`, not `001`, `002`, `003`.
 - Use the serif to create tonal shifts inside large sans statements.
 - Preserve deliberately tight display leading.
 - Keep large copy widths expressed in `em` so measure scales with type.
-- Lowercase is a recurring voice choice for the brand, hero, comparison language, and supporting label.
-- Avoid generic system fonts, tracked eyebrow labels above every section, and conventional 72px display ceilings; this page intentionally scales beyond them.
+- Prefer sentence case or the brand's intentional lowercase voice. Do not use uppercase as a generic styling device, including for utility labels; avoid all-caps copy and wide tracking.
+- Do not add decorative eyebrow/kicker labels above headings. Begin with the actual page or section heading; use a concise contextual label only when it conveys necessary information (for example, a form field name or status).
+- Avoid generic system fonts and conventional 72px display ceilings; this page intentionally scales beyond them.
 
 ## 4. Layout and spatial system
 
@@ -181,7 +183,7 @@ Major chapters use generous vertical duration:
 
 - Hero: at least one viewport high
 - Lead, problem, and solution chapters: one viewport on desktop where appropriate
-- Overview: a `900vh` desktop scroll stage with a sticky full-screen composition
+- Overview: a `900vh` scroll stage with a sticky full-screen composition and a dedicated mobile item layout
 - Closing CTA: one viewport high
 
 The page should breathe in chapters. Avoid compressing it into a conventional sequence of compact content bands.
@@ -191,8 +193,10 @@ The page should breathe in chapters. Avoid compressing it into a conventional se
 Desktop begins at `64rem`.
 
 - Below desktop, complex grids become single-column or two-column arrangements.
-- The pinned overview becomes a long vertical list with large gaps (`106–212px`).
-- The header is absolute on small screens and fixed from the medium breakpoint.
+- The overview keeps the existing mobile item composition within a pinned scroll sequence, sharing desktop's progress bar and blur timings. Mobile grid items fill the stage height; supporting copy reveals cumulatively in separate rows within a 400px-high scrolling text area. Every visible lineage node blurs on entry and exit. The lineage fills the remaining space and aligns with the text's starting column.
+- Oversized decorative media may extend beyond its designed composition, but must be clipped by that composition rather than expanding the document viewport. Prefer `overflow-x: clip` on the owning section; avoid using page-wide overflow suppression to hide component-level overflow.
+- In mobile app shells, constrain grid children with `min-width: 0`. Keep horizontally scrollable navigation inside its own viewport so its intrinsic link width cannot widen the sidebar or main content column.
+- The shared header is fixed at the top at every breakpoint, transparent, and borderless.
 - Comparison rows stack their metric and both states; contextual column labels appear inside each row.
 - Pricing, cards, and audience groups stack to one column.
 
@@ -202,26 +206,27 @@ Mobile is a recomposition of the same narrative, not a miniaturized desktop layo
 
 ### Header
 
-The header is `78px` high and overlays the page. It contains only:
+The header is `78px` high, fixed, transparent, borderless, and overlays the page. It contains:
 
 - Lowercase `portals` wordmark in the sans heading face
-- A single Scope a pilot control
+- An optional breadcrumb for page context
+- A `Get started` action that links to pricing (same-page `#pricing` on the homepage, `/#pricing` elsewhere)
 
-Keep navigation minimal. The moving canvas and hero need visual room.
+Keep navigation minimal. The moving canvas and hero need visual room. Do not add an opaque fill, blur, or divider line to the shared header.
 
 ### CTA button
 
 The primary CTA is a compact glass control:
 
-- Minimum width `220px`
+- Minimum width `180px` from the medium breakpoint
 - Height `48px`
 - Horizontal padding `18px` left and `12px` right
 - `4px` radius
-- `1px` white/10 border
-- White/12 fill
-- `50px` backdrop blur
+- `1px` white/50 border
+- White/8 fill
+- `32px` backdrop blur
 - White text in medium sans
-- 100ms border transition to white on hover
+- 240ms backdrop transition; hover fill moves to white/16 and border to white/80
 
 There is no solid accent button, shadow, lift, or transform.
 
@@ -237,7 +242,7 @@ This square-plus-number construction is the recurring marker language.
 
 ### Editorial content groups
 
-Problem cards, audience entries, and pricing tiers rely on shared grid alignment and whitespace rather than independent filled cards. They typically use `24px` internal padding with no background.
+Problem cards and audience entries rely on shared grid alignment and whitespace rather than independent filled cards. Pricing tiers may use restrained tier-specific translucent fills and clear outlines to make commercial choices easy to compare. Use a bordered, selectable surface when a repeated item is an actual choice; otherwise prefer the open editorial-group pattern.
 
 Do not automatically add borders around every item. Some groups are intentionally open; separators appear only where the composition needs them.
 
@@ -249,7 +254,7 @@ The comparison is a typographic three-column matrix:
 - Without Portals
 - With Portals
 
-Rows use white/50 top rules. Desktop columns use white/50 left rules. Secondary content drops to 80% opacity. The table remains visually integrated with the canvas rather than enclosed in a card.
+Rows use white/50 top rules. Desktop columns use white/50 left rules. Keep table text white; a short field or column label may use `text-white/80` sparingly. The table remains visually integrated with the canvas rather than enclosed in a card.
 
 ### Capability group
 
@@ -301,11 +306,11 @@ On desktop, the overview is pinned while five concepts advance through scroll:
 
 Each state replaces the previous one in place. Content exits with opacity and `10px` blur over `400ms`, then enters over `1250ms` using an expressive ease-out curve. Four content layers stagger by `150ms`: title/icon, first copy column, middle copy/list column, and final statement. A thin horizontal progress line scales from the left.
 
-On mobile, all overview items are visible in sequence and the pinned interaction is removed.
+On mobile, the existing `OverviewMobileItem` composition shares desktop's pinned scroll sequence, active-stage state, progress bar, and bidirectional blur transitions. Each item fills the available stage height. Supporting copy occupies separate rows; scroll progress reveals each row while retaining earlier rows, as on desktop. The lineage uses two visible nodes and remains available on short mobile screens with tighter spacing. Reduced-motion preferences disable mobile transitions. Desktop behavior is unchanged, including hiding the lineage and its grid row on viewports 760px high or shorter.
 
 ### Interaction motion
 
-- Button hover changes translucent fill over `500ms`.
+- Use `240ms` as the default for simple control color/backdrop feedback. Use a slower transition only when the motion is perceptible and intentional; staged overview choreography uses its separately specified timings.
 - Do not add routine card lifts, bounce, parallax text, or shadow animation.
 - Preserve `prefers-reduced-motion`: overview transitions are disabled when reduced motion is requested.
 
@@ -326,7 +331,9 @@ Use these patterns when extending the page:
 ### Do
 
 - Let the animated color field remain visible through the page.
-- Use white as the primary interface color and opacity for secondary hierarchy.
+- Use full-opacity white for text by default. `text-white/80` is the only translucent text class, reserved sparingly for brief labels or compact metadata; never use lower-opacity text classes.
+- Write labels and headings in sentence case or intentional lowercase. Do not style text in all caps or add wide tracking as a generic hierarchy cue.
+- Start pages and sections with their real heading, not a decorative eyebrow or kicker. Add a short label only when it carries functional context.
 - Pair Die Grotesk and STK Bureau within important statements.
 - Use the 24-column grid to create offset and asymmetric compositions.
 - Scale typography and spacing fluidly.
@@ -341,9 +348,9 @@ Use these patterns when extending the page:
 - Do not use Geist or JetBrains Mono; they are not the page’s typefaces.
 - Do not describe the system as brutalist, achromatic, or zero-radius.
 - Do not prohibit backdrop blur; it is part of the implemented component language.
-- Do not place content on opaque dark cards.
+- Do not place content on opaque dark cards; transparent outlined selection controls and restrained translucent fills are appropriate when a surface has a functional grouping or choice role.
 - Do not add shadows or elevation to create hierarchy.
-- Do not turn every repeated item into a bordered card.
+- Do not turn every repeated editorial item into a bordered card. Use borders to signal real grouping, boundaries, or explicit choices.
 - Do not add gradients as isolated CSS decoration; color belongs to the shared WebGL environment.
 - Do not add a conventional navigation bar full of links.
 - Do not standardize all headings into one sans style; serif contrast is fundamental.
@@ -352,7 +359,7 @@ Use these patterns when extending the page:
 
 ## 9. Source-of-truth rule
 
-`src/views/vcs-current/a.tsx`, together with `src/saga-repro.css`, `src/saga.css`, and `public/saga-webgl.js`, defines the current design language. This document should follow those implementations. If the page and this document diverge, update this document to describe the page rather than preserving obsolete guidance.
+`src/views/vcs/a.tsx`, together with `src/saga-repro.css`, `src/saga.css`, and `public/saga-webgl.js`, defines the marketing visual foundation. Shared component source defines reusable controls and page shells. This document turns those into repeatable principles for new components and pages. If implementation and documentation diverge, verify whether the source is an intentional local variant before updating the shared rule.
 
 ## 10. Marketing subpages (everything under `app/(marketing)/` except `/`)
 
@@ -361,8 +368,9 @@ tint the background where present; the flat fallback is `#010528` and must hold
 contrast on its own.
 
 - Type: pillar H1s use `t-d2-sans`. `t-d1-sans` is reserved for `/` and the
-  `/use-cases` hub. Eyebrow labels (`t-p-sans`, uppercase, `tracking-[.16em]`,
-  `text-white/45`) mark page position, not every section.
+  `/use-cases` hub. Use sentence case or intentional lowercase throughout; do
+  not add uppercase eyebrow labels. Keep supporting copy fully white, with
+  `text-white/80` used only for sparse, brief labels or metadata.
 - Surfaces: hairlines `white/15–20`, fills `white/5–12`, hover `white/10–15`.
   One primary glass CTA + one quiet `plain` secondary per viewport.
 - Banned on subpages (do not reintroduce): solid `#343434`, `#101010`, amber/beige
@@ -370,3 +378,42 @@ contrast on its own.
   headers. Use `src/components/marketing/MarketingPageShell.tsx`.
 - Page shell: `ui-grid`, section padding `py-fluid-[76,106]`, hero `min-h-[70vh]`,
   H1 `max-w-5xl`, lede `max-w-3xl`, shared `MarketingHeader` breadcrumbs.
+
+## 11. Reusable styling reference
+
+Use these principles as the default when creating any new page or component. They define the shared visual grammar; the page's purpose determines its composition and exact spacing.
+
+### Text and hierarchy
+
+- Set primary and supporting text in full-opacity white. The only permitted translucent text utility is `text-white/80`, used sparingly for short field names, compact metadata, or similarly minor labels. Never use weaker text opacity to manufacture hierarchy.
+- Establish hierarchy through semantic role, typeface, size, weight, line-height, measure, and whitespace. Use the defined Die Grotesk and STK Bureau families; mono is for concise utility information, not paragraphs.
+- Prefer sentence case or intentional lowercase. Do not use all-caps labels, arbitrary uppercase, or wide tracking as a default styling technique.
+- Do not add decorative eyebrow/kicker text above headings. Lead with the actual page or section heading. Add a label only when it communicates useful context such as a field name, status, or sequence.
+- Keep explanatory and helper copy readable at full opacity. Reserve color changes for meaning (for example, errors), not generic secondary ranking.
+
+### Layout and spacing
+
+- Choose the layout to fit the content: use the 24-column asymmetric grid and fluid margins for editorial/marketing compositions; use a readable constrained column for focused tasks and forms. Do not force every page into one template.
+- Use whitespace to group related content and distinguish hierarchy. Prefer the existing fluid spacing tokens for page-level rhythm and a consistent compact scale (`8`, `12`, `16`, `20`, `24`, `32`) inside controls and groups.
+- Align repeated elements to a shared grid or edge. Stack controls on narrow screens and introduce columns only when they remain legible and comfortably operable.
+- Let the ambient background remain visible. Do not add a panel simply to contain content; a surface needs a clear grouping, interaction, or readability purpose.
+
+### Surfaces, borders, and shape
+
+- Keep default surfaces transparent or subtly translucent. Use white fills around 5–12% for quiet grouping and hover states; stronger fills should be reserved for a clearly selected or emphasized state. Surface opacity does not license translucent text.
+- Use hairline borders (`white/10–20`) for structural separation, and stronger outlines (`white/50` or above) when a control must read as an explicit boundary or choice. Do not outline every content group.
+- Use the 4px control radius for interactive elements; keep general editorial surfaces flat unless the source pattern calls for grouping. Avoid shadows, elevation, and decorative gradients.
+- Keep focus, hover, pressed/selected, disabled, and error states distinguishable. State changes must preserve text contrast and be perceivable without relying on opacity alone; use semantic HTML and ARIA state where applicable.
+
+### Controls and interaction
+
+- Buttons and links should look and behave like their function: primary actions use the shared compact glass CTA; secondary actions may use the plain underlined appearance; choices should present a clear boundary and selected state without disguising one option as body copy.
+- Keep labels and action copy concise, in sentence case or intentional lowercase. Avoid ornamental all-caps microcopy.
+- Use `240ms` as the default duration for simple color, border, or backdrop feedback. Limit transitions to the properties that change. Use longer choreography only for deliberate narrative motion, following the overview pattern above.
+- Provide visible keyboard focus, adequate hit areas, disabled feedback, and reduced-motion behavior for substantial animation. Do not add routine lift, bounce, or shadow effects.
+
+### Page frame and navigation
+
+- Use semantic landmarks and a clear heading order. A page begins with its actual title, not a decorative label. Keep task flows direct; editorial pages may use the more expansive chapter-based composition.
+- The shared site header stays fixed, transparent, and borderless, with minimal navigation and a clear path to pricing. Do not add an opaque bar, divider, or per-page header variant.
+- On small screens, preserve hierarchy and breathing room while recomposing complex grids and interactions; do not merely shrink desktop layouts.
