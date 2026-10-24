@@ -1007,10 +1007,11 @@ export function computePilotProgressUnresolved(input: PilotProgressInput): Unres
   }
   const pendingException = input.exceptions.some((item) => !item.resolvedAt)
 
-  // Filter out the signer exception unless the pilot is ready for signature
-  // The signature section is only editable in ready_sign state and later
-  const SIGNING_STATES: PilotState[] = ['ready_sign', 'signed', 'paid', 'launch', 'active']
-  if (!SIGNING_STATES.includes(input.state)) {
+  // The signer item is actionable only while the signature section is
+  // editable (ready_sign). Once the pilot is signed, pilot.signing records the
+  // captured identity, so the item can never be resolved again and must be
+  // dropped for signed, paid, launch, and active pilots as well.
+  if (input.state !== 'ready_sign') {
     const signerIndex = unresolved.findIndex((item) => item.key === 'signer')
     if (signerIndex !== -1) {
       unresolved.splice(signerIndex, 1)

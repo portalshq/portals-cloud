@@ -1516,6 +1516,12 @@ export async function PATCH(
       })
       const updated = await updatePilot(id, {
         state: stateChange.state,
+        // Persist the captured signer identity so answer-derived artifacts
+        // (unresolved items, CRM projections, drafts) stay consistent.
+        answers: {...answers, signerName: name, signerEmail: email},
+        // The signer item was raised while the signature section was still
+        // editable; signing satisfies it, so clear it from the persisted list.
+        unresolved: pilot.unresolved.filter((item) => item.key !== 'signer'),
         signing: {
           ...(pilot.signing || {}),
           name,

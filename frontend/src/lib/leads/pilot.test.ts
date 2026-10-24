@@ -300,48 +300,31 @@ test('approver requirement resolves from the reviewer roster, not scope answers'
   assert.equal(replaced[0].href, '#reviewers')
 })
 
-test('signer exception is filtered out in non-signing states', () => {
+test('signer exception is actionable only while the signature section is editable', () => {
   const signerUnresolved = [{key: 'signer', label: 'Identify the authorized signer', resolution: 'Test', href: '#signature'}]
-  
-  // In reviewing state, signer exception should be filtered out
-  const reviewingState = computePilotProgressUnresolved({
-    state: 'reviewing',
-    version: 1,
-    unresolved: signerUnresolved,
-    exceptions: [],
-    reviewers: [],
-  })
-  assert.ok(!reviewingState.some((item) => item.key === 'signer'))
+  const progressFor = (state: Parameters<typeof computePilotProgressUnresolved>[0]['state']) =>
+    computePilotProgressUnresolved({
+      state,
+      version: 1,
+      unresolved: signerUnresolved,
+      exceptions: [],
+      reviewers: [],
+    })
 
-  // In team_review state, signer exception should be filtered out
-  const teamReviewState = computePilotProgressUnresolved({
-    state: 'team_review',
-    version: 1,
-    unresolved: signerUnresolved,
-    exceptions: [],
-    reviewers: [],
-  })
-  assert.ok(!teamReviewState.some((item) => item.key === 'signer'))
+  // Before the agreement is ready for signature the item stays hidden.
+  assert.ok(!progressFor('reviewing').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('team_review').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('scope_confirmed').some((item) => item.key === 'signer'))
 
-  // In ready_sign state, signer exception should be present
-  const readySignState = computePilotProgressUnresolved({
-    state: 'ready_sign',
-    version: 1,
-    unresolved: signerUnresolved,
-    exceptions: [],
-    reviewers: [],
-  })
-  assert.ok(readySignState.some((item) => item.key === 'signer'))
+  // ready_sign is the only state where the signer can still be identified.
+  assert.ok(progressFor('ready_sign').some((item) => item.key === 'signer'))
 
-  // In signed state, signer exception should be present
-  const signedState = computePilotProgressUnresolved({
-    state: 'signed',
-    version: 1,
-    unresolved: signerUnresolved,
-    exceptions: [],
-    reviewers: [],
-  })
-  assert.ok(signedState.some((item) => item.key === 'signer'))
+  // After signing the identity is recorded in pilot.signing, so the persisted
+  // item must not resurface as an unresolvable task.
+  assert.ok(!progressFor('signed').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('paid').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('launch').some((item) => item.key === 'signer'))
+  assert.ok(!progressFor('active').some((item) => item.key === 'signer'))
 })
 
 test('dual-role reviewers have one consolidated pending item and satisfy every assigned role together', () => {

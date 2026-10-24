@@ -1058,7 +1058,7 @@ export function PilotApprovalRoom({
     : 'Ready for self-service purchase'
 
   const canApprove =
-    canCommitDraft &&
+    accessRole === 'owner' &&
     ['reviewing', 'revision', 'team_review', 'scope_confirmed'].includes(pilot.state) &&
     progressUnresolved.length === 0
 
@@ -1066,7 +1066,10 @@ export function PilotApprovalRoom({
     pilot.state === 'scope_confirmed' ? 'Approve for signature' : 'Confirm scope and invite reviewers'
 
   const globalWorkflowAction = (() => {
-    if (!canCommitDraft) return null
+    // Founder and reviewer actions are role-gated individually below. All
+    // remaining workflow actions (approve, pay, launch, activate) are
+    // restricted to the pilot owner by the API, so the owner gate is applied
+    // after them rather than blocking the bar for non-editable states.
     if (founderAccess && assessmentQualificationPending && pilot.state === 'exception_review') {
       return (
         <>
@@ -1097,6 +1100,8 @@ export function PilotApprovalRoom({
         </button>
       )
     }
+    // Approving, paying, scheduling launch, and activating are owner-only.
+    if (accessRole !== 'owner') return null
     if (canApprove && !pendingExceptionReview) {
       return (
         <Tooltip>
@@ -1118,7 +1123,7 @@ export function PilotApprovalRoom({
           {pilot.payment?.paymentStatus === 'processing' ? <p className="t-p-sm-sans text-white/70">Payment processing. You can keep this room open; the status will update from Stripe.</p> : null}
           {pilot.state === 'signed' && kickoffAvailability.length > 0 ? (
             <label className="t-p-sm-sans text-white/70">
-              Reserve launch
+              Preferred launch slot
               <select className="mt-4 block w-full bg-white px-10 py-8 text-black" value={kickoffDate} onChange={(event) => setKickoffDate(event.target.value)}>
                 {kickoffAvailability.map((slot) => <option key={slot.date} value={slot.date}>{slot.label} ({slot.timezone})</option>)}
               </select>
@@ -1127,7 +1132,6 @@ export function PilotApprovalRoom({
           <div className="flex flex-wrap gap-10">
             <button onClick={() => void onPay()} disabled={busy} className={accentButtonClasses}>Pay the {pilot.proposal?.priceLabel || 'pilot fee'}</button>
             <button onClick={() => void onInvoice()} disabled={busy} className={plainButtonClasses}>Pay by invoice</button>
-            {pilot.state === 'signed' ? <button onClick={() => void onKickoff()} disabled={busy} className={plainButtonClasses}>Reserve launch</button> : null}
           </div>
         </div>
       )
@@ -1221,7 +1225,7 @@ export function PilotApprovalRoom({
       }
 
       {
-        (pilot.state === 'reviewing' || pilot.state === 'revision') && canCommitDraft ? (
+        (pilot.state === 'reviewing' || pilot.state === 'revision') && accessRole === 'owner' ? (
           <div className="mt-24 bg-white/10 rounded-sm px-18 py-16">
             <p className="t-p-sm-sans">Review the draft before inviting team members for review.</p>
             <button onClick={() => void onStartTeamReview()} disabled={busy || hasUnsavedChanges} className={`${accentButtonClasses} mt-14`}>
@@ -1768,7 +1772,7 @@ export function PilotApprovalRoom({
       }
 
       {
-        pilot.state === 'ready_sign' || pilot.unresolved.some((item) => item.key === 'signer') ? (
+        pilot.state === 'ready_sign' || pilot.signing?.signedAt || pilot.unresolved.some((item) => item.key === 'signer') ? (
           <SectionShell
             id="signature"
             title={pilot.state === 'ready_sign' && canSign ? 'Sign and Pay' : 'Authorized signer'}
@@ -1800,6 +1804,12 @@ export function PilotApprovalRoom({
               Confirm pilot &amp; purchase
             </button>
               </>
+            ) : pilot.signing?.signedAt ? (
+              <p className="t-p-sm-sans">
+                Signed by {String(pilot.signing.name || 'the authorized signer')}
+                {pilot.signing.email ? ` (${String(pilot.signing.email)})` : ''}
+                {formatReadableDate(String(pilot.signing.signedAt || '')) ? ` on ${formatReadableDate(String(pilot.signing.signedAt || ''))}` : ''}.
+              </p>
             ) : (
               <p className="t-p-sm-sans">Authorized signer details can be entered once the agreement is ready for signature.</p>
             )}

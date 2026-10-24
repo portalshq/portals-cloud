@@ -1475,6 +1475,43 @@ test('a qualified assessment reaches accepted terms, simulated payment and activ
   assert.deepEqual(active.answers.assessmentSnapshot, finalized.answers.assessmentSnapshot)
 })
 
+test('signing records the signer in the answers and clears the signer item', async () => {
+  const email = `signer-item-${crypto.randomUUID()}@studio.example`
+  const assessment = await post(diagnosticBody(email))
+  const token = profileTokenFrom(assessment)
+  const created = await post(pilotBody(email, {
+    signerName: '', signerEmail: '',
+    successCriteria: '', successCriterionKeysJson: '',
+  }), {cookie: `portals_profile=${token}`})
+  assert.equal(created.status, 200)
+  const {pilot} = await pilotForProfile(token)
+  assert.ok(pilot)
+  // The application never named a signer, so the room raised the signer item.
+  assert.ok(pilot.unresolved.some((item) => item.key === 'signer'))
+  const owner = await getApplicationUserByEmail(email)
+  const session = await consumeMagicLink(await issueMagicLink({userId: owner!.id, purpose: 'sign_in'}))
+  const cookie = `portals_session=${session!.sessionToken}`
+  const act = async (body: Record<string, unknown>, expectedState: string) => {
+    const response = await patchPilot(pilot.id, body, {cookie})
+    const json = await response.json()
+    assert.equal(response.status, 200, JSON.stringify(json))
+    assert.equal(json.pilot.state, expectedState)
+    return json.pilot as StoredPilot
+  }
+  const startDate = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
+  await act({action: 'update', startDate}, 'reviewing')
+  // The signer is only required at signature, so scope confirmation still passes.
+  await act({action: 'confirm_scope'}, 'scope_confirmed')
+  const finalized = await act({action: 'finalize'}, 'ready_sign')
+  assert.ok(finalized.unresolved.some((item) => item.key === 'signer'))
+  const signed = await act({action: 'sign', signer: {name: 'Ava Nguyen', email}}, 'signed')
+  assert.equal(signed.signing.name, 'Ava Nguyen')
+  assert.equal(signed.signing.email, email)
+  assert.equal(signed.answers.signerName, 'Ava Nguyen')
+  assert.equal(signed.answers.signerEmail, email)
+  assert.ok(!signed.unresolved.some((item) => item.key === 'signer'))
+})
+
 test('room edits cannot forge assessment evidence or erase required founder qualification', async () => {
   const email = `room-low-${crypto.randomUUID()}@studio.example`
   const assessment = await post(diagnosticBody(email, completeAssessment))
