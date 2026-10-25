@@ -31,6 +31,11 @@ export function createLiveProduction(dependencies: {
   schedule: ProductionSchedule;
   material: ProductionMaterial;
   queue: SlotQueue;
+  /** Called when the post-release checkpoint write fails. The slot already
+   *  shipped by then, so the error is bookkeeping rather than a cycle
+   *  failure — it is reported here instead of refailing the reconcile and
+   *  spending another generation on the retry. */
+  onJournalError?: (checkpoint: ProductionCheckpoint, cause: unknown) => void;
   now?: () => Date;
 }): LiveProduction {
   const now = dependencies.now ?? (() => new Date());
@@ -40,11 +45,19 @@ export function createLiveProduction(dependencies: {
       const previous = await dependencies.journal.load(channelId);
       if (previous?.desired === "stopped") return previous;
       const mode = await dependencies.schedule.phase(channelId, now());
+      // Prove the journal is writable before paying for material: this write
+      // failing costs nothing, while the same failure after release burns a
+      // generation on every backoff retry.
+      await dependencies.journal.save({ channelId, desired: "running", mode });
       const slot = mode === "ambient" ? await dependencies.material.ambient(channelId) : await dependencies.material.canonical(channelId);
       await dependencies.queue.stage(slot);
       await dependencies.queue.release(slot.key);
       const checkpoint: ProductionCheckpoint = { channelId, desired: "running", mode, slotKey: slot.key };
-      await dependencies.journal.save(checkpoint);
+      try {
+        await dependencies.journal.save(checkpoint);
+      } catch (cause) {
+        dependencies.onJournalError?.(checkpoint, cause);
+      }
       return checkpoint;
     },
     async stop(channelId) {
