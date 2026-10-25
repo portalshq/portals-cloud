@@ -4,6 +4,14 @@
 
 Audience-to-creator payments: Stripe Connect destination charges, tenant payout readiness, a PostgreSQL ledger/outbox, and rule-based entitlements.
 
+A **tenant** is the channel owner — the operator that builds and launches one
+or more channel applications, holds a single Stripe Connect recipient
+account, and receives the money. A **consumer** is the paying end user
+(audience member) whose grants are consumed one unit at a time; a **channel**
+is one deployed app belonging to a tenant and is attribution only. Conflating
+tenant and consumer — or keying money on channel — has caused rework before;
+see `docs/internal/monetization-notes.md`.
+
 ## Required setup
 
 1. Apply `sql/001_monetization.sql` to PostgreSQL.

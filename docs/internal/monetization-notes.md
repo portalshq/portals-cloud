@@ -13,9 +13,9 @@ Three distinct entities. Conflating any two of them caused rework.
 
 | Entity | Role |
 |---|---|
-| **tenant** | Builds and launches one or more applications. Holds one Connect account. Receives money. |
+| **tenant** | The channel owner: builds and launches one or more applications. Holds one Connect account. Receives money. |
 | **channel** | A deployed application belonging to a tenant. Attribution only. |
-| **consumer** | An end user who pays. Distinct from a tenant. |
+| **consumer** | An end user who pays (an audience member/viewer). Distinct from a tenant. |
 
 Money is keyed on `tenantId`. A tenant running three channels onboards once and is
 paid once; each purchase records the `channelId` it came from for per-application
