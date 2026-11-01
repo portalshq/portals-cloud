@@ -8,6 +8,11 @@ const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 
 export function commitChecks(stagedPaths) {
   const checks = [
+    // Lockfile must agree with manifests (`npm ci` in CI). Regenerating only the
+    // lockfile fixes drift in place; the diff then fails the commit so the fixed
+    // file can be reviewed and staged — same contract as generated skills.
+    [npm, ["install", "--package-lock-only", "--ignore-scripts"]],
+    ["git", ["diff", "--exit-code", "--", "package-lock.json"]],
     ["sh", ["scripts/audit-rust.sh"]],
     ["cargo", ["fmt", "--manifest-path", "control-plane/Cargo.toml", "--all", "--", "--check"]],
     // One Turbo graph owns every package build, including dependency builds.
