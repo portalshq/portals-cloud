@@ -60,8 +60,8 @@ function ChannelPanel({
             Enter channel
             <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden="true" />
           </Link>
-          <FollowButton />
-          <ShareButton url={`/${channel.slug}`} />
+          <FollowButton channel={channel.slug} />
+          <ShareButton channel={channel.slug} url={`/${channel.slug}`} />
           {!channel.live && (
             <button className={styles.save} type="button" aria-pressed={false}>
               <Heart size={16} strokeWidth={1.75} aria-hidden="true" />

@@ -61,6 +61,8 @@ Caps: research-only ≤49; solo without imminent scaling ≤44; no meaningful pr
 
 **Low:** <50 or fundamental state qualification absent. Explain calmly why deployment is premature, offer `/use-cases`, `/production-memory`, and reassessment. Public results/downloads lead with actual reasons and an answer-derived intervention. Internal scores, caps, signal taxonomy, and evidence codes are omitted from public API/profile context.
 
+Public findings list selected production incidents first in a stable order, using a separate statement for each reported incident. When no incident is selected, reported transfer or state problems come before contributor count. The same findings feed the result, pilot page, and evaluation PDF; their order is not a severity ranking.
+
 ## Internal signals
 
 Independently store overlapping booleans and evidence codes in the diagnostic score:

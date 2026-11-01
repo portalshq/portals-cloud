@@ -2,12 +2,14 @@
 
 import { Bell, CornerUpRight } from 'lucide-react'
 import { useState } from 'react'
+import { channelEvents } from '@/lib/analytics-contract'
+import { recordChannelEvent } from '@/lib/analytics-client'
 import styles from './actions.module.css'
 
 /** Following turns the icon chip, not the label. The word stays in normal ink
  *  outside the green, and the button keeps a fixed width so swapping
  *  "Follow" for "Following" cannot reflow the row. */
-export function FollowButton() {
+export function FollowButton({ channel }: { channel: string }) {
   const [following, setFollowing] = useState(false)
 
   return (
@@ -15,7 +17,11 @@ export function FollowButton() {
       className={`${styles.button} ${styles.follow}`}
       type="button"
       aria-pressed={following}
-      onClick={() => setFollowing((value) => !value)}
+      onClick={() => {
+        const next = !following
+        setFollowing(next)
+        recordChannelEvent(channelEvents.follow, {channel, following: next})
+      }}
     >
       {/* The bell is the channel in both states. The chip and the word carry
           the change; swapping the glyph too would be a second signal saying
@@ -29,7 +35,7 @@ export function FollowButton() {
 }
 
 /** Fixed for the same reason: "Share" becomes "Link copied". */
-export function ShareButton({ url }: { url: string }) {
+export function ShareButton({ url, channel }: { url: string; channel: string }) {
   const [shared, setShared] = useState(false)
 
   return (
@@ -37,13 +43,24 @@ export function ShareButton({ url }: { url: string }) {
       className={`${styles.button} ${styles.share}`}
       type="button"
       onClick={() => {
+        recordChannelEvent(channelEvents.shareAttempt, {channel})
         // The clipboard rejects in a non-secure context and can be denied by
         // the browser, so only claim success once the write actually lands.
         // `void` on a rejected promise would surface as an unhandled rejection.
-        navigator.clipboard
-          ?.writeText(new URL(url, window.location.origin).href)
-          .then(() => setShared(true))
-          .catch(() => setShared(false))
+        if (!navigator.clipboard) {
+          setShared(false)
+          recordChannelEvent(channelEvents.shareResult, {channel, outcome: 'failed'})
+          return
+        }
+        navigator.clipboard.writeText(new URL(url, window.location.origin).href)
+          .then(() => {
+            setShared(true)
+            recordChannelEvent(channelEvents.shareResult, {channel, outcome: 'copied'})
+          })
+          .catch(() => {
+            setShared(false)
+            recordChannelEvent(channelEvents.shareResult, {channel, outcome: 'failed'})
+          })
       }}
     >
       {/* The curved arrow. Left outlined: the fill on Share2's nodes read as a

@@ -16,7 +16,8 @@
     "provision:apollo": "tsx scripts/provision-apollo.ts",
     "check:marketing": "node scripts/check-marketing.mjs",
     "backfill:apollo": "tsx scripts/backfill-apollo-leads.ts",
-    "test:leads": "node --import ./scripts/test-leads-setup.mjs --import tsx --test src/lib/leads/*.test.ts"
+    "test:leads": "node --import ./scripts/test-leads-setup.mjs --import tsx --test src/lib/leads/*.test.ts",
+    "test:px-telemetry": "node --import ./scripts/test-leads-setup.mjs --import tsx --test app/api/px/px-telemetry.test.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
