@@ -127,6 +127,7 @@ export const inputKinds = [
   "message",
   "create_object",
   "create_branch",
+  "feedback",
 ];
 export const policies = [
   "fifo",
@@ -274,6 +275,14 @@ export function validateIntent(input: SubmitIntentInput): void {
       break;
     case "create_branch":
       text(p.name, "branch name");
+      break;
+    case "feedback":
+      if (p.rating !== "up" && p.rating !== "down")
+        throw new InteractionError(
+          "INVALID_INPUT",
+          "feedback rating must be 'up' or 'down'"
+        );
+      if (p.text !== undefined) text(p.text, "feedback text", 2000);
       break;
   }
 }

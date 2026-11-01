@@ -58,6 +58,7 @@ export async function database() {
     "../../monetization/sql/001_monetization.sql",
     "../sql/001_interaction_orchestrator_core.sql",
     "../sql/002_durable_lifecycle.sql",
+    "../sql/003_interaction_extensions.sql",
   ])
     await pool.query(readFileSync(new URL(file, import.meta.url), "utf8"));
   const repository = new InteractionRepository(pool);

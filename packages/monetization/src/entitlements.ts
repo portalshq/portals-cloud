@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { IdGenerator, PurchaseSettledFacts } from "./types.js";
 
 /**
@@ -111,6 +112,72 @@ export interface EntitlementGrant {
   updatedAt: string;
 }
 
+/** Immutable facts for one retry-safe credit debit. */
+export interface CreditDebitInput {
+  operationId: string;
+  tenantId: string;
+  consumerId: string;
+  kind: string;
+  site: EntitlementScope;
+  amount: number;
+}
+export interface CreditDebitResult {
+  outcome: "debited" | "insufficient";
+  allocations: readonly { grantId: string; amount: number }[];
+}
+export interface CreditDebitStore {
+  debitCredits(input: CreditDebitInput): Promise<CreditDebitResult>;
+}
+
+/** Immutable facts for one retry-safe credit grant (reward or courtesy issue). */
+export interface CreditGrantInput {
+  operationId: string;
+  tenantId: string;
+  consumerId: string;
+  kind: string;
+  site: EntitlementScope;
+  amount: number;
+}
+export interface CreditGrantResult {
+  outcome: "granted";
+  grantId: string;
+}
+export interface CreditGrantStore {
+  grantCredits(input: CreditGrantInput): Promise<CreditGrantResult>;
+}
+
+/** Shared shape of a retry-safe credit operation's immutable facts. */
+function normalizeCreditOperation(input: { operationId: string; tenantId: string; consumerId: string; kind: string; site: EntitlementScope; amount: number }) {
+  for (const value of [input.operationId, input.tenantId, input.consumerId, input.kind]) {
+    if (typeof value !== "string" || !value.trim() || value.length > 512) throw new TypeError("Invalid credit operation identifier");
+  }
+  if (!Number.isSafeInteger(input.amount) || input.amount < 1) throw new TypeError("Invalid credit operation amount");
+  if (!input.site || typeof input.site !== "object" || Array.isArray(input.site)) throw new TypeError("Invalid credit operation scope");
+  const site: EntitlementScope = {};
+  for (const key of Object.keys(input.site)) if (!["channelId", "sessionId", "date"].includes(key)) throw new TypeError("Invalid credit operation scope");
+  for (const key of ["channelId", "sessionId", "date"] as const) {
+    const value = input.site[key];
+    if (value !== undefined) {
+      if (typeof value !== "string" || !value.trim() || value.length > 512) throw new TypeError("Invalid credit operation scope");
+      site[key] = value;
+    }
+  }
+  return { operationId: input.operationId, tenantId: input.tenantId, consumerId: input.consumerId, kind: input.kind, site, amount: input.amount };
+}
+
+export function normalizeCreditDebit(input: CreditDebitInput): CreditDebitInput {
+  return normalizeCreditOperation(input);
+}
+
+export function normalizeCreditGrant(input: CreditGrantInput): CreditGrantInput {
+  return normalizeCreditOperation(input);
+}
+
+/** The entitlement rule a `grantCredits` operation ensures before granting. */
+export function creditGrantRuleId(kind: string): string {
+  return `credit-grant:${kind}`;
+}
+
 export interface EntitlementStore {
   saveRule(rule: EntitlementRule): Promise<void>;
   getRule(id: string): Promise<EntitlementRule | undefined>;
@@ -215,6 +282,8 @@ export class InMemoryEntitlementStore implements EntitlementStore {
   private readonly rules = new Map<string, EntitlementRule>();
   private readonly grants = new Map<string, EntitlementGrant>();
   private readonly granted = new Set<string>();
+  private readonly creditDebits = new Map<string, { input: CreditDebitInput; result: CreditDebitResult }>();
+  private readonly creditGrants = new Map<string, { input: CreditGrantInput; result: CreditGrantResult }>();
 
   async saveRule(rule: EntitlementRule): Promise<void> {
     validateRule(rule);
@@ -236,6 +305,66 @@ export class InMemoryEntitlementStore implements EntitlementStore {
       this.granted.add(key);
       this.grants.set(grant.id, grant);
     }
+  }
+
+  async debitCredits(input: CreditDebitInput): Promise<CreditDebitResult> {
+    const normalized = normalizeCreditDebit(input);
+    const existing = this.creditDebits.get(normalized.operationId);
+    if (existing) {
+      if (JSON.stringify(existing.input) !== JSON.stringify(normalized)) throw new Error("Credit debit idempotency conflict");
+      return structuredClone(existing.result);
+    }
+    const candidates = [...this.grants.values()].filter(g => g.tenantId === normalized.tenantId && g.consumerId === normalized.consumerId && g.kind === normalized.kind && g.remaining > 0 && grantAppliesAt(g.scope, normalized.site) && (g.expiresAt === undefined || Date.parse(g.expiresAt) >= Date.now())).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+    const enough = candidates.reduce((sum, g) => sum + g.remaining, 0) >= normalized.amount;
+    const allocations: { grantId: string; amount: number }[] = [];
+    let owed = enough ? normalized.amount : 0;
+    for (const grant of candidates) {
+      const amount = Math.min(owed, grant.remaining);
+      if (amount) { grant.remaining -= amount; owed -= amount; allocations.push({ grantId: grant.id, amount }); }
+    }
+    const result: CreditDebitResult = { outcome: enough ? "debited" : "insufficient", allocations };
+    this.creditDebits.set(normalized.operationId, { input: normalized, result });
+    return structuredClone(result);
+  }
+
+  /**
+   * Issue `amount` credits as a new grant, exactly once per `operationId`.
+   * The grant is not purchase-backed (`purchaseId` carries the operation id,
+   * never a real purchase), so refund flows can never revoke a reward.
+   * An identical retry returns the original result; a reused operation id
+   * carrying different facts fails.
+   */
+  async grantCredits(input: CreditGrantInput): Promise<CreditGrantResult> {
+    const normalized = normalizeCreditGrant(input);
+    const existing = this.creditGrants.get(normalized.operationId);
+    if (existing) {
+      if (JSON.stringify(existing.input) !== JSON.stringify(normalized)) throw new Error("Credit grant idempotency conflict");
+      return structuredClone(existing.result);
+    }
+    const ruleId = creditGrantRuleId(normalized.kind);
+    if (!this.rules.has(ruleId)) {
+      this.rules.set(ruleId, { id: ruleId, tenantId: normalized.tenantId, kind: normalized.kind, scope: normalized.site, conditions: [], quantity: 1, createdAt: new Date().toISOString() });
+    }
+    const grantId = randomUUID();
+    const now = new Date().toISOString();
+    const expiresAt = scopeExpiresAt(normalized.site);
+    this.grants.set(grantId, {
+      id: grantId,
+      ruleId,
+      tenantId: normalized.tenantId,
+      consumerId: normalized.consumerId,
+      kind: normalized.kind,
+      scope: normalized.site,
+      quantity: normalized.amount,
+      remaining: normalized.amount,
+      purchaseId: normalized.operationId,
+      ...(expiresAt ? { expiresAt } : {}),
+      createdAt: now,
+      updatedAt: now,
+    });
+    const result: CreditGrantResult = { outcome: "granted", grantId };
+    this.creditGrants.set(normalized.operationId, { input: normalized, result });
+    return structuredClone(result);
   }
 
   async consume(consumerId: string, kind: string, site: EntitlementScope, n: number): Promise<boolean> {

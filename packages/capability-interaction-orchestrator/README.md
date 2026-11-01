@@ -2,14 +2,9 @@
 
 **Reusable interaction orchestration for Portals:** input windows, submission gateway, arbitration engine, moderation gateway, billing controller, and event publisher.
 
-## Status: Phase 1 (Stub Package) - NOT Production-Ready
+## Status
 
-This is currently a **stub package** providing TypeScript interfaces and type definitions. Implementations throw "not implemented" errors. Full implementation coming in Phase 2.
-
-**Production Readiness:**
-- **Phase 1 (Current):** NOT production-ready - stubs only
-- **Phase 2:** Production-ready for basic use cases (FIFO, E-rated, prepaid credits)
-- **Phase 3:** Production-ready for all use cases (all policies, all ratings, pluggable moderation)
+Core window/submission lifecycle, external credit billing, collective choices, guide queues, rewarded feedback, and reactions are implemented with durable PostgreSQL state. Apply `sql/001`-`003` before use.
 
 ## Overview
 
@@ -614,3 +609,18 @@ MIT
 ## License
 
 MIT
+
+## Viewer interactions
+
+Built on the lifecycle above:
+
+- **`ChoiceCoordinator`** (`orchestrator.choices`) — `openChoice` opens a time-bounded, price-disclosed `collective_choice` window; `resolveChoice` closes expired windows, waits for every admitted ballot to reach a definitive billing outcome, then atomically records one winner (random among ties, none on an empty ballot), marks ballots consumed, and enqueues the winner into the narrative handoff — all under the `choice:<windowId>` idempotency key so a retry replays the stored resolution.
+- **`ExternalBilling`** (`orchestrator.externalBilling`) — settles paid submissions against `@portalshq/monetization`'s `debitCredits`/`grantCredits` on a *separate* billing database. The interaction row parks at `awaiting_entitlement`; the debit call runs outside any interaction transaction keyed by the submission id; `settlePending()` is the crash-recovery sweep. `settle: "claim"` billing terms defer the charge to durable claim time (paid guides). `settleReward` pays feedback rewards exactly once via `grantCredits`.
+- **`NarrativeHandoffQueue`** (`orchestrator.handoffs`) — exactly-once delivery of resolved outcomes to generation: `claimNext` uses `FOR UPDATE SKIP LOCKED` + claim token + visibility timeout; `ack`/`fail` retire a claim.
+- **`GuideQueue`** (`orchestrator.guides`) — a session-long FIFO `custom_prompt` window; admission is free, `claimNext` charges at claim through the idempotent debit.
+- **`FeedbackCoordinator`** (`orchestrator.feedback`) — session-capped feedback windows (`feedback` kind, thumbs up/down + optional text); `rewardSubmission` grants the configured credit reward once per response.
+- **`ReactionGateway`** (`orchestrator.reactions`) — windowless emotions (`love`/`laugh`/`fire`/`sad`/`angry`), per-(actor, session) rate limits, seq-ordered listing, scoped `prune` retention.
+- **`parseInteractionSettings` / `validateRegistryInteractions`** — channel `interactions` config (choice + feedback keys) and all-channel validation for registry checks.
+- **Selection counts** — `getOptionSelectionCounts` feeds `weightedChoices` for candidate selection that survives restarts.
+
+The outbox remains the replay source; fanout is a wake-up hint. Analytics receives only allowlisted event names, ids, timestamps, and low-cardinality facts — never viewer text.

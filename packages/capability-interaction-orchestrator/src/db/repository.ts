@@ -68,6 +68,8 @@ function submissionFromRow(r: Row): Submission {
     admittedAt: iso(r.admitted_at),
     admissionSequence: r.admission_sequence,
     appMetadata: r.app_metadata ?? {},
+    billingAttempts: r.billing_attempts ?? undefined,
+    billingPendingSince: r.billing_pending_since ? iso(r.billing_pending_since) : undefined,
   };
 }
 function resolutionFromRow(r: Row): Resolution {
@@ -338,9 +340,14 @@ export class InteractionRepository {
           "STALE_BASE",
           "Submission base commit is stale"
         );
+      // Fulfilled submissions keep counting on once-per-user-per-event
+      // windows (feedback), where the reward marks the response fulfilled
+      // while the window is still open.
+      const cappedStatuses = ["received","moderating","awaiting_entitlement","eligible","selected","executing"];
+      if (w.appMetadata.feedbackEvent === true) cappedStatuses.push("fulfilled");
       const count = await r.query(
-        "SELECT count(*)::int AS n FROM submissions WHERE window_id=$1 AND actor_id=$2 AND status IN ('received','moderating','awaiting_entitlement','eligible','selected','executing')",
-        [w.id, input.actorId]
+        "SELECT count(*)::int AS n FROM submissions WHERE window_id=$1 AND actor_id=$2 AND status = ANY($3::text[])",
+        [w.id, input.actorId, cappedStatuses]
       );
       if (count.rows[0].n >= w.maxSubmissionsPerUser)
         throw new InteractionError(
@@ -525,6 +532,16 @@ export class InteractionRepository {
       );
       return eventFromRow(result.rows[0]);
     });
+  }
+  /** Retrieve a retained event by its source id, scoped to its world. Authorization belongs to the caller. */
+  async getEvent(worldId: string, eventId: string): Promise<InteractionEvent | null> {
+    text(worldId, "worldId");
+    text(eventId, "eventId");
+    const result = await this.query(
+      "SELECT * FROM interaction_outbox WHERE world_id=$1 AND id=$2",
+      [worldId, eventId]
+    );
+    return result.rows.length ? eventFromRow(result.rows[0]) : null;
   }
   async getEvents(
     worldId: string,

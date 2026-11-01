@@ -33,6 +33,13 @@ describe("durable event publication and replay", () => {
     );
     expect(await db.repository.eventHead("unknown")).toBe(0);
   });
+  it("retrieves the retained payload by event id only within its world", async () => {
+    const world = crypto.randomUUID();
+    const stored = await db.repository.publishEvent(event(world, 42));
+    expect((await db.repository.getEvent(world, stored.id!))?.data).toEqual({ n: 42 });
+    expect(await db.repository.getEvent(crypto.randomUUID(), stored.id!)).toBeNull();
+    expect(await db.repository.getEvent(world, "missing")).toBeNull();
+  });
   it("retains failed deliveries and retries using the same event id", async () => {
     const world = crypto.randomUUID();
     const memory = new InMemoryFanoutBus({ historySize: 100 });

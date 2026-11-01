@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import type Stripe from "stripe";
 
@@ -5,9 +6,9 @@ import type {
   BillingLedgerEntry, BillingOutboxEvent, BillingStore, BillingTransaction, Purchase, TenantBillingProfile,
 } from "./types.js";
 import type {
-  EntitlementGrant, EntitlementRule, EntitlementScope, EntitlementStore,
+  EntitlementGrant, EntitlementRule, EntitlementScope, EntitlementStore, CreditDebitInput, CreditDebitResult, CreditGrantInput, CreditGrantResult,
 } from "./entitlements.js";
-import { grantAppliesAt, validateRule } from "./entitlements.js";
+import { grantAppliesAt, validateRule, normalizeCreditDebit, normalizeCreditGrant, creditGrantRuleId, scopeExpiresAt } from "./entitlements.js";
 
 /** Durable PostgreSQL adapter. Apply sql/001_monetization.sql before use. */
 export class PostgresBillingStore implements BillingStore {
@@ -290,6 +291,86 @@ export class PostgresEntitlementStore implements EntitlementStore {
        ON CONFLICT (rule_id, purchase_id) DO NOTHING`,
       values,
     );
+  }
+
+  /** Debit and its idempotency record commit atomically in the billing database. */
+  async debitCredits(input: CreditDebitInput): Promise<CreditDebitResult> {
+    const x = normalizeCreditDebit(input);
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`credit-debit:${x.operationId}`]);
+      const prior = (await client.query("SELECT * FROM monetization_credit_debits WHERE operation_id=$1", [x.operationId])).rows[0];
+      if (prior) {
+        const same = prior.tenant_id === x.tenantId && prior.consumer_id === x.consumerId && prior.kind === x.kind && Number(prior.amount) === x.amount && JSON.stringify(normalizeCreditDebit({ ...x, site: prior.scope }).site) === JSON.stringify(x.site);
+        if (!same) throw new Error("Credit debit idempotency conflict");
+        await client.query("COMMIT");
+        return { outcome: prior.outcome, allocations: prior.allocations };
+      }
+      const rows = (await client.query(`SELECT id, scope, remaining, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.US') AS created_order FROM monetization_entitlements WHERE tenant_id=$1 AND consumer_id=$2 AND kind=$3 AND remaining>0 AND (expires_at IS NULL OR expires_at>=now()) ORDER BY id FOR UPDATE`, [x.tenantId, x.consumerId, x.kind])).rows;
+      const candidates = rows.filter(row => grantAppliesAt(row.scope as EntitlementScope, x.site)).sort((a, b) => a.created_order.localeCompare(b.created_order) || a.id.localeCompare(b.id));
+      const enough = candidates.reduce((sum, row) => sum + Number(row.remaining), 0) >= x.amount;
+      const allocations: { grantId: string; amount: number }[] = [];
+      let owed = enough ? x.amount : 0;
+      for (const row of candidates) {
+        const amount = Math.min(owed, Number(row.remaining));
+        if (amount) { await client.query("UPDATE monetization_entitlements SET remaining=remaining-$2,updated_at=now() WHERE id=$1", [row.id, amount]); owed -= amount; allocations.push({ grantId: row.id, amount }); }
+      }
+      const outcome = enough ? "debited" : "insufficient";
+      await client.query("INSERT INTO monetization_credit_debits(operation_id,tenant_id,consumer_id,kind,scope,amount,outcome,allocations) VALUES($1,$2,$3,$4,$5,$6,$7,$8)", [x.operationId, x.tenantId, x.consumerId, x.kind, JSON.stringify(x.site), x.amount, outcome, JSON.stringify(allocations)]);
+      await client.query("COMMIT");
+      return { outcome, allocations };
+    } catch (cause) {
+      await client.query("ROLLBACK");
+      throw cause;
+    } finally { client.release(); }
+  }
+
+  /**
+   * Issue `amount` credits as a new grant, exactly once per `operationId`.
+   * The rule, grant and operation record commit atomically, so a crash
+   * leaves either nothing or a replayable record — replaying the operation
+   * id returns the stored grant rather than issuing twice. The grant's
+   * `purchase_id` is NULL: reward credits are not purchase-backed and a
+   * refund flow can never revoke them.
+   */
+  async grantCredits(input: CreditGrantInput): Promise<CreditGrantResult> {
+    const x = normalizeCreditGrant(input);
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`credit-grant:${x.operationId}`]);
+      const prior = (await client.query("SELECT * FROM monetization_credit_grants WHERE operation_id=$1", [x.operationId])).rows[0];
+      if (prior) {
+        const same = prior.tenant_id === x.tenantId && prior.consumer_id === x.consumerId && prior.kind === x.kind && Number(prior.amount) === x.amount && JSON.stringify(normalizeCreditGrant({ ...x, site: prior.scope }).site) === JSON.stringify(x.site);
+        if (!same) throw new Error("Credit grant idempotency conflict");
+        await client.query("COMMIT");
+        return { outcome: "granted", grantId: prior.grant_id };
+      }
+      const ruleId = creditGrantRuleId(x.kind);
+      await client.query(
+        `INSERT INTO monetization_entitlement_rules(id,tenant_id,kind,scope,conditions,quantity,created_at)
+         VALUES($1,$2,$3,$4,'[]'::jsonb,1,now()) ON CONFLICT (id) DO NOTHING`,
+        [ruleId, x.tenantId, x.kind, JSON.stringify(x.site)],
+      );
+      const grantId = randomUUID();
+      const expiresAt = scopeExpiresAt(x.site) ?? null;
+      await client.query(
+        `INSERT INTO monetization_entitlements
+          (id, rule_id, tenant_id, consumer_id, kind, scope, quantity, remaining, purchase_id, expires_at, created_at, updated_at)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$7,NULL,$8,now(),now())`,
+        [grantId, ruleId, x.tenantId, x.consumerId, x.kind, JSON.stringify(x.site), x.amount, expiresAt],
+      );
+      await client.query(
+        "INSERT INTO monetization_credit_grants(operation_id,tenant_id,consumer_id,kind,scope,amount,grant_id,outcome) VALUES($1,$2,$3,$4,$5,$6,$7,'granted')",
+        [x.operationId, x.tenantId, x.consumerId, x.kind, JSON.stringify(x.site), x.amount, grantId],
+      );
+      await client.query("COMMIT");
+      return { outcome: "granted", grantId };
+    } catch (cause) {
+      await client.query("ROLLBACK");
+      throw cause;
+    } finally { client.release(); }
   }
 
   async consume(consumerId: string, kind: string, site: EntitlementScope, n: number): Promise<boolean> {

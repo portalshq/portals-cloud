@@ -4,13 +4,20 @@
 
 Audience-to-creator payments: Stripe Connect destination charges, tenant payout readiness, a PostgreSQL ledger/outbox, and rule-based entitlements.
 
-A **tenant** is the channel owner — the operator that builds and launches one
-or more channel applications, holds a single Stripe Connect recipient
-account, and receives the money. A **consumer** is the paying end user
-(audience member) whose grants are consumed one unit at a time; a **channel**
-is one deployed app belonging to a tenant and is attribution only. Conflating
-tenant and consumer — or keying money on channel — has caused rework before;
-see `docs/internal/monetization-notes.md`.
+A **tenant** is a producer, independent of the audience users who are consumers.
+A **channel** is the producer venue; a **program** is the software experience
+owned by a channel. Attribute application activity and entitlement kinds to the
+program ID. A central `tenants` registry can identify producers without a user
+foreign key.
+
+The current package and vendored SQL still use `tenant_id` for payout profiles,
+purchases and entitlement records. It is a required package key, not a newly
+introduced `program_id` column. An integration that uses a program ID in this
+field must provision the corresponding payout profile and Stripe mapping and
+coordinate all purchase, rule and grant keys. Do not reassign existing tenant
+keys, Stripe accounts or grant kinds without an explicit data migration. A
+program-prefixed entitlement kind isolates a program because the entitlement
+store filters by consumer and kind.
 
 ## Required setup
 
@@ -34,6 +41,7 @@ const { url } = await monetization.createCheckout({
 - `handleWebhook(rawBody, signature, secret)`: atomically applies Stripe events to purchases, ledger, and outbox. Use `refundPurchase()` for refunds.
 - `MonetizationDispatcher`: drains the outbox, applies entitlements, and invokes optional application side effects. Monitor `isStale()`, `listParked()`, and requeue repaired events with `requeueParked()`.
 - `PostgresEntitlementStore.consume()` / `remaining()`: consume or inspect entitlement balances.
+- `debitCredits(input)` / `grantCredits(input)` (`CreditDebitStore` / `CreditGrantStore`): retry-safe credit operations keyed by an immutable `operationId`. The debit locks grants, verifies tenant/consumer/kind/scope, debits in deterministic order, and persists the outcome (including `insufficient`, so a later balance cannot charge a declined operation). The grant issues reward/courtesy credits as a non-purchase-backed grant under a `credit-grant:<kind>` rule and records it in `monetization_credit_grants`. Identical retries replay the stored result; a reused operation id with different facts is an idempotency conflict. Apply `sql/002_credit_debits.sql` and `sql/003_credit_grants.sql`.
 
 ## Safety and operations
 
