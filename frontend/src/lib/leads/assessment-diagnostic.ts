@@ -43,6 +43,21 @@ const reproductionFailures = [
   'unable_to_reproduce_approved_output',
   'rd_workflow_rebuilt_for_production',
 ]
+// Use a stable order for reported incidents; the assessment does not rank their severity.
+const productionFindingCopy: Record<string, string> = {
+  wrong_reference: 'Your team has used the wrong reference in production.',
+  outdated_source_asset: 'Your team has used an outdated source asset in production.',
+  wrong_approved_version: 'Your team has used the wrong approved version in production.',
+  character_product_style_drift: 'Your team has encountered character, product, or style drift in production.',
+  unable_to_reproduce_approved_output: 'Your team has been unable to reproduce an approved output.',
+  unnecessary_generations_or_retries: 'Your team has had unnecessary generations or retries in production.',
+  duplicate_work: 'Your team has duplicated work in production.',
+  long_handoff_or_onboarding: 'Your team has experienced long handoffs or onboarding in production.',
+  rd_workflow_rebuilt_for_production: 'Your team has had to rebuild an R&D workflow for production.',
+  client_review_failure: 'Your team has experienced a client review failure.',
+  lost_or_unclear_provenance: 'Your team has encountered lost or unclear provenance.',
+  other: 'Your team has reported another production issue.',
+}
 
 export function scoreDiagnostic(raw: AssessmentValues): DiagnosticScore {
   const a = activeAssessmentAnswers(raw)
@@ -305,18 +320,18 @@ export function diagnosticResult(
   score = scoreDiagnostic(a),
 ) {
   const explanations: string[] = []
+  const failures = selected(a, 'production_failures')
+  for (const [failure, finding] of Object.entries(productionFindingCopy)) {
+    if (failures.includes(failure)) explanations.push(finding)
+  }
   const range = String(a.contributors_count || '')
     .replace('_', '–')
     .replace('plus', '+')
-  if (a.contributors_count !== '1' && range)
+  if (a.transferability_without_originator === 'usually_not')
     explanations.push(
-      `${range} contributors need to continue or review this production.`,
+      'Another creator usually cannot reproduce or extend approved work without the original creator.',
     )
-  if (
-    ['substantial_handoff', 'usually_not'].includes(
-      String(a.transferability_without_originator),
-    )
-  )
+  else if (a.transferability_without_originator === 'substantial_handoff')
     explanations.push(
       'Approved work depends on substantial help from the original creator.',
     )
@@ -324,17 +339,13 @@ export function diagnosticResult(
     explanations.push(
       'Important approved production state remains outside the execution workflow.',
     )
-  if (
-    selected(a, 'production_failures').some((v) =>
-      correctnessFailures.includes(v),
-    )
-  )
-    explanations.push(
-      'Your team has encountered incorrect inputs, continuity drift, or avoidable production retries.',
-    )
   if (['weekly', 'daily', 'monthly'].includes(String(a.recreationFrequency)))
     explanations.push(
       `Context reconstruction or recreation happens ${a.recreationFrequency}.`,
+    )
+  if (a.contributors_count !== '1' && range)
+    explanations.push(
+      `${range} contributors need to continue or review this production.`,
     )
   if (a.pilot_readiness_30d === 'yes_live_production')
     explanations.push(

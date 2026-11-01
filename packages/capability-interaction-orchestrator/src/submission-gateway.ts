@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { InteractionRepository } from "./db/repository.js";
 import type { BillingController } from "./billing-controller.js";
+import { usesExternalDebit, type ExternalBilling } from "./external-billing.js";
 import type { IModerationGateway } from "./moderation-gateway.js";
 import type {
   InputWindow,
@@ -28,7 +29,8 @@ export class SubmissionGateway implements ISubmissionGateway {
     private readonly billing: BillingController,
     private readonly contextFor: (
       window: InputWindow
-    ) => Omit<ModerationContext, "contentRating"> = () => ({})
+    ) => Omit<ModerationContext, "contentRating"> = () => ({}),
+    private readonly external?: ExternalBilling
   ) {}
   async submitIntent(input: SubmitIntentInput): Promise<Submission> {
     const submission = await this.repository.admit(input);
@@ -51,7 +53,9 @@ export class SubmissionGateway implements ISubmissionGateway {
       contentRating: w.contentRating,
       policyVersion: w.moderationPolicyVersion,
     });
-    return this.finishModeration(id, decision, "received");
+    return this.settleIfNeeded(
+      await this.finishModeration(id, decision, "received")
+    );
   }
   async reviewSubmission(
     id: string,
@@ -81,19 +85,34 @@ export class SubmissionGateway implements ISubmissionGateway {
       await this.repository.getWindow(s.windowId),
       "Window"
     );
-    return this.finishModeration(
-      id,
-      {
-        id: randomUUID(),
-        submissionId: id,
-        status,
-        reasons,
-        policyVersion: w.moderationPolicyVersion,
-        reviewedBy: "human",
-        createdAt: new Date().toISOString(),
-      },
-      "moderating"
+    return this.settleIfNeeded(
+      await this.finishModeration(
+        id,
+        {
+          id: randomUUID(),
+          submissionId: id,
+          status,
+          reasons,
+          policyVersion: w.moderationPolicyVersion,
+          reviewedBy: "human",
+          createdAt: new Date().toISOString(),
+        },
+        "moderating"
+      )
     );
+  }
+
+  /**
+   * External debit settlement runs outside the admission transaction: the
+   * interaction row stays `awaiting_entitlement` until `debitCredits` returns
+   * a definitive outcome, so a billing call is never nested inside the
+   * interaction database transaction.
+   */
+  private async settleIfNeeded(s: Submission): Promise<Submission> {
+    if (this.external && s.status === "awaiting_entitlement") {
+      return this.external.settleDebit(s.id);
+    }
+    return s;
   }
   private async finishModeration(
     id: string,
@@ -111,6 +130,11 @@ export class SubmissionGateway implements ISubmissionGateway {
           s,
           decision.status === "reject" ? "rejected" : "moderating"
         );
+      if (this.external && usesExternalDebit(w)) {
+        if (w.billingTerms?.settle === "claim")
+          return r.saveSubmission(s, "eligible");
+        return this.external.markPending(r, s);
+      }
       s = await r.saveSubmission(s, "awaiting_entitlement");
       try {
         const reservation = await this.billing.authorizeInTransaction(r, s, w);

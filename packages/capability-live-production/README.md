@@ -4,6 +4,17 @@
 
 Coordinates scheduled narrative material with staged queue delivery through `reconcile(channelId)`. Includes Video Provider abstraction for multi-provider video generation (FAL, Reactor, OpenRouter) and Reactor Session Manager for persistent backend connections.
 
+## Program scheduling and session ownership
+
+A channel owns a program; a station holds its scheduling rules and station
+program slots. A tenant is the producer, independent of audience users. An
+app-owned program session represents an execution occurrence; a station slot
+is a programming window; a Reactor session is an externally billed GPU
+resource. These are separate lifecycles and identifiers. Central scheduling
+and `next_program_session` coordination are application/platform responsibilities,
+not capabilities supplied by this package. A slot writer must serialize conflict
+checks and reservations; a read-only phase check cannot prevent races.
+
 ## Exports
 
 - Root: `LiveProduction`, `createLiveProduction`, production types

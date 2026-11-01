@@ -277,6 +277,22 @@ test('public explanation and recommendation reflect answers without internal seg
     diagnosticResult(completeAssessment).recommendation.includes('reassess'),
   )
 })
+test('public findings lead with the reported production issue, without inventing other failures', () => {
+  const result = diagnosticResult({
+    ...highAssessment,
+    production_failures: ['outdated_source_asset'],
+  })
+  assert.equal(result.explanations[0], 'Your team has used an outdated source asset in production.')
+  assert.ok(!result.explanations.some((finding) => finding.includes('drift') || finding.includes('retries')))
+
+  const noIncident = diagnosticResult({
+    ...highAssessment,
+    production_failures: ['none'],
+    transferability_without_originator: 'usually_not',
+  })
+  assert.equal(noIncident.explanations[0], 'Another creator usually cannot reproduce or extend approved work without the original creator.')
+  assert.ok(!noIncident.explanations.some((finding) => finding.includes('wrong reference')))
+})
 test('assessment prepopulation supplies reviewed scope, owner path, tool list and measurement baseline', () => {
   const prefill = pilotAssessmentPrefill(highAssessment)
   assert.equal(

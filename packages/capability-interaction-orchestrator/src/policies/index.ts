@@ -70,6 +70,10 @@ export function interactionFor(
           params: { ...s.payload, baseCommitHash: s.baseCommitHash },
         },
       };
+    case "feedback":
+      // Feedback responses are never executed as story interactions; a window
+      // resolving one produces a prompt that carries no viewer text.
+      return { type: "prompt", payload: { type: "prompt", prompt: "" } };
   }
 }
 function result(

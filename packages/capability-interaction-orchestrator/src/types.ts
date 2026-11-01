@@ -50,7 +50,8 @@ export type InputKind =
   | "world_action"
   | "message"
   | "create_object"
-  | "create_branch";
+  | "create_branch"
+  | "feedback";
 
 /**
  * Arbitration policies for resolving input contention.
@@ -208,6 +209,10 @@ export interface Submission {
 
   /** App-specific metadata (JSONB extension) */
   appMetadata: Record<string, unknown>;
+  /** External billing retries so far. Absent on in-transaction billing paths. */
+  billingAttempts?: number;
+  /** When the submission first became pending on external billing (ISO timestamp). */
+  billingPendingSince?: string;
 }
 
 /**
@@ -361,6 +366,13 @@ export interface BillingTerms {
   sessionId?: string;
   date?: string;
   reservationTtlMs?: number;
+  /**
+   * When the external credit debit settles relative to the lifecycle.
+   * "admission" (default) charges right after moderation, before eligibility;
+   * "claim" defers the charge until the submission is durably claimed for
+   * execution (paid guides are charged at claim, never at queue time).
+   */
+  settle?: "admission" | "claim";
 }
 
 /**

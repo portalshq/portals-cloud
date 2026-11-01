@@ -23,8 +23,8 @@ const initial = (title: string) => title.charAt(0)
 function Actions({ channel }: { channel: Channel }) {
   return (
     <div className={styles.actions}>
-      <FollowButton />
-      <ShareButton url={`/${channel.slug}`} />
+      <FollowButton channel={channel.slug} />
+      <ShareButton channel={channel.slug} url={`/${channel.slug}`} />
     </div>
   )
 }

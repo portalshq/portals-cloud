@@ -7,6 +7,18 @@ adapters require an active local account for those operations. Profile sync and 
 validation are explicit trusted-server operations: they do **not** verify access tokens or
 establish authorization. Never expose sync with an arbitrary browser-supplied user ID.
 
+## Program and producer nomenclature
+
+Channels own programs; stations hold schedules and program slots. Tenants are
+producer records independent of users. On a central schema upgraded to the
+station model, `user_channel_history.program_id` attributes activity to a
+program and `channel_id` identifies the producer venue. The currently published
+adapter's `recordInteraction` writes channel and session only; applications
+that need program attribution must explicitly write it after verified identity.
+The shipped central SQL still uses legacy `channel_apps`, `channel_schedules`,
+`channel_sessions`, and `app_id` names. Coordinate schema and consumer upgrades;
+compatibility views may support reads but do not guarantee old writers work.
+
 ## Setup and deployment
 
 Install this package and `pg` in a server application. Choose one adapter:

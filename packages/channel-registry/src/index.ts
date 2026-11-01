@@ -6,9 +6,11 @@ const secretRef = z.string().regex(/^[A-Z][A-Z0-9_]*$/);
 const entityUri = z.string().regex(/^px:\/\/[\w.-]+\/[\w.-]+\/[\w.-]+$/);
 
 const channel = z.object({
-  controlEndpoint: z.string().url(),
+  controlEndpoint: z.union([z.string().url(), z.string().regex(/^\$\{[A-Z][A-Z0-9_]*\}$/)]),
   queueTokenEnv: secretRef,
   requiredEntities: z.array(entityUri).min(1),
+  // Capability-specific settings are validated by their owning package.
+  interactions: z.record(z.string(), z.unknown()).optional(),
   youtube: z.object({ liveChatId: z.string().min(1), clientIdEnv: secretRef, clientSecretEnv: secretRef, refreshTokenEnv: secretRef }).optional(),
   twitch: z.object({ broadcasterUserId: z.string().min(1), userId: z.string().min(1), clientIdEnv: secretRef, clientSecretEnv: secretRef, refreshTokenEnv: secretRef }).optional(),
 });
@@ -18,6 +20,11 @@ const registrySchema = z.object({
   entities: z.record(entityUri, z.object({ id: entityUri }).passthrough()).default({}),
   entitiesFetchedAt: z.string().datetime().optional(),
 });
+
+/** Validate without refreshing manifests or writing the registry. */
+export function parseChannelRegistry(value: unknown) {
+  return registrySchema.parse(value);
+}
 
 export type Channel = z.infer<typeof channel>;
 export type EntityManifest = { id: string } & Record<string, unknown>;
@@ -52,7 +59,7 @@ export function openChannelRegistry(options: {
     },
     async refresh() {
       const filePath = path.resolve(options.filePath);
-      const parsed = registrySchema.parse(JSON.parse(await readFile(filePath, "utf8")));
+      const parsed = parseChannelRegistry(JSON.parse(await readFile(filePath, "utf8")));
       const uris = [...new Set(Object.values(parsed.channels).flatMap((value) => value.requiredEntities))];
       const manifests = await options.resolveManifests(uris);
       if (manifests.length !== uris.length) throw new Error("Every required PX entity must resolve before the registry can refresh.");

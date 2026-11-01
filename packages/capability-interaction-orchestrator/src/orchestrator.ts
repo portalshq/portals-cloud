@@ -1,14 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { ArbitrationEngine } from "./arbitration-engine.js";
 import { BillingController } from "./billing-controller.js";
+import { ChoiceCoordinator } from "./choice.js";
 import { InteractionRepository } from "./db/repository.js";
+import { ExternalBilling } from "./external-billing.js";
+import { FeedbackCoordinator } from "./feedback.js";
+import { GuideQueue } from "./guide-queue.js";
+import type { InteractionMetrics } from "./metrics.js";
+import { noopMetrics } from "./metrics.js";
 import {
   ModerationGateway,
   type IModerationGateway,
 } from "./moderation-gateway.js";
+import { NarrativeHandoffQueue } from "./narrative-handoff.js";
+import { ReactionGateway } from "./reactions.js";
 import { SubmissionGateway } from "./submission-gateway.js";
 import { WindowManager } from "./window-manager.js";
 import type { InputWindow, ModerationContext, Resolution } from "./types.js";
+import type { ExternalBillingOptions } from "./external-billing.js";
 import {
   canonical,
   InteractionError,
@@ -25,12 +34,23 @@ export interface OrchestratorOptions {
   contextFor?: (
     window: InputWindow
   ) => Omit<ModerationContext, "contentRating">;
+  /** External credit billing on a separate database. Absent → the colocated
+   *  reservation path handles every paid policy. */
+  externalBilling?: ExternalBillingOptions;
+  metrics?: InteractionMetrics;
+  reactions?: { maxPerWindow?: number; windowMs?: number };
 }
 /** Lifecycle module. Callers never need to coordinate submission, billing and outbox writes. */
 export class InteractionOrchestrator {
   readonly windows: WindowManager;
   readonly submissions: SubmissionGateway;
   readonly billing: BillingController;
+  readonly externalBilling?: ExternalBilling;
+  readonly handoffs: NarrativeHandoffQueue;
+  readonly choices: ChoiceCoordinator;
+  readonly guides?: GuideQueue;
+  readonly feedback?: FeedbackCoordinator;
+  readonly reactions: ReactionGateway;
   private readonly moderation: IModerationGateway;
   private readonly arbitration: ArbitrationEngine;
   private readonly contextFor: NonNullable<OrchestratorOptions["contextFor"]>;
@@ -38,17 +58,31 @@ export class InteractionOrchestrator {
     private readonly repository: InteractionRepository,
     options: OrchestratorOptions = {}
   ) {
+    const metrics = options.metrics ?? noopMetrics;
     this.moderation = options.moderation ?? new ModerationGateway();
     this.arbitration = options.arbitration ?? new ArbitrationEngine();
     this.contextFor = options.contextFor ?? (() => ({}));
     this.windows = new WindowManager(repository);
     this.billing = new BillingController(repository);
+    this.externalBilling = options.externalBilling
+      ? new ExternalBilling(repository, { metrics: metrics, ...options.externalBilling })
+      : undefined;
     this.submissions = new SubmissionGateway(
       repository,
       this.moderation,
       this.billing,
-      this.contextFor
+      this.contextFor,
+      this.externalBilling
     );
+    this.handoffs = new NarrativeHandoffQueue(repository, metrics);
+    this.choices = new ChoiceCoordinator(repository, this.handoffs, metrics);
+    this.guides = this.externalBilling
+      ? new GuideQueue(repository, this.externalBilling)
+      : undefined;
+    this.feedback = this.externalBilling
+      ? new FeedbackCoordinator(repository, this.externalBilling)
+      : undefined;
+    this.reactions = new ReactionGateway(repository, { metrics, ...options.reactions });
   }
   async resolveWindow(
     id: string,

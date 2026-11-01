@@ -41,12 +41,22 @@ packages/
   runtime-core/                 # Control plane: session orchestrator, data-plane gateway
   registry/                     # Capability registry (register/resolve/version)
   resolver/                     # PX address resolver — adapter over existing PX v0
-  capabilities/
-    realtime-fanout/            # Chat + polls + lobby control — one pub/sub primitive
-    video-delivery/             # Live + VOD session abstraction
-    text-image-delivery/        # 25thChapter-style chapter/text/image delivery
-    identity/                   # Cross-channel audience identity & session
-    narrative-engine-adapter/   # Adapter over existing Narrative Engine v0
+  capability-identity/          # Cross-channel audience identity & session
+  capability-interaction-orchestrator/  # Input windows, submissions, arbitration, lifecycle outbox
+  capability-live-production/   # Live + VOD session abstraction
+  capability-narrative-production/ # Narrative production capability
+  capability-realtime-fanout*/  # Chat + polls + lobby control — one pub/sub primitive
+  capability-chat-ingress/      # Chat ingress capability
+  capability-email-notifications/ # Email notification capability
+  capability-queue-broadcast/   # Queue broadcast capability
+  capability-text-image-delivery/ # 25thChapter-style chapter/text/image delivery
+  capability-video-delivery/    # Video delivery capability
+  capabilities-redirect/        # Capabilities redirect helpers
+  monetization/                 # Billing, purchases, Connect settlement, entitlements, outbox
+  platform-billing/             # Platform billing surfaces
+  analytics/                    # Event contracts, browser recorder, Segment adapter, delivery connector
+  policy/                       # Policy evaluation
+  channel-registry/             # Channel registry
   sdk/                          # Developer CLI + channel manifest loader
 infra/
   terraform/linode/             # LKE cluster + Object Storage (cloud-agnostic via K8s)
