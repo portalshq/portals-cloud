@@ -1,0 +1,80 @@
+{
+  "name": "@portalshq/analytics",
+  "version": "0.1.0",
+  "description": "Privacy-conscious analytics contracts and integrations for Portals",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./adapters/monetization": {
+      "types": "./dist/adapters/monetization.d.ts",
+      "import": "./dist/adapters/monetization.js"
+    },
+    "./adapters/interaction-orchestrator": {
+      "types": "./dist/adapters/interaction-orchestrator.d.ts",
+      "import": "./dist/adapters/interaction-orchestrator.js"
+    },
+    "./adapters/segment": {
+      "types": "./dist/adapters/segment.d.ts",
+      "import": "./dist/adapters/segment.js"
+    },
+    "./sources": {
+      "types": "./dist/sources.d.ts",
+      "import": "./dist/sources.js"
+    },
+    "./channel-events": {
+      "types": "./dist/channel-events.d.ts",
+      "import": "./dist/channel-events.js"
+    },
+    "./connector": {
+      "types": "./dist/connector.d.ts",
+      "import": "./dist/connector.js"
+    }
+  },
+  "files": [
+    "dist",
+    "sql",
+    "README.md",
+    "docs/ga4-mapping.md",
+    "docs/integration-status.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^3.2.7",
+    "@electric-sql/pglite": "^0.3.16",
+    "@types/pg": "^8.15.5",
+    "@types/node": "^20.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portalshq/portals-cloud.git",
+    "directory": "packages/analytics"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "bin": {
+    "portals-analytics": "./dist/cli.js"
+  }
+}
