@@ -6,6 +6,8 @@ For assessment-to-paid-pilot work, read `marketing/ASSESSMENT.md` (diagnostic/sc
 
 The application database owns identity, assessments, applications, pilot rooms, terms, acceptance, and payments. Apollo is a durable projection. Browser analytics and typed email addresses cannot grant access or approve commercial transitions. Keep the existing scoring/state machines and server pricing authority.
 
+`@portalshq/analytics` owns analytics contracts and independent delivery: its supervised connector reads committed `monetization_outbox`/`interaction_outbox` records into its own delivery ledger behind `ANALYTICS_START_AT`. Monetization and interaction-orchestrator must not import it, host analytics callbacks, or call vendors from transaction paths.
+
 Use the unified approved-version/context/handoff success test by default. Never introduce another required discovery or success-selection wizard. Preserve original assessment evidence alongside explicit pilot overrides. Keep public metadata free of private production details; private rooms must be noindex.
 
 Run relevant lead tests, frontend typecheck, marketing checks, whitespace checks, and a production build after funnel changes. Use explicit non-production dry-run mode for local integration tests. Report actual results and external-service limitations; do not claim conversion or ranking lift without production evidence.
