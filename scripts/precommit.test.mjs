@@ -17,6 +17,11 @@ test("one commit invokes audit, package graph, skill generation, and applicable 
   assert.equal(calls.filter(([, args]) => args.includes("skills:build")).length, 1);
   assert.equal(calls.filter(([, args]) => args.includes("build")).length, 0, "no second affected-workspace build");
   assert.equal(calls.filter(([, args]) => args.includes("generate-pdfs")).length, 0);
+  assert.equal(calls.filter(([, args]) => args.includes("--package-lock-only")).length, 1, "lockfile regenerated once");
+  assert.equal(calls.filter(([command, args]) => command === "git" && args.includes("package-lock.json")).length, 1, "lockfile diff verified once");
+  assert.ok(calls.findIndex(([, args]) => args.includes("scripts/audit-rust.sh")) < calls.findIndex(([, args]) => args.includes("--package-lock-only")), "audit gates before lockfile regeneration writes");
+  assert.ok(calls.findIndex(([, args]) => args.includes("--package-lock-only")) < calls.findIndex(([, args]) => args.includes("release:build")), "lockfile drift fails before builds");
+  assert.equal(calls.filter(([, args]) => args.includes("--test") && args.includes("scripts/precommit.test.mjs")).length, 1, "script suites run once");
   assert.ok(calls.findIndex(([, args]) => args.includes("release:build")) < calls.findIndex(([, args]) => args.includes("skills:build")));
   const rootPackage = JSON.parse(readFileSync(join(root, "package.json")));
   assert.ok(!rootPackage.workspaces.some((entry) => entry.startsWith("!packages/")));
