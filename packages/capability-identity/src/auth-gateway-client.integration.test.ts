@@ -13,6 +13,7 @@ describe("auth-gateway wire integration", () => {
   const methods = definition["epic_urc.UrcAuthApi"] as loader.ServiceDefinition;
   const server = new grpc.Server();
   let client: AuthGatewayClient;
+  let shortDeadlineClient: AuthGatewayClient;
   let revokedWith: unknown;
   beforeAll(async () => {
     server.addService(methods, {
@@ -65,9 +66,13 @@ describe("auth-gateway wire integration", () => {
       },
     });
     const port = await new Promise<number>((resolve, reject) => server.bindAsync("127.0.0.1:0", grpc.ServerCredentials.createInsecure(), (error, port) => error ? reject(error) : resolve(port)));
-    client = createAuthGatewayClient({ address: `127.0.0.1:${port}`, timeout: 200 });
+    client = createAuthGatewayClient({ address: `127.0.0.1:${port}`, timeout: 5000 });
+    // A separate client enforces the deadline assertion deterministically: the
+    // "timeout" handler never responds, so a 100ms budget always trips — while
+    // the shared client keeps a 5s budget so ordinary calls survive CI load.
+    shortDeadlineClient = createAuthGatewayClient({ address: `127.0.0.1:${port}`, timeout: 100 });
   });
-  afterAll(() => { client?.close(); server.forceShutdown(); });
+  afterAll(() => { client?.close(); shortDeadlineClient?.close(); server.forceShutdown(); });
   it("verifies and looks up identities using the proto", async () => {
     await expect(client.verifyUser("valid")).resolves.toEqual({ userId: "u1", displayName: "Ada" });
     await expect(client.getUserInfo("app", "u1")).resolves.toEqual({ userId: "u1", displayName: "Ada" });
@@ -75,7 +80,7 @@ describe("auth-gateway wire integration", () => {
   });
   it("preserves gRPC status codes and enforces deadlines", async () => {
     await expect(client.verifyUser("invalid")).rejects.toMatchObject({ code: grpc.status.UNAUTHENTICATED });
-    await expect(client.verifyUser("timeout")).rejects.toMatchObject({ code: grpc.status.DEADLINE_EXCEEDED });
+    await expect(shortDeadlineClient.verifyUser("timeout")).rejects.toMatchObject({ code: grpc.status.DEADLINE_EXCEEDED });
   });
   it("rejects missing, malformed and mismatched identities", async () => {
     for (const token of ["empty", "blank"]) await expect(client.verifyUser(token)).rejects.toThrow("no valid user info");

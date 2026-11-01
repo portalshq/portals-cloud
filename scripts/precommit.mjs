@@ -18,6 +18,7 @@ export function commitChecks(stagedPaths) {
     // One Turbo graph owns every package build, including dependency builds.
     [npm, ["run", "release:build"]],
     [npm, ["exec", "--", "turbo", "run", "lint", "--filter=[HEAD]"]],
+    [npm, ["exec", "--", "turbo", "run", "test", "--filter=[HEAD]"]],
     [npm, ["run", "skills:build"]],
     // Generated skills must be reviewed/staged; never silently stage source edits.
     [process.execPath, ["scripts/check-generated-skills-staged.mjs"]],
