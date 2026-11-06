@@ -82,8 +82,9 @@ Husky-generated launchers. It calls `npm run precommit` once. The runner:
 6. For staged frontend or Sanity changes only, retains PDF generation and stages
    `generated-assets/`. This requires the frontend's existing local configuration.
 
-`npm run precommit` also runs the checks manually. No pre-push or commit-message
-hook repeats them. CI still independently validates clean checkouts; local hooks
+`npm run precommit` also runs the checks manually, including the frontend production
+build. A pre-push hook runs that build again to guard pushes of existing commits.
+CI still independently validates clean checkouts; local hooks
 can be bypassed and are not a substitute for PR checks. Changesets' automated
 version commit disables Husky because its release job already runs validation.
 

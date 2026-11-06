@@ -15,7 +15,7 @@ test("one commit invokes audit, package graph, skill generation, and applicable 
   assert.equal(calls.filter(([, args]) => args.includes("scripts/audit-rust.sh")).length, 1);
   assert.equal(calls.filter(([, args]) => args.includes("release:build")).length, 1);
   assert.equal(calls.filter(([, args]) => args.includes("skills:build")).length, 1);
-  assert.equal(calls.filter(([, args]) => args.includes("build")).length, 0, "no second affected-workspace build");
+  assert.equal(calls.filter(([, args]) => args.includes("build") && args.includes("--workspace=frontend")).length, 1, "frontend production build runs once");
   assert.equal(calls.filter(([, args]) => args.includes("generate-pdfs")).length, 0);
   assert.equal(calls.filter(([, args]) => args.includes("--package-lock-only")).length, 1, "lockfile regenerated once");
   assert.equal(calls.filter(([command, args]) => command === "git" && args.includes("package-lock.json")).length, 1, "lockfile diff verified once");
@@ -26,6 +26,7 @@ test("one commit invokes audit, package graph, skill generation, and applicable 
   const rootPackage = JSON.parse(readFileSync(join(root, "package.json")));
   assert.ok(!rootPackage.workspaces.some((entry) => entry.startsWith("!packages/")));
   assert.equal(readFileSync(join(root, ".husky/pre-commit"), "utf8").trim(), "npm run precommit");
+  assert.equal(readFileSync(join(root, ".husky/pre-push"), "utf8").trim(), "npm run build --workspace=frontend");
 });
 
 test("PDF generation is retained once for frontend or Sanity edits", () => {

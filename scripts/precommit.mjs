@@ -17,6 +17,7 @@ export function commitChecks(stagedPaths) {
     ["git", ["diff", "--exit-code", "--", "package-lock.json"]],
     // One Turbo graph owns every package build, including dependency builds.
     [npm, ["run", "release:build"]],
+    [npm, ["run", "build", "--workspace=frontend"]],
     [npm, ["exec", "--", "turbo", "run", "lint", "--filter=[HEAD]"]],
     [npm, ["exec", "--", "turbo", "run", "test", "--filter=[HEAD]"]],
     // release:check also covers the script suites outside turbo's package graph.
