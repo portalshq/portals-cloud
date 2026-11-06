@@ -1,6 +1,6 @@
 {
   "name": "@portalshq/analytics",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Privacy-conscious analytics contracts and integrations for Portals",
   "type": "module",
   "exports": {
