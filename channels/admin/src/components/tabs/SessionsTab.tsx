@@ -125,7 +125,16 @@ export default function SessionsTab() {
   }
 
   const handleCancel = async (slot: ProgramSlot) => {
-    if (!confirm(`Cancel the ${formatSlotDate(slot.startsAt, localTz)} session on ${channelName(slot.channelId)}?`)) return
+    const when = formatSlotDate(slot.startsAt, localTz)
+    const message = slot.status === 'live'
+      ? `This session on ${channelName(slot.channelId)} is LIVE right now.\n\n` +
+        `Cancelling it closes the running session — the production reconcile ` +
+        `(~30s tick) will tear down the delivery/Reactor sessions and move the ` +
+        `channel off this slot. There is no graceful wrap-up.\n\n` +
+        `Cancel the live session that started ${when}?`
+      : `Cancel the upcoming session on ${channelName(slot.channelId)} at ${when}?\n\n` +
+        `The window is removed from the schedule grid on the next reconcile tick (~30s).`
+    if (!confirm(message)) return
     setError(null)
     try {
       await adminFetch(`/sessions/${slot.id}/cancel`, token, { method: 'POST' })
