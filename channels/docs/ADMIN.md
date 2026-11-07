@@ -14,17 +14,22 @@ by `bears-live-app`. Read `SCHEDULING.md` first for the scheduling model.
 
 ## Environment variables
 
+Annotated placeholders live in `channels/.env.example` (server) and
+`channels/admin/.env.example` (SPA). Copy to `.env.local`; real `.env*` files
+stay gitignored.
+
 | Var | Purpose |
 |---|---|
 | `CHANNELS_ADMIN_TOKEN` | Bearer token required by every `/api/admin/*` route. Unset → all routes 503. |
-| `ADMIN_APP_DATABASE_URL` | Bears **app** database (`channels`, `program_sessions`, `production_checkpoints`). |
-| `ADMIN_CENTRAL_DATABASE_URL` | Central platform database (`stations`, `programs`, `station_schedule_rules`, `station_program_slots`, `next_program_session`). |
-| `BEARS_API_BASE_URL` | Bears server origin for status reads and production proxying. |
-| `BEARS_PRODUCTION_CONTROL_TOKEN` | Server-only bearer forwarded to bears `POST /api/production/*`. Never reaches the browser. |
+| `ADMIN_APP_DATABASE_URL` | Bears **app** database (`channels`, `program_sessions`, `production_checkpoints`) — the bears server's `DATABASE_URL`. |
+| `ADMIN_CENTRAL_DATABASE_URL` | Central platform database (`stations`, `programs`, `station_schedule_rules`, `station_program_slots`, `next_program_session`) — the bears server's `CENTRAL_DATABASE_URL`. |
+| `BEARS_API_BASE_URL` | Bears server origin for status reads and production proxying. Production tab only. |
+| `BEARS_PRODUCTION_CONTROL_TOKEN` | Server-only bearer forwarded to bears `POST /api/production/*` — equals the bears server's `PRODUCTION_CONTROL_TOKEN`. Never reaches the browser. |
 
-SPA-side (admin/.env*, gitignored): `VITE_ADMIN_API_ORIGIN` (dev proxy target,
+SPA-side (admin/.env*): `VITE_ADMIN_API_ORIGIN` (dev proxy target,
 default `http://localhost:3001`), `VITE_POLL_INTERVAL_MS`, optional
-`VITE_ADMIN_TOKEN`.
+`VITE_ADMIN_TOKEN` (build-time token baked into the bundle — prefer the
+prompt or `?token=`).
 
 ## API surface
 

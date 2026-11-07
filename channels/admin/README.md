@@ -53,9 +53,11 @@ npm run dev                     # vite on :5174, proxies /api → :3001
 
 Open http://localhost:5174 — the token screen accepts the admin token.
 
-Dev env (non-secret, gitignored): `.env` (`VITE_POLL_INTERVAL_MS`),
-`.env.development` (`VITE_ADMIN_API_ORIGIN=http://localhost:3001`). Secrets go
-in `.env.local`, which stays untracked via `*.local`.
+Dev env: copy `.env.example` to `.env.local` (or `.env.development`) and fill
+in — `VITE_ADMIN_API_ORIGIN` (proxy target, dev default `:3001`),
+`VITE_POLL_INTERVAL_MS`, optional `VITE_ADMIN_TOKEN`. `*.local` files stay
+untracked. The server-side vars this SPA talks to live in
+`../.env.example`.
 
 **Port note**: bears-live-app's server also defaults to :3001. When running
 bears + channels together, point `BEARS_API_BASE_URL` at wherever bears
