@@ -1,6 +1,6 @@
 {
   "extends": "../tsconfig.base.json",
-  "include": ["app/**/*", "components/**/*", "next-env.d.ts"],
+  "include": ["app/**/*", "components/**/*", "lib/**/*", "test/**/*", "vitest.config.ts", "next-env.d.ts"],
   "exclude": ["node_modules", ".next", "out", "dist"],
   "compilerOptions": {
     "noEmit": true,

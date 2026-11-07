@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // The admin SPA is a static Vite build in public/admin; mount its entry
+  // point at /admin (assets already resolve under /admin/ via the Vite base).
+  async rewrites() {
+    return [{ source: '/admin', destination: '/admin/index.html' }]
+  },
 }
 
 export default nextConfig
