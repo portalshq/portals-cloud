@@ -77,7 +77,7 @@ export class InteractionOrchestrator {
     this.handoffs = new NarrativeHandoffQueue(repository, metrics);
     this.choices = new ChoiceCoordinator(repository, this.handoffs, metrics);
     this.guides = this.externalBilling
-      ? new GuideQueue(repository, this.externalBilling)
+      ? new GuideQueue(repository, this.externalBilling, this.submissions)
       : undefined;
     this.feedback = this.externalBilling
       ? new FeedbackCoordinator(repository, this.externalBilling)

@@ -11,7 +11,7 @@ import {
   type CreditDebitResult,
 } from "../src/index.js";
 import type { CreditDebitInput, CreditGrantInput } from "../../monetization/src/index.js";
-import { database, openWindow, terms, windowInput } from "./database.js";
+import { database, grant, openWindow, terms, windowInput } from "./database.js";
 
 const OPTIONS = [
   { id: "atlas", kind: "character" as const, name: "Atlas", pxUri: "px://bears/character/atlas" },
@@ -345,5 +345,125 @@ describe("interaction settings and registry validation", () => {
     expect(() => validateRegistryInteractions(registry)).toThrow(/bad.*choice-number/s);
     const valid = validateRegistryInteractions({ channels: { only: { controlEndpoint: "https://x", queueTokenEnv: "T", requiredEntities: ["px://a/character/b"], interactions: { feedback: { "max-per-session": 2 } } } } });
     expect(valid[0].settings?.feedback.maxPerSession).toBe(2);
+  });
+});
+
+describe("scheduled guide windows", () => {
+  let db: Awaited<ReturnType<typeof database>>;
+  let store: PostgresEntitlementStore;
+  beforeAll(async () => {
+    db = await database();
+    await db.pool.query(readFileSync(new URL("../../monetization/sql/002_credit_debits.sql", import.meta.url), "utf8"));
+    await db.pool.query(readFileSync(new URL("../../monetization/sql/003_credit_grants.sql", import.meta.url), "utf8"));
+    store = new PostgresEntitlementStore(db.pool);
+  });
+  afterAll(async () => { await db?.close(); });
+
+  async function guideApp() {
+    const { InteractionOrchestrator } = await import("../src/orchestrator.js");
+    return new InteractionOrchestrator(db.repository, { externalBilling: { debits: store, grants: store } });
+  }
+  const billingTerms = { ...terms, sessionId: "s" };
+
+  it("opens a bounded window once, emits guide_opened, and closes intake at the deadline", async () => {
+    const app = await guideApp();
+    const worldId = crypto.randomUUID();
+    const guides = app.guides!;
+    const input = { worldId, branchId: "main", sessionId: "s", guideKey: "story", theme: "a door appears", durationSeconds: 60, billingTerms };
+    const w1 = await guides.openWindow(input);
+    expect(w1.state).toBe("open");
+    expect(w1.closesAt).not.toBeNull();
+    expect(w1.appMetadata).toMatchObject({ guideQueue: true, guideWindow: true, guideKey: "story", theme: "a door appears" });
+    // A racing second open returns the same window.
+    expect((await guides.openWindow(input)).id).toBe(w1.id);
+    const events = await db.repository.getEvents(worldId, 0);
+    expect(events.some((e) => e.eventType === "guide_opened" && e.data.theme === "a door appears")).toBe(true);
+
+    const actor = crypto.randomUUID();
+    const sub = await guides.submit({ worldId, branchId: "main", sessionId: "s", guideKey: "story", alwaysOpen: false, actorId: actor, prompt: "bees!", idempotencyKey: "g1", billingTerms });
+    expect(sub.status).toBe("eligible");
+
+    // Past closesAt admit rejects even before the publish sweep runs.
+    await db.pool.query("UPDATE input_windows SET closes_at = clock_timestamp() - interval '1 second' WHERE id=$1", [w1.id]);
+    await expect(guides.submit({ worldId, branchId: "main", sessionId: "s", guideKey: "story", alwaysOpen: false, actorId: actor, prompt: "again", idempotencyKey: "g2", billingTerms })).rejects.toMatchObject({ code: "WINDOW_CLOSED" });
+
+    expect(await guides.expireClosed(worldId)).toBe(1);
+    expect((await db.repository.getWindow(w1.id))?.state).toBe("published");
+    // The admitted guide stays eligible and claimable after publish.
+    expect((await app.submissions.getSubmission(sub.id))?.status).toBe("eligible");
+  });
+
+  it("keeps a closing window open while admissions are in flight", async () => {
+    const app = await guideApp();
+    const worldId = crypto.randomUUID();
+    const guides = app.guides!;
+    const w = await guides.openWindow({ worldId, branchId: "main", sessionId: "s", durationSeconds: 60, billingTerms });
+    await guides.submit({ worldId, branchId: "main", sessionId: "s", alwaysOpen: false, actorId: crypto.randomUUID(), prompt: "hi", idempotencyKey: "g1", billingTerms });
+    await db.pool.query("UPDATE input_windows SET closes_at = clock_timestamp() - interval '1 second' WHERE id=$1", [w.id]);
+    // The eligible submission does not pin the window — only in-flight ones do.
+    expect(await guides.expireClosed(worldId)).toBe(1);
+    expect((await db.repository.getWindow(w.id))?.state).toBe("published");
+  });
+
+  it("submit routes always-open configs to the standing queue and windowed configs to the open window", async () => {
+    const app = await guideApp();
+    const worldId = crypto.randomUUID();
+    const guides = app.guides!;
+    const base = { worldId, branchId: "main", sessionId: "s", billingTerms };
+    // Windowed submit with nothing open → WINDOW_CLOSED.
+    await expect(guides.submit({ ...base, alwaysOpen: false, actorId: crypto.randomUUID(), prompt: "x", idempotencyKey: "w1" })).rejects.toMatchObject({ code: "WINDOW_CLOSED" });
+    // Always-open submit creates the standing queue lazily.
+    const standing = await guides.submit({ ...base, alwaysOpen: true, actorId: crypto.randomUUID(), prompt: "always", idempotencyKey: "a1" });
+    expect(standing.status).toBe("eligible");
+    const standingWindow = await db.repository.getWindow(standing.windowId);
+    expect(standingWindow?.closesAt).toBeNull();
+    // Scheduled window + submit lands on it, keyed by guideKey.
+    const scheduled = await guides.openWindow({ ...base, guideKey: "story", durationSeconds: 60 });
+    const onWindow = await guides.submit({ ...base, guideKey: "story", alwaysOpen: false, actorId: crypto.randomUUID(), prompt: "windowed", idempotencyKey: "w2" });
+    expect(onWindow.windowId).toBe(scheduled.id);
+    // A different guideKey does not see the open window.
+    await expect(guides.submit({ ...base, guideKey: "other", alwaysOpen: false, actorId: crypto.randomUUID(), prompt: "x", idempotencyKey: "w3" })).rejects.toMatchObject({ code: "WINDOW_CLOSED" });
+  });
+
+  it("claims the oldest eligible guide across standing and scheduled windows", async () => {
+    const app = await guideApp();
+    const worldId = crypto.randomUUID();
+    const guides = app.guides!;
+    const base = { worldId, branchId: "main", sessionId: "s", billingTerms };
+    const actor = crypto.randomUUID();
+    await grant(db.pool, actor, 5);
+    // Standing queue guide admitted first.
+    const first = await guides.submit({ ...base, alwaysOpen: true, actorId: actor, prompt: "first", idempotencyKey: "c1" });
+    // Scheduled window guide admitted second.
+    await guides.openWindow({ ...base, guideKey: "story", durationSeconds: 60 });
+    const second = await guides.submit({ ...base, guideKey: "story", alwaysOpen: false, actorId: actor, prompt: "second", idempotencyKey: "c2" });
+    expect(first.status).toBe("eligible");
+    expect(second.status).toBe("eligible");
+
+    const claimed = await guides.claimNextForSession(worldId, "s");
+    expect(claimed?.id).toBe(first.id);
+    expect(claimed?.status).toBe("executing");
+    await guides.complete(claimed!.id);
+    const next = await guides.claimNextForSession(worldId, "s");
+    expect(next?.id).toBe(second.id);
+  });
+
+  it("queueStatus scopes to the session and includes published windows", async () => {
+    const app = await guideApp();
+    const worldId = crypto.randomUUID();
+    const guides = app.guides!;
+    const base = { worldId, branchId: "main", sessionId: "s1", billingTerms };
+    const w = await guides.openWindow({ ...base, durationSeconds: 60 });
+    await guides.submit({ ...base, alwaysOpen: false, actorId: crypto.randomUUID(), prompt: "queued prompt", displayName: "Fan", idempotencyKey: "q1" });
+    let status = await guides.queueStatus(worldId, "s1");
+    expect(status.count).toBe(1);
+    expect(status.items[0]).toMatchObject({ displayName: "Fan", promptPreview: "queued prompt", status: "eligible", position: 1 });
+    // Other sessions see nothing.
+    expect((await guides.queueStatus(worldId, "s2")).count).toBe(0);
+    // After publish the queued guide still shows.
+    await db.pool.query("UPDATE input_windows SET closes_at = clock_timestamp() - interval '1 second' WHERE id=$1", [w.id]);
+    await guides.expireClosed(worldId);
+    status = await guides.queueStatus(worldId, "s1");
+    expect(status.count).toBe(1);
   });
 });

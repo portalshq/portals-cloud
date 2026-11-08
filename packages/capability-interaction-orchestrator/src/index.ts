@@ -51,7 +51,13 @@ export { parseChoiceSettings, type ChoiceSettings } from "./interactions-config.
 
 export { resolveCollectiveChoice, type ChoiceOption, type ChoiceBallot } from "./collective-choice.js";
 
-export { parseInteractionSettings, type InteractionSettings, type FeedbackSettings } from "./interactions-config.js";
+export {
+  parseInteractionSettings,
+  type InteractionSettings,
+  type FeedbackSettings,
+  type GuideSettings,
+  type GuideSchedule,
+} from "./interactions-config.js";
 
 export { validateRegistryInteractions, type ChannelInteractionSettings } from "./registry-validation.js";
 
@@ -68,7 +74,14 @@ export {
   type ChoiceResolutionResult,
 } from "./choice.js";
 
-export { GuideQueue, type EnsureGuideWindowInput } from "./guide-queue.js";
+export {
+  GuideQueue,
+  type EnsureGuideWindowInput,
+  type OpenGuideWindowInput,
+  type SubmitGuideInput,
+  type GuideQueueItem,
+  type GuideQueueStatus,
+} from "./guide-queue.js";
 
 export { FeedbackCoordinator, type OpenFeedbackInput, type FeedbackReward } from "./feedback.js";
 
