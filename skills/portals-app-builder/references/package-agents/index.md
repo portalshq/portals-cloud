@@ -2,7 +2,7 @@
 
 Generated from `docs/package-agents/` and current package manifests. Load every module relevant to the requested experience.
 
-- [analytics.md](./analytics.md) - `@portalshq/analytics` `0.1.0`
+- [analytics.md](./analytics.md) - `@portalshq/analytics` `0.2.0`
 - [capabilities-redirect.md](./capabilities-redirect.md) - `@portalshq/capabilities-redirect` `0.0.5`
 - [capability-realtime-fanout-postgres.md](./capability-realtime-fanout-postgres.md) - `@portalshq/capability-realtime-fanout-postgres` `0.1.0`
 - [contracts.md](./contracts.md) - `@portalshq/contracts` `0.0.5`
