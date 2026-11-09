@@ -1,5 +1,11 @@
 # @portalshq/capability-identity
 
+## 0.5.1
+
+### Patch Changes
+
+- Republish 0.5.0 guest identity primitives; prior 0.5.0 publish was left staged on the registry and could not be completed.
+
 ## 0.5.0
 
 ### Minor Changes
