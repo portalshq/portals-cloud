@@ -41,6 +41,15 @@ export class GuestUsageStore {
     return result.rows.length > 0;
   }
 
+  /** Whether the guest has already spent their one-ever free vote. */
+  async voteUsed(guestId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      "SELECT vote_used_at IS NOT NULL AS used FROM guest_trial_usage WHERE guest_id = $1",
+      [guestId],
+    );
+    return result.rows[0]?.used === true;
+  }
+
   /** Give back a vote claimed by `claimVote` when the downstream submit
    *  failed. Only call after a successful claim in the same request. */
   async releaseVote(guestId: string): Promise<void> {

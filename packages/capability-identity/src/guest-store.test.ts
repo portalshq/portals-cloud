@@ -26,6 +26,9 @@ function makePool() {
         usage.set(guestId, { ...row, reactions: Math.max(row.reactions - 1, 0) });
         return { rowCount: 1, rows: [] };
       }
+      if (text.startsWith("SELECT vote_used_at")) {
+        return { rowCount: row.voted ? 1 : 0, rows: row.voted ? [{ used: true }] : [] };
+      }
       if (text.includes("vote_used_at")) {
         if (row.voted) return { rowCount: 0, rows: [] };
         usage.set(guestId, { ...row, voted: true });
@@ -74,6 +77,16 @@ describe("GuestUsageStore", () => {
     }
     expect(await store.claimVote("g1")).toBe(true);
     expect(await store.claimReaction("g1")).toBe(false);
+  });
+
+  it("reports whether the one-ever vote was spent", async () => {
+    const { pool } = makePool();
+    const store = new GuestUsageStore(pool);
+    expect(await store.voteUsed("g1")).toBe(false);
+    await store.claimVote("g1");
+    expect(await store.voteUsed("g1")).toBe(true);
+    await store.releaseVote("g1");
+    expect(await store.voteUsed("g1")).toBe(false);
   });
 
   it("records an upgrade claim exactly once across instances", async () => {
