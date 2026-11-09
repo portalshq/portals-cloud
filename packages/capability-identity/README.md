@@ -177,6 +177,61 @@ The PostgreSQL adapters return only channel ID, session ID, and timestamp in his
 optional metadata is reserved for custom adapters. Central preferences come from
 `user_preferences`; application preferences/email remain application-owned.
 
+## Guest trials and signup bonus (0.5.x)
+
+Unverified viewers can hold a signed guest credential so apps can offer a
+free trial (e.g. one vote, a few reactions) without an account. Guest
+identity is **per-app**: each app mints and verifies its own tokens, so a
+viewer gets a fresh trial budget per channel — deliberate, since guests do
+not know apps share a platform. Verified-user credits are unaffected: they
+live in the central entitlement ledger, keyed by consumer and program.
+
+- `mintGuestToken({ secret, guestId?, ttlMs? })` / `verifyGuestToken(token, { secret })`:
+  HMAC-signed `gt1.<guestId>.<expiresAt>.<sig>` tokens (default 24h TTL).
+  Always inject a stable secret from configuration — an ephemeral secret
+  invalidates every outstanding token on restart.
+- `guestActorIdFromHeaders(headers, secret)`: extracts the verified guest
+  id from `X-Guest-Token` only. A bare caller-chosen `X-Guest-Id` is
+  forgeable and must never be accepted; pass `null`/`undefined` secret to
+  disable guest trials cleanly.
+- `IdentityProvider.resolveActor(headers)`: resolves a request to
+  `{ type: "user", userId, displayName }`, `{ type: "guest", actorId }`, or
+  `null` — bearer credential first, then a valid guest token. Construct
+  the provider with `{ guestTokenSecret }` to enable the guest branch;
+  omit it and guests resolve to `null`.
+- `GuestUsageStore(pool)`: durable per-app trial ledger over
+  `guest_trial_usage` — atomic `claimVote`/`voteUsed`/`releaseVote`,
+  `claimReaction`/`releaseReaction` (cap enforced in SQL), and
+  `claimUpgrade(guestId, userId)` recording a once-only guest→user upgrade.
+- `SignupBonusStore(pool)`: durable `(consumerId, tenantId)` welcome-bonus
+  claim records — `hasClaimed` for cheap hot-path reads, `claim` returning
+  true only for the first claim (`ON CONFLICT DO NOTHING`).
+
+Required app-database schema (the consuming app owns the migration):
+
+```sql
+CREATE TABLE guest_trial_usage (
+  guest_id text PRIMARY KEY,
+  vote_used_at timestamptz,
+  reaction_count integer NOT NULL DEFAULT 0
+);
+CREATE TABLE guest_trial_claims (
+  guest_id text PRIMARY KEY,
+  user_id text NOT NULL,
+  claimed_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE signup_bonus_claims (
+  consumer_id text NOT NULL,
+  tenant_id text NOT NULL,
+  claimed_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (consumer_id, tenant_id)
+);
+```
+
+Claim ordering matters: grant credits first (idempotent `operationId`),
+then write the claim record — the reverse order strands the bonus behind
+a claim row whose grant never landed.
+
 ## Testing and packaging
 
 From the repository root:
