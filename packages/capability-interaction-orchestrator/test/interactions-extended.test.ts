@@ -8,9 +8,8 @@ import {
   ReactionGateway,
   validateRegistryInteractions,
   parseInteractionSettings,
-  type CreditDebitResult,
 } from "../src/index.js";
-import type { CreditDebitInput, CreditGrantInput } from "../../monetization/src/index.js";
+import type { CreditDebitInput, CreditDebitResult, CreditGrantInput } from "../../monetization/src/index.js";
 import { database, grant, openWindow, terms, windowInput } from "./database.js";
 
 const OPTIONS = [
