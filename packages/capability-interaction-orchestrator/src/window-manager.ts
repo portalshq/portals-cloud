@@ -49,7 +49,7 @@ export class WindowManager implements IWindowManager {
   }
   private async closeDueWindows(): Promise<void> {
     for (const window of await this.repository.listOpenWindowsDueToClose()) {
-      // Guide windows publish through GuideQueue.expireClosed instead:
+      // Guide windows publish through GuideCoordinator.expireClosed instead:
       // their admitted submissions stay claimable after intake closes, so
       // they must never enter `qualifying` (which resolves or cancels).
       if (window.appMetadata?.guideWindow === true) continue;

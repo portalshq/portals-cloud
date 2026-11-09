@@ -109,7 +109,7 @@ function isGuideWindow(window: InputWindow): boolean {
  * cannot lose a paid guide or unclaim it into a second consumption, and the
  * idempotent debit (operation id = submission id) makes every retry safe.
  */
-export class GuideQueue {
+export class GuideCoordinator {
   constructor(
     private readonly repository: InteractionRepository,
     private readonly billing: ExternalBilling,

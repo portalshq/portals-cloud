@@ -56,7 +56,7 @@ export {
   type InteractionSettings,
   type FeedbackSettings,
   type GuideSettings,
-  type GuideSchedule,
+  type InteractionSchedule,
 } from "./interactions-config.js";
 
 export { validateRegistryInteractions, type ChannelInteractionSettings } from "./registry-validation.js";
@@ -75,13 +75,13 @@ export {
 } from "./choice.js";
 
 export {
-  GuideQueue,
+  GuideCoordinator,
   type EnsureGuideWindowInput,
   type OpenGuideWindowInput,
   type SubmitGuideInput,
   type GuideQueueItem,
   type GuideQueueStatus,
-} from "./guide-queue.js";
+} from "./guide-coordinator.js";
 
 export { FeedbackCoordinator, type OpenFeedbackInput, type FeedbackReward } from "./feedback.js";
 

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PostgresEntitlementStore } from "../../monetization/src/index.js";
 import {
-  GuideQueue,
+  GuideCoordinator,
   ExternalBilling,
   NarrativeHandoffQueue,
   ReactionGateway,
@@ -328,7 +328,7 @@ describe("reactions", () => {
 describe("interaction settings and registry validation", () => {
   it("parses feedback settings with defaults and rejects unknown keys", () => {
     expect(parseInteractionSettings({ feedback: {} })).toEqual({ feedback: { maxPerSession: 1, rewardCredits: 1, windowSeconds: 120 } });
-    expect(parseInteractionSettings({ choice: { "choice-interval-seconds": 60 }, feedback: { "reward-credits": 5 } })?.feedback.rewardCredits).toBe(5);
+    expect(parseInteractionSettings({ choice: { "interval-seconds": 60 }, feedback: { "reward-credits": 5 } })?.feedback.rewardCredits).toBe(5);
     expect(parseInteractionSettings(undefined)).toBeUndefined();
     expect(() => parseInteractionSettings({ typo: true })).toThrow("Unknown interactions section");
     expect(() => parseInteractionSettings({ feedback: { "max-per-session": 0 } })).toThrow("positive integer");
@@ -337,11 +337,11 @@ describe("interaction settings and registry validation", () => {
   it("validates every channel's interactions with named context", () => {
     const registry = {
       channels: {
-        good: { controlEndpoint: "${ENDPOINT}", queueTokenEnv: "TOKEN", requiredEntities: ["px://a/character/b"], interactions: { choice: { "model-choice-interval": true } } },
-        bad: { controlEndpoint: "https://x", queueTokenEnv: "TOKEN", requiredEntities: ["px://a/character/b"], interactions: { choice: { "choice-number": 99, "choice-interval-seconds": 5 } } },
+        good: { controlEndpoint: "${ENDPOINT}", queueTokenEnv: "TOKEN", requiredEntities: ["px://a/character/b"], interactions: { choice: { "model-interval": true } } },
+        bad: { controlEndpoint: "https://x", queueTokenEnv: "TOKEN", requiredEntities: ["px://a/character/b"], interactions: { choice: { "option-count": 99, "interval-seconds": 5 } } },
       },
     };
-    expect(() => validateRegistryInteractions(registry)).toThrow(/bad.*choice-number/s);
+    expect(() => validateRegistryInteractions(registry)).toThrow(/bad.*option-count/s);
     const valid = validateRegistryInteractions({ channels: { only: { controlEndpoint: "https://x", queueTokenEnv: "T", requiredEntities: ["px://a/character/b"], interactions: { feedback: { "max-per-session": 2 } } } } });
     expect(valid[0].settings?.feedback.maxPerSession).toBe(2);
   });

@@ -289,7 +289,7 @@ export function validateIntent(input: SubmitIntentInput): void {
 const transitions: Record<WindowState, WindowState[]> = {
   scheduled: ["open", "cancelled", "failed"],
   // `published` is a valid direct exit for intake-only windows (scheduled
-  // guide windows) that close without a resolution — GuideQueue.expireClosed
+  // guide windows) that close without a resolution — GuideCoordinator.expireClosed
   // is the only caller that takes it.
   open: ["qualifying", "published", "cancelled", "failed"],
   qualifying: ["resolving", "cancelled", "failed"],

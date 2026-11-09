@@ -5,7 +5,7 @@ import { ChoiceCoordinator } from "./choice.js";
 import { InteractionRepository } from "./db/repository.js";
 import { ExternalBilling } from "./external-billing.js";
 import { FeedbackCoordinator } from "./feedback.js";
-import { GuideQueue } from "./guide-queue.js";
+import { GuideCoordinator } from "./guide-coordinator.js";
 import type { InteractionMetrics } from "./metrics.js";
 import { noopMetrics } from "./metrics.js";
 import {
@@ -48,7 +48,7 @@ export class InteractionOrchestrator {
   readonly externalBilling?: ExternalBilling;
   readonly handoffs: NarrativeHandoffQueue;
   readonly choices: ChoiceCoordinator;
-  readonly guides?: GuideQueue;
+  readonly guides?: GuideCoordinator;
   readonly feedback?: FeedbackCoordinator;
   readonly reactions: ReactionGateway;
   private readonly moderation: IModerationGateway;
@@ -77,7 +77,7 @@ export class InteractionOrchestrator {
     this.handoffs = new NarrativeHandoffQueue(repository, metrics);
     this.choices = new ChoiceCoordinator(repository, this.handoffs, metrics);
     this.guides = this.externalBilling
-      ? new GuideQueue(repository, this.externalBilling, this.submissions)
+      ? new GuideCoordinator(repository, this.externalBilling, this.submissions)
       : undefined;
     this.feedback = this.externalBilling
       ? new FeedbackCoordinator(repository, this.externalBilling)

@@ -1,10 +1,20 @@
 /** Canonical channel interaction settings. Undefined means interactions are disabled. */
+
+/** How an event opens: on a fixed cadence or when the model proposes it. */
+export type InteractionSchedule =
+  | { mode: "timed"; intervalSeconds: number }
+  | { mode: "model" };
+
 export interface ChoiceSettings {
-  choiceNumber: number;
+  /** Number of answer options the choice composes (2–6). */
+  optionCount: number;
+  /** Credits charged per vote. */
   price: number;
-  choiceDuration: number;
+  /** How long the choice window stays open, in seconds. */
+  windowSeconds: number;
+  /** Whether the resolved winner may persist as a reusable prop. */
   persistent: boolean;
-  schedule: { mode: "timed"; choiceIntervalSeconds: number } | { mode: "model" };
+  schedule: InteractionSchedule;
 }
 
 export interface FeedbackSettings {
@@ -15,10 +25,6 @@ export interface FeedbackSettings {
   /** How long a feedback event stays open. */
   windowSeconds: number;
 }
-
-export type GuideSchedule =
-  | { mode: "timed"; guideIntervalSeconds: number }
-  | { mode: "model" };
 
 export interface GuideSettings {
   /** Credits charged per guide when it is claimed for a generation turn. */
@@ -32,7 +38,7 @@ export interface GuideSettings {
   /** Maximum guide prompt length in characters. */
   promptMaxLength: number;
   /** Window opening schedule. Required unless alwaysOpen is true. */
-  schedule?: GuideSchedule;
+  schedule?: InteractionSchedule;
 }
 
 export interface InteractionSettings {
@@ -46,25 +52,32 @@ function asArray(value: unknown): unknown[] | undefined {
   return Array.isArray(value) ? value : [value];
 }
 
+function parseSchedule(interval: unknown, model: unknown, section: string): InteractionSchedule {
+  if (model !== undefined && typeof model !== "boolean") throw new TypeError(`${section} model-interval must be boolean`);
+  if ((model === true) === (interval !== undefined)) {
+    throw new TypeError(`Configure exactly one ${section} scheduling mode`);
+  }
+  if (interval !== undefined && (typeof interval !== "number" || !Number.isFinite(interval) || interval <= 0)) {
+    throw new TypeError(`${section} interval-seconds must be positive`);
+  }
+  return model === true ? { mode: "model" } : { mode: "timed", intervalSeconds: interval as number };
+}
+
 function parseChoice(choice: unknown): ChoiceSettings {
   if (!choice || typeof choice !== "object" || Array.isArray(choice)) throw new TypeError("interactions.choice entries must be objects");
   const c = choice as Record<string, unknown>;
-  const allowed = new Set(["choice-number", "price", "choice-duration", "persistent", "choice-interval-seconds", "model-choice-interval"]);
+  const allowed = new Set(["option-count", "price", "window-seconds", "persistent", "interval-seconds", "model-interval"]);
   for (const key of Object.keys(c)) if (!allowed.has(key)) throw new TypeError(`Unknown choice setting: ${key}`);
-  const number = c["choice-number"] ?? 3;
+  const optionCount = c["option-count"] ?? 3;
   const price = c.price ?? 0;
-  const duration = c["choice-duration"] ?? 8;
+  const windowSeconds = c["window-seconds"] ?? 8;
   const persistent = c.persistent ?? false;
-  const interval = c["choice-interval-seconds"];
-  const model = c["model-choice-interval"];
-  if (!Number.isSafeInteger(number) || (number as number) < 2 || (number as number) > 6) throw new TypeError("choice-number must be an integer from 2 to 6");
+  if (!Number.isSafeInteger(optionCount) || (optionCount as number) < 2 || (optionCount as number) > 6) throw new TypeError("choice option-count must be an integer from 2 to 6");
   if (!Number.isSafeInteger(price) || (price as number) < 0) throw new TypeError("price must be a non-negative integer");
-  if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0) throw new TypeError("choice-duration must be positive seconds");
+  if (typeof windowSeconds !== "number" || !Number.isFinite(windowSeconds) || windowSeconds <= 0) throw new TypeError("choice window-seconds must be positive");
   if (typeof persistent !== "boolean") throw new TypeError("persistent must be boolean");
-  if (model !== undefined && typeof model !== "boolean") throw new TypeError("model-choice-interval must be boolean");
-  if ((model === true) === (interval !== undefined)) throw new TypeError("Configure exactly one choice scheduling mode");
-  if (interval !== undefined && (typeof interval !== "number" || !Number.isFinite(interval) || interval <= 0)) throw new TypeError("choice-interval-seconds must be positive");
-  return { choiceNumber: number as number, price: price as number, choiceDuration: duration, persistent, schedule: model === true ? { mode: "model" } : { mode: "timed", choiceIntervalSeconds: interval as number } };
+  const schedule = parseSchedule(c["interval-seconds"], c["model-interval"], "choice");
+  return { optionCount: optionCount as number, price: price as number, windowSeconds, persistent, schedule };
 }
 
 function parseChoiceSection(choice: unknown): ChoiceSettings[] | undefined {
@@ -102,34 +115,30 @@ function parseFeedback(feedback: unknown): FeedbackSettings {
 function parseGuide(guide: unknown): GuideSettings {
   if (!guide || typeof guide !== "object" || Array.isArray(guide)) throw new TypeError("interactions.guides entries must be objects");
   const g = guide as Record<string, unknown>;
-  const allowed = new Set(["price", "window-seconds", "always-open", "guide-interval-seconds", "model-guide-interval", "max-pending", "prompt-max-length"]);
+  const allowed = new Set(["price", "window-seconds", "always-open", "interval-seconds", "model-interval", "max-pending", "prompt-max-length"]);
   for (const key of Object.keys(g)) if (!allowed.has(key)) throw new TypeError(`Unknown guide setting: ${key}`);
   const price = g.price ?? 1;
   const windowSeconds = g["window-seconds"] ?? 120;
   const alwaysOpen = g["always-open"] ?? false;
   const maxPendingPerUser = g["max-pending"] ?? 10;
   const promptMaxLength = g["prompt-max-length"] ?? 200;
-  const interval = g["guide-interval-seconds"];
-  const model = g["model-guide-interval"];
   if (!Number.isSafeInteger(price) || (price as number) < 1) throw new TypeError("guide price must be a positive integer");
   if (typeof windowSeconds !== "number" || !Number.isFinite(windowSeconds) || windowSeconds <= 0) throw new TypeError("guide window-seconds must be positive");
   if (typeof alwaysOpen !== "boolean") throw new TypeError("guide always-open must be boolean");
   if (!Number.isSafeInteger(maxPendingPerUser) || (maxPendingPerUser as number) < 1) throw new TypeError("guide max-pending must be a positive integer");
   if (!Number.isSafeInteger(promptMaxLength) || (promptMaxLength as number) < 1) throw new TypeError("guide prompt-max-length must be a positive integer");
-  if (model !== undefined && typeof model !== "boolean") throw new TypeError("model-guide-interval must be boolean");
   if (alwaysOpen) {
-    if (interval !== undefined || model !== undefined) throw new TypeError("always-open guides cannot declare a schedule");
+    if (g["interval-seconds"] !== undefined || g["model-interval"] !== undefined) throw new TypeError("always-open guides cannot declare a schedule");
     return { price: price as number, windowSeconds, alwaysOpen, maxPendingPerUser: maxPendingPerUser as number, promptMaxLength: promptMaxLength as number };
   }
-  if ((model === true) === (interval !== undefined)) throw new TypeError("Configure exactly one guide scheduling mode unless always-open");
-  if (interval !== undefined && (typeof interval !== "number" || !Number.isFinite(interval) || interval <= 0)) throw new TypeError("guide-interval-seconds must be positive");
+  const schedule = parseSchedule(g["interval-seconds"], g["model-interval"], "guide");
   return {
     price: price as number,
     windowSeconds,
     alwaysOpen,
     maxPendingPerUser: maxPendingPerUser as number,
     promptMaxLength: promptMaxLength as number,
-    schedule: model === true ? { mode: "model" } : { mode: "timed", guideIntervalSeconds: interval as number },
+    schedule,
   };
 }
 
