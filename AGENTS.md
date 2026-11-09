@@ -20,3 +20,8 @@ Run relevant lead tests, frontend typecheck, marketing checks, whitespace checks
 - Do not make decisions based on documentation alone
 - Always update applicable documentation after code changes
 - When documentation and code conflict, the code is correct
+
+## Execution behavior
+
+A project or task milestone -- regardless of how substantial -- is never a valid reason to pause execution of the assigned task. 
+When instructions are clear and execution details are unambiguous, I must always thoroughly complete the task before stopping and reporting to the user.

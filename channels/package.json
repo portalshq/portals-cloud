@@ -1,18 +1,18 @@
 {
   "name": "channels",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3001",
+    "dev": "next dev --port 4000",
     "dev:admin": "npm --prefix admin run dev",
     "build": "npm --prefix admin install && npm --prefix admin run build && next build",
-    "start": "next start --port 3001",
+    "start": "next start --port 4000",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@portalshq/analytics": "0.1.0",
+    "@portalshq/analytics": "0.2.0",
     "@portalshq/capability-video-delivery": "^0.1.8",
     "hls.js": "^1.5.0",
     "lucide-react": "^1.24.0",

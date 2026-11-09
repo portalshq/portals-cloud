@@ -54,7 +54,7 @@ npm run dev                     # vite on :5174, proxies /api → :3001
 Open http://localhost:5174 — the token screen accepts the admin token.
 
 Dev env: copy `.env.example` to `.env.local` (or `.env.development`) and fill
-in — `VITE_ADMIN_API_ORIGIN` (proxy target, dev default `:3001`),
+in — `VITE_ADMIN_API_ORIGIN` (proxy target, dev default `:4000`),
 `VITE_POLL_INTERVAL_MS`, optional `VITE_ADMIN_TOKEN`. `*.local` files stay
 untracked. The server-side vars this SPA talks to live in
 `../.env.example`.

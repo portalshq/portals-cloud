@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import * as identity from "./index.js";
 it("exports the complete public interface", () => {
-  for (const name of ["IdentityProvider", "ApplicationIdentityStore", "PostgresIdentityStore", "CentralIdentityStore", "createAuthGatewayClient", "runCentralMigrations"]) {
+  for (const name of ["IdentityProvider", "ApplicationIdentityStore", "PostgresIdentityStore", "CentralIdentityStore", "createAuthGatewayClient", "runCentralMigrations", "GuestUsageStore", "SignupBonusStore", "mintGuestToken", "verifyGuestToken", "guestActorIdFromHeaders"]) {
     expect(identity).toHaveProperty(name, expect.any(Function));
   }
 });

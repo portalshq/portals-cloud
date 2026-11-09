@@ -599,4 +599,27 @@ export class InteractionRepository {
       [token]
     );
   }
+  /**
+   * Re-attribute every submission a guest actor made to their verified user
+   * id — the durable half of a guest-trial upgrade. Scoped through
+   * `input_windows.world_id` because submissions carry no world column.
+   * Returns the number of rows re-attributed (0 is a valid outcome).
+   */
+  async reassignSubmissionsActor(
+    worldId: string,
+    fromActorId: string,
+    toActorId: string
+  ): Promise<number> {
+    text(worldId, "worldId");
+    text(fromActorId, "fromActorId");
+    text(toActorId, "toActorId");
+    const r = await this.query(
+      `UPDATE submissions s SET actor_id=$3, updated_at=now()
+       FROM input_windows w
+       WHERE s.window_id=w.id AND w.world_id=$1 AND s.actor_id=$2
+       RETURNING s.id`,
+      [worldId, fromActorId, toActorId]
+    );
+    return r.rows.length;
+  }
 }

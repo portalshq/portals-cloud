@@ -27,7 +27,7 @@ stay gitignored.
 | `BEARS_PRODUCTION_CONTROL_TOKEN` | Server-only bearer forwarded to bears `POST /api/production/*` — equals the bears server's `PRODUCTION_CONTROL_TOKEN`. Never reaches the browser. |
 
 SPA-side (admin/.env*): `VITE_ADMIN_API_ORIGIN` (dev proxy target,
-default `http://localhost:3001`), `VITE_POLL_INTERVAL_MS`, optional
+default `http://localhost:4000`), `VITE_POLL_INTERVAL_MS`, optional
 `VITE_ADMIN_TOKEN` (build-time token baked into the bundle — prefer the
 prompt or `?token=`).
 
@@ -63,11 +63,11 @@ All routes require `Authorization: Bearer <CHANNELS_ADMIN_TOKEN>`.
 ## Running locally
 
 ```bash
-cd channels && npm run dev          # API on :3001
-cd channels/admin && npm run dev    # SPA on :5174 (proxies /api → :3001)
+cd channels && npm run dev          # API on :4000
+cd channels/admin && npm run dev    # SPA on :5174 (proxies /api → :4000)
 ```
 
-bears-live-app's server also defaults to :3001 — give it another port or set
+bears-live-app's server also defaults to :4000 — give it another port or set
 `BEARS_API_BASE_URL` accordingly when running all three.
 
 ## Deploy

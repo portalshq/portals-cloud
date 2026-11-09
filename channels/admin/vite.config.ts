@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   // The channels Next.js app serves /api/admin/*; dev defaults to its port.
-  const apiOrigin = env.VITE_ADMIN_API_ORIGIN || "http://localhost:3001";
+  const apiOrigin = env.VITE_ADMIN_API_ORIGIN || "http://localhost:4000";
 
   return {
     // Built output lands in ../public/admin and is served by the channels app

@@ -1,4 +1,5 @@
 import type { AuthGatewayClient } from "./auth-gateway-client.js";
+import { guestActorIdFromHeaders } from "./guest-token.js";
 import type { QueryRunner } from "./postgres-store.js";
 
 /**
@@ -47,10 +48,28 @@ export interface SyncableIdentityStore extends IdentityStore {
 /** Must validate the credential and return its verified subject ID. */
 export type VerifyAccessToken = (accessToken: string) => Promise<string>;
 
+/** The actor behind a request: a verified Portals user or a signed guest. */
+export type ResolvedActor =
+  | { type: "user"; userId: string; displayName: string }
+  | { type: "guest"; actorId: string };
+
+export interface IdentityProviderOptions {
+  /** When set, `resolveActor` also accepts HMAC-signed `X-Guest-Token`
+   *  guest credentials — guest trials are opt-in per application. */
+  guestTokenSecret?: string;
+}
+
+/** Minimal header surface `resolveActor` reads. */
+export interface ActorRequestHeaders {
+  authorization?: string | string[];
+  "x-guest-token"?: string | string[];
+}
+
 export class IdentityProvider {
   constructor(
     private readonly verifyAccessToken: VerifyAccessToken,
     private readonly store: IdentityStore,
+    private readonly options: IdentityProviderOptions = {},
   ) {}
 
   async getIdentity(accessToken: string): Promise<AudienceIdentity> {
@@ -58,6 +77,27 @@ export class IdentityProvider {
     const identity = await this.store.getIdentity(userId);
     if (!identity) throw new Error(INACTIVE_ACCOUNT_ERROR);
     return identity;
+  }
+
+  /**
+   * Resolve the actor behind a request in one call: a verified `Bearer`
+   * credential yields `{type:"user"}`; failing that, a signed `X-Guest-Token`
+   * yields `{type:"guest"}` when `guestTokenSecret` is configured; otherwise
+   * `null`. An invalid or expired Bearer falls through to the guest check —
+   * the same catch-all the channel apps applied per-route, centralized here.
+   */
+  async resolveActor(headers: ActorRequestHeaders): Promise<ResolvedActor | null> {
+    const bearer = bearerCredential(headers.authorization);
+    if (bearer) {
+      try {
+        const identity = await this.getIdentity(bearer);
+        return { type: "user", userId: identity.userId, displayName: identity.displayName };
+      } catch {
+        // Fall through: a bad user credential does not preclude a valid guest token.
+      }
+    }
+    const guestActorId = guestActorIdFromHeaders(headers, this.options.guestTokenSecret);
+    return guestActorId ? { type: "guest", actorId: guestActorId } : null;
   }
 
   /** Interaction time is the storage transaction's clock, never the caller's. */
@@ -141,6 +181,12 @@ export class IdentityProvider {
       return false;
     }
   }
+}
+
+function bearerCredential(header: string | string[] | undefined): string | null {
+  const value = Array.isArray(header) ? header[0] : header;
+  const match = typeof value === "string" ? /^Bearer (.+)$/.exec(value.trim()) : null;
+  return match?.[1]?.trim() || null;
 }
 
 function assertIdentifier(value: string, field: string): void {

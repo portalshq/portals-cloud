@@ -79,3 +79,48 @@ describe("IdentityProvider", () => {
     await expect(subject.getHistory("valid-token", 1.5)).rejects.toThrow(TypeError);
   });
 });
+
+describe("IdentityProvider.resolveActor", () => {
+  const guestSecret = "guest-secret";
+  const guestId = "guest-33333333-3333-4333-8333-333333333333";
+  const guestProvider = () => new IdentityProvider(
+    async (token) => {
+      if (token !== "valid-token") throw new Error("invalid token");
+      return "user-1";
+    },
+    store(),
+    { guestTokenSecret: guestSecret },
+  );
+
+  it("resolves a verified Bearer credential to a user actor", async () => {
+    await expect(guestProvider().resolveActor({ authorization: "Bearer valid-token" }))
+      .resolves.toEqual({ type: "user", userId: "user-1", displayName: "Ada" });
+  });
+
+  it("resolves a signed X-Guest-Token to a guest actor", async () => {
+    const { mintGuestToken } = await import("./guest-token.js");
+    const token = mintGuestToken({ secret: guestSecret, guestId });
+    await expect(guestProvider().resolveActor({ "x-guest-token": token }))
+      .resolves.toEqual({ type: "guest", actorId: guestId });
+  });
+
+  it("falls through to guest when the Bearer credential is invalid", async () => {
+    const { mintGuestToken } = await import("./guest-token.js");
+    const token = mintGuestToken({ secret: guestSecret, guestId });
+    await expect(guestProvider().resolveActor({ authorization: "Bearer forged", "x-guest-token": token }))
+      .resolves.toEqual({ type: "guest", actorId: guestId });
+  });
+
+  it("returns null when neither credential verifies", async () => {
+    await expect(guestProvider().resolveActor({})).resolves.toBeNull();
+    await expect(guestProvider().resolveActor({ authorization: "Bearer forged" })).resolves.toBeNull();
+    await expect(guestProvider().resolveActor({ "x-guest-token": "gt1.forged" })).resolves.toBeNull();
+  });
+
+  it("ignores guest tokens when no secret is configured", async () => {
+    const { mintGuestToken } = await import("./guest-token.js");
+    const token = mintGuestToken({ secret: guestSecret, guestId });
+    const noGuest = new IdentityProvider(async () => "user-1", store());
+    await expect(noGuest.resolveActor({ "x-guest-token": token })).resolves.toBeNull();
+  });
+});
