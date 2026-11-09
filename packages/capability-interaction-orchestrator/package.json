@@ -1,6 +1,6 @@
 {
   "name": "@portalshq/capability-interaction-orchestrator",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Reusable interaction orchestration for Portals: input windows, submission gateway, arbitration engine, moderation gateway, billing controller, and event publisher",
   "type": "module",
   "main": "./dist/index.js",
