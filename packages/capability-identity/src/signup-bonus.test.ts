@@ -7,6 +7,9 @@ function makePool() {
   const pool: QueryRunner = {
     async query(text: string, values: unknown[] = []) {
       const key = `${values[0]}::${values[1]}`;
+      if (text.startsWith("SELECT")) {
+        return { rowCount: claims.has(key) ? 1 : 0, rows: claims.has(key) ? [{ "?column?": 1 }] : [] };
+      }
       if (claims.has(key)) return { rowCount: 0, rows: [] };
       claims.add(key);
       return { rowCount: 1, rows: [{ consumer_id: values[0] }] };
@@ -25,5 +28,15 @@ describe("SignupBonusStore", () => {
     // A different tenant is a different welcome.
     expect(await first.claim("user-1", "program-b")).toBe(true);
     expect(await first.claim("user-2", "program-a")).toBe(true);
+  });
+
+  it("reports claimed state without mutating it", async () => {
+    const pool = makePool();
+    const store = new SignupBonusStore(pool);
+    expect(await store.hasClaimed("user-1", "program-a")).toBe(false);
+    await store.claim("user-1", "program-a");
+    expect(await store.hasClaimed("user-1", "program-a")).toBe(true);
+    expect(await store.hasClaimed("user-1", "program-b")).toBe(false);
+    expect(await store.hasClaimed("user-2", "program-a")).toBe(false);
   });
 });

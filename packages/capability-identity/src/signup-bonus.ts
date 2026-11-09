@@ -21,6 +21,17 @@ import type { QueryRunner } from "./postgres-store.js";
 export class SignupBonusStore {
   constructor(private readonly pool: QueryRunner) {}
 
+  /** Whether the bonus claim is already recorded — a cheap read so hot
+   *  paths (e.g. per-request identity resolution) can skip the grant
+   *  attempt entirely for returning users. */
+  async hasClaimed(consumerId: string, tenantId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      "SELECT 1 FROM signup_bonus_claims WHERE consumer_id = $1 AND tenant_id = $2",
+      [consumerId, tenantId],
+    );
+    return result.rows.length > 0;
+  }
+
   /**
    * Record that `consumerId` claimed the signup bonus for `tenantId`.
    * Returns true only for the first claim — safe across restarts and

@@ -11,6 +11,9 @@ const channel = z.object({
   requiredEntities: z.array(entityUri).min(1),
   // Capability-specific settings are validated by their owning package.
   interactions: z.record(z.string(), z.unknown()).optional(),
+  // Welcome bonus for new registrants, granted by the app on first verified
+  // identity. `bonus-credits: 0` disables the grant.
+  signup: z.object({ "bonus-credits": z.number().int().nonnegative() }).optional(),
   youtube: z.object({ liveChatId: z.string().min(1), clientIdEnv: secretRef, clientSecretEnv: secretRef, refreshTokenEnv: secretRef }).optional(),
   twitch: z.object({ broadcasterUserId: z.string().min(1), userId: z.string().min(1), clientIdEnv: secretRef, clientSecretEnv: secretRef, refreshTokenEnv: secretRef }).optional(),
 });
