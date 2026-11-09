@@ -1,5 +1,11 @@
 # @portalshq/capability-interaction-orchestrator
 
+## 0.5.1
+
+### Patch Changes
+
+- 7d2b24d: Add `InteractionRepository.reassignSubmissionsActor(worldId, fromActorId, toActorId)` — re-attributes a guest actor's submissions to their verified user id, scoped through `input_windows.world_id`, for guest-trial upgrades.
+
 ## 0.5.0
 
 ### Minor Changes

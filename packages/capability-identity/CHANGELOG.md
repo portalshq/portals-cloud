@@ -1,5 +1,11 @@
 # @portalshq/capability-identity
 
+## 0.5.0
+
+### Minor Changes
+
+- 7d2b24d: Add guest trial support: `guest-token.ts` (HMAC `gt1.` token mint/verify/header extraction), `GuestUsageStore` (durable per-app vote/reaction caps and upgrade claims), `SignupBonusStore` (once-ever welcome-bonus claims), and `IdentityProvider.resolveActor` returning a user-or-guest discriminated union.
+
 ## 0.4.0
 
 - Expose the hosted sign-in session RPCs on `createAuthGatewayClient`:
