@@ -1,9 +1,9 @@
 #!/bin/sh
 set -eu
 
-# Manage loopback DNS overrides for local Portals development.
+# Manage DNS overrides for local Portals development.
 #
-#   dev-hosts.sh on      add    127.0.0.1 auth.portals.works lore.portals.works
+#   dev-hosts.sh on      add    <target> auth.portals.works lore.portals.works
 #   dev-hosts.sh off     remove the managed block
 #   dev-hosts.sh status  print whether the block is installed
 #
@@ -11,13 +11,20 @@ set -eu
 # on wrote — lines outside the block are never touched. Writes need sudo;
 # status does not.
 #
-# Pair with: ssh -N -L 8443:127.0.0.1:8443 <andresb-host>
-# so auth.portals.works:8443 reaches the deployed Caddy with valid SNI.
+# <target> defaults to andresb's Tailscale IP (PORTALS_DEV_HOSTS_TARGET
+# overrides). This mirrors production semantics: auth.portals.works:443 is a
+# real TLS endpoint on andresb — `tailscale serve --bg --tcp=443
+# tcp://localhost:8443` publishes Caddy's loopback port on the tailnet — so
+# browsers and gRPC clients use the exact production hostname/port/cert with
+# no SSH port-forward and no local listeners. Requires Tailscale on both
+# machines; the tailnet ACL is the access boundary, same role Pinggy's token
+# plays in production.
 
 HOSTS_FILE=/etc/hosts
 BEGIN='# BEGIN portals-dev-hosts'
 END='# END portals-dev-hosts'
-ENTRIES='127.0.0.1 auth.portals.works lore.portals.works'
+TARGET="${PORTALS_DEV_HOSTS_TARGET:-100.98.219.90}"
+ENTRIES="$TARGET auth.portals.works lore.portals.works"
 
 usage() { sed -n '3,10p' "$0"; exit "${1:-0}"; }
 
