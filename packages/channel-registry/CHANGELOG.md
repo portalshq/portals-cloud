@@ -1,5 +1,11 @@
 # @portalshq/channel-registry
 
+## 0.2.2
+
+### Patch Changes
+
+- f75dca8: Add optional `channels.<id>.guest."initial-credits"` schema field so apps can configure the starting credit balance granted to guest actors.
+
 ## 0.2.1
 
 ### Patch Changes
