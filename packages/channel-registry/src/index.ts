@@ -14,6 +14,11 @@ const channel = z.object({
   // Welcome bonus for new registrants, granted by the app on first verified
   // identity. `bonus-credits: 0` disables the grant.
   signup: z.object({ "bonus-credits": z.number().int().nonnegative() }).optional(),
+  // Starting balance for guest actors (signed `X-Guest-Token`), granted
+  // idempotently on first credit-path use. Guests cannot purchase or earn
+  // credits — the grant is once per guest identity, spendable like any
+  // other credit of the same kind. Absent or `0` disables the grant.
+  guest: z.object({ "initial-credits": z.number().int().nonnegative() }).optional(),
   youtube: z.object({ liveChatId: z.string().min(1), clientIdEnv: secretRef, clientSecretEnv: secretRef, refreshTokenEnv: secretRef }).optional(),
   twitch: z.object({ broadcasterUserId: z.string().min(1), userId: z.string().min(1), clientIdEnv: secretRef, clientSecretEnv: secretRef, refreshTokenEnv: secretRef }).optional(),
 });

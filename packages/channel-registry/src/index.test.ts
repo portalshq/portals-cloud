@@ -15,6 +15,12 @@ describe("channel registry", () => {
     expect(() => parseChannelRegistry({ channels: { demo: { ...channel, signup: { "bonus-credits": -1 } } } })).toThrow();
     expect(() => parseChannelRegistry({ channels: { demo: { ...channel, signup: { "bonus-credits": 1.5 } } } })).toThrow();
   });
+  it("preserves the guest initial-credits block and rejects invalid amounts", () => {
+    const channel = { controlEndpoint: "https://queue.example.com", queueTokenEnv: "TOKEN", requiredEntities: ["px://demo/character/lead"] };
+    expect(parseChannelRegistry({ channels: { demo: { ...channel, guest: { "initial-credits": 3 } } } }).channels.demo.guest).toEqual({ "initial-credits": 3 });
+    expect(() => parseChannelRegistry({ channels: { demo: { ...channel, guest: { "initial-credits": -1 } } } })).toThrow();
+    expect(() => parseChannelRegistry({ channels: { demo: { ...channel, guest: { "initial-credits": 1.5 } } } })).toThrow();
+  });
   it("accepts an environment reference as the control endpoint", () => {
     expect(parseChannelRegistry({ channels: { demo: { controlEndpoint: "${BROADCAST_CONTROL_ENDPOINT}", queueTokenEnv: "TOKEN", requiredEntities: ["px://demo/character/lead"] } } }).channels.demo.controlEndpoint).toBe("${BROADCAST_CONTROL_ENDPOINT}");
   });
