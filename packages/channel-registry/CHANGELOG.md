@@ -1,5 +1,11 @@
 # @portalshq/channel-registry
 
+## 0.2.3
+
+### Patch Changes
+
+- Republish of 0.2.2: the npm staged publish never became visible on the registry.
+
 ## 0.2.2
 
 ### Patch Changes
