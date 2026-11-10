@@ -2,6 +2,7 @@ use crate::{
     config::GatewayConfig,
     store::{AuthSession, SecurityStore},
 };
+use anyhow::Context;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use rand::{rngs::OsRng, RngCore};
@@ -134,7 +135,7 @@ impl CognitoOauth {
                 self.config.effective_domain().trim_end_matches('/')
             )
         };
-        let response = self
+        let token_response = self
             .client
             .post(token_endpoint)
             .header(
@@ -149,10 +150,10 @@ impl CognitoOauth {
                 ("code_verifier", session.pkce_verifier.as_str()),
             ])
             .send()
-            .await?
-            .error_for_status()?
-            .json::<TokenResponse>()
             .await?;
+        let token_status = token_response.status();
+        let token_body = token_response.text().await?;
+        let response = parse_token_response(token_status, &token_body)?;
         let claims = self.verify_id_token(&response.id_token).await?;
         anyhow::ensure!(
             claims.nonce == session.oidc_nonce.to_string(),
@@ -224,5 +225,61 @@ impl CognitoOauth {
         validation.set_audience(&[client_id]);
         validation.validate_exp = true;
         Ok(decode::<CognitoClaims>(token, &key, &validation)?.claims)
+    }
+}
+
+// Surfaces the provider's error body (e.g. `invalid_client: empty client
+// secret`) instead of only the HTTP status, so provider misconfiguration is
+// diagnosable from gateway logs. On 2xx parse failures the body is withheld:
+// a successful response contains tokens.
+fn parse_token_response(status: reqwest::StatusCode, body: &str) -> anyhow::Result<TokenResponse> {
+    anyhow::ensure!(
+        status.is_success(),
+        "token endpoint returned {status}: {body}"
+    );
+    serde_json::from_str::<TokenResponse>(body)
+        .context("token endpoint response was not valid JSON")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn token_error_body_is_surfaced() {
+        let error = parse_token_response(
+            reqwest::StatusCode::BAD_REQUEST,
+            r#"{"error":"invalid_client","error_description":"empty client secret"}"#,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("400 Bad Request"), "status missing: {error}");
+        assert!(
+            error.contains("invalid_client"),
+            "error code missing: {error}"
+        );
+        assert!(
+            error.contains("empty client secret"),
+            "provider description missing: {error}"
+        );
+    }
+
+    #[test]
+    fn token_success_body_parses() {
+        let response =
+            parse_token_response(reqwest::StatusCode::OK, r#"{"id_token":"jwt"}"#).unwrap();
+        assert_eq!(response.id_token, "jwt");
+    }
+
+    #[test]
+    fn token_invalid_json_does_not_leak_body() {
+        let error = parse_token_response(
+            reqwest::StatusCode::OK,
+            r#"{"id_token":"jwt","access_token":"secret-token"}trailing"#,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("not valid JSON"), "wrong error: {error}");
+        assert!(!error.contains("secret-token"), "token leaked: {error}");
     }
 }
