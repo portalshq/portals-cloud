@@ -343,7 +343,8 @@ export class InteractionRepository {
       // Fulfilled submissions keep counting on once-per-user-per-event
       // windows (feedback), where the reward marks the response fulfilled
       // while the window is still open.
-      const cappedStatuses = ["received","moderating","awaiting_entitlement","eligible","selected","executing"];
+      const pendingStatuses = ["received","moderating","awaiting_entitlement","eligible","selected","executing"];
+      const cappedStatuses = [...pendingStatuses];
       if (w.appMetadata.feedbackEvent === true) cappedStatuses.push("fulfilled");
       const count = await r.query(
         "SELECT count(*)::int AS n FROM submissions WHERE window_id=$1 AND actor_id=$2 AND status = ANY($3::text[])",
@@ -354,6 +355,22 @@ export class InteractionRepository {
           "QUOTA_EXCEEDED",
           "Max submissions per user exceeded"
         );
+      // `userSubmissionsPerWindow` bounds an actor's total submissions to the
+      // window — pending plus fulfilled — so a claimed-and-consumed guide
+      // still occupies the slot. Rejected and failed submissions stay
+      // uncapped: a declined prompt never burns the allowance.
+      const userSubmissionsPerWindow = w.appMetadata.userSubmissionsPerWindow;
+      if (Number.isSafeInteger(userSubmissionsPerWindow) && (userSubmissionsPerWindow as number) >= 1) {
+        const submitted = await r.query(
+          "SELECT count(*)::int AS n FROM submissions WHERE window_id=$1 AND actor_id=$2 AND status = ANY($3::text[])",
+          [w.id, input.actorId, [...pendingStatuses, "fulfilled"]]
+        );
+        if (submitted.rows[0].n >= (userSubmissionsPerWindow as number))
+          throw new InteractionError(
+            "QUOTA_EXCEEDED",
+            "Max submissions per user for this window exceeded"
+          );
+      }
       if (w.billingPolicy === "pay_for_guaranteed_slot") {
         const used = await r.query(
           "SELECT count(*)::int AS n FROM submissions WHERE window_id=$1 AND status IN ('received','moderating','awaiting_entitlement','eligible','selected','executing')",

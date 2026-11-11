@@ -246,6 +246,62 @@ describe("guides on shared submissions", () => {
     expect(await guides.claimNext(window.id)).toBeNull();
   });
 
+  it("blocks a second guide once the first is fulfilled when the window caps submissions per user", async () => {
+    const { InteractionOrchestrator } = await import("../src/orchestrator.js");
+    const app = new InteractionOrchestrator(db.repository, { externalBilling: { debits: store, grants: store } });
+    const worldId = crypto.randomUUID();
+    const actor = crypto.randomUUID();
+    const window = await app.guides!.ensureWindow({
+      worldId, branchId: "main", sessionId: "s", billingTerms: terms,
+      maxSubmissionsPerUser: 1, userSubmissionsPerWindow: 1,
+    });
+    expect(window.appMetadata.userSubmissionsPerWindow).toBe(1);
+
+    const first = await app.submissions.submitIntent({
+      windowId: window.id, actorId: actor, idempotencyKey: "g1", kind: "custom_prompt",
+      payload: { prompt: "first idea" },
+    });
+    expect(first.status).toBe("eligible");
+    // A consumed guide still occupies the actor's slot: pending statuses would
+    // already count, and the per-window cap extends the count to fulfilled.
+    await db.repository.saveSubmission(first, "fulfilled");
+    await expect(
+      app.submissions.submitIntent({
+        windowId: window.id, actorId: actor, idempotencyKey: "g2", kind: "custom_prompt",
+        payload: { prompt: "second idea" },
+      }),
+    ).rejects.toMatchObject({ code: "QUOTA_EXCEEDED" });
+    // The cap is per actor — another viewer's slot is unaffected.
+    const other = await app.submissions.submitIntent({
+      windowId: window.id, actorId: crypto.randomUUID(), idempotencyKey: "g3", kind: "custom_prompt",
+      payload: { prompt: "someone else's idea" },
+    });
+    expect(other.status).toBe("eligible");
+  });
+
+  it("lets the same actor submit again after fulfillment without a per-window cap", async () => {
+    const { InteractionOrchestrator } = await import("../src/orchestrator.js");
+    const app = new InteractionOrchestrator(db.repository, { externalBilling: { debits: store, grants: store } });
+    const worldId = crypto.randomUUID();
+    const actor = crypto.randomUUID();
+    // Same cap of one, no per-window cap: a fulfilled submission stops
+    // counting, so the pending-queue semantics still permit a follow-up prompt.
+    const window = await app.guides!.ensureWindow({
+      worldId, branchId: "main", sessionId: "s", billingTerms: terms,
+      maxSubmissionsPerUser: 1,
+    });
+    const first = await app.submissions.submitIntent({
+      windowId: window.id, actorId: actor, idempotencyKey: "g1", kind: "custom_prompt",
+      payload: { prompt: "first idea" },
+    });
+    await db.repository.saveSubmission(first, "fulfilled");
+    const second = await app.submissions.submitIntent({
+      windowId: window.id, actorId: actor, idempotencyKey: "g2", kind: "custom_prompt",
+      payload: { prompt: "second idea" },
+    });
+    expect(second.status).toBe("eligible");
+  });
+
   it("drops an unpayable claimed guide without charge", async () => {
     const { InteractionOrchestrator } = await import("../src/orchestrator.js");
     const app = new InteractionOrchestrator(db.repository, { externalBilling: { debits: store, grants: store } });

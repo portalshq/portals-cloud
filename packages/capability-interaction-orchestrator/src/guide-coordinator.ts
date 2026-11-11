@@ -18,6 +18,9 @@ export interface EnsureGuideWindowInput {
   baseCommitHash?: string;
   billingTerms: BillingTerms;
   maxSubmissionsPerUser?: number;
+  /** Bounds the actor's total submissions to the window — pending plus
+   *  fulfilled — so a claimed guide still occupies a slot under the cap. */
+  userSubmissionsPerWindow?: number;
   contentRating?: ContentRating;
   moderationPolicyVersion?: string;
   rulesetVersion?: string;
@@ -35,6 +38,9 @@ export interface OpenGuideWindowInput {
   baseCommitHash?: string;
   billingTerms: BillingTerms;
   maxSubmissionsPerUser?: number;
+  /** Bounds the actor's total submissions to the window — pending plus
+   *  fulfilled — so a claimed guide still occupies a slot under the cap. */
+  userSubmissionsPerWindow?: number;
   contentRating?: ContentRating;
   moderationPolicyVersion?: string;
   rulesetVersion?: string;
@@ -56,6 +62,10 @@ export interface SubmitGuideInput {
   idempotencyKey: string;
   billingTerms: BillingTerms;
   maxSubmissionsPerUser?: number;
+  /** Forwarded to `ensureWindow` when the always-open queue is materialized
+   *  on demand — the standing queue must carry the same per-window cap as
+   *  one created at composition time. */
+  userSubmissionsPerWindow?: number;
   contentRating?: ContentRating;
   moderationPolicyVersion?: string;
   rulesetVersion?: string;
@@ -122,6 +132,7 @@ export class GuideCoordinator {
   async ensureWindow(input: EnsureGuideWindowInput): Promise<InputWindow> {
     const guideKey = input.guideKey ?? DEFAULT_GUIDE_KEY;
     text(guideKey, "guideKey");
+    if (input.userSubmissionsPerWindow !== undefined) integer(input.userSubmissionsPerWindow, "userSubmissionsPerWindow", 1);
     const existing = await this.openGuideWindows(input.worldId, input.sessionId);
     // Match on metadata, not conflictKey: windows opened before guide keys
     // existed carry `guides:<session>` keys but still belong to "default".
@@ -147,7 +158,12 @@ export class GuideCoordinator {
       contentRating: input.contentRating ?? "E",
       moderationPolicyVersion: input.moderationPolicyVersion,
       rulesetVersion: input.rulesetVersion,
-      appMetadata: { guideQueue: true, sessionId: input.sessionId, guideKey },
+      appMetadata: {
+        guideQueue: true,
+        sessionId: input.sessionId,
+        guideKey,
+        ...(input.userSubmissionsPerWindow !== undefined ? { userSubmissionsPerWindow: input.userSubmissionsPerWindow } : {}),
+      },
     });
     await this.repository.updateWindowState(window.id, "open");
     return { ...window, state: "open" };
@@ -162,6 +178,7 @@ export class GuideCoordinator {
     const guideKey = input.guideKey ?? DEFAULT_GUIDE_KEY;
     text(guideKey, "guideKey");
     integer(input.durationSeconds, "durationSeconds", 1);
+    if (input.userSubmissionsPerWindow !== undefined) integer(input.userSubmissionsPerWindow, "userSubmissionsPerWindow", 1);
     const existing = await this.findScheduledOpenWindow(input.worldId, input.sessionId, guideKey);
     if (existing) return existing;
     const prior = await this.repository.query(
@@ -195,6 +212,7 @@ export class GuideCoordinator {
         guideWindow: true,
         sessionId: input.sessionId,
         guideKey,
+        ...(input.userSubmissionsPerWindow !== undefined ? { userSubmissionsPerWindow: input.userSubmissionsPerWindow } : {}),
         ...(input.theme ? { theme: input.theme } : {}),
       },
     });
@@ -228,6 +246,7 @@ export class GuideCoordinator {
         guideKey,
         billingTerms: input.billingTerms,
         maxSubmissionsPerUser: input.maxSubmissionsPerUser,
+        userSubmissionsPerWindow: input.userSubmissionsPerWindow,
         contentRating: input.contentRating,
         moderationPolicyVersion: input.moderationPolicyVersion,
         rulesetVersion: input.rulesetVersion,

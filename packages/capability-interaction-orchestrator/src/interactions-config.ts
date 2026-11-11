@@ -35,6 +35,10 @@ export interface GuideSettings {
   alwaysOpen: boolean;
   /** Maximum pending guides per actor. */
   maxPendingPerUser: number;
+  /** Bounds an actor's total submissions to a window — pending plus
+   *  fulfilled — so a claimed-and-consumed guide still occupies the slot.
+   *  Absent means only `maxPendingPerUser` applies. */
+  userSubmissionsPerWindow?: number;
   /** Maximum guide prompt length in characters. */
   promptMaxLength: number;
   /** Window opening schedule. Required unless alwaysOpen is true. */
@@ -115,21 +119,24 @@ function parseFeedback(feedback: unknown): FeedbackSettings {
 function parseGuide(guide: unknown): GuideSettings {
   if (!guide || typeof guide !== "object" || Array.isArray(guide)) throw new TypeError("interactions.guides entries must be objects");
   const g = guide as Record<string, unknown>;
-  const allowed = new Set(["price", "window-seconds", "always-open", "interval-seconds", "model-interval", "max-pending", "prompt-max-length"]);
+  const allowed = new Set(["price", "window-seconds", "always-open", "interval-seconds", "model-interval", "max-pending", "user-submissions-per-window", "prompt-max-length"]);
   for (const key of Object.keys(g)) if (!allowed.has(key)) throw new TypeError(`Unknown guide setting: ${key}`);
   const price = g.price ?? 1;
   const windowSeconds = g["window-seconds"] ?? 120;
   const alwaysOpen = g["always-open"] ?? false;
   const maxPendingPerUser = g["max-pending"] ?? 10;
+  const userSubmissionsPerWindow = g["user-submissions-per-window"];
   const promptMaxLength = g["prompt-max-length"] ?? 200;
   if (!Number.isSafeInteger(price) || (price as number) < 1) throw new TypeError("guide price must be a positive integer");
   if (typeof windowSeconds !== "number" || !Number.isFinite(windowSeconds) || windowSeconds <= 0) throw new TypeError("guide window-seconds must be positive");
   if (typeof alwaysOpen !== "boolean") throw new TypeError("guide always-open must be boolean");
   if (!Number.isSafeInteger(maxPendingPerUser) || (maxPendingPerUser as number) < 1) throw new TypeError("guide max-pending must be a positive integer");
+  if (userSubmissionsPerWindow !== undefined && (!Number.isSafeInteger(userSubmissionsPerWindow) || (userSubmissionsPerWindow as number) < 1)) throw new TypeError("guide user-submissions-per-window must be a positive integer");
   if (!Number.isSafeInteger(promptMaxLength) || (promptMaxLength as number) < 1) throw new TypeError("guide prompt-max-length must be a positive integer");
+  const cap = userSubmissionsPerWindow === undefined ? {} : { userSubmissionsPerWindow: userSubmissionsPerWindow as number };
   if (alwaysOpen) {
     if (g["interval-seconds"] !== undefined || g["model-interval"] !== undefined) throw new TypeError("always-open guides cannot declare a schedule");
-    return { price: price as number, windowSeconds, alwaysOpen, maxPendingPerUser: maxPendingPerUser as number, promptMaxLength: promptMaxLength as number };
+    return { price: price as number, windowSeconds, alwaysOpen, maxPendingPerUser: maxPendingPerUser as number, ...cap, promptMaxLength: promptMaxLength as number };
   }
   const schedule = parseSchedule(g["interval-seconds"], g["model-interval"], "guide");
   return {
@@ -137,6 +144,7 @@ function parseGuide(guide: unknown): GuideSettings {
     windowSeconds,
     alwaysOpen,
     maxPendingPerUser: maxPendingPerUser as number,
+    ...cap,
     promptMaxLength: promptMaxLength as number,
     schedule,
   };

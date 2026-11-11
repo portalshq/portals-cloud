@@ -46,6 +46,17 @@ describe("parseInteractionSettings guides", () => {
     ]);
   });
 
+  it("parses user-submissions-per-window and rejects non-integer values", () => {
+    expect(
+      parseInteractionSettings({
+        guides: { "interval-seconds": 300, "user-submissions-per-window": 2 },
+      })?.guides?.[0]?.userSubmissionsPerWindow,
+    ).toBe(2);
+    expect(() =>
+      parseInteractionSettings({ guides: { "interval-seconds": 300, "user-submissions-per-window": "yes" } }),
+    ).toThrow(/user-submissions-per-window/);
+  });
+
   it("parses guide arrays and model schedule", () => {
     const settings = parseInteractionSettings({
       guides: [
