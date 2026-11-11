@@ -61,12 +61,12 @@ lore:
 control-plane:
   implementation: "auth-gateway"
   source_repository: "https://github.com/portalshq/portals-cloud.git"
-  source_commit: "f099892b49cac5399b19e18f9d0c356fe01d5c96"
-  protocol_commit: "f717f97c7efffb53674d6c10cae94bd994b0c7e9"
+  source_commit: "b96db512b8f9c26fb27a371e94419730bb734c7f"
+  protocol_commit: "83669ba8fd6e23a26a66cc9cfc704fd55382a32e"
   security_contract: "lore-auth-v1"
-  image: "portalshq/auth-gateway@sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162"
+  image: "portalshq/auth-gateway@sha256:98a0767b0c2556dfef88f9b2e0623dccbeacb72ebfd475fee9475171e8a41681"
   platform: linux/amd64
-  receipt_key: portalshq/auth-gateway@sha256:96a4f5dffb40e22192043ad091e4414a0791408c2f435b98c41ef427f719b162
+  receipt_key: portalshq/auth-gateway@sha256:98a0767b0c2556dfef88f9b2e0623dccbeacb72ebfd475fee9475171e8a41681
 
 legacy-control-plane:
   status: "retired"
