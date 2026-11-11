@@ -61,11 +61,22 @@ echo "==> Applying socket ACL for $SERVICE_USER"
 "$HELPER_SCRIPT"
 
 echo '==> Verifying'
-sudo -u "$SERVICE_USER" env HOME="/Users/$SERVICE_USER" DOCKER_HOST="unix://$SOCKET" \
-  docker version --format 'server={{.Server.Version}}' >/dev/null \
-  && echo "portals-svc can reach the Docker daemon"
-sudo -u "$SERVICE_USER" docker buildx version >/dev/null \
-  && echo 'docker buildx resolves for portals-svc'
-sudo -u "$SERVICE_USER" docker compose version >/dev/null \
-  && echo 'docker compose resolves for portals-svc'
+# sudo -u does not place /usr/local/bin on PATH; verify with an explicit one.
+svc_env="HOME=/Users/$SERVICE_USER PATH=/usr/local/bin:/usr/bin:/bin DOCKER_HOST=unix://$SOCKET"
+if sudo -u "$SERVICE_USER" env $svc_env /usr/local/bin/docker version >/dev/null 2>&1; then
+  echo "portals-svc can reach the Docker daemon"
+else
+  echo "WARNING: portals-svc cannot reach the Docker daemon at $SOCKET" >&2
+fi
+if sudo -u "$SERVICE_USER" env $svc_env /usr/local/bin/docker buildx version >/dev/null 2>&1; then
+  echo 'docker buildx resolves for portals-svc'
+else
+  echo 'WARNING: docker buildx does not resolve for portals-svc' >&2
+fi
+if sudo -u "$SERVICE_USER" env $svc_env /usr/local/bin/docker compose version >/dev/null 2>&1; then
+  echo 'docker compose resolves for portals-svc'
+else
+  echo 'WARNING: docker compose does not resolve for portals-svc' >&2
+fi
 echo 'Done. Docker access for portals-svc is provisioned and self-healing.'
+echo "Interactive portals-svc shells need /usr/local/bin on PATH for docker."
