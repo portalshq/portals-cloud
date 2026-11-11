@@ -15,7 +15,7 @@ Initial probe: 2026-09-26; latest post-wipe probe: 2026-10-03
 | Host memory | 16 GiB |
 | macOS | 13.7.8, build `22H730` |
 | Docker | Docker Desktop 4.43.0 present and running as `andresb`; Engine 28.3.0, `x86_64`; CLI at `/usr/local/bin/docker` |
-| Docker socket | `/Users/andresb/.docker/run/docker.sock`, owned by `andresb:staff`; targeted ACL `user:portals-svc allow write` added 2026-10-04 after operator-reported file sharing restriction to `/Users/portals-svc/`. Docker daemon query succeeds as `andresb`; service-identity query remains unverified because `sudo -n -u portals-svc` requires the admin password. Docker Desktop restart may recreate the socket without this ACL. |
+| Docker socket | `/Users/andresb/.docker/run/docker.sock`, owned by `andresb:staff`; targeted ACL `user:portals-svc allow write` first added 2026-10-04. Docker Desktop restart recreates the socket without the ACL; the `com.portals.docker-socket-acl` LaunchDaemon installed by `scripts/provision-docker-runtime.sh` now re-applies it automatically. |
 | Docker file sharing | Operator reports only `/Users/portals-svc/` remains shared; no containers were running before the reported restart. |
 | SSH command PATH | `/usr/local/bin` is omitted; use the absolute Docker CLI path or set a deliberate PATH in launchd jobs |
 | macOS firewall | Enabled; rechecked 2026-10-03 |
@@ -50,12 +50,25 @@ OS patcher.
 
 ## Docker account boundary
 
-The current Docker daemon belongs to `andresb`, and its Unix socket is not
-writable by `portals-svc`. The service account therefore cannot run the
-planned Compose and launchd commands yet. Docker API access allows control of
-the daemon and its containers, so granting that socket to another account is
-a significant privilege. Keep launchd deployment blocked until the operator
-chooses a runtime ownership model and it passes a service-account access test.
+The current Docker daemon belongs to `andresb`. The operator settled the
+runtime ownership model on 2026-11-11: `portals-svc` accesses the
+andresb-owned daemon through a targeted socket ACL, because `bootstrap.sh`
+and the `com.portals.*` launchd services run as that account. Docker API
+access allows full control of the daemon and its containers, so the ACL is a
+significant deliberate privilege — scoped to `portals-svc` only, not `staff`
+or world. A service-owned runtime (e.g. colima) remains the alternative if
+the boundary must not be shared, and also addresses the reboot-without-login
+requirement that standard Docker Desktop cannot satisfy.
+
+`scripts/provision-docker-runtime.sh` is the canonical, idempotent
+provisioning step: it installs Docker Desktop's CLI plugins into
+`/usr/local/lib/docker/cli-plugins` (a standard search path valid for every
+user, including `portals-svc`), applies the ACL, and installs the
+`com.portals.docker-socket-acl` LaunchDaemon (`launchd/`) that re-applies the
+ACL via a root-owned helper whenever Docker Desktop recreates the socket.
+Re-run it after Docker Desktop upgrades. `deploy.sh` and the service plists
+export `DOCKER_HOST` pointing at the andresb socket; no per-user docker
+context or `~/.docker` configuration is required.
 
 ## Architecture boundary
 
@@ -84,10 +97,12 @@ Complete these before running `bootstrap.sh`:
 2. FileVault and off-Mac recovery-key escrow are confirmed complete.
 3. The dedicated non-admin `portals-svc` account exists. Keep a separate admin
    account for maintenance; do not run services as `andresb`.
-4. Docker access as the service account remains blocked: the Docker socket is
-   owned by `andresb`, and granting access permits broad control of the daemon.
-   Settle the runtime ownership model before deployment. VM memory allocation
-   and combined service load also remain unverified.
+4. Runtime ownership is settled (see "Docker account boundary"): `portals-svc`
+   reaches the andresb-owned Docker daemon through the targeted,
+   auto-restored socket ACL installed by `scripts/provision-docker-runtime.sh`.
+   Granting that socket permits broad control of the daemon — a deliberate,
+   documented privilege. VM memory allocation and combined service load also
+   remain unverified.
 5. Node.js, Pinggy, `grpcurl`, and `jq` are installed. Vercel CLI is also
    installed for operator use. They are in `/Users/Shared/portals-tools`; the
    deployment scripts add their executable paths. Caddy is deployed from its

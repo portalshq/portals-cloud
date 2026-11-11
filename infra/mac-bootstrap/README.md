@@ -321,6 +321,24 @@ Launchd PATH and execution as `portals-svc` still need verification when jobs
 are installed. Use the dashboard-generated persistent commands, not a guessed
 free-tunnel command.
 
+Docker runtime access is provisioned once, as `andresb`, by:
+
+```bash
+/Users/portals-svc/portals/infra/mac-bootstrap/scripts/provision-docker-runtime.sh
+```
+
+It copies Docker Desktop's CLI plugins into `/usr/local/lib/docker/cli-plugins`
+(a standard search path, so `docker buildx`/`docker compose` resolve for every
+user), applies the targeted `portals-svc` write ACL on andresb's Docker socket,
+and installs the `com.portals.docker-socket-acl` LaunchDaemon that re-applies
+that ACL each time Docker Desktop recreates the socket. Re-run it after Docker
+Desktop upgrades. Docker API access is full daemon control — the ACL is a
+deliberate privilege grant because `bootstrap.sh` and the `com.portals.*`
+launchd services run as `portals-svc`; a service-owned runtime (e.g. colima)
+remains the path if that boundary must not be shared. `deploy.sh` and the
+service plists set `DOCKER_HOST` to the andresb socket, so no per-user docker
+context is needed.
+
 ### 5. Promote and pin release images
 
 Auth Gateway has been built from clean source, signed with GitHub OIDC, scanned

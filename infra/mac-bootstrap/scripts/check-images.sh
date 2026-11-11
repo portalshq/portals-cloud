@@ -5,7 +5,8 @@ PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
 export PATH
 
 command -v docker >/dev/null || { echo 'docker is required' >&2; exit 1; }
-command -v docker >/dev/null && docker buildx version >/dev/null 2>&1 || { echo 'docker buildx is required' >&2; exit 1; }
+command -v docker >/dev/null && docker buildx version >/dev/null 2>&1 || { echo 'docker buildx is required; run scripts/provision-docker-runtime.sh as andresb' >&2; exit 1; }
+docker info >/dev/null 2>&1 || { echo 'Docker daemon unreachable via DOCKER_HOST; the socket ACL is restored by scripts/provision-docker-runtime.sh' >&2; exit 1; }
 
 for name in AUTH_GATEWAY_IMAGE_DIGEST LORE_IMAGE_DIGEST CADDY_IMAGE_DIGEST; do
   eval "image=\${$name:-}"

@@ -11,6 +11,11 @@ export MAC_RELEASE_ENV="$ENV_FILE"
 set -a
 . "$ENV_FILE"
 set +a
+# Service-account docker calls target the andresb-owned Docker Desktop
+# socket, matching the com.portals.* launchd plists. The targeted socket ACL
+# is installed and auto-restored by scripts/provision-docker-runtime.sh.
+DOCKER_HOST=${DOCKER_HOST:-unix:///Users/andresb/.docker/run/docker.sock}
+export DOCKER_HOST
 compose() { docker compose --env-file "$ENV_FILE" -f "$DIR/templates/compose.prod.yaml" "$@"; }
 cd "$DIR"
 "$DIR/scripts/bootstrap.sh"
