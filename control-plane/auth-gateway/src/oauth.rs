@@ -26,12 +26,6 @@ struct TokenResponse {
 struct CognitoClaims {
     sub: String,
     #[serde(default)]
-    email: String,
-    #[serde(default)]
-    name: String,
-    #[serde(rename = "cognito:username", default)]
-    cognito_username: String,
-    #[serde(default)]
     preferred_username: String,
     nonce: String,
     #[serde(default)]
@@ -93,16 +87,26 @@ impl CognitoOauth {
         Ok(Some(discovery))
     }
 
-    pub async fn start(&self, client_state: Uuid) -> anyhow::Result<(AuthSession, String)> {
+    pub async fn start(
+        &self,
+        client_state: Uuid,
+        post_login_redirect_uri: Option<String>,
+    ) -> anyhow::Result<(AuthSession, String)> {
         let mut verifier_bytes = [0_u8; 32];
         OsRng.fill_bytes(&mut verifier_bytes);
         let verifier = URL_SAFE_NO_PAD.encode(verifier_bytes);
         let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
-        let session = self.store.start_session(client_state, verifier).await?;
+        let session = self
+            .store
+            .start_session(client_state, verifier, post_login_redirect_uri)
+            .await?;
         // OIDC discovery path (Keycloak, ZITADEL, etc.) when OIDC_ISSUER is set.
+        // prompt=login forces the IdP login form even when an SSO session
+        // cookie exists, so the viewer always picks the account they sign in
+        // with instead of silently continuing as the previous browser user.
         if let Some(discovery) = self.discovery().await? {
             let login_url = format!(
-                "{}?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&state={}&nonce={}&code_challenge={}&code_challenge_method=S256",
+                "{}?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&state={}&nonce={}&code_challenge={}&code_challenge_method=S256&prompt=login",
                 discovery.authorization_endpoint,
                 urlencoding::encode(self.config.effective_client_id()),
                 urlencoding::encode(self.config.effective_redirect_uri()),
@@ -113,7 +117,7 @@ impl CognitoOauth {
             return Ok((session, login_url));
         }
         let login_url = format!(
-            "{}/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&state={}&nonce={}&code_challenge={}&code_challenge_method=S256",
+            "{}/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&state={}&nonce={}&code_challenge={}&code_challenge_method=S256&prompt=login",
             self.config.effective_domain().trim_end_matches('/'),
             urlencoding::encode(self.config.effective_client_id()),
             urlencoding::encode(self.config.effective_redirect_uri()),
@@ -124,7 +128,7 @@ impl CognitoOauth {
         Ok((session, login_url))
     }
 
-    pub async fn complete(&self, oauth_state: Uuid, code: &str) -> anyhow::Result<()> {
+    pub async fn complete(&self, oauth_state: Uuid, code: &str) -> anyhow::Result<AuthSession> {
         let session = self.store.session_for_callback(oauth_state).await?;
         // Choose token endpoint via discovery when OIDC is configured.
         let token_endpoint = if let Some(discovery) = self.discovery().await? {
@@ -163,23 +167,18 @@ impl CognitoOauth {
         if !claims.token_use.is_empty() {
             anyhow::ensure!(claims.token_use == "id", "OIDC token_use is not id");
         }
-        let username = if !claims.email.is_empty() {
-            claims.email.as_str()
-        } else if !claims.cognito_username.is_empty() {
-            claims.cognito_username.as_str()
-        } else if !claims.preferred_username.is_empty() {
+        // The private account username is stored for lookups only; the
+        // chat-visible display name is user-chosen via SetUserDisplayName and
+        // must never derive from IdP profile data, email, or the login name.
+        let username = if !claims.preferred_username.is_empty() {
             claims.preferred_username.as_str()
         } else {
             &claims.sub
         };
-        let name = if !claims.name.is_empty() {
-            claims.name.as_str()
-        } else {
-            username
-        };
         self.store
-            .complete_session(oauth_state, &claims.sub, name, username)
-            .await
+            .complete_session(oauth_state, &claims.sub, username)
+            .await?;
+        Ok(session)
     }
 
     async fn verify_id_token(&self, token: &str) -> anyhow::Result<CognitoClaims> {

@@ -17,11 +17,14 @@ describe("auth-gateway wire integration", () => {
   let revokedWith: unknown;
   beforeAll(async () => {
     server.addService(methods, {
-      startAuthSession(call: grpc.ServerUnaryCall<{ client_state: string }, unknown>, callback: grpc.sendUnaryData<unknown>) {
+      startAuthSession(call: grpc.ServerUnaryCall<{ client_state: string; post_login_redirect_uri?: string }, unknown>, callback: grpc.sendUnaryData<unknown>) {
         if (call.request.client_state !== CLIENT_STATE) {
           return callback({ code: grpc.status.INVALID_ARGUMENT, details: "client_state must be a UUID" });
         }
-        callback(null, { session_code: AUTHORIZED_SESSION, login_url: "https://auth.test/login" });
+        const loginUrl = call.request.post_login_redirect_uri
+          ? "https://auth.test/login?redirect=1"
+          : "https://auth.test/login";
+        callback(null, { session_code: AUTHORIZED_SESSION, login_url: loginUrl });
       },
       getAuthSession(call: grpc.ServerUnaryCall<{ session_code: string; client_state: string }, unknown>, callback: grpc.sendUnaryData<unknown>) {
         if (call.request.session_code === PENDING_SESSION) return callback(null, {});
@@ -64,6 +67,19 @@ describe("auth-gateway wire integration", () => {
         expect(call.request.user_display_name).toBe("Ada");
         callback(null, { user_info: { user_id: "u1", display_name: "Ada" } });
       },
+      setUserDisplayName(call: grpc.ServerUnaryCall<{ display_name: string }, unknown>, callback: grpc.sendUnaryData<unknown>) {
+        const authorization = call.metadata.get("authorization")[0];
+        if (authorization !== "Bearer jwt-1") {
+          return callback({ code: grpc.status.UNAUTHENTICATED, details: "user token is invalid" });
+        }
+        if (call.request.display_name === "taken") {
+          return callback({ code: grpc.status.FAILED_PRECONDITION, details: "display name is already chosen" });
+        }
+        if (!call.request.display_name?.trim()) {
+          return callback({ code: grpc.status.INVALID_ARGUMENT, details: "display name is required" });
+        }
+        callback(null, { user_info: { user_id: "u1", display_name: call.request.display_name } });
+      },
     });
     const port = await new Promise<number>((resolve, reject) => server.bindAsync("127.0.0.1:0", grpc.ServerCredentials.createInsecure(), (error, port) => error ? reject(error) : resolve(port)));
     client = createAuthGatewayClient({ address: `127.0.0.1:${port}`, timeout: 5000 });
@@ -101,6 +117,20 @@ describe("auth-gateway wire integration", () => {
     await expect(client.getAuthSession(AUTHORIZED_SESSION, CLIENT_STATE)).resolves.toEqual({
       userToken: "jwt-1", expiresAt: 1893456000, userId: "u1", userName: "Ada", refreshToken: "rt-1",
     });
+  });
+  it("passes the post-login redirect URI to the gateway for same-tab sign-in", async () => {
+    const started = await client.startAuthSession(CLIENT_STATE, "https://bears.test/auth/complete");
+    expect(started).toEqual({ sessionCode: AUTHORIZED_SESSION, loginUrl: "https://auth.test/login?redirect=1" });
+    // Omitting or blanking the redirect keeps the classic interstitial flow.
+    await expect(client.startAuthSession(CLIENT_STATE, "  ")).resolves.toEqual({
+      sessionCode: AUTHORIZED_SESSION, loginUrl: "https://auth.test/login",
+    });
+  });
+  it("sets the display name with the user token as bearer metadata", async () => {
+    await expect(client.setUserDisplayName("jwt-1", "Ada")).resolves.toEqual({ userId: "u1", displayName: "Ada" });
+    await expect(client.setUserDisplayName("wrong-token", "Ada")).rejects.toMatchObject({ code: grpc.status.UNAUTHENTICATED });
+    await expect(client.setUserDisplayName("jwt-1", "taken")).rejects.toMatchObject({ code: grpc.status.FAILED_PRECONDITION });
+    await expect(client.setUserDisplayName("jwt-1", "   ")).rejects.toMatchObject({ code: grpc.status.INVALID_ARGUMENT });
   });
   it("sends the refresh credential as bearer metadata and returns rotated tokens", async () => {
     await expect(client.refreshAuthSession("rt-1")).resolves.toEqual({

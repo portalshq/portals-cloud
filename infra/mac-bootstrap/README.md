@@ -273,7 +273,13 @@ and a restore path; do not reuse the Vercel leads/CRM database role. Also set
 `INTERNAL_ADMIN_TOKEN` (at least 32 bytes). Keep the signing key and API-key
 pepper as separate sealed files in
 `AUTH_SECRET_DIR`; do not set AWS KMS, Secrets Manager, or Cognito variables for
-this Mac release. Test real login, token refresh rotation/reuse rejection,
+this Mac release. To enable same-tab app sign-in, set
+`AUTH_LOGIN_REDIRECT_ALLOWLIST` to the comma-separated exact browser origins
+(scheme://host[:port]) that may receive post-login redirects — e.g.
+`https://bears.portals.works,http://localhost:5173`. Each requesting app's
+`post_login_redirect_uri` must match one of these origins exactly or the
+gateway serves the interstitial fallback page instead. Test real login, token
+refresh rotation/reuse rejection,
 JWKS publication, and signing-key rotation before public exposure.
 
 Set `LORE_REBAC_URL=http://auth-gateway:8087` in `LORE_ENV_FILE`: Docker service

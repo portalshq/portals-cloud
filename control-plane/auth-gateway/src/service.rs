@@ -1,5 +1,5 @@
 use crate::{
-    config::GatewayConfig,
+    config::{redirect_origin, GatewayConfig},
     jwt::{Claims, KmsJwtSigner, ResourcePermission, JWT_AUDIENCES},
     oauth::CognitoOauth,
     proto::epic_urc::{
@@ -17,8 +17,8 @@ use crate::{
 use aws_config::BehaviorVersion;
 use axum::{
     extract::{Query, State},
-    http::{HeaderMap, StatusCode},
-    response::{Html, IntoResponse},
+    http::{header::LOCATION, HeaderMap, StatusCode},
+    response::{Html, IntoResponse, Response as AxumResponse},
     routing::{delete, get, post, put},
     Json, Router,
 };
@@ -31,7 +31,7 @@ use sqlx::postgres::PgPoolOptions;
 use std::{fs, sync::Arc, time::Duration};
 use subtle::ConstantTimeEq;
 use tonic::{metadata::MetadataMap, transport::Server, Request, Response, Status};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -146,15 +146,33 @@ impl UrcAuthApi for AuthService {
         &self,
         request: Request<StartAuthSessionRequest>,
     ) -> Result<Response<StartAuthSessionResponse>, Status> {
-        let client_state = request
-            .into_inner()
+        let input = request.into_inner();
+        let client_state = input
             .client_state
             .parse::<Uuid>()
             .map_err(|_| Status::invalid_argument("client_state must be a UUID"))?;
+        let post_login_redirect_uri = match input.post_login_redirect_uri {
+            None => None,
+            Some(uri) if uri.trim().is_empty() => None,
+            Some(uri) => {
+                let origin = redirect_origin(&uri).ok_or_else(|| {
+                    Status::invalid_argument(
+                        "post_login_redirect_uri must be an absolute http(s) URI",
+                    )
+                })?;
+                if !self.state.config.login_redirect_allowlist.contains(&origin) {
+                    warn!(origin, "post-login redirect origin is not allowlisted");
+                    return Err(Status::permission_denied(
+                        "post_login_redirect_uri origin is not allowlisted",
+                    ));
+                }
+                Some(uri)
+            }
+        };
         let (session, login_url) = self
             .state
             .oauth
-            .start(client_state)
+            .start(client_state, post_login_redirect_uri)
             .await
             .map_err(internal_error)?;
         Ok(Response::new(StartAuthSessionResponse {
@@ -374,10 +392,75 @@ impl UrcAuthApi for AuthService {
             .verify_authentication(&token)
             .map_err(|_| Status::unauthenticated("invalid authentication token"))?;
         require_active(&self.state, &claims).await?;
+        // Live principal read, not the token's mint-time snapshot: a display
+        // name chosen after this token was issued is visible immediately.
+        let principal = self
+            .state
+            .store
+            .principal(subject_type(&claims), &claims.sub)
+            .await
+            .map_err(internal_error)?
+            .ok_or_else(|| Status::unauthenticated("principal not found"))?;
         Ok(Response::new(VerifyUserResponse {
             user_info: Some(UserInfo {
                 user_id: claims.sub,
-                display_name: claims.name,
+                display_name: principal.display_name,
+            }),
+        }))
+    }
+
+    async fn set_user_display_name(
+        &self,
+        request: Request<SetUserDisplayNameRequest>,
+    ) -> Result<Response<SetUserDisplayNameResponse>, Status> {
+        let claims = self
+            .state
+            .signer
+            .verify_authentication(bearer(request.metadata())?)
+            .map_err(|_| Status::unauthenticated("invalid authentication token"))?;
+        if claims.is_service_account {
+            return Err(Status::permission_denied(
+                "service accounts cannot set a display name",
+            ));
+        }
+        require_active(&self.state, &claims).await?;
+        let display_name = validate_display_name(&request.into_inner().display_name)?;
+        // A cosmetic name must never echo account data back into chat.
+        if display_name.eq_ignore_ascii_case(&claims.preferred_username)
+            || display_name == claims.sub
+        {
+            return Err(Status::invalid_argument(
+                "display name cannot match your account name",
+            ));
+        }
+        if let Err(error) = self
+            .state
+            .store
+            .set_user_display_name(&claims.sub, &display_name)
+            .await
+        {
+            let message = error.to_string();
+            if message.contains("already chosen") {
+                return Err(Status::failed_precondition(
+                    "display name is already chosen",
+                ));
+            }
+            return Err(internal_error(error));
+        }
+        self.state
+            .store
+            .record_audit(
+                "display_name_set",
+                Some(&claims.sub),
+                Some(self.state.config.effective_issuer()),
+                "success",
+                serde_json::json!({}),
+            )
+            .await;
+        Ok(Response::new(SetUserDisplayNameResponse {
+            user_info: Some(UserInfo {
+                user_id: claims.sub,
+                display_name,
             }),
         }))
     }
@@ -776,35 +859,98 @@ struct CallbackQuery {
 async fn callback(
     State(state): State<GatewayState>,
     Query(query): Query<CallbackQuery>,
-) -> impl IntoResponse {
+) -> AxumResponse {
+    let redirect = state
+        .store
+        .session_redirect(query.state)
+        .await
+        .ok()
+        .flatten();
     if let Some(error) = query.error {
-        tracing::warn!(oauth_error = %error, "Cognito returned an OAuth error");
-        return (
-            StatusCode::BAD_REQUEST,
-            Html(String::from(
-                "Authentication failed. Return to the CLI and try again.",
-            )),
+        warn!(oauth_error = %error, "IdP returned an OAuth error");
+        return redirect_or_fallback(
+            redirect,
+            "error=signin_failed",
+            (
+                StatusCode::BAD_REQUEST,
+                Html(String::from(
+                    "Authentication failed. Return to the CLI and try again.",
+                )),
+            ),
         );
     }
     let Some(code) = query.code else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Html("Authentication code is missing".into()),
+        return redirect_or_fallback(
+            redirect,
+            "error=signin_failed",
+            (
+                StatusCode::BAD_REQUEST,
+                Html("Authentication code is missing".into()),
+            ),
         );
     };
     match state.oauth.complete(query.state, &code).await {
-        Ok(()) => (
-            StatusCode::OK,
-            Html("Authentication complete. You may close this window.".into()),
-        ),
+        Ok(session) => {
+            let handoff = format!(
+                "session_code={}&state={}",
+                session.session_code, session.client_state
+            );
+            redirect_or_fallback(
+                redirect,
+                &handoff,
+                (
+                    StatusCode::OK,
+                    Html("Authentication complete. You may close this window.".into()),
+                ),
+            )
+        }
         Err(error) => {
-            tracing::warn!(%error, "OAuth callback rejected");
-            (
-                StatusCode::BAD_REQUEST,
-                Html("Authentication failed. Return to the CLI and try again.".into()),
+            warn!(%error, "OAuth callback rejected");
+            redirect_or_fallback(
+                redirect,
+                "error=signin_failed",
+                (
+                    StatusCode::BAD_REQUEST,
+                    Html(String::from(
+                        "Authentication failed. Return to the CLI and try again.",
+                    )),
+                ),
             )
         }
     }
+}
+
+/// Same-tab sign-in: when the session carried an allowlisted redirect URI,
+/// send the browser back into the app with the handoff params; otherwise the
+/// interstitial HTML page keeps the classic new-tab flow working.
+fn redirect_or_fallback(
+    redirect: Option<(Uuid, Option<String>)>,
+    params: &str,
+    fallback: (StatusCode, Html<String>),
+) -> AxumResponse {
+    let Some((_client_state, Some(uri))) = redirect else {
+        return fallback.into_response();
+    };
+    let separator = if uri.contains('?') { '&' } else { '?' };
+    (
+        StatusCode::FOUND,
+        [(LOCATION, format!("{uri}{separator}{params}"))],
+    )
+        .into_response()
+}
+
+/// Chat-visible names are cosmetic: 1–64 printable characters, never
+/// email-shaped, and never the caller's account username or subject id.
+fn validate_display_name(raw: &str) -> Result<String, Status> {
+    let name = raw.trim();
+    let valid_length = (1..=64).contains(&name.chars().count());
+    let printable = name.chars().all(|c| !c.is_control());
+    if !valid_length || !printable || name.contains('@') {
+        return Err(Status::invalid_argument(
+            "display name must be 1-64 printable characters and cannot look like an email",
+        ));
+    }
+    Ok(name.to_string())
 }
 async fn jwks(State(state): State<GatewayState>) -> Json<crate::jwt::Jwks> {
     Json(state.signer.jwks().clone())

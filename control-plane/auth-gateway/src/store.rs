@@ -27,6 +27,9 @@ pub struct AuthSession {
     pub pkce_verifier: String,
     pub oidc_nonce: Uuid,
     pub expires_at: DateTime<Utc>,
+    /// Operator-allowlisted URI the browser is sent to after login instead
+    /// of the interstitial HTML page (same-tab sign-in flow).
+    pub post_login_redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -91,6 +94,11 @@ impl SecurityStore {
         ))
         .execute(&self.pool)
         .await?;
+        sqlx::raw_sql(include_str!(
+            "../../persistence/migrations/008_user_display_names.sql"
+        ))
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -133,6 +141,7 @@ impl SecurityStore {
         &self,
         client_state: Uuid,
         pkce_verifier: String,
+        post_login_redirect_uri: Option<String>,
     ) -> anyhow::Result<AuthSession> {
         let session = AuthSession {
             session_code: Uuid::new_v4(),
@@ -141,15 +150,17 @@ impl SecurityStore {
             pkce_verifier,
             oidc_nonce: Uuid::new_v4(),
             expires_at: Utc::now() + Duration::minutes(10),
+            post_login_redirect_uri,
         };
-        sqlx::query("INSERT INTO auth_gateway_sessions (session_code, client_state, oauth_state, pkce_verifier, oidc_nonce, expires_at) VALUES ($1,$2,$3,$4,$5,$6)")
+        sqlx::query("INSERT INTO auth_gateway_sessions (session_code, client_state, oauth_state, pkce_verifier, oidc_nonce, expires_at, post_login_redirect_uri) VALUES ($1,$2,$3,$4,$5,$6,$7)")
             .bind(session.session_code).bind(session.client_state).bind(session.oauth_state)
-            .bind(&session.pkce_verifier).bind(session.oidc_nonce).bind(session.expires_at).execute(&self.pool).await?;
+            .bind(&session.pkce_verifier).bind(session.oidc_nonce).bind(session.expires_at)
+            .bind(&session.post_login_redirect_uri).execute(&self.pool).await?;
         Ok(session)
     }
 
     pub async fn session_for_callback(&self, oauth_state: Uuid) -> anyhow::Result<AuthSession> {
-        let row = sqlx::query("SELECT session_code, client_state, oauth_state, pkce_verifier, oidc_nonce, expires_at FROM auth_gateway_sessions WHERE oauth_state=$1 AND consumed_at IS NULL AND completed_at IS NULL AND expires_at > NOW()")
+        let row = sqlx::query("SELECT session_code, client_state, oauth_state, pkce_verifier, oidc_nonce, expires_at, post_login_redirect_uri FROM auth_gateway_sessions WHERE oauth_state=$1 AND consumed_at IS NULL AND completed_at IS NULL AND expires_at > NOW()")
             .bind(oauth_state).fetch_optional(&self.pool).await?
             .ok_or_else(|| anyhow::anyhow!("authentication session is invalid or expired"))?;
         Ok(AuthSession {
@@ -159,26 +170,71 @@ impl SecurityStore {
             pkce_verifier: row.get("pkce_verifier"),
             oidc_nonce: row.get("oidc_nonce"),
             expires_at: row.get("expires_at"),
+            post_login_redirect_uri: row.get("post_login_redirect_uri"),
         })
     }
 
+    /// Redirect target for a session regardless of completion state; used by
+    /// the HTTP callback to route failed logins back to the app too.
+    pub async fn session_redirect(
+        &self,
+        oauth_state: Uuid,
+    ) -> anyhow::Result<Option<(Uuid, Option<String>)>> {
+        let row = sqlx::query("SELECT client_state, post_login_redirect_uri FROM auth_gateway_sessions WHERE oauth_state=$1 AND consumed_at IS NULL AND expires_at > NOW()")
+            .bind(oauth_state).fetch_optional(&self.pool).await?;
+        Ok(row.map(|r| (r.get("client_state"), r.get("post_login_redirect_uri"))))
+    }
+
+    /// Completes a hosted login for the IdP-verified subject. The chat-visible
+    /// display name is deliberately NOT written here: it is user-chosen via
+    /// `set_user_display_name` and must never derive from IdP profile data,
+    /// email, or the login name.
     pub async fn complete_session(
         &self,
         oauth_state: Uuid,
         subject: &str,
-        name: &str,
         username: &str,
     ) -> anyhow::Result<()> {
         validate_subject(subject)?;
         let mut tx = self.pool.begin().await?;
-        let result = sqlx::query("UPDATE auth_gateway_sessions SET subject_id=$1, display_name=$2, preferred_username=$3, completed_at=NOW(), pkce_verifier='' WHERE oauth_state=$4 AND completed_at IS NULL AND consumed_at IS NULL AND expires_at > NOW()")
-            .bind(subject).bind(name).bind(username).bind(oauth_state).execute(&mut *tx).await?;
+        let result = sqlx::query("UPDATE auth_gateway_sessions SET subject_id=$1, display_name='', preferred_username=$2, completed_at=NOW(), pkce_verifier='' WHERE oauth_state=$3 AND completed_at IS NULL AND consumed_at IS NULL AND expires_at > NOW()")
+            .bind(subject).bind(username).bind(oauth_state).execute(&mut *tx).await?;
         anyhow::ensure!(
             result.rows_affected() == 1,
             "authentication session was already completed or expired"
         );
-        sqlx::query("INSERT INTO auth_principals (subject_type, subject_id, display_name, preferred_username) VALUES ('user',$1,$2,$3) ON CONFLICT (subject_type,subject_id) DO UPDATE SET display_name=EXCLUDED.display_name, preferred_username=EXCLUDED.preferred_username, updated_at=NOW()")
-            .bind(subject).bind(name).bind(username).execute(&mut *tx).await?;
+        // A returning principal keeps their chosen display name; only the
+        // private account username is refreshed from the IdP.
+        sqlx::query("INSERT INTO auth_principals (subject_type, subject_id, display_name, preferred_username) VALUES ('user',$1,'',$2) ON CONFLICT (subject_type,subject_id) DO UPDATE SET preferred_username=EXCLUDED.preferred_username, updated_at=NOW()")
+            .bind(subject).bind(username).execute(&mut *tx).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Sets the caller's chat-visible display name exactly once. Empty means
+    /// unchosen; a non-empty chosen name is read-only.
+    pub async fn set_user_display_name(
+        &self,
+        subject: &str,
+        display_name: &str,
+    ) -> anyhow::Result<()> {
+        validate_subject(subject)?;
+        let mut tx = self.pool.begin().await?;
+        let chosen = sqlx::query_scalar::<_, bool>("SELECT display_name <> '' FROM auth_principals WHERE subject_type='user' AND subject_id=$1 FOR UPDATE")
+            .bind(subject).fetch_optional(&mut *tx).await?;
+        anyhow::ensure!(
+            chosen == Some(false),
+            match chosen {
+                None => "principal does not exist",
+                Some(_) => "display name is already chosen",
+            }
+        );
+        sqlx::query("UPDATE auth_principals SET display_name=$1, display_name_chosen_at=NOW(), updated_at=NOW() WHERE subject_type='user' AND subject_id=$2")
+            .bind(display_name).bind(subject).execute(&mut *tx).await?;
+        // Refresh snapshots ride along so the next token refresh carries the
+        // chosen name without waiting for a fresh login.
+        sqlx::query("UPDATE auth_refresh_sessions SET display_name=$1 WHERE subject_type='user' AND subject_id=$2")
+            .bind(display_name).bind(subject).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -953,16 +1009,11 @@ mod tests {
 
         let client_state = Uuid::new_v4();
         let session = store
-            .start_session(client_state, "a".repeat(64))
+            .start_session(client_state, "a".repeat(64), None)
             .await
             .expect("start session");
         store
-            .complete_session(
-                session.oauth_state,
-                "owner-user",
-                "Owner User",
-                "owner@example.test",
-            )
+            .complete_session(session.oauth_state, "owner-user", "owner@example.test")
             .await
             .expect("complete session");
         assert!(store
@@ -1099,13 +1150,12 @@ mod tests {
             ["alice", "bob", "carol", "expired"].map(|name| format!("{name}-{}", Uuid::new_v4()));
         for subject in [&alice, &bob, &carol, &expired] {
             let login = store
-                .start_session(Uuid::new_v4(), "a".repeat(64))
+                .start_session(Uuid::new_v4(), "a".repeat(64), None)
                 .await
                 .unwrap();
             store
                 .complete_session(
                     login.oauth_state,
-                    subject,
                     subject,
                     &format!("{subject}@example.test"),
                 )

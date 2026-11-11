@@ -36,6 +36,9 @@ pub struct GatewayConfig {
     pub api_key_pepper_provider: String,
     pub environment: String,
     pub internal_admin_token: String,
+    /// Normalized `scheme://host[:port]` origins allowed as post-login
+    /// redirect targets. Empty disables same-tab redirect sign-in.
+    pub login_redirect_allowlist: Vec<String>,
 }
 
 impl GatewayConfig {
@@ -117,6 +120,10 @@ impl GatewayConfig {
             }),
             environment: required("LORE_ENV")?,
             internal_admin_token: required("INTERNAL_ADMIN_TOKEN")?,
+            login_redirect_allowlist: parse_login_redirect_allowlist(&value(
+                "AUTH_LOGIN_REDIRECT_ALLOWLIST",
+                "",
+            ))?,
         };
         config.validate()?;
         Ok(config)
@@ -270,6 +277,40 @@ fn parse_access_token_ttl(value: &str) -> anyhow::Result<i64> {
     Ok(ttl)
 }
 
+/// Extracts `scheme://host[:port]` from an absolute http(s) URI, rejecting
+/// user-info. Exact-origin matching keeps the allowlist a fixed set of
+/// operator-trusted browser origins.
+pub fn redirect_origin(uri: &str) -> Option<String> {
+    let (scheme, rest) = if let Some(rest) = uri.strip_prefix("https://") {
+        ("https", rest)
+    } else if let Some(rest) = uri.strip_prefix("http://") {
+        ("http", rest)
+    } else {
+        return None;
+    };
+    let before_path = rest.split(['?', '#']).next().unwrap_or(rest);
+    let authority = before_path.split('/').next().unwrap_or("");
+    if authority.is_empty() || authority.contains('@') {
+        return None;
+    }
+    Some(format!("{scheme}://{authority}").to_ascii_lowercase())
+}
+
+fn parse_login_redirect_allowlist(value: &str) -> anyhow::Result<Vec<String>> {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(|entry| {
+            redirect_origin(entry)
+                .filter(|origin| origin.eq_ignore_ascii_case(entry))
+                .ok_or_else(|| {
+                    anyhow::anyhow!("AUTH_LOGIN_REDIRECT_ALLOWLIST entries must be exact http(s) origins, got {entry:?}")
+                })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod lifetime_tests {
     use super::*;
@@ -281,6 +322,31 @@ mod lifetime_tests {
         for value in ["0", "59", "3601", "-1", "abc", ""] {
             assert!(parse_access_token_ttl(value).is_err());
         }
+    }
+
+    #[test]
+    fn redirect_origins_normalize_and_reject_spoofs() {
+        assert_eq!(
+            redirect_origin("https://bears.portals.works/auth/complete?x=1"),
+            Some("https://bears.portals.works".into())
+        );
+        assert_eq!(
+            redirect_origin("http://localhost:5173"),
+            Some("http://localhost:5173".into())
+        );
+        // User-info tricks must not pass as a trusted origin.
+        assert_eq!(redirect_origin("https://evil.com@good.com"), None);
+        assert_eq!(redirect_origin("ftp://good.com"), None);
+        assert_eq!(redirect_origin("good.com"), None);
+    }
+
+    #[test]
+    fn allowlist_entries_must_be_exact_origins() {
+        assert!(parse_login_redirect_allowlist("https://a.works, http://b.works").is_ok());
+        // A full URI or bare host is not an origin and must be rejected loudly.
+        assert!(parse_login_redirect_allowlist("https://a.works/path").is_err());
+        assert!(parse_login_redirect_allowlist("a.works").is_err());
+        assert!(parse_login_redirect_allowlist("").unwrap().is_empty());
     }
 }
 
