@@ -1,0 +1,44 @@
+.background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 64% 49%, oklch(0.63 0.17 27 / 0.30), transparent 52%),
+    radial-gradient(ellipse at 46% 53%, oklch(0.53 0.08 239 / 0.19), transparent 62%),
+    #05060c;
+}
+
+.background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, oklch(0.12 0.01 160 / 0.28), transparent 42%),
+    radial-gradient(ellipse at center, transparent 38%, oklch(0.08 0.01 160 / 0.32) 100%);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 240ms ease-out;
+}
+
+.canvas[data-state='ready'] {
+  opacity: 1;
+}
+
+.canvas[data-state='fallback'],
+.canvas[data-state='disposed'] {
+  opacity: 0;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas {
+    transition: none;
+  }
+}

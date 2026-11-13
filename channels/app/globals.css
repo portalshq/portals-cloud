@@ -1,28 +1,31 @@
+@import '../fonts.css';
+
 /* Design tokens for the feed-first home experience.
-   Aesthetic: "nocturnal soft-object" — a warm green-black ground, one jade
+   Aesthetic: "nocturnal soft-object" — a warm green-black ground, one coral
    accent, elevation expressed as light rather than as hairlines. There are no
    border lines anywhere in the feed; see DESIGN.md. */
 
 :root {
-  /* Legacy faces still used by the browse experience at /channels. */
-  --font-die-grotesk-b: 'Helvetica Neue', Arial, sans-serif;
-  --font-die-grotesk-c: 'Helvetica Neue', Arial, sans-serif;
-  --font-aeonik-fono: ui-monospace, monospace;
-  --font-stk-bureau: Georgia, serif;
+  --font-die-grotesk-b: 'DieGroteskB', Arial, sans-serif;
+  --font-die-grotesk-c: 'DieGroteskC', Arial, sans-serif;
+  --font-aeonik-fono: 'AeonikFono', Arial, sans-serif;
+  --font-stk-bureau: 'StkBureau', Georgia, serif;
+  --font-display: var(--font-die-grotesk-c);
+  --font-body: var(--font-die-grotesk-b);
 
-  /* Feed type. Provided by next/font on <html>; fallbacks are last-resort. */
-  --font-display: var(--font-display-face, 'Bricolage Grotesque', Georgia, serif);
-  --font-body: var(--font-body-face, 'Hanken Grotesk', system-ui, sans-serif);
+  --heading-tracking: clamp(0.22px, calc(0.17px + 0.015625vw), 0.57px);
 
-  /* Modular scale, ratio 1.333 (perfect fourth) off a 16px base. */
-  --text-2xs: 0.6875rem;
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-md: 1.333rem;
-  --text-lg: 1.78rem;
-  --text-xl: 2.37rem;
-  --text-2xl: 3.16rem;
+  /* Four text sizes shared across the app. */
+  --text-h1: clamp(2.1rem, 5.4vw, 3.16rem);
+  --text-h2: 1.78rem;
+  --text-normal: 1rem;
+  --text-micro: 0.75rem;
+
+  /* The four shared type styles. Sizes adapt at the mobile breakpoint below. */
+  --font-h1: 500 var(--text-h1) var(--font-display);
+  --font-h2: 500 var(--text-h2) var(--font-display);
+  --font-normal: 400 var(--text-normal) var(--font-body);
+  --font-micro: 400 var(--text-micro) var(--font-body);
 
   /* 4px base. Tight within groups, generous between sections. */
   --space-1: 0.25rem;
@@ -34,6 +37,9 @@
   --space-8: 3rem;
   --space-10: 4rem;
 
+  /* Text-only regions sit one step inside their surrounding layout gutter. */
+  --text-inset: var(--space-2);
+
   /* Two radii. The media surface sits at the 16px ceiling; pills for controls. */
   --radius: 16px;
   --radius-pill: 999px;
@@ -41,27 +47,22 @@
   --rail-collapsed: 76px;
   --rail-expanded: 264px;
 
-  /* Neutrals share the accent's family (hue 150 vs 143) but carry almost no
-     chroma, so the accent separates by saturation rather than by hue. */
+  /* Low-chroma neutrals give the accent room to stand out. */
   --color-bg: oklch(0.16 0.012 150);
   --color-surface: oklch(0.215 0.014 150);
   --color-surface-2: oklch(0.265 0.016 150);
-  --color-fg: oklch(0.96 0.012 140);
-  --color-muted: oklch(0.7 0.016 148);
-  /* Forest-leaning green, nudged off the yellow of the old slime value:
-     L 0.82 -> 0.70, hue 143 -> 150. Chroma necessarily drops to 0.185
-     because darkening inside a narrow sRGB hue costs saturation.
-     Renders #1ebd5b. Text on it 7.3:1; ring against the ground 7.8:1. */
-  --color-accent: oklch(0.7 0.185 150);
-  --color-accent-hover: oklch(0.76 0.175 150);
-  --color-accent-fg: oklch(0.2 0.045 149);
+  --color-fg: #fff;
+  --color-muted: #fff;
+  --color-accent: #F06C49;
+  --color-accent-hover: #F58C70;
+  --color-accent-fg: #24110c;
 
   /* Functional signals only. Never decoration. */
   --color-success: var(--color-accent);
   --color-warning: oklch(0.8 0.15 78);
   --color-error: oklch(0.68 0.19 22);
 
-  /* GREEN IS RESERVED FOR INTERACTION. It appears only on things you can act
+  /* THE ACCENT IS RESERVED FOR INTERACTION. It appears only on things you can act
      on or that are currently selected or focused: primary buttons, pressed
      toggles, the active filter, hover states, link hovers, and the focus ring.
      Status dots, live pills, monograms, numerals, the brand mark, the progress
@@ -72,10 +73,12 @@
   --glow-card: 0 14px 34px -20px oklch(0.96 0.01 140 / 0.1);
 
   --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+  --press-scale: 0.97;
+  --press-transition: scale var(--duration) var(--ease-out);
 
   --scrollbar-size: 14px;
   /* Neutral on purpose: the scrollbar is a surface affordance, not an
-     interaction point, and green here would spend the accent for nothing. */
+     interaction point, and uses neutral tones. */
   --scrollbar-thumb: oklch(0.7 0.01 150 / 0.35);
   --scrollbar-thumb-hover: oklch(0.8 0.01 150 / 0.5);
 }
@@ -91,17 +94,77 @@ body {
   background: var(--color-bg);
 }
 
+@media (max-width: 640px) {
+  /* Keep vertical scrolling, while disabling pinch/double-tap zoom and
+     horizontal touch drags throughout the public Channels app. */
+  html,
+  body {
+    touch-action: pan-y;
+  }
+
+  input:not([type='button']):not([type='submit']):not([type='reset']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']):not([type='image']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 body {
   color: var(--color-fg);
-  font-family: var(--font-body);
-  font-size: var(--text-base);
+  font: var(--font-normal);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+.fontH1 {
+  font: var(--font-h1);
+  letter-spacing: var(--heading-tracking);
+}
+
+.fontH2 {
+  font: var(--font-h2);
+  letter-spacing: var(--heading-tracking);
+}
+
+.fontNormal {
+  font: var(--font-normal);
+}
+
+.fontMicro {
+  font: var(--font-micro);
+}
+
+@media (max-width: 640px) {
+  :root {
+    --text-h2: 1rem;
+    --text-normal: var(--text-micro);
+    --press-scale: 0.94;
+  }
+}
+
+.app-content {
+  position: relative;
+  z-index: 1;
 }
 
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+:where(button, a[href]) {
+  transition: var(--press-transition);
+  @media(max-width: 640px) {
+    transform-origin: center;
+  }
+}
+
+:where(a[href]) {
+  display: inline-block;
+}
+
+:where(button:enabled, a[href]):active {
+  scale: var(--press-scale);
 }
 
 /* Scrollbars: a transparent gutter is always reserved, so laying out on a
@@ -132,10 +195,6 @@ body {
   border-radius: var(--radius-pill);
 }
 
-*::-webkit-scrollbar-thumb:hover {
-  background-color: var(--scrollbar-thumb-hover);
-}
-
 /* Every icon shares one ink so the set reads as one family rather than a mix
    of greys. Outline is the default — a glyph opts into being filled with
    `.filled`, so an icon added later comes in outlined rather than accidentally
@@ -160,8 +219,20 @@ html:has([data-channel-room])::-webkit-scrollbar {
   display: none;
 }
 
+@media (hover: hover) {
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --duration: 1ms;
+    --press-scale: none;
   }
+}
+
+/* Browser-default bold text follows the normal text style. */
+:where(strong, b, th) {
+  font: var(--font-normal);
 }

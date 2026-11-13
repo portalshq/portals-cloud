@@ -66,6 +66,14 @@ docs/
   architecture-decision-records/
 ```
 
+## Channels ambient WebGL
+
+The Channels Next.js app mounts an asset-free Three.js background across the feed, browse index, and channel rooms. `channels/components/background/` contains the thin React mount, GLSL shaders, deterministic animation math, and renderer lifecycle. Spectral ribbon meshes translate through perspective Z-depth over a procedural coral-and-cyan atmosphere; damped pointer and nested-feed scrolling provide depth-weighted parallax.
+
+The scene is dynamically imported on the client, capped at 1.5 device pixel ratio, paused in hidden tabs, and disposed completely on unmount. Reduced-motion users receive a static composed frame. WebGL initialization failure or context loss reveals the CSS atmospheric fallback without affecting channel controls or playback. No models, textures, environment variables, or external asset requests are required.
+
+Use `npm run dev --workspace channels` for local development, `npm run typecheck --workspace channels` for static checks, and `npm test --workspace channels -- --coverage` for the Vitest suite and coverage gate.
+
 ## Infra target
 
 Kubernetes-first on **Linode (LKE)**, CDN/edge on **Akamai**. Rationale in

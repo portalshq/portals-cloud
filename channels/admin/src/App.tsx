@@ -34,15 +34,15 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="bg-white p-6 rounded shadow-md w-80">
-          <h1 className="text-lg font-semibold mb-4">Channels Admin</h1>
+          <h1 className="fontH1 mb-4">Channels Admin</h1>
           <input
             type="password"
             placeholder="Enter admin token"
             value={ token }
             onChange={ (e) => setToken(e.target.value) }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-3"
+            className="w-full border border-gray-300 rounded px-3 py-2 fontNormal mb-3"
           />
-          <p className="text-xs text-gray-500">
+          <p className="fontMicro text-gray-500">
             Set VITE_ADMIN_TOKEN env or pass ?token= in URL
           </p>
         </div>

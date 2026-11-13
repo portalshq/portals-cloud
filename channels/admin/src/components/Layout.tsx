@@ -18,7 +18,7 @@ interface LayoutProps {
 function DbStatus({ label, configured, connected }: { label: string; configured: boolean; connected: boolean }) {
   const ok = configured && connected
   return (
-    <div className="flex items-center gap-1.5 text-xs">
+    <div className="flex items-center gap-1.5 fontMicro">
       <span className={`w-2 h-2 rounded-full ${ok ? 'bg-emerald-500' : 'bg-red-500'}`} />
       <span className="text-gray-500">{label}</span>
     </div>
@@ -39,7 +39,7 @@ export default function Layout({
     <div className="min-h-screen flex flex-col">
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-lg font-semibold">Channels Admin</h1>
+          <h1 className="fontH1">Channels Admin</h1>
           {info && (
             <div className="flex items-center gap-3">
               <DbStatus label="app" {...info.databases.app} />
@@ -48,11 +48,11 @@ export default function Layout({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">Poll:</label>
+          <label className="fontMicro text-gray-500">Poll:</label>
           <select
             value={pollingInterval}
             onChange={(e) => onPollingChange(Number(e.target.value))}
-            className="text-xs border border-gray-300 rounded px-2 py-1"
+            className="fontMicro border border-gray-300 rounded px-2 py-1"
           >
             <option value={5000}>5s</option>
             <option value={10000}>10s</option>
@@ -68,7 +68,7 @@ export default function Layout({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2 fontNormal border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900'

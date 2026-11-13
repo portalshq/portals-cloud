@@ -1,0 +1,63 @@
+.account {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--color-fg);
+  background: var(--color-surface-2);
+  cursor: pointer;
+}
+
+.dialog {
+  width: min(90vw, 24rem);
+  padding: var(--space-6);
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--color-fg);
+  background: var(--color-surface);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+
+.dialog form {
+  display: grid;
+  gap: var(--space-2);
+  margin-block-end: var(--space-3);
+}
+
+.dialog button,
+.dialog input {
+  min-height: 44px;
+  padding-inline: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--color-fg);
+  background: var(--color-surface-2);
+  font: inherit;
+}
+
+.dialog button {
+  cursor: pointer;
+}
+
+.close {
+  float: inline-end;
+}
+
+.completion {
+  display: grid;
+  place-content: center;
+  min-height: 100dvh;
+  text-align: center;
+}
+
+@media (hover: hover) {
+  .account:hover {
+    color: var(--color-accent-fg);
+    background: var(--color-accent);
+  }
+}

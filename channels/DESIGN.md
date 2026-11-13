@@ -13,12 +13,15 @@ from this file, this file wins. Applies to **all three routes**: the feed at
   browsing, not evaluating.
 - **Primary action:** enter a channel.
 - **Adjectives:** nocturnal, soft, buoyant, friendly, unhurried.
-- **Aesthetic:** *nocturnal soft-object.* A warm green-black ground, one green
-  accent, elevation expressed as light rather than as a line.
+- **Aesthetic:** *nocturnal soft-object in a refracted atmosphere.* A warm
+  green-black ground, one coral interface accent, and a subdued full-spectrum
+  light field behind the product. Elevation is expressed as light rather than
+  as a line.
 - **Signature move:** **the lit object.** The one hero surface per view is a
   soft-edged object floating in a dark room, its silhouette defined by a
-  lightness step off the ground plus a tight green bloom at its edge. Because
-  elevation is light, the interface needs no hairlines at all.
+  lightness step off the ground plus a tight neutral bloom at its edge. Behind
+  it, spectral ribbons cross real perspective depth like light leaking through
+  a prism. Because elevation is light, the interface needs no hairlines at all.
 
 ### Rules that are not negotiable
 
@@ -26,14 +29,19 @@ from this file, this file wins. Applies to **all three routes**: the feed at
   sentence case, always paired with a word, never colour alone.
 - **No border lines anywhere.** Separation comes from lightness steps
   (`--color-surface`, `--color-surface-2`), type, and space.
-- **One accent colour only.** `--color-warning` and `--color-error` are
-  functional signals and appear only on real warning and error states.
-- **Green means you can act on it.** `--color-accent` appears only on
+- **One interface accent colour only.** `--color-warning` and `--color-error`
+  are functional signals and appear only on real warning and error states. The
+  decorative WebGL atmosphere is environmental light, not an interface accent:
+  it never communicates status, selection, or affordance, and it stays behind
+  all content at `z-index: 0`.
+- **The accent marks actions.** `--color-accent` appears only on
   interactive elements and live interaction states: primary buttons and their
   hover, `aria-pressed` toggles, the active filter pill, link hovers, the
   profile hover, and the focus ring. Icons, live pills, monograms, the episode
   numeral, the brand mark, the progress readout, the glow, and the scrollbar are
   all neutral. Status still reads as status because the word is always present.
+- Group hover selectors in one `@media (hover: hover)` block per stylesheet.
+  Keep keyboard focus and pressed states available on every input type.
 - **Forbidden copy.** The words *portals*, *AI*, *application*, *living*, and
   *infrastructure* do not appear in any user-facing string. *Living* is written
   as *live*. A CI grep for these belongs on this directory.
@@ -42,56 +50,46 @@ from this file, this file wins. Applies to **all three routes**: the feed at
 
 | Role | Face | Source |
 | --- | --- | --- |
-| Display | Bricolage Grotesque (variable, wght 200–800, opsz) | `next/font/google` |
-| Body / UI | Hanken Grotesk (variable, wght 100–900) | `next/font/google` |
+| Display | DieGroteskC | `frontend/public/fonts` |
+| Body / UI | DieGroteskB | `frontend/public/fonts` |
 
-Chosen for personality, not taste: Bricolage has real personality at display
-sizes and a slightly condensed, high-x-height form that reads friendly rather
-than corporate. Hanken is soft-terminaled and warm at small sizes. Neither is
-Inter, Roboto, Arial, system-ui, or Space Grotesk.
+The shared font declarations load the frontend's local font files. The default
+family is DieGroteskB; headings use DieGroteskC.
 
-- **Scale:** ratio **1.333** (perfect fourth) off a **16px** base.
-  `--text-2xs` 11 / `-xs` 12 / `-sm` 14 / `-base` 16 / `-md` 21.3 / `-lg` 28.4
-  / `-xl` 37.9 / `-2xl` 50.6.
-- Headings are fluid via `clamp()`, capped at the corresponding scale step.
-- Display tracking is `-0.02em` — optically tightened, never destructive.
-- 11px is the absolute floor. Body copy is 16px. Interactive labels are 14px.
+- **Four font classes only:** `fontH1` is 500/display/h1 with heading tracking;
+  `fontH2` is 500/display/h2 with heading tracking; `fontNormal` is
+  400/default/normal; and `fontMicro` is 400/default/micro. Classes use the
+  `font` shorthand. H1 stays clamped; h2 becomes normal and normal becomes
+  micro at 640px and below. Micro stays fixed.
+- Display heading tracking follows the frontend display style, from `0.22px` to `0.57px` across the viewport.
+- Public app text uses opaque white as its base color, including supporting copy, thumbnail monograms, and numerals. Functional control and error colors remain opaque.
+- Both heading sizes use weight 500. Normal and micro text use weight 400.
+- Body copy and interactive labels use the normal size.
 
 ## Color
 
-Authored in OKLCH. The neutrals sit slightly **cooler** than the accent
-(hue 160 vs 152) so the green separates from the ground instead of dissolving
-into it.
+The public interface uses low-chroma dark surfaces and a coral accent for
+interactive states. The accent is `#F06C49`, with `#F58C70` on hover and
+`#24110c` text on filled controls. Supporting and primary text use opaque white.
+Functional warning and error colors remain distinct.
 
-| Token | Value | Role |
-| --- | --- | --- |
-| `--color-bg` | `oklch(0.16 0.01 160)` | ground, near-black, green-biased |
-| `--color-surface` | `oklch(0.215 0.012 160)` | rail, media ground, cards |
-| `--color-surface-2` | `oklch(0.265 0.014 160)` | secondary controls, chips |
-| `--color-fg` | `oklch(0.96 0.01 150)` | off-white ink |
-| `--color-muted` | `oklch(0.7 0.014 160)` | supporting copy |
-| `--color-accent` | `oklch(0.7 0.185 150)` | forest green — interaction only |
-| `--color-accent-hover` | `oklch(0.76 0.175 150)` | green, lightened not greyed |
-| `--color-accent-fg` | `oklch(0.2 0.045 149)` | text on green |
-| `--color-success` | = `--color-accent` | functional only |
-| `--color-warning` | `oklch(0.8 0.15 78)` | functional only |
-| `--color-error` | `oklch(0.68 0.19 22)` | functional only |
+### Environmental chromatic field
 
-`--color-accent` renders as **`#1ebd5b`**. Text on it 7.3:1; as a focus ring
-against the ground 7.8:1, comfortably past the 3:1 that WCAG 2.4.13 needs —
-which is why the ring can stay green instead of dropping to `--color-fg`.
+The fixed Three.js background frames a one-sheet hyperboloid receding through
+the midground along Z. The camera grazes the near rim from the right and below.
+The near flare crops along the left and bottom edges, and the waist sits in the
+upper-right third. Broad ribbons follow curved meridians at a fixed
+angle around the axis, gathering at the waist and flaring toward the ends. Bright
+white streaks ride inside softer blue and coral light leaks. Shifting coral and
+peach light fills the interior in world space, with the strongest glow at the
+waist. The surface rotates around Z about once every 17 minutes.
 
-**On saturation and hue.** sRGB chroma is not uniform across the green arc.
-Measured ceilings at L 0.78: hue 152 → 0.190, hue 146 → 0.220, **hue 143 →
-0.241**, hue 140 → 0.232, hue 134 → 0.207, hue 125 → 0.181. Chroma peaks at
-hue 143, so a bright, maximally saturated green has to sit there — and hue 143
-is a yellow-green. Moving toward forest means trading chroma for darkness and
-shifting hue the other way, to 150. The ceiling falls with lightness, so
-`oklch(0.7 0.185 150)` is the furthest forest direction that still passes
-contrast. Pushing darker than L 0.7 would fail the focus ring's 3:1 against
-the near-black ground unless the ring were decoupled from the accent.
-
-Distribution is roughly 85 / 10 / 5 — the accent is deliberately scarce.
+The canvas fades in only after its first completed render. A static CSS
+atmosphere sits underneath for initialization failure and WebGL context loss.
+A dark vignette and the existing opaque media/control surfaces preserve text
+contrast. The background has `pointer-events: none` and `aria-hidden="true"`;
+the application content occupies `z-index: 1`, while the existing rail stays
+above it. No route copy or metadata changes with the scene.
 
 ## Spacing, radius, shadow
 
@@ -100,12 +98,15 @@ Distribution is roughly 85 / 10 / 5 — the accent is deliberately scarce.
   the rail, `--space-10` between the header block and the player region).
   `--space-14` was retired with the room's old section rhythm and is no longer
   part of the scale.
+- **Text inset:** uncontained text groups use `--text-inset` inline padding.
+  Their media or control containers use a matching negative inline margin when
+  they need to retain the surrounding section's full width.
 - **Radius — exactly two values.** `--radius: 16px` for media surfaces and
   cards (at the ceiling, not past it — 24px+ is blob-rounding) and
   `--radius-pill: 999px` for controls.
-- **Shadow — exactly one approach.** `--glow-card`, a tight, dim green bloom,
+- **Shadow — exactly one approach.** `--glow-card`, a tight, dim neutral bloom,
   applied to **one hero object per view** and nothing else:
-  `0 14px 34px -20px oklch(0.78 0.203 152 / 0.2)`. Repeating it across a card
+  `0 14px 34px -20px oklch(0.96 0.01 140 / 0.1)`. Repeating it across a card
   grid turns a signature into fog, so the grid cards get a plain surface step
   instead. No element has both a hairline and a shadow, because no element has
   a hairline.
@@ -118,11 +119,22 @@ Distribution is roughly 85 / 10 / 5 — the accent is deliberately scarce.
   drawer, which uses `--ease-drawer: cubic-bezier(0.32, 0.72, 0, 1)`.
 - Only `transform`, `opacity`, and `clip-path` are animated. Never `width`,
   `height`, `top`, `left`, or `box-shadow`.
+- Buttons and links scale from the bottom edge when pressed. The scale is
+  `0.97` on desktop and `0.94` at 640px and below.
 - The feed progress bar is `transform: scaleY()` driven by scroll, with a 90ms
   linear transition because it is a continuous read, not a state change.
 - `prefers-reduced-motion: reduce` collapses `--duration` to 1ms and drops the
   `:active` press scale. User-initiated direct feedback is retained; ambient
   motion is not.
+- **Ambient scene motion is a separate clock.** Light sweeps advance along Z on
+  the curved meridians of the hyperboloid and fade at the depth boundaries.
+  Frame deltas clamp at 50ms so tab switches and main-thread stalls cannot jump
+  the scene forward. Pointer and nested-feed scroll values move the perspective
+  camera with exponential damping. The foreground shifts more than distant rays.
+- **The ambient scene freezes under reduced motion.** It renders one composed
+  frame and does not schedule an animation loop until the preference changes.
+  Hidden tabs stop the loop; returning resets the previous timestamp so elapsed
+  hidden time is discarded. Context loss also stops rendering until restoration.
 
 ## Scrollbars
 
@@ -151,6 +163,15 @@ is worth stating as a rule rather than a fix: **the gutter is for scrollers, and
 
 ## Craft layer
 
+- **The chromatic background** lives in `components/background/` and mounts once
+  in `app/layout.tsx`. The React wrapper dynamically imports the engine, so the
+  Three.js bundle does not block the initial route module. The engine owns its
+  renderer, two shader scenes, instanced ray geometry, browser listeners, and
+  disposal. The atmosphere and all 192 ribbons render in two draw calls. Pixel
+  ratio caps at 1.5. The scene loads no external assets. Tests drive the renderer
+  through a narrow adapter and cover the math, parallax, reduced motion,
+  visibility, context recovery, resize fallbacks, and resource cleanup above
+  the 95% line-coverage gate.
 - **The rail** is a shared component (`components/shell/Rail.tsx`) used by all
   three routes. A fixed 264px rail that wipes open to a 76px strip via
   `clip-path: inset()`, never a width animation. Labels sit in the clipped
@@ -266,13 +287,14 @@ is worth stating as a rule rather than a fix: **the gutter is for scrollers, and
   and takes the accent, so the state is legible without relying on the icon
   alone. **Search is compressed to a single icon button** that expands into a
   248px field when focused, keeps its "Search" label underneath so the row
-  never changes height, and turns into `X` once it holds a value. The
+  never changes height, and turns into `X` once it holds a value. Clicking
+  the icon again closes the field and clears any query. The
   expand/collapse is a hard swap with an opacity fade rather than a width
   animation. Tracks size to their content so the fixed-width tool cells stay
   in a column while search is free to grow. Both the filter state and the
   hero counts describe the current scope, so the counts move as you filter.
-- **Components.** Buttons are ranked by importance: one primary (green filled),
-  secondaries are `--color-surface-2`. Press is `scale(0.97)`. Focus is a
+- **Components.** Buttons are ranked by importance: one primary (coral filled),
+  secondaries are `--color-surface-2`. Focus is a
   two-tone `box-shadow` ring (`0 0 0 2px bg, 0 0 0 4px accent`) so it works on
   both grounds and follows the pill radius.
 - **One identity line, shared.** A channel is identified by a single line —
@@ -294,9 +316,9 @@ is worth stating as a rule rather than a fix: **the gutter is for scrollers, and
   circular chip and stays the same glyph in both states: the chip turning
   accent and the word changing to "Following" are the whole signal. Swapping
   the icon as well would be a third cue saying the same thing. The word stays
-  in normal ink outside the green, and its weight never changes. The bell is one
+  in normal ink outside the accent, and its weight never changes. The bell is one
   of only two filled icons, so in the pressed state it is a solid bell on the
-  green chip and the label swap carries the rest.
+  coral chip and the label swap carries the rest.
 - **No label ever changes a control's width.** "Follow"/"Following" and
   "Share"/"Link copied" sit in fixed-width buttons (142px and 150px), sized to
   the longest string each shows, so no state change can reflow the row. The
@@ -368,12 +390,12 @@ and 390×844, with screenshots of all three routes.
 
 **Artifact fit:** pass, checked in-browser rather than from source.
 
-**Colour:** pass. Slime green at hue 143, far outside the indigo–violet band. No
+**Colour:** pass. Coral accent distinguishes interactive elements. No
 gradient text, no cream ground, no even multi-hue spread. The glow was caught
 twice: first as too wide (a spotlight haze, a named tell), then as applied to
 every grid card (fog). It is now one hero object per view at reduced alpha.
 
-**Typography:** pass. Distinct display and body pair, neither on the ban list.
+**Typography:** pass. Frontend display and body faces use the existing Channels type scale.
 Ratio stated. No eyebrow, no pill chip above a headline, no full-sentence
 display headline — "Pick a room." is three words.
 
@@ -406,6 +428,21 @@ colour alone. **Zero console errors in dev and production on all three routes.**
 
 ### Changelog
 
+- **Uncontained text alignment** — Added a shared inline inset to text-only
+  groups in the feed, browse page, channel room, and Bears error state. Player,
+  card media, browse controls, and action groups compensate with negative
+  margins to preserve their visual alignment.
+- **Typography standardization** — Replaced per-component font properties and
+  size utilities with the four shared font classes across the public app and
+  admin. H2 and normal step down one size on mobile; h1 remains clamped and
+  micro remains static.
+- **Mobile feed actions** — Action labels are visually hidden below 641px while
+  remaining in the accessibility tree; icon controls retain 44px touch targets.
+- **v11** — A fixed Three.js atmosphere sits behind all three routes. Curved
+  ribbons trace a one-sheet hyperboloid. White streaks travel through soft blue
+  and coral light leaks, and a shifting coral glow fills the waist. The scene
+  supports reduced motion, hidden-tab pausing, WebGL context recovery, and a CSS
+  fallback.
 - **v10** — Playback is driven by visibility, not scroll arithmetic. One
   `useOnScreen` IntersectionObserver shared by the feed and the room, tested on
   `intersectionRatio` so a panel whose edge merely touches the viewport no

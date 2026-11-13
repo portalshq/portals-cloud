@@ -7,7 +7,7 @@ import type { Channel } from './data'
 /* Structural type only: PlaybackObservation is not re-exported from /react. */
 type Observation = { state: string; attempt: number }
 
-export function useChannelStream(channel: Channel) {
+export function useChannelStream(channel: Channel & { stream: string }) {
   const [observation, setObservation] = useState<Observation>({
     state: 'loading',
     attempt: 0,
@@ -37,7 +37,7 @@ export function ChannelStream({
   noteClassName,
   paused = false,
 }: {
-  channel: Channel
+  channel: Channel & { stream: string }
   noteClassName: string
   paused?: boolean
 }) {

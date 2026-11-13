@@ -2,6 +2,7 @@ import type { NextConfig } from 'next'
 import { resolve } from 'node:path'
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['@portalshq/capability-identity'],
   // Channels only uses HLS; the video package's optional WebRTC SDK is not installed.
   turbopack: {
     resolveAlias: { '@reactor-team/js-sdk': './lib/reactor-unavailable.ts' },

@@ -2,14 +2,16 @@
 
 import { ArrowUpRight, Check, ChevronLeft, Search, Sparkles, X } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Rail } from '@/components/shell/Rail'
 import { FollowButton, ShareButton } from './actions'
+import { ChannelAppRoom } from './ChannelAppRoom'
 import { ChannelMeta } from './ChannelMeta'
+import { ChannelPreview, useChannelPreview } from './ChannelPreview'
 import { ChannelStream } from './ChannelStream'
 import {
   browseCopy,
-  channels,
   filterIcons,
   filters,
   type Channel,
@@ -19,6 +21,7 @@ import { useOnScreen } from './use-on-screen'
 import styles from './ChannelsExperience.module.css'
 
 const initial = (title: string) => title.charAt(0)
+const mobileBrowse = '(max-width: 640px)'
 
 function Actions({ channel }: { channel: Channel }) {
   return (
@@ -29,15 +32,40 @@ function Actions({ channel }: { channel: Channel }) {
   )
 }
 
-function Card({ channel }: { channel: Channel }) {
+function Card({
+  channel: initialChannel,
+  active,
+  onVisibility,
+  onPreference,
+}: {
+  channel: Channel
+  active: boolean
+  onVisibility: (slug: string, visible: boolean) => void
+  onPreference: (slug: string, preferred: boolean) => void
+}) {
+  const [ref, { visible }] = useOnScreen<HTMLLIElement>()
+  const channel = useChannelPreview(initialChannel, active && visible)
+  const { slug, preview } = initialChannel
+
+  useEffect(() => {
+    if (!preview || !visible) return
+    onVisibility(slug, true)
+    return () => onVisibility(slug, false)
+  }, [onVisibility, preview, slug, visible])
+
   return (
-    <li>
-      <Link className={styles.card} href={`/${channel.slug}`}>
+    <li ref={ref}>
+      <Link
+        className={styles.card}
+        href={`/${slug}`}
+        onPointerEnter={preview ? () => onPreference(slug, true) : undefined}
+        onPointerLeave={preview ? () => onPreference(slug, false) : undefined}
+        onFocus={preview ? () => onPreference(slug, true) : undefined}
+        onBlur={preview ? () => onPreference(slug, false) : undefined}
+      >
         <span className={styles.cardMedia}>
+          <ChannelPreview channel={channel} active={active && visible} />
           <span className={styles.pill}>{channel.live ? 'live' : channel.category}</span>
-          <span className={styles.monogram} aria-hidden="true">
-            {initial(channel.title)}
-          </span>
         </span>
         <span className={styles.cardBody}>
           <span className={styles.cardTitle}>{channel.title}</span>
@@ -55,13 +83,13 @@ function Card({ channel }: { channel: Channel }) {
 function SearchTool({
   query,
   onQuery,
-  open,
+  expanded,
   onOpen,
   onClose,
 }: {
   query: string
   onQuery: (value: string) => void
-  open: boolean
+  expanded: boolean
   onOpen: () => void
   onClose: () => void
 }) {
@@ -69,58 +97,54 @@ function SearchTool({
   const active = query.length > 0
 
   useEffect(() => {
-    if (open) input.current?.focus()
-  }, [open])
-
-  // Collapsed, the field is a single square icon button. It is a hard swap
-  // rather than a width animation, which the motion rules do not allow.
-  if (!open && !active) {
-    return (
-      <button
-        className={styles.tool}
-        type="button"
-        onClick={onOpen}
-        aria-label="Search channels"
-      >
-        <span className={styles.toolIcon}>
-          <Search size={19} strokeWidth={1.75} aria-hidden="true" />
-        </span>
-        <span className={styles.toolLabel}>Search</span>
-      </button>
-    )
-  }
+    if (expanded) input.current?.focus({ preventScroll: window.matchMedia(mobileBrowse).matches })
+  }, [expanded])
 
   return (
-    <div className={styles.searchCell}>
-      <div className={styles.searchOpen}>
+    <div className={`${styles.tool} ${styles.searchCell}`}>
+      <div
+        className={styles.searchOpen}
+        data-expanded={expanded}
+        onBlur={(event) => {
+          if (!query && !event.currentTarget.contains(event.relatedTarget)) onClose()
+        }}
+      >
         <button
-          className={styles.searchIcon}
+          className={`${styles.toolIcon} ${styles.searchIcon}`}
           type="button"
-          /* X dismisses outright. Deferring the clear so the field could stay
-             open leaves it stuck: mousedown blurs the input before the click
-             lands, so the empty-value close check still sees the old value. */
-          onClick={() => {
+          aria-expanded={expanded}
+          onMouseDown={(event) => {
+            // Keep the input from blurring before the toggle handles the click.
+            if (expanded) event.preventDefault()
+          }}
+          onClick={(event) => {
+            if (!expanded) {
+              onOpen()
+              return
+            }
+            event.currentTarget.focus()
             onQuery('')
             onClose()
           }}
-          aria-label={active ? 'Clear the search' : 'Close the search'}
+          aria-label={
+            !expanded ? 'Search channels' : active ? 'Clear the search' : 'Close the search'
+          }
         >
           {active ? (
             <X size={17} strokeWidth={1.75} aria-hidden="true" />
           ) : (
-            <Search size={17} strokeWidth={1.75} aria-hidden="true" />
+            <Search size={19} strokeWidth={1.75} aria-hidden="true" />
           )}
         </button>
         <input
           ref={input}
           type="search"
           value={query}
-          placeholder="a name or a maker"
+          placeholder="type to search"
           aria-label="Search channels"
+          aria-hidden={!expanded}
+          tabIndex={expanded ? 0 : -1}
           onChange={(event) => onQuery(event.target.value)}
-          onBlur={() => {
-            if (!query) onClose()
-          }}
         />
       </div>
       <span className={styles.toolLabel}>Search</span>
@@ -133,53 +157,91 @@ function Tools({
   onFilter,
   query,
   onQuery,
+  onSearchOpen,
 }: {
   filter: Filter | null
   onFilter: (next: Filter | null) => void
   query: string
   onQuery: (value: string) => void
+  onSearchOpen: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const expanded = open || query.length > 0
 
   return (
-    <div className={styles.tools}>
-      {filters.map((item) => {
-        const Icon = filterIcons[item]
-        const active = filter === item
-        return (
-          <button
-            key={item}
-            className={styles.tool}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onFilter(active ? null : item)}
-          >
-            <span className={styles.toolIcon}>
-              {active ? (
-                <X size={19} strokeWidth={1.75} aria-hidden="true" />
-              ) : (
-                <Icon size={19} strokeWidth={1.75} aria-hidden="true" />
-              )}
-            </span>
-            <span className={styles.toolLabel}>{item}</span>
-          </button>
-        )
-      })}
+    <div className={styles.tools} data-search-open={expanded}>
+      <div className={styles.toolRow}>
+        {filters.map((item) => {
+          const Icon = filterIcons[item]
+          const active = filter === item
+          return (
+            <button
+              key={item}
+              className={styles.tool}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onFilter(active ? null : item)}
+            >
+              <span className={styles.toolIcon}>
+                {active ? (
+                  <X size={19} strokeWidth={1.75} aria-hidden="true" />
+                ) : (
+                  <Icon size={19} strokeWidth={1.75} aria-hidden="true" />
+                )}
+              </span>
+              <span className={styles.toolLabel}>{item}</span>
+            </button>
+          )
+        })}
+        <span className={styles.searchSlot} aria-hidden="true" />
+      </div>
       <SearchTool
         query={query}
         onQuery={onQuery}
-        open={open}
-        onOpen={() => setOpen(true)}
+        expanded={expanded}
+        onOpen={() => {
+          onFilter(null)
+          setOpen(true)
+          onSearchOpen()
+        }}
         onClose={() => setOpen(false)}
       />
     </div>
   )
 }
 
-function BrowseIndex() {
+function BrowseIndex({ channels }: { channels: Channel[] }) {
+  const browseHead = useRef<HTMLDivElement>(null)
   const [filter, setFilter] = useState<Filter | null>(null)
   const [query, setQuery] = useState('')
-  const featured = channels[0]
+  const [visiblePreviews, setVisiblePreviews] = useState<Set<string>>(() => new Set())
+  const [preferredPreview, setPreferredPreview] = useState<string | null>(null)
+
+  const scrollToBrowseHead = () => {
+    if (!window.matchMedia(mobileBrowse).matches) return
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    browseHead.current?.scrollIntoView({
+      behavior: reduceMotion ? 'instant' : 'smooth',
+      block: 'start',
+      inline: 'nearest',
+    })
+  }
+
+  const updatePreviewVisibility = useCallback((slug: string, visible: boolean) => {
+    setVisiblePreviews((current) => {
+      if (current.has(slug) === visible) return current
+      const next = new Set(current)
+      if (visible) next.add(slug)
+      else next.delete(slug)
+      return next
+    })
+  }, [])
+
+  const preferPreview = useCallback((slug: string, preferred: boolean) => {
+    setPreferredPreview((current) => preferred ? slug : current === slug ? null : current)
+  }, [])
+  const featured = channels.find((channel) => channel.slug === 'massively-social') ?? channels[0]
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -189,7 +251,10 @@ function BrowseIndex() {
       const haystack = `${channel.title} ${channel.by} ${channel.category}`.toLowerCase()
       return matchesFilter && haystack.includes(needle)
     })
-  }, [filter, query])
+  }, [channels, filter, query])
+
+  const activePreview = visible.find(({ slug }) => slug === preferredPreview && visiblePreviews.has(slug))
+    ?? visible.find(({ slug }) => visiblePreviews.has(slug))
 
   // Both counts describe the current scope, not the whole catalogue.
   const liveInScope = visible.filter((channel) => channel.live).length
@@ -206,10 +271,6 @@ function BrowseIndex() {
                 <dt>live now</dt>
                 <dd>{liveInScope}</dd>
               </div>
-              <div>
-                <dt>in view</dt>
-                <dd>{visible.length}</dd>
-              </div>
             </dl>
           </div>
         </section>
@@ -218,9 +279,9 @@ function BrowseIndex() {
           <Link className={styles.featuredCard} href={`/${featured.slug}`}>
             <span className={styles.featuredMedia}>
               <span className={styles.pill}>live now</span>
-              <span className={styles.featuredNumeral} aria-hidden="true">
+              {/* <span className={styles.featuredNumeral} aria-hidden="true">
                 25
-              </span>
+              </span> */}
             </span>
             <span className={styles.featuredBody}>
               <h2 className={styles.featuredTitle} id="featured-heading">
@@ -231,33 +292,49 @@ function BrowseIndex() {
                   aria-hidden="true"
                 />
               </h2>
-              <p className={styles.featuredLine}>{browseCopy.featuredLine}</p>
               <span className={styles.featuredMeta}>
                 {featured.by}
                 <span aria-hidden="true">·</span>
                 {featured.viewers}
               </span>
+              <p className={styles.featuredLine}>{browseCopy.featuredLine}</p>
             </span>
           </Link>
         </section>
 
         <section className={styles.browse} aria-labelledby="browse-heading">
-          <div className={styles.browseHead}>
-            <h2 className={styles.sectionHeading} id="browse-heading">
-              Every channel
-            </h2>
+          <div ref={browseHead} className={styles.browseHead}>
+              <h2 className={styles.sectionHeading} id="browse-heading">
+                Find channels
+              </h2>
+            {/* {(
+              <div className={styles.heroStats}>
+                <div>
+                  <dt>in view</dt>
+                  <dd>{visible.length}</dd>
+                </div>
+              </div>
+            )} */}
             <Tools
               filter={filter}
               onFilter={setFilter}
               query={query}
               onQuery={setQuery}
+              onSearchOpen={scrollToBrowseHead}
             />
           </div>
 
+          
           {visible.length > 0 ? (
             <ul className={styles.grid}>
               {visible.map((channel) => (
-                <Card key={channel.slug} channel={channel} />
+                <Card
+                  key={channel.slug}
+                  channel={channel}
+                  active={activePreview?.slug === channel.slug}
+                  onVisibility={updatePreviewVisibility}
+                  onPreference={preferPreview}
+                />
               ))}
             </ul>
           ) : (
@@ -278,9 +355,6 @@ function BrowseIndex() {
         </section>
 
         <footer className={styles.footer}>
-          <Link className={styles.footerLink} href="/">
-            Back to the feed
-          </Link>
           <span>© 2026</span>
         </footer>
       </main>
@@ -295,7 +369,7 @@ function BrowseIndex() {
    stream back to the top. The monogram holds the frame until then, so the box
    is already the right size when the player arrives and the layout never
    shifts on mount. */
-function Stage({ channel }: { channel: Channel }) {
+function Stage({ channel }: { channel: Channel & { stream: string } }) {
   const [ref, { visible, seen }] = useOnScreen<HTMLDivElement>()
 
   return (
@@ -313,12 +387,25 @@ function Stage({ channel }: { channel: Channel }) {
 }
 
 function ChannelDetail({ channel }: { channel: Channel }) {
+  if (channel.app) {
+    return (
+      <>
+        <Rail>
+          <Link className={styles.railBack} href="/channels">
+            <ChevronLeft size={17} strokeWidth={1.75} aria-hidden="true" />
+            <span data-rail-label></span>
+          </Link>
+        </Rail>
+        <ChannelAppRoom key={channel.slug} app={channel.app} name={channel.preview?.name ?? channel.title} />
+      </>
+    )
+  }
   return (
     <>
       <Rail>
         <Link className={styles.railBack} href="/channels">
           <ChevronLeft size={17} strokeWidth={1.75} aria-hidden="true" />
-          <span data-rail-label>All channels</span>
+          <span data-rail-label></span>
         </Link>
       </Rail>
 
@@ -326,17 +413,16 @@ function ChannelDetail({ channel }: { channel: Channel }) {
         <div className={styles.detailHead}>
           <h1 className={styles.detailTitle}>{channel.title}</h1>
           <ChannelMeta channel={channel} />
-          <p className={styles.description}>{channel.description}</p>
+          {channel.description && <p className={styles.description}>{channel.description}</p>}
           <Actions channel={channel} />
         </div>
 
-        <Stage channel={channel} />
+        {channel.stream && <Stage channel={{ ...channel, stream: channel.stream }} />}
       </main>
     </>
   )
 }
 
-export function ChannelsExperience({ slug }: { slug?: string }) {
-  const channel = slug ? channels.find((entry) => entry.slug === slug) : undefined
-  return channel ? <ChannelDetail channel={channel} /> : <BrowseIndex />
+export function ChannelsExperience({ channels, channel }: { channels: Channel[]; channel?: Channel }) {
+  return channel ? <ChannelDetail channel={channel} /> : <BrowseIndex channels={channels} />
 }

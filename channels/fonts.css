@@ -1,0 +1,95 @@
+@font-face {
+  font-family: 'DieGroteskB';
+  src: url('../frontend/public/fonts/die_grotesk_b_light-s.p.0d3d8.f017z0b.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DieGroteskB';
+  src: url('../frontend/public/fonts/die_grotesk_b_regular-s.p.0jvz~wiks_e7p.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DieGroteskB';
+  src: url('../frontend/public/fonts/die_grotesk_b_medium-s.p.03ry_ngvtd6ht.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DieGroteskB';
+  src: url('../frontend/public/fonts/die_grotesk_b_bold-s.p.0hcjula_8~.02.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DieGroteskC';
+  src: url('../frontend/public/fonts/die_grotesk_c_light-s.p.0f-uzo8lex_qf.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DieGroteskC';
+  src: url('../frontend/public/fonts/die_grotesk_c_regular-s.p.0oo9..wv.u_8d.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DieGroteskC';
+  src: url('../frontend/public/fonts/die_grotesk_c_medium-s.p.0sjvnicsp~t~g.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DieGroteskC';
+  src: url('../frontend/public/fonts/die_grotesk_c_bold-s.p.0cnivcuj7pkbs.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AeonikFono';
+  src: url('../frontend/public/fonts/aeonikfono_regular-s.p.0na4ujt42eyz5.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AeonikFono';
+  src: url('../frontend/public/fonts/aeonikfono_medium-s.p.0wuqn5lrpldf1.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'StkBureau';
+  src: url('../frontend/public/fonts/STKBureauSerif_Light-s.p.16iweok_yh9kh.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'StkBureau';
+  src: url('../frontend/public/fonts/STKBureauSerif_Book-s.p.0utj3rrelomuv.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}

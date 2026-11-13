@@ -7,10 +7,11 @@ export default {
   theme: {
     extend: {
       fontSize: {
-        xs: '11px',
-        sm: '13px',
-        base: '14px',
-        lg: '16px',
+        xs: '0.75rem',
+        sm: '1rem',
+        base: '1rem',
+        lg: 'clamp(2.1rem, 5.4vw, 3.16rem)',
+        h2: '1.78rem',
       },
       spacing: {
         '1': '4px',

@@ -1,5 +1,17 @@
 import { BookOpen, Gamepad2, GraduationCap, Radio } from 'lucide-react'
 
+export type PlaybackPreview = {
+  live: boolean
+  stream?: string
+  previewVideo?: string
+  nextSession?: string
+}
+
+export type ChannelApp = {
+  entry: string
+  legacyMountExport?: string
+}
+
 export type Channel = {
   slug: string
   title: string
@@ -10,7 +22,17 @@ export type Channel = {
   viewers: string
   /** Human label for what powers the channel. Never an internal package name. */
   source: string
-  stream: string
+  stream?: string
+  previewVideo?: string
+  nextSession?: string
+  app?: ChannelApp
+  preview?: {
+    endpoint: string
+    poster?: string
+    backdropModule?: string
+    name?: string
+  }
+  previewStatus?: 'live' | 'off-air' | 'unavailable'
 }
 /* Placeholder HLS test assets so the player is genuinely live out of the box.
    Prefer sources that serve segments as a real media type, like `video/MP2T`

@@ -7,7 +7,7 @@ import { recordChannelEvent } from '@/lib/analytics-client'
 import styles from './actions.module.css'
 
 /** Following turns the icon chip, not the label. The word stays in normal ink
- *  outside the green, and the button keeps a fixed width so swapping
+ *  outside the accent, and the button keeps a fixed width so swapping
  *  "Follow" for "Following" cannot reflow the row. */
 export function FollowButton({ channel }: { channel: string }) {
   const [following, setFollowing] = useState(false)
@@ -23,12 +23,7 @@ export function FollowButton({ channel }: { channel: string }) {
         recordChannelEvent(channelEvents.follow, {channel, following: next})
       }}
     >
-      {/* The bell is the channel in both states. The chip and the word carry
-          the change; swapping the glyph too would be a second signal saying
-          the same thing. */}
-      <span className={styles.chip} aria-hidden="true">
-        <Bell className="filled" size={16} strokeWidth={1.75} />
-      </span>
+      <Bell className="filled" size={16} strokeWidth={1.75} />
       {following ? 'Following' : 'Follow'}
     </button>
   )

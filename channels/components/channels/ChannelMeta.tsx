@@ -8,22 +8,22 @@ import styles from './ChannelMeta.module.css'
  *  right now. The feed and the channel room render the same line, so it lives
  *  here rather than being assembled twice. */
 export function ChannelMeta({ channel }: { channel: Channel }) {
+  const status = channel.live ? 'Live now' : channel.nextSession
+    ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })
+      .format(new Date(channel.nextSession)) + ' UTC'
+    : channel.viewers
   return (
     <p className={styles.meta}>
       <span>{channel.by}</span>
-      <span className={styles.sep} aria-hidden="true">
-        ·
-      </span>
       <span className={styles.source}>
         <Sparkles className="filled" size={13} strokeWidth={1.75} aria-hidden="true" />
         {channel.source}
       </span>
-      <span className={styles.sep} aria-hidden="true">
-        ·
-      </span>
-      <span className={styles.blurb}>
-        {channel.live ? 'Live now' : channel.viewers}
-      </span>
+      {status && (
+        <>
+          <span className={styles.blurb}>{status}</span>
+        </>
+      )}
     </p>
   )
 }

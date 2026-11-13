@@ -1,9 +1,10 @@
 # Live playback in the browse UI — design note
 
 How a "live" channels listing should resolve a playable stream, and why the
-stream address itself does not belong in Postgres. Written for the future
-implementation that replaces the hardcoded catalog in
-`components/channels/data.ts`.
+stream address itself does not belong in Postgres. Channels now merges central schedule bindings with its mock catalog and
+resolves the Bears preview from the Bears backend. See [Bears in Channels](./BEARS.md)
+for the running integration. The sketch below describes how to extend
+playback resolution to additional channel backends.
 
 ## The problem
 

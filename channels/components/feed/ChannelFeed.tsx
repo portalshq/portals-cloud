@@ -5,14 +5,14 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FollowButton, ShareButton } from '@/components/channels/actions'
 import { ChannelMeta } from '@/components/channels/ChannelMeta'
-import { ChannelStream } from '@/components/channels/ChannelStream'
-import { channels, type Channel } from '@/components/channels/data'
+import { ChannelPreview, useChannelPreview } from '@/components/channels/ChannelPreview'
+import type { Channel } from '@/components/channels/data'
 import { useOnScreen } from '@/components/channels/use-on-screen'
 import { Rail } from '@/components/shell/Rail'
 import styles from './ChannelFeed.module.css'
 
 function ChannelPanel({
-  channel,
+  channel: initialChannel,
   live,
   onVisible,
 }: {
@@ -20,8 +20,10 @@ function ChannelPanel({
   live: boolean
   onVisible: (slug: string) => void
 }) {
-  const headingId = `channel-${channel.slug}`
   const [ref, { visible }] = useOnScreen<HTMLElement>()
+  const active = live && visible
+  const channel = useChannelPreview(initialChannel, active)
+  const headingId = `channel-${channel.slug}`
 
   useEffect(() => {
     if (visible) onVisible(channel.slug)
@@ -31,29 +33,22 @@ function ChannelPanel({
     <section className={styles.panel} aria-labelledby={headingId} ref={ref}>
       <div className={styles.stack}>
         <div className={styles.videoFrame}>
-          {/* Exactly one panel in the feed holds a stream. The inert box holds
-              the frame's size before it does, so nothing shifts on mount. */}
-          {live ? (
-            <div className={styles.video}>
-              <ChannelStream
-                channel={channel}
-                noteClassName={styles.videoNote}
-                paused={!visible}
-              />
-            </div>
-          ) : (
-            <div className={styles.video} aria-hidden="true" />
-          )}
+          <div className={styles.video}>
+            <ChannelPreview
+              channel={channel}
+              active={active}
+              playVideo={live}
+              noteClassName={styles.videoNote}
+            />
+            <ChannelMeta channel={channel} />
+          </div>
         </div>
 
-        <div>
-          <h2 className={styles.name} id={headingId}>
-            {channel.title}
-          </h2>
-          <ChannelMeta channel={channel} />
-        </div>
+        <h2 className={styles.name} id={headingId}>
+          {channel.title}
+        </h2>
 
-        <p className={styles.description}>{channel.description}</p>
+        {channel.description && <p className={styles.description}>{channel.description}</p>}
 
         <div className={styles.actions}>
           <Link className={styles.primary} href={`/${channel.slug}`}>
@@ -74,7 +69,7 @@ function ChannelPanel({
   )
 }
 
-export function ChannelFeed() {
+export function ChannelFeed({ channels }: { channels: Channel[] }) {
   const scroller = useRef<HTMLElement | null>(null)
   const scrollable = useRef(0)
   const frame = useRef(0)

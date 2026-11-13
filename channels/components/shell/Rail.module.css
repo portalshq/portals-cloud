@@ -1,21 +1,19 @@
 .rail {
   position: fixed;
-  inset-block: 0;
-  left: 0;
   z-index: 30;
-  width: var(--rail-expanded);
-  /* clip-path keeps left-aligned content in place and reveals it; translating
-     the container instead would slide the content out of the visible strip. */
-  clip-path: inset(0 calc(var(--rail-expanded) - var(--rail-collapsed)) 0 0);
-  background: var(--color-surface);
-  padding: var(--space-6) var(--space-3) var(--space-5);
   display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
   transition: clip-path var(--duration) var(--ease-drawer);
+  inset-block: 0 auto;
+  background: color-mix(in srgb, var(--color-surface) 10%, transparent);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  inset-inline: 0;
+  width: 100%;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);  
 }
 
-.rail:hover,
 .rail:focus-within {
   clip-path: inset(0 0 0 0);
 }
@@ -30,19 +28,24 @@
     transform var(--duration) var(--ease-out);
 }
 
-.rail:hover :is(.wordmark, .link span, .counter, [data-rail-label]),
 .rail:focus-within :is(.wordmark, .link span, .counter, [data-rail-label]) {
   opacity: 1;
   transform: none;
 }
 
+/* No drawer on mobile, so the remaining labels are always shown. */
+.rail :is(.link span, [data-rail-label]) {
+    opacity: 1;
+    transform: none;
+}
+
 .wordmark {
-  font-family: var(--font-display);
-  font-size: var(--text-xs);
-  font-weight: 600;
+  font: var(--font-micro);
   letter-spacing: -0.01em;
   color: var(--color-muted);
   white-space: nowrap;
+
+    display: none;
 }
 
 .links {
@@ -50,28 +53,35 @@
   margin: 0;
   padding: 0;
   display: flex;
-  flex-direction: column;
   gap: var(--space-1);
 }
 
 .link {
+  font: var(--font-normal);
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-height: 44px;
   padding-inline: var(--space-3);
   border-radius: var(--radius-pill);
   color: var(--color-muted);
   text-decoration: none;
-  font-size: var(--text-sm);
   white-space: nowrap;
   transition: background var(--duration) var(--ease-out),
-    color var(--duration) var(--ease-out);
-}
-
-.link:hover {
-  background: var(--color-surface-2);
-  color: var(--color-fg);
+  color var(--duration) var(--ease-out),
+  var(--press-transition);
+  svg {
+    display: none;
+  }
+  @media (max-width: 640px) {
+    gap: var(--space-1);
+    flex-direction: column;
+    &[data-hide-icon="true"] {
+      aspect-ratio: 1/1;
+    }
+    justify-content: center;
+    padding-inline: var(--space-2);
+  }
 }
 
 .link[aria-current] {
@@ -81,17 +91,20 @@
 
 
 .foot {
-  margin-top: auto;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding-inline: var(--space-2);
+
+    margin-top: 0;
+    margin-left: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
 }
 
 
 .profile {
+  font: var(--font-normal);
   display: inline-flex;
+  aspect-ratio: 1/1;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -101,66 +114,42 @@
   border-radius: var(--radius-pill);
   background: var(--color-surface-2);
   color: var(--color-fg);
-  font: inherit;
-  font-size: var(--text-sm);
   cursor: pointer;
-  transition: background var(--duration) var(--ease-out);
-}
+  transition: background var(--duration) var(--ease-out), var(--press-transition);
 
-
-
-.profile:hover {
-  background: var(--color-accent);
-  color: var(--color-accent-fg);
-}
-
-
-/* --- Narrow viewports: a bottom bar, so the rail stops eating the screen --- */
-
-@media (max-width: 640px) {
-  .rail {
-    inset-block: auto 0;
-    inset-inline: 0;
-    width: 100%;
-    clip-path: none;
-    flex-direction: row;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-4);
+  @media (max-width: 640px) {
+    & svg {
+      opacity: 1;
+      transform: none;
+    }
   }
+}
 
-  /* The name is dropped from the bottom bar entirely. */
-  .wordmark {
+
+.counter {
+  @media (max-width: 640px) {
     display: none;
   }
+}
 
-  /* No drawer on mobile, so the remaining labels are always shown. */
-  .rail :is(.link span, [data-rail-label]),
-  .profile svg {
+@media (hover: hover) {
+  .rail:hover {
+    clip-path: inset(0 0 0 0);
+  }
+
+  .rail:hover :is(.wordmark, .link span, .counter, [data-rail-label]) {
     opacity: 1;
     transform: none;
   }
 
-  .links {
-    flex-direction: row;
-    gap: 2px;
+  .link:hover {
+    background: var(--color-surface-2);
+    color: var(--color-fg);
   }
 
-  .link {
-    padding-inline: var(--space-2);
-  }
-
-  .foot {
-    margin-top: 0;
-    margin-left: auto;
-    flex-direction: row;
-    align-items: center;
-    gap: var(--space-2);
-    padding-inline: 0;
-  }
-
-    .counter {
-    display: none;
+  .profile:hover {
+    background: var(--color-accent);
+    color: var(--color-accent-fg);
   }
 }
 

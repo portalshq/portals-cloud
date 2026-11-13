@@ -1,0 +1,110 @@
+import type { PlaybackPreview } from '../components/channels/data'
+import { adminEnv } from './admin/env'
+
+export const CHANNEL_SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/
+const PUBLIC_ASSET = /^(?:[\w-]+\/)*[\w-]+\.(?:png|jpe?g|webp|avif|gif|woff2?)$/i
+
+type RegisteredApp = {
+  slug: string
+  origin: string
+  name: string
+  backdrop: boolean
+  poster?: string
+  publicAssets: string[]
+  legacyMountExport?: string
+}
+
+function register(slug: string, value: unknown): RegisteredApp | undefined {
+  if (!CHANNEL_SLUG.test(slug) || !value || typeof value !== 'object') return
+  const { origin, name, poster, backdrop, publicAssets } = value as Record<string, unknown>
+  if (typeof origin !== 'string') return
+  let url: URL
+  try {
+    url = new URL(origin)
+  } catch {
+    return
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password
+    || url.pathname !== '/' || url.search || url.hash) return
+  const image = typeof poster === 'string' && PUBLIC_ASSET.test(poster) ? poster : undefined
+  return {
+    slug,
+    origin: url.origin,
+    name: typeof name === 'string' && name.trim() ? name.trim() : slug,
+    backdrop: backdrop === true,
+    poster: image,
+    publicAssets: [
+      ...(image ? [image] : []),
+      ...(Array.isArray(publicAssets)
+        ? publicAssets.filter((path): path is string => typeof path === 'string' && PUBLIC_ASSET.test(path))
+        : []),
+    ],
+  }
+}
+
+export function getChannelApps(): Map<string, RegisteredApp> {
+  const apps = new Map<string, RegisteredApp>()
+  const bears = register('bears', {
+    origin: adminEnv().bearsApiBaseUrl,
+    name: 'Bears',
+    backdrop: true,
+    poster: 'bears/forest-1216.webp',
+    publicAssets: ['bears/forest-background.png'],
+  })
+  if (bears) apps.set(bears.slug, { ...bears, legacyMountExport: 'mountBears' })
+
+  try {
+    const config: unknown = JSON.parse(process.env.CHANNELS_APPS?.trim() || '{}')
+    if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Expected an object')
+    for (const [slug, value] of Object.entries(config)) {
+      const app = register(slug, value)
+      if (app) apps.set(slug, slug === 'bears' ? { ...app, legacyMountExport: 'mountBears' } : app)
+    }
+  } catch {
+    console.error('[channels] CHANNELS_APPS must be a JSON object keyed by channel slug')
+  }
+  return apps
+}
+
+function mediaUrl(value: unknown, base: URL): string | undefined {
+  if (typeof value !== 'string' || !value) return undefined
+  try {
+    const url = new URL(value, base)
+    if (url.protocol === 'https:' || url.protocol === 'http:') return url.href
+  } catch {
+    return undefined
+  }
+}
+
+const previewCache = new Map<string, {
+  origin: string
+  until: number
+  result: Promise<PlaybackPreview | null>
+}>()
+
+export function getChannelPreview(app: RegisteredApp): Promise<PlaybackPreview | null> {
+  const url = new URL('/api/channel', app.origin)
+  const cached = previewCache.get(app.slug)
+  if (cached?.origin === app.origin && cached.until > Date.now()) return cached.result
+  const result = (async () => {
+    try {
+      const response = await fetch(url, { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(2500) })
+      if (!response.ok) return null
+      const { playback, nextSession: next } = await response.json()
+      const date = typeof next?.startsAt === 'string' ? Date.parse(next.startsAt) : NaN
+      const nextSession = Number.isFinite(date) ? new Date(date).toISOString() : undefined
+      if (playback === null) return { live: false, nextSession }
+      if (playback?.kind === 'reactor') return { live: true, nextSession }
+      if (playback?.kind === 'video') {
+        const previewVideo = mediaUrl(playback.url, url)
+        return previewVideo ? { live: true, previewVideo, nextSession } : null
+      }
+      const stream = mediaUrl(playback?.playbackManifestUrl, url)
+      return stream ? { live: true, stream, nextSession } : null
+    } catch {
+      return null
+    }
+  })()
+  previewCache.set(app.slug, { origin: app.origin, until: Date.now() + 10_000, result })
+  return result
+}

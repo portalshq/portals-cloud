@@ -1,0 +1,15 @@
+.room {
+  position: relative;
+  z-index: 0;
+  min-height: 100dvh;
+}
+
+.room > p {
+  padding-inline: var(--text-inset);
+}
+
+@media (max-width: 640px) {
+  .room {
+    margin-inline-start: 0;
+  }
+}

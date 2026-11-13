@@ -39,6 +39,7 @@ export function centralDb(): pg.Pool {
     throw serviceUnavailable("Admin central database is not configured");
   }
   poolCentralDb = new pg.Pool({ connectionString: centralDatabaseUrl, ...POOL_OPTIONS });
+  poolCentralDb.on("error", (error) => console.error("[channels] Central database connection lost", error.message));
   return poolCentralDb;
 }
 

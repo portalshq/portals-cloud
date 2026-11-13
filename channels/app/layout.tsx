@@ -1,23 +1,16 @@
 import type { Metadata } from 'next'
-import { Bricolage_Grotesque, Hanken_Grotesk } from 'next/font/google'
 import './globals.css'
+import type { Viewport } from 'next'
 
-const display = Bricolage_Grotesque({
-  subsets: ['latin'],
-  axes: ['opsz'],
-  variable: '--font-display-face',
-  display: 'swap',
-})
-
-const body = Hanken_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-body-face',
-  display: 'swap',
-})
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
 
 export const metadata: Metadata = {
   title: 'channels',
-  description: 'Rooms to gather, play, watch, and leave a mark.',
+  description: 'Rooms to gather, play, watch, and make your mark.',
 }
 
 export default function RootLayout({
@@ -26,8 +19,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
-      <body>{children}</body>
+    <html lang="en">
+      <body>
+        <div className="app-content">{children}</div>
+      </body>
     </html>
   )
 }

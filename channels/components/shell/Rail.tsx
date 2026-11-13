@@ -1,14 +1,15 @@
 'use client'
 
-import { Compass, Grid2X2 } from 'lucide-react'
+import { Compass, Home } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { ViewerAccount } from '@/components/auth/ViewerAccount'
 import styles from './Rail.module.css'
 
 const links = [
-  { href: '/', label: 'home', Icon: Compass },
-  { href: '/channels', label: 'browse', Icon: Grid2X2 },
+  { href: '/', label: 'home', Icon: Home, hideIcon: true },
+  { href: '/channels', label: 'browse', Icon: Compass, hideIcon: false },
 ] as const
 
 type RailProps = {
@@ -27,7 +28,7 @@ export function Rail({ children }: RailProps) {
   return (
     <nav className={styles.rail} aria-label="Primary">
       <ul className={styles.links}>
-        {links.map(({ href, label, Icon }) => {
+        {links.map(({ href, label, hideIcon, Icon }) => {
           // `/` is exact, but every channel room belongs to browse, so the
           // index and its children both keep browse highlighted.
           const exact = pathname === href
@@ -36,8 +37,8 @@ export function Rail({ children }: RailProps) {
 
           return (
             <li key={href}>
-              <Link className={styles.link} href={href} aria-current={current}>
-                <Icon size={19} strokeWidth={1.75} aria-hidden="true" />
+              <Link className={styles.link} href={href} aria-current={current} data-hide-icon={hideIcon}>
+                <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
                 <span>{label}</span>
               </Link>
             </li>
@@ -48,9 +49,7 @@ export function Rail({ children }: RailProps) {
       {children}
 
       <div className={styles.foot}>
-        <button className={styles.profile} type="button">
-          VC
-        </button>
+        <ViewerAccount />
         <span className={styles.wordmark}>channels</span>
       </div>
     </nav>

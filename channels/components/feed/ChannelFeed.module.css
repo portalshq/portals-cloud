@@ -31,8 +31,6 @@
   transition: transform 90ms linear;
 }
 
-/* --- Panels --- */
-
 .panel {
   height: 100dvh;
   scroll-snap-align: start;
@@ -42,6 +40,12 @@
   padding: var(--space-10) var(--space-6);
   padding-inline-start: calc(var(--rail-collapsed) + var(--space-6));
   padding-inline-end: var(--space-6);
+
+  @media (max-width: 640px) {
+    padding-inline: var(--space-5);
+    padding-top: calc(60px + var(--space-3));
+    padding-bottom: var(--space-2);
+  }
 }
 
 .stack {
@@ -50,10 +54,14 @@
      very wide void on large displays. Matched by the channel room's measure. */
   max-width: 700px;
   height: 100%;
+  padding-inline: var(--text-inset);
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-5);
+  gap: var(--space-4);
+  align-items: center;
+  @media (max-width: 640px) {
+    gap: var(--space-2);
+  }
 }
 
 /* The frame takes whatever height the text leaves over, so the player can
@@ -64,12 +72,14 @@
   min-height: 0;
   /* The stack is align-items: flex-start so the text keeps its left edge, which
      would otherwise shrink this frame to min-content. */
-  width: 100%;
+  width: calc(100% + var(--text-inset) + var(--text-inset));
+  margin-inline: calc(0px - var(--text-inset));
   display: grid;
+  padding-bottom: var(--space-3);
 }
 
 /* The signature move: the stream is a lit object, its edge defined by a
-   lightness step off the ground plus a tight jade bloom. No hairline. */
+   lightness step off the ground plus a tight neutral bloom. No hairline. */
 .video {
   position: relative;
   width: 100%;
@@ -82,6 +92,19 @@
      gutter reserved a strip inside the frame and the video came up 11px
      narrower than its box. It never scrolls, so it should not reserve one. */
   scrollbar-gutter: auto;
+
+  @media (min-width: 641px) {
+    /* Fill the leftover height and keep 16:9. The frame stretches the video, so
+       the ratio derives the width from that height. max-width keeps it inside
+       the column on narrow desktop windows, where the slight crop is the
+       cheaper trade than overflow. */
+      width: auto;
+      height: 100%;
+      max-width: 100%;
+      aspect-ratio: 16 / 9;
+      /* Share the text's left edge rather than floating in the middle of it. */
+      justify-self: start;
+  }
 }
 
 /* Below the mobile breakpoint the frame is the whole player, so the video
@@ -98,13 +121,13 @@
 }
 
 .videoNote {
+  font: var(--font-normal);
   position: absolute;
   inset: auto 0 0 0;
   margin: 0;
   padding: var(--space-4) var(--space-5);
   /* Opaque, so status text over arbitrary video content keeps its contrast. */
   background: var(--color-bg);
-  font-size: var(--text-sm);
   color: var(--color-fg);
 }
 
@@ -112,27 +135,18 @@
   color: var(--color-error);
 }
 
-/* --- Type --- */
-
-
-
 .name {
+  font: var(--font-h2);
   margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(2.1rem, 5.4vw, var(--text-2xl));
-  font-weight: 700;
   line-height: 1.02;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--heading-tracking);
   color: var(--color-fg);
 }
 
-
-
-
 .description {
+  font: var(--font-normal);
   margin: 0;
   max-width: 62ch;
-  font-size: var(--text-base);
   line-height: 1.6;
   color: var(--color-muted);
 }
@@ -142,14 +156,27 @@
 .actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-self: start;
   gap: var(--space-3);
   margin-top: var(--space-2);
+
+  button,
+  a {
+    @media (max-width: 640px) {
+      display: inline-flex;
+      width: 44px;
+      min-width: 44px;
+      padding-inline: 0;
+      gap: 0;
+      font: 0 var(--font-body);
+    }
+  }
 }
 
 .primary,
 .save {
-  display: inline-flex;
+  font: var(--font-normal);
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -157,63 +184,30 @@
   padding-inline: var(--space-5);
   border: 0;
   border-radius: var(--radius-pill);
-  font: inherit;
-  font-size: var(--text-sm);
   text-decoration: none;
   cursor: pointer;
   transition: background var(--duration) var(--ease-out),
-    transform var(--duration) var(--ease-out);
+    var(--press-transition);
 }
 
 .primary {
   background: var(--color-accent);
   color: var(--color-accent-fg);
-  font-weight: 600;
   padding-inline: var(--space-6);
-}
-
-.primary:hover {
-  background: var(--color-accent-hover);
 }
 
 .save {
   background: var(--color-surface-2);
   color: var(--color-fg);
-  font-weight: 500;
 }
 
-.save:hover {
-  background: oklch(0.32 0.018 150);
-}
-
-.primary:active,
-.save:active {
-  transform: scale(0.97);
-}
-
-@media (min-width: 641px) {
-  /* Fill the leftover height and keep 16:9. The frame stretches the video, so
-     the ratio derives the width from that height. max-width keeps it inside
-     the column on narrow desktop windows, where the slight crop is the
-     cheaper trade than overflow. */
-  .video {
-    width: auto;
-    height: 100%;
-    max-width: 100%;
-    aspect-ratio: 16 / 9;
-    /* Share the text's left edge rather than floating in the middle of it. */
-    justify-self: start;
-  }
-}
-
-@media (max-width: 640px) {
-  .panel {
-    padding: var(--space-6) var(--space-5);
-    padding-bottom: calc(60px + var(--space-8));
+@media (hover: hover) {
+  .primary:hover {
+    background: var(--color-accent-hover);
   }
 
-  .name {
-    font-size: clamp(1.9rem, 8vw, 2.4rem);
+  .save:hover {
+    background: oklch(0.32 0.018 150);
   }
 }
 
@@ -222,10 +216,5 @@
   .primary,
   .save {
     transition: none;
-  }
-
-  .primary:active,
-  .save:active {
-    transform: none;
   }
 }

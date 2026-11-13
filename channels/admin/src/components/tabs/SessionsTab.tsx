@@ -40,7 +40,7 @@ function formatSlotDate(iso: string, tz: string): string {
 
 const STATUS_STYLES: Record<string, string> = {
   scheduled: 'text-blue-700 bg-blue-50',
-  live: 'text-green-700 bg-green-50',
+  live: 'text-[#24110c] bg-[#F06C49]',
   completed: 'text-gray-500 bg-gray-100',
   cancelled: 'text-red-700 bg-red-50',
 }
@@ -178,12 +178,12 @@ export default function SessionsTab() {
   return (
     <div className="p-4">
       <div className="flex gap-4 mb-4 items-center flex-wrap">
-        <label className="text-sm">
+        <label className="fontNormal">
           Channel:
           <select
             value={filters.channelId}
             onChange={(e) => setFilters({ ...filters, channelId: e.target.value })}
-            className="ml-2 border border-gray-300 rounded px-2 py-1 text-sm"
+            className="ml-2 border border-gray-300 rounded px-2 py-1 fontNormal"
           >
             <option value="">All</option>
             {channels?.map((ch) => (
@@ -191,12 +191,12 @@ export default function SessionsTab() {
             ))}
           </select>
         </label>
-        <label className="text-sm">
+        <label className="fontNormal">
           Status:
           <select
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="ml-2 border border-gray-300 rounded px-2 py-1 text-sm"
+            className="ml-2 border border-gray-300 rounded px-2 py-1 fontNormal"
           >
             <option value="">All</option>
             {STATUSES.map((s) => (
@@ -204,39 +204,39 @@ export default function SessionsTab() {
             ))}
           </select>
         </label>
-        <label className="text-sm">
+        <label className="fontNormal">
           Scope:
           <select
             value={filters.scope}
             onChange={(e) => setFilters({ ...filters, scope: e.target.value })}
-            className="ml-2 border border-gray-300 rounded px-2 py-1 text-sm"
+            className="ml-2 border border-gray-300 rounded px-2 py-1 fontNormal"
           >
             <option value="upcoming">Upcoming + active</option>
             <option value="all">All history</option>
           </select>
         </label>
-        <button onClick={refresh} className="text-sm text-blue-600 hover:underline">Refresh</button>
-        <button onClick={() => setShowCreate((v) => !v)} className="text-sm text-blue-600 hover:underline">
+        <button onClick={refresh} className="fontNormal text-blue-600 hover:underline">Refresh</button>
+        <button onClick={() => setShowCreate((v) => !v)} className="fontNormal text-blue-600 hover:underline">
           {showCreate ? 'Cancel' : '+ New slot'}
         </button>
         {lastUpdated && (
-          <span className="text-xs text-gray-400">Updated: {lastUpdated.toLocaleTimeString()}</span>
+          <span className="fontMicro text-gray-400">Updated: {lastUpdated.toLocaleTimeString()}</span>
         )}
         {(error || fetchError) && (
-          <span className="text-xs text-red-500 ml-auto">Error: {error ?? fetchError?.message}</span>
+          <span className="fontMicro text-red-500 ml-auto">Error: {error ?? fetchError?.message}</span>
         )}
       </div>
 
       {showCreate && (
         <div className="mb-4 p-4 border border-gray-200 rounded bg-gray-50">
-          <div className="text-sm font-medium text-gray-700 mb-3">New one-off session window</div>
+          <div className="fontNormal text-gray-700 mb-3">New one-off session window</div>
           <div className="grid grid-cols-3 gap-4 max-w-3xl">
-            <label className="text-xs text-gray-600">
+            <label className="fontMicro text-gray-600">
               Channel
               <select
                 value={createForm.channelId}
                 onChange={(e) => setCreateForm({ ...createForm, channelId: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
               >
                 <option value="">—</option>
                 {channels?.map((ch) => (
@@ -244,12 +244,12 @@ export default function SessionsTab() {
                 ))}
               </select>
             </label>
-            <label className="text-xs text-gray-600">
+            <label className="fontMicro text-gray-600">
               Station
               <select
                 value={createForm.stationId}
                 onChange={(e) => setCreateForm({ ...createForm, stationId: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
               >
                 <option value="">—</option>
                 {meta?.stations.map((s) => (
@@ -257,12 +257,12 @@ export default function SessionsTab() {
                 ))}
               </select>
             </label>
-            <label className="text-xs text-gray-600">
+            <label className="fontMicro text-gray-600">
               Program
               <select
                 value={createForm.programId}
                 onChange={(e) => setCreateForm({ ...createForm, programId: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
               >
                 <option value="">—</option>
                 {meta?.programs.map((p) => (
@@ -270,56 +270,56 @@ export default function SessionsTab() {
                 ))}
               </select>
             </label>
-            <label className="text-xs text-gray-600">
+            <label className="fontMicro text-gray-600">
               Starts ({localTz})
               <input
                 type="datetime-local"
                 value={createForm.form.startsAt}
                 onChange={(e) => setCreateForm({ ...createForm, form: { ...createForm.form, startsAt: e.target.value } })}
-                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
               />
             </label>
-            <label className="text-xs text-gray-600">
+            <label className="fontMicro text-gray-600">
               Ends ({localTz})
               <input
                 type="datetime-local"
                 value={createForm.form.endsAt}
                 onChange={(e) => setCreateForm({ ...createForm, form: { ...createForm.form, endsAt: e.target.value } })}
-                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
               />
             </label>
-            <label className="text-xs text-gray-600">
+            <label className="fontMicro text-gray-600">
               Title (optional)
               <input
                 type="text"
                 value={createForm.form.title}
                 onChange={(e) => setCreateForm({ ...createForm, form: { ...createForm.form, title: e.target.value } })}
-                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
               />
             </label>
           </div>
           <button
             onClick={handleCreate}
             disabled={saving || !createForm.channelId || !createForm.programId || !createForm.form.startsAt || !createForm.form.endsAt}
-            className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+            className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded fontNormal hover:bg-blue-700 disabled:bg-gray-500"
           >
             {saving ? 'Creating…' : 'Create slot'}
           </button>
         </div>
       )}
 
-      {loading && <p className="text-gray-500 text-sm">Loading…</p>}
+      {loading && <p className="text-gray-500 fontNormal">Loading…</p>}
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
+        <table className="w-full fontNormal border-collapse">
           <thead>
             <tr className="border-b border-gray-200">
-              <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Channel</th>
-              <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Title</th>
-              <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Starts</th>
-              <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Ends</th>
-              <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
-              <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</th>
+              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Channel</th>
+              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Title</th>
+              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Starts</th>
+              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Ends</th>
+              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Status</th>
+              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -355,7 +355,7 @@ export default function SessionsTab() {
       </div>
 
       {sessions?.length === 0 && !loading && (
-        <p className="text-gray-500 mt-4 text-sm">No session windows found</p>
+        <p className="text-gray-500 mt-4 fontNormal">No session windows found</p>
       )}
     </div>
   )
@@ -387,29 +387,29 @@ function SessionRow({
   return (
     <>
       <tr className="border-b border-gray-100 hover:bg-gray-50">
-        <td className="py-2 px-3 text-sm font-medium">
+        <td className="py-2 px-3 fontNormal">
           {channelName}
-          <div className="text-xs text-gray-400 font-normal">{slot.programId}</div>
+          <div className="fontMicro text-gray-400">{slot.programId}</div>
         </td>
-        <td className="py-2 px-3 text-sm text-gray-600">{slot.title ?? <span className="text-gray-400 italic">—</span>}</td>
+        <td className="py-2 px-3 fontNormal text-gray-600">{slot.title ?? <span className="text-gray-400 italic">—</span>}</td>
         <td
-          className="py-2 px-3 text-sm text-gray-600"
+          className="py-2 px-3 fontNormal text-gray-600"
           title={formatInTimeZone(new Date(slot.startsAt), localTz, 'yyyy-MM-dd HH:mm zzz')}
         >
           {formatSlotDate(slot.startsAt, localTz)}
         </td>
-        <td className="py-2 px-3 text-sm text-gray-600">{formatSlotDate(slot.endsAt, localTz)}</td>
+        <td className="py-2 px-3 fontNormal text-gray-600">{formatSlotDate(slot.endsAt, localTz)}</td>
         <td className="py-2 px-3">
-          <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${STATUS_STYLES[slot.status] ?? 'text-gray-500 bg-gray-100'}`}>
+          <span className={`px-2 py-0.5 rounded fontMicro capitalize ${STATUS_STYLES[slot.status] ?? 'text-gray-500 bg-gray-100'}`}>
             {slot.status}
           </span>
         </td>
-        <td className="py-2 px-3 text-sm whitespace-nowrap">
-          <button onClick={onEditStart} className="text-xs text-blue-600 hover:underline mr-3">
+        <td className="py-2 px-3 fontNormal whitespace-nowrap">
+          <button onClick={onEditStart} className="fontMicro text-blue-600 hover:underline mr-3">
             {isEditing ? 'Cancel edit' : 'Edit'}
           </button>
           {(slot.status === 'scheduled' || slot.status === 'live') && (
-            <button onClick={onCancel} className="text-xs text-red-600 hover:underline">
+            <button onClick={onCancel} className="fontMicro text-red-600 hover:underline">
               Cancel slot
             </button>
           )}
@@ -419,50 +419,50 @@ function SessionRow({
         <tr>
           <td colSpan={6} className="px-4 py-4 bg-gray-50 border-b border-gray-200">
             <div className="grid grid-cols-4 gap-4 max-w-3xl">
-              <label className="text-xs text-gray-600">
+              <label className="fontMicro text-gray-600">
                 Starts ({localTz})
                 <input
                   type="datetime-local"
                   value={editForm.startsAt}
                   onChange={(e) => onEditChange({ ...editForm, startsAt: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
                 />
               </label>
-              <label className="text-xs text-gray-600">
+              <label className="fontMicro text-gray-600">
                 Ends ({localTz})
                 <input
                   type="datetime-local"
                   value={editForm.endsAt}
                   onChange={(e) => onEditChange({ ...editForm, endsAt: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
                 />
               </label>
-              <label className="text-xs text-gray-600">
+              <label className="fontMicro text-gray-600">
                 Status
                 <select
                   value={editForm.status}
                   onChange={(e) => onEditChange({ ...editForm, status: e.target.value as SlotStatus })}
-                  className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s} className="capitalize">{s}</option>
                   ))}
                 </select>
               </label>
-              <label className="text-xs text-gray-600">
+              <label className="fontMicro text-gray-600">
                 Title
                 <input
                   type="text"
                   value={editForm.title}
                   onChange={(e) => onEditChange({ ...editForm, title: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
                 />
               </label>
             </div>
             <button
               onClick={onSave}
               disabled={saving}
-              className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+              className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded fontNormal hover:bg-blue-700 disabled:bg-gray-500"
             >
               {saving ? 'Saving…' : 'Save'}
             </button>

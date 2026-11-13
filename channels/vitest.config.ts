@@ -5,7 +5,7 @@ export default defineConfig({
     environment: "node",
     include: ["test/**/*.test.ts"],
     coverage: {
-      include: ["lib/admin/**", "app/api/admin/**"],
+      include: ["lib/admin/**", "app/api/admin/**", "components/background/chromatic-*.ts"],
       thresholds: { lines: 95 },
     },
   },
