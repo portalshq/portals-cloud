@@ -9,12 +9,57 @@ metadata.
 CHANNELS_APPS='{"garden":{"origin":"https://garden.example","name":"Garden","backdrop":true,"poster":"images/garden.webp","publicAssets":["images/background.png"]}}'
 ```
 
+An optional `heading` object sets `fontFamily` and/or `fontWeight` for
+the channel's feed title, browse card, and detail title. For example,
+`"heading":{"fontFamily":"Georgia, serif","fontWeight":700}`. Each omitted
+property keeps the default for that heading. Add `fontFile` with a relative WOFF or WOFF2 path served by the source app
+to load a font on demand. Channels proxies that file through the same origin
+and lets the browser cache it for seven days. Use a versioned filename when
+changing a font. Bears serves its Baloo 2 file from the Bears backend.
+Set `heading.fontUrl` to an absolute public HTTP(S) font URL to use it
+directly. When both fields are set, the browser tries the proxy first and
+the direct URL second. Use HTTPS for HTTPS Channels deployments and configure
+the font server to allow cross-origin font requests from Channels. Direct
+downloads follow the source server's cache headers. If neither source loads,
+the browser uses the configured font family stack.
+
+Embedded apps receive `--channel-heading-family` and
+`--channel-heading-weight` on their mount element. The corresponding
+`data-channel-heading-family` and `data-channel-heading-weight` attributes
+indicate which overrides are set. Channels applies them to headings in
+the page DOM. Apps with a shadow root can use the same values for heading
+longhands in their own stylesheet, as Bears does.
+
+Every program room mount element has `data-channel-program-theme` and
+inherits Channels' current CSS custom properties by their existing names,
+including `--color-surface`, `--color-fg`, and `--color-accent`. Both regular
+DOM and shadow DOM content can read them. A shadow app that defines its own
+standalone defaults on `:host` can inherit the shared names explicitly:
+
+```css
+:host([data-channel-program-theme]) {
+  --color-surface: inherit;
+  --color-fg: inherit;
+}
+```
+
+Define standalone defaults for the program's own tokens. Channels defaults
+to dark and uses its light palette when `data-theme="light"` is set on
+`<html>`. Changes to the palette reach a mounted room through CSS inheritance.
+An app may set `"theme":"light"` in `CHANNELS_APPS` to use the light palette
+in its room. Bears defaults to light; set `"theme":"inherit"` on its entry to
+follow the Channels theme instead.
+
 A registered app provides the following interfaces:
 
 - `/channel-app/watch.js` exports `mountChannel(host, viewer)`. Mount into
   the supplied element and return a cleanup function. The viewer provides
   `getSnapshot`, `subscribe`, `fetch`, and `requestSignIn` for the shared
   Channels session. Use `/api/channels/<slug>/...` for app API requests.
+  The optional third argument provides room controls. Export
+  `supportsRoomSound = true` and subscribe to `controls.sound` to let the
+  rail mute or unmute the room. Apps can publish a balance and an optional
+  invite action through `controls.onAccountChange` for the central account dialog.
 - `/api/channel` returns `playback` and optionally
   `nextSession.startsAt`. Playback may be null, progressive video
   (`{kind:"video",url}`), HLS (`{playbackManifestUrl}`), or a Reactor

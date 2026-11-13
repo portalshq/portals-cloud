@@ -1,4 +1,4 @@
-import type { PlaybackPreview } from '../components/channels/data'
+import type { ChannelHeading, PlaybackPreview } from '../components/channels/data'
 import { adminEnv } from './admin/env'
 
 export const CHANNEL_SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/
@@ -8,6 +8,10 @@ type RegisteredApp = {
   slug: string
   origin: string
   name: string
+  theme?: 'light'
+  heading?: ChannelHeading
+  headingFont?: string
+  headingFontFallbackUrl?: string
   backdrop: boolean
   poster?: string
   publicAssets: string[]
@@ -16,7 +20,7 @@ type RegisteredApp = {
 
 function register(slug: string, value: unknown): RegisteredApp | undefined {
   if (!CHANNEL_SLUG.test(slug) || !value || typeof value !== 'object') return
-  const { origin, name, poster, backdrop, publicAssets } = value as Record<string, unknown>
+  const { origin, name, poster, backdrop, publicAssets, heading, theme } = value as Record<string, unknown>
   if (typeof origin !== 'string') return
   let url: URL
   try {
@@ -27,13 +31,35 @@ function register(slug: string, value: unknown): RegisteredApp | undefined {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password
     || url.pathname !== '/' || url.search || url.hash) return
   const image = typeof poster === 'string' && PUBLIC_ASSET.test(poster) ? poster : undefined
+  const { fontFamily, fontWeight, fontFile, fontUrl } = heading && typeof heading === 'object'
+    ? heading as Record<string, unknown>
+    : {}
+  const family = typeof fontFamily === 'string' && fontFamily.trim() ? fontFamily.trim() : undefined
+  const weight = typeof fontWeight === 'number' && fontWeight >= 1 && fontWeight <= 1000
+    ? fontWeight
+    : fontWeight === 'normal' || fontWeight === 'bold' ? fontWeight : undefined
+
+  const headingFont = typeof fontFile === 'string' && PUBLIC_ASSET.test(fontFile)
+    && /\.woff2?$/i.test(fontFile) ? fontFile : undefined
+
+  const directFont = typeof fontUrl === 'string' && /^https?:\/\//i.test(fontUrl)
+    ? mediaUrl(fontUrl, url)
+    : undefined
+
   return {
     slug,
+    theme: theme === 'light' ? 'light' : undefined,
+    headingFont,
+    headingFontFallbackUrl: directFont,
+    heading: headingFont || directFont || family !== undefined || weight !== undefined
+      ? { fontFamily: headingFont || directFont ? `"Channel ${slug}", ${family ?? 'sans-serif'}` : family, fontWeight: weight }
+      : undefined,
     origin: url.origin,
     name: typeof name === 'string' && name.trim() ? name.trim() : slug,
     backdrop: backdrop === true,
     poster: image,
     publicAssets: [
+      ...(headingFont ? [headingFont] : []),
       ...(image ? [image] : []),
       ...(Array.isArray(publicAssets)
         ? publicAssets.filter((path): path is string => typeof path === 'string' && PUBLIC_ASSET.test(path))
@@ -42,14 +68,20 @@ function register(slug: string, value: unknown): RegisteredApp | undefined {
   }
 }
 
+const bearsDefaults = {
+  name: 'Bears',
+  theme: 'light',
+  heading: { fontFamily: '"Baloo 2", sans-serif', fontWeight: 700, fontFile: 'fonts/baloo-2-latin-700-v1.woff2' },
+  backdrop: true,
+  poster: 'bears/forest-1216.webp',
+  publicAssets: ['bears/forest-background.png'],
+}
+
 export function getChannelApps(): Map<string, RegisteredApp> {
   const apps = new Map<string, RegisteredApp>()
   const bears = register('bears', {
     origin: adminEnv().bearsApiBaseUrl,
-    name: 'Bears',
-    backdrop: true,
-    poster: 'bears/forest-1216.webp',
-    publicAssets: ['bears/forest-background.png'],
+    ...bearsDefaults,
   })
   if (bears) apps.set(bears.slug, { ...bears, legacyMountExport: 'mountBears' })
 
@@ -57,7 +89,9 @@ export function getChannelApps(): Map<string, RegisteredApp> {
     const config: unknown = JSON.parse(process.env.CHANNELS_APPS?.trim() || '{}')
     if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Expected an object')
     for (const [slug, value] of Object.entries(config)) {
-      const app = register(slug, value)
+      const app = register(slug, slug === 'bears' && value && typeof value === 'object'
+        ? { ...bearsDefaults, ...value }
+        : value)
       if (app) apps.set(slug, slug === 'bears' ? { ...app, legacyMountExport: 'mountBears' } : app)
     }
   } catch {

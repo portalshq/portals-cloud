@@ -1,34 +1,51 @@
 'use client'
 
-import { Compass, Home } from 'lucide-react'
+import { ChevronLeft, Compass, Home, Volume2, VolumeX } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import type { ReactNode } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import type { RoomAccount } from '@/lib/room-controls'
 import { ViewerAccount } from '@/components/auth/ViewerAccount'
 import styles from './Rail.module.css'
 
 const links = [
-  { href: '/', label: 'home', Icon: Home, hideIcon: true },
-  { href: '/channels', label: 'browse', Icon: Compass, hideIcon: false },
+  { href: '/', label: 'Home', Icon: Home, hideIcon: true },
+  { href: '/channels', label: 'Browse', Icon: Compass, hideIcon: false },
 ] as const
 
 type RailProps = {
-  /** Page-specific links rendered under the primary navigation. */
-  children?: ReactNode
+  roomSlug?: string
+  sound?: { muted: boolean; toggle: () => void; disabled?: boolean }
+  account?: RoomAccount | null
 }
 
-/**
- * The left drawer. A fixed 264px rail that wipes open to a 76px strip via
- * clip-path, so the reveal never animates a layout property. Labels live in
- * the clipped region at opacity 0 and fade in on open.
- */
-export function Rail({ children }: RailProps) {
+export function Rail({ roomSlug, sound, account }: RailProps) {
+  const router = useRouter()
   const pathname = usePathname()
+
+  function goBack() {
+    const navigation = (window as Window & {
+      navigation?: { canGoBack: boolean; back(): { finished: Promise<unknown> } }
+    }).navigation
+    const feed = `/#channel-${encodeURIComponent(roomSlug ?? '')}`
+
+    // Navigation only exposes contiguous same-origin history entries.
+    if (navigation?.canGoBack) {
+      void navigation.back().finished.catch(() => router.replace(feed))
+    } else {
+      router.replace(feed)
+    }
+  }
 
   return (
     <nav className={styles.rail} aria-label="Primary">
       <ul className={styles.links}>
-        {links.map(({ href, label, hideIcon, Icon }) => {
+        {roomSlug ? (
+          <li>
+            <button type="button" className={styles.back} aria-label="Back" onClick={goBack}>
+              <ChevronLeft size={18} aria-hidden="true" />
+            </button>
+          </li>
+        ) : links.map(({ href, label, hideIcon, Icon }) => {
           // `/` is exact, but every channel room belongs to browse, so the
           // index and its children both keep browse highlighted.
           const exact = pathname === href
@@ -46,10 +63,15 @@ export function Rail({ children }: RailProps) {
         })}
       </ul>
 
-      {children}
-
       <div className={styles.foot}>
-        <ViewerAccount />
+        {sound && (
+          <button type="button" className={styles.sound} aria-label="Stage sound"
+            aria-pressed={!sound.muted} disabled={sound.disabled} onClick={sound.toggle}>
+            {sound.muted ? <VolumeX size={18} aria-hidden="true" /> : <Volume2 size={18} aria-hidden="true" />}
+            <span>{sound.muted ? 'Tap for Sound' : 'Sound On'}</span>
+          </button>
+        )}
+        <ViewerAccount roomAccount={account} />
         <span className={styles.wordmark}>channels</span>
       </div>
     </nav>

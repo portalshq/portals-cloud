@@ -218,6 +218,13 @@ is worth stating as a rule rather than a fix: **the gutter is for scrollers, and
   rather than the column growing past its measure — but it is a real change
   from the 1.78 this line used to claim, and it is measured, not assumed. At
   390px the ratio is 0.8.
+- **Landscape tablets.** Landscape viewports from 641px through 1400px with
+  a coarse primary pointer use a full-bleed feed player. Each panel still
+  snaps at one dynamic viewport height. The top navigation clears the device
+  safe area. Metadata and playback notices sit below it. The title,
+  description, and actions sit along the bottom over a short contrast
+  gradient. Secondary actions use 44px icon targets and the entry link
+  keeps its label. Browse and room content clear the top navigation.
 - **Streaming: visibility, not scroll arithmetic.** Exactly one panel holds a
   `VideoDeliveryPlayer` at a time; every other panel renders an inert box of the
   same size, so nothing shifts when a stream arrives. Which panel is live comes

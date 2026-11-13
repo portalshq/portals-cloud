@@ -123,10 +123,12 @@
 .videoNote {
   font: var(--font-normal);
   position: absolute;
-  inset: auto 0 0 0;
-  margin: 0;
-  padding: var(--space-4) var(--space-5);
-  /* Opaque, so status text over arbitrary video content keeps its contrast. */
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  width: fit-content;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 50%;
   background: var(--color-bg);
   color: var(--color-fg);
 }
@@ -138,16 +140,21 @@
 .name {
   font: var(--font-h2);
   margin: 0;
-  line-height: 1.02;
   letter-spacing: var(--heading-tracking);
   color: var(--color-fg);
+  @media (orientation: landscape) and (pointer:coarse) {
+    font: var(--font-h1);
+  }
+}
+
+.summary {
+  display: contents;
 }
 
 .description {
   font: var(--font-normal);
   margin: 0;
   max-width: 62ch;
-  line-height: 1.6;
   color: var(--color-muted);
 }
 
@@ -201,6 +208,113 @@
   color: var(--color-fg);
 }
 
+@media (min-width: 641px) and (max-width: 1400px) and (orientation: landscape) and (pointer: coarse) {
+  .panel {
+    position: relative;
+    isolation: isolate;
+    padding: 0;
+  }
+
+  .stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: end;
+    align-items: end;
+    max-width: none;
+    padding-inline: var(--tablet-inline-start) var(--tablet-inline-end);
+    padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  }
+
+  .videoFrame {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .video {
+    width: 100%;
+    aspect-ratio: auto;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .video::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: min(45%, 14rem);
+    background: linear-gradient(transparent, rgb(0 0 0 / 88%));
+    pointer-events: none;
+  }
+
+  .video > :is(p, span)[role='status'] {
+    z-index: 2;
+    inset: 0;
+    margin: auto;
+    height: fit-content;
+    width: fit-content;
+    max-width: 40%;
+    padding: var(--space-2) var(--space-3);
+    border-radius: 50%;
+    font: var(--font-micro);
+  }
+
+  .video > .meta {
+    position: absolute;
+    z-index: 2;
+    inset: calc(var(--tablet-nav-height) + var(--space-2)) auto auto var(--tablet-inline-start);
+    max-width: 50%;
+    flex-direction: row;
+    gap: var(--space-1) var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+    font: var(--font-micro);
+
+    span {
+      flex: 0 1 auto;
+      padding: 0;
+      border: 0;
+      backdrop-filter: none;
+    }
+  }
+
+  .summary {
+    position: relative;
+    display: grid;
+    gap: var(--space-1);
+    text-shadow: 0 1px 4px var(--color-bg);
+  }
+
+  .description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .actions {
+    position: relative;
+    align-self: end;
+    gap: var(--space-2);
+    margin: 0;
+
+    button {
+      width: 44px;
+      min-width: 44px;
+      padding-inline: 0;
+      gap: 0;
+      font: 0 var(--font-body);
+    }
+  }
+
+  .primary {
+    padding-inline: var(--space-3);
+  }
+}
+
 @media (hover: hover) {
   .primary:hover {
     background: var(--color-accent-hover);
@@ -216,5 +330,106 @@
   .primary,
   .save {
     transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    position: relative;
+    isolation: isolate;
+    padding: 0;
+  }
+
+  .stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: end;
+    align-items: end;
+    max-width: none;
+    padding-inline: max(var(--space-4), env(safe-area-inset-left)) max(var(--space-4), env(safe-area-inset-right));
+    padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+    gap: var(--space-2);
+  }
+
+  .videoFrame {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .video {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .video::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: min(55%, 18rem);
+    background: linear-gradient(transparent, rgb(0 0 0 / 88%));
+    pointer-events: none;
+  }
+
+  .video > :is(p, span)[role='status'] {
+    z-index: 2;
+    inset: 0;
+    margin: auto;
+    height: fit-content;
+    width: fit-content;
+    max-width: 80%;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    font: var(--font-micro);
+  }
+
+  .video > .meta {
+    position: absolute;
+    z-index: 2;
+    inset: calc(60px + var(--space-2) + env(safe-area-inset-top, 0px)) auto auto max(var(--space-4), env(safe-area-inset-left));
+    max-width: 70%;
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+    font: var(--font-micro);
+
+    span {
+      flex: 0 1 auto;
+      padding: 0;
+      border: 0;
+      backdrop-filter: none;
+    }
+  }
+
+  .summary {
+    position: relative;
+    display: grid;
+    gap: var(--space-1);
+    text-shadow: 0 1px 4px var(--color-bg);
+  }
+
+  .description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+
+  .actions {
+    position: relative;
+    align-self: end;
+    gap: var(--space-2);
+    margin: 0;
+  }
+
+  .primary {
+    padding-inline: var(--space-3);
   }
 }

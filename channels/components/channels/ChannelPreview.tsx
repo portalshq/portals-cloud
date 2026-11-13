@@ -75,11 +75,13 @@ export function ChannelPreview({
   channel,
   active,
   playVideo = false,
+  muted = true,
   noteClassName,
 }: {
   channel: Channel
   active: boolean
   playVideo?: boolean
+  muted?: boolean
   noteClassName?: string
 }) {
   const { preview, previewStatus } = channel
@@ -93,10 +95,11 @@ export function ChannelPreview({
         <ChannelStream
           channel={{ ...channel, stream: hls }}
           paused={!active}
+          muted={muted || !active}
           noteClassName={noteClassName ?? styles.status}
         />
       ) : video ? (
-        <video src={video} aria-label={channel.title} autoPlay muted loop playsInline />
+        <video src={video} aria-label={channel.title} autoPlay muted={muted} loop playsInline />
       ) : preview ? (
         <>
           {preview.poster && <img className={styles.poster} src={preview.poster} alt="" loading="lazy" />}

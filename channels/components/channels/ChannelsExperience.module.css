@@ -29,6 +29,15 @@
   }
 }
 
+@media (min-width: 641px) and (max-width: 1400px) and (orientation: landscape) and (pointer: coarse) {
+  .page,
+  .detail {
+    padding-inline: var(--tablet-inline-start) var(--tablet-inline-end);
+    padding-block-start: calc(var(--tablet-nav-height) + var(--space-3));
+    gap: var(--space-5);
+  }
+}
+
 .pill {
   font: var(--font-micro);
   display: inline-flex;
@@ -46,7 +55,6 @@
   font: var(--font-normal);
   margin: 0;
   max-width: 62ch;
-  line-height: 1.6;
   color: var(--color-muted);
 }
 
@@ -96,7 +104,6 @@
 .heroHeading {
   font: var(--font-h2);
   margin: 0;
-  line-height: 1;
   letter-spacing: var(--heading-tracking);
   color: var(--color-fg);
 }
@@ -136,7 +143,7 @@
 
 .featuredCard {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr);
+  grid-template-columns: 1.25fr .75fr;
   gap: var(--space-8);
   align-items: center;
   padding: var(--space-5);
@@ -144,8 +151,15 @@
   background: var(--color-surface);
   text-decoration: none;
   transition: background var(--duration) var(--ease-out), var(--press-transition);
-  @media (max-width: 900px) {
-    grid-template-columns: minmax(0, 1fr);
+  @media (orientation: landscape) and (pointer: coarse) {
+    height: 50vh;
+    grid-template-columns: minmax(auto, 1fr) minmax(auto, 1fr);
+    gap: var(--space-5);
+    background: none;
+    padding: 0;
+  }
+  @media (orientation: portrait) and (max-width: 640px) {
+    grid-template-columns: minmax(auto, 1fr);
     gap: var(--space-5);
     padding: var(--space-3);
   }
@@ -154,11 +168,16 @@
 .featuredMedia {
   position: relative;
   display: block;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16/9;
+  width: 100%;
   border-radius: var(--radius);
   background: var(--color-bg);
   box-shadow: var(--glow-card);
   overflow: hidden;
+  @media (orientation: landscape) and (pointer: coarse) {
+    aspect-ratio: 16/9;
+    height: 100%;
+  }
 }
 
 .featuredMedia .pill {
@@ -167,25 +186,12 @@
   left: var(--space-4);
 }
 
-/* One numeral, no monogram: the number is the point of this channel. */
-.featuredNumeral {
-  font: var(--font-h1);
-  position: absolute;
-  inset: auto var(--space-5) var(--space-3) auto;
-  letter-spacing: var(--heading-tracking);
-  line-height: 0.8;
-  color: var(--color-fg);
-}
-
 .featuredBody {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
   align-items: flex-start;
   padding-inline: var(--space-1);
-  @media (max-width: 640px) {
-    gap: var(--space-1);
-  }
+  gap: var(--space-1);
 }
 
 .featuredTitle {
@@ -195,7 +201,6 @@
   align-items: center;
   gap: var(--space-3);
   letter-spacing: var(--heading-tracking);
-  line-height: 1.05;
   color: var(--color-fg);
 }
 
@@ -209,7 +214,6 @@
 .featuredLine {
   font: var(--font-normal);
   margin-bottom: 0;
-  line-height: 1.6;
   color: var(--color-muted);
 }
 
@@ -428,10 +432,11 @@
   position: relative;
   display: block;
   aspect-ratio: 16 / 10;
+  object-fit: cover;
   margin-inline: calc(0px - var(--text-inset));
   border-radius: var(--radius);
   background: var(--color-surface);
-  overflow: hidden;
+  overflow: clip;
   transition: background var(--duration) var(--ease-out);
 }
 
@@ -448,7 +453,6 @@
   position: absolute;
   inset: auto var(--space-5) var(--space-3) auto;
   letter-spacing: var(--heading-tracking);
-  line-height: 0.8;
   color: var(--color-fg);
 }
 
@@ -507,22 +511,6 @@
 
 /* --- Channel room --- */
 
-.railBack {
-  font: var(--font-normal);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-pill);
-  color: var(--color-muted);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background var(--duration) var(--ease-out),
-    color var(--duration) var(--ease-out),
-    var(--press-transition);
-}
-
 .detailHead {
   display: flex;
   flex-direction: column;
@@ -535,7 +523,6 @@
 .detailTitle {
   font: var(--font-h1);
   margin: 0;
-  line-height: 1.02;
   letter-spacing: var(--heading-tracking);
   color: var(--color-fg);
 }
@@ -570,7 +557,6 @@
 
 .stageMonogram {
   font: var(--font-h1);
-  line-height: 1;
   letter-spacing: var(--heading-tracking);
   color: var(--color-fg);
   user-select: none;
@@ -623,11 +609,6 @@
   .footerLink:hover {
     color: var(--color-accent);
   }
-
-  .railBack:hover {
-    background: var(--color-surface-2);
-    color: var(--color-fg);
-  }
 }
 
 .secondary[aria-pressed='true'] {
@@ -648,7 +629,6 @@
   .featuredCard,
   .cardMedia,
   .cardTitle,
-  .railBack,
   .footerLink,
   .featuredArrow {
     transition: none;

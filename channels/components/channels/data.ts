@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { BookOpen, Gamepad2, GraduationCap, Radio } from 'lucide-react'
 
 export type PlaybackPreview = {
@@ -10,11 +11,17 @@ export type PlaybackPreview = {
 export type ChannelApp = {
   entry: string
   legacyMountExport?: string
+  theme?: 'light'
 }
+
+export type ChannelHeading = Pick<CSSProperties, 'fontFamily' | 'fontWeight'>
 
 export type Channel = {
   slug: string
   title: string
+  heading?: ChannelHeading
+  headingFontUrl?: string
+  headingFontFallbackUrl?: string
   by: string
   description: string
   category: string

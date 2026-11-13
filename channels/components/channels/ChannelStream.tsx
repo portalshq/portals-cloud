@@ -36,10 +36,12 @@ export function ChannelStream({
   channel,
   noteClassName,
   paused = false,
+  muted = true,
 }: {
   channel: Channel & { stream: string }
   noteClassName: string
   paused?: boolean
+  muted?: boolean
 }) {
   const { playback, state, settled, message, onObservation } = useChannelStream(channel)
   const sessionId = playback.sessionId
@@ -63,7 +65,7 @@ export function ChannelStream({
       <VideoDeliveryPlayer
         playback={playback}
         autoPlay
-        muted
+        muted={muted}
         loop
         playsInline
         preload="metadata"

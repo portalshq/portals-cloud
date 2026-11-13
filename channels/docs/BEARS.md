@@ -24,7 +24,7 @@ request shows an unavailable notice. The reminder form lives in the room.
 While a preview is active, Channels refreshes its descriptor every 15 seconds.
 The Bears endpoint shares the server's short cache and returns playback
 URLs, live status, and the next session's start time. In dry run, Bears
-returns its configured demo video between episodes, and the feed loops it.
+returns its configured demo video during scheduled episodes, and the feed loops it.
 Entering the room uses the same playback, chat, and interactions as standalone Bears.
 
 ## Configure

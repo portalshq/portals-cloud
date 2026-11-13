@@ -68,6 +68,7 @@ export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
     merged.set(row.channel_id, {
       slug: row.channel_id,
       title: row.program_name,
+      heading: mock?.heading,
       by: row.station_name ?? mock?.by ?? row.program_name,
       description: '',
       category: mock?.category ?? 'Live worlds',
@@ -85,6 +86,9 @@ export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
     return {
       slug: app.slug,
       title: existing?.title ?? app.name,
+      heading: app.heading ?? existing?.heading,
+      headingFontFallbackUrl: app.headingFontFallbackUrl,
+      headingFontUrl: app.headingFont ? `${assets}/public/${app.headingFont}` : undefined,
       by: existing?.by ?? app.name,
       description: existing?.description ?? '',
       category: existing?.category ?? 'Live worlds',
@@ -97,6 +101,7 @@ export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
       app: {
         entry: `${assets}/watch.js`,
         legacyMountExport: app.legacyMountExport,
+        theme: app.theme,
       },
       preview: {
         name: app.name,

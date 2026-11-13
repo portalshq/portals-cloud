@@ -1,12 +1,14 @@
 'use client'
 
-import { ArrowUpRight, Check, ChevronLeft, Search, Sparkles, X } from 'lucide-react'
+import { ArrowUpRight, Check, Search, Sparkles, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createRoomSound, type RoomAccount } from '@/lib/room-controls'
 import { Rail } from '@/components/shell/Rail'
 import { FollowButton, ShareButton } from './actions'
 import { ChannelAppRoom } from './ChannelAppRoom'
+import { ChannelHeadingFonts } from './ChannelHeadingFonts'
 import { ChannelMeta } from './ChannelMeta'
 import { ChannelPreview, useChannelPreview } from './ChannelPreview'
 import { ChannelStream } from './ChannelStream'
@@ -21,7 +23,7 @@ import { useOnScreen } from './use-on-screen'
 import styles from './ChannelsExperience.module.css'
 
 const initial = (title: string) => title.charAt(0)
-const mobileBrowse = '(max-width: 640px)'
+const tabletBrowse = '(max-width: 1200px)'
 
 function Actions({ channel }: { channel: Channel }) {
   return (
@@ -68,7 +70,7 @@ function Card({
           <span className={styles.pill}>{channel.live ? 'live' : channel.category}</span>
         </span>
         <span className={styles.cardBody}>
-          <span className={styles.cardTitle}>{channel.title}</span>
+          <span className={styles.cardTitle} style={channel.heading}>{channel.title}</span>
           <span className={styles.cardMeta}>
             {channel.by}
             <span aria-hidden="true">·</span>
@@ -97,7 +99,7 @@ function SearchTool({
   const active = query.length > 0
 
   useEffect(() => {
-    if (expanded) input.current?.focus({ preventScroll: window.matchMedia(mobileBrowse).matches })
+    if (expanded) input.current?.focus({ preventScroll: window.matchMedia(tabletBrowse).matches })
   }, [expanded])
 
   return (
@@ -218,12 +220,12 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
   const [preferredPreview, setPreferredPreview] = useState<string | null>(null)
 
   const scrollToBrowseHead = () => {
-    if (!window.matchMedia(mobileBrowse).matches) return
+    if (!window.matchMedia(tabletBrowse).matches) return
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     browseHead.current?.scrollIntoView({
       behavior: reduceMotion ? 'instant' : 'smooth',
-      block: 'start',
+      block: 'nearest',
       inline: 'nearest',
     })
   }
@@ -279,12 +281,9 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
           <Link className={styles.featuredCard} href={`/${featured.slug}`}>
             <span className={styles.featuredMedia}>
               <span className={styles.pill}>live now</span>
-              {/* <span className={styles.featuredNumeral} aria-hidden="true">
-                25
-              </span> */}
             </span>
             <span className={styles.featuredBody}>
-              <h2 className={styles.featuredTitle} id="featured-heading">
+              <h2 className={styles.featuredTitle} style={featured.heading} id="featured-heading">
                 {featured.title}
                 <ArrowUpRight
                   className={styles.featuredArrow}
@@ -369,7 +368,7 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
    stream back to the top. The monogram holds the frame until then, so the box
    is already the right size when the player arrives and the layout never
    shifts on mount. */
-function Stage({ channel }: { channel: Channel & { stream: string } }) {
+function Stage({ channel, muted }: { channel: Channel & { stream: string }; muted: boolean }) {
   const [ref, { visible, seen }] = useOnScreen<HTMLDivElement>()
 
   return (
@@ -380,49 +379,46 @@ function Stage({ channel }: { channel: Channel & { stream: string } }) {
         </span>
       )}
       {seen && (
-        <ChannelStream channel={channel} noteClassName={styles.stageNote} paused={!visible} />
+        <ChannelStream channel={channel} noteClassName={styles.stageNote} paused={!visible} muted={muted} />
       )}
     </div>
   )
 }
 
 function ChannelDetail({ channel }: { channel: Channel }) {
-  if (channel.app) {
-    return (
-      <>
-        <Rail>
-          <Link className={styles.railBack} href="/channels">
-            <ChevronLeft size={17} strokeWidth={1.75} aria-hidden="true" />
-            <span data-rail-label></span>
-          </Link>
-        </Rail>
-        <ChannelAppRoom key={channel.slug} app={channel.app} name={channel.preview?.name ?? channel.title} />
-      </>
-    )
-  }
+  const [sound] = useState(createRoomSound)
+  const muted = useSyncExternalStore(sound.subscribe, sound.getMuted, () => true)
+  const [account, setAccount] = useState<RoomAccount | null>(null)
+  const [appSoundAvailable, setAppSoundAvailable] = useState(false)
+  const hasSound = channel.app ? appSoundAvailable : Boolean(channel.stream)
+
   return (
     <>
-      <Rail>
-        <Link className={styles.railBack} href="/channels">
-          <ChevronLeft size={17} strokeWidth={1.75} aria-hidden="true" />
-          <span data-rail-label></span>
-        </Link>
-      </Rail>
+      <Rail roomSlug={channel.slug} sound={{ muted, toggle: sound.toggle, disabled: !hasSound }} account={account} />
+      {channel.app ? (
+        <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title}
+          heading={channel.heading} sound={sound} onAccountChange={setAccount} onSoundAvailable={setAppSoundAvailable} />
+      ) : (
+        <main className={styles.detail} data-channel-room>
+          <div className={styles.detailHead}>
+            <h1 className={styles.detailTitle} style={channel.heading}>{channel.title}</h1>
+            <ChannelMeta channel={channel} />
+            {channel.description && <p className={styles.description}>{channel.description}</p>}
+            <Actions channel={channel} />
+          </div>
 
-      <main className={styles.detail} data-channel-room>
-        <div className={styles.detailHead}>
-          <h1 className={styles.detailTitle}>{channel.title}</h1>
-          <ChannelMeta channel={channel} />
-          {channel.description && <p className={styles.description}>{channel.description}</p>}
-          <Actions channel={channel} />
-        </div>
-
-        {channel.stream && <Stage channel={{ ...channel, stream: channel.stream }} />}
-      </main>
+          {channel.stream && <Stage channel={{ ...channel, stream: channel.stream }} muted={muted} />}
+        </main>
+      )}
     </>
   )
 }
 
 export function ChannelsExperience({ channels, channel }: { channels: Channel[]; channel?: Channel }) {
-  return channel ? <ChannelDetail channel={channel} /> : <BrowseIndex channels={channels} />
+  return (
+    <>
+      <ChannelHeadingFonts channels={channel ? [channel] : channels} />
+      {channel ? <ChannelDetail key={channel.slug} channel={channel} /> : <BrowseIndex channels={channels} />}
+    </>
+  )
 }

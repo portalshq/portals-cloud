@@ -22,9 +22,9 @@ flowchart TB
 
 | Page | Media and controls |
 | --- | --- |
-| `/` | One feed panel owns playback at a time. It plays muted HLS or a looping progressive video. When no preview video is available, a configured backdrop can animate on the active panel. Inactive panels use their configured poster. |
+| `/` | One feed panel owns playback at a time. It plays HLS or a looping progressive video. The feed starts muted, and the rail sound setting follows the active panel as viewers scroll. When no preview video is available, a configured backdrop can animate on the active panel. Inactive panels use their configured poster. |
 | `/channels` | The browse grid uses the same preview component with video playback disabled. It animates one visible backdrop at a time, prioritizing the hovered or focused card. The featured banner has its own layout. |
-| `/bears` | The Channels shell mounts the Bears watch bundle on entry. Bears supplies the stage, sound, chat, and audience interactions. Its off-air lobby can show the next episode and email reminder form. Leaving the room unmounts the watch app. |
+| `/bears` | The Channels shell mounts the Bears watch bundle on entry. Bears supplies the stage, chat, and audience interactions. The rail handles sound and the account dialog. The embedded Bears header stays in the layout while hidden. Back uses same-origin history when available and otherwise opens the matching feed panel. Its off-air lobby can show the next episode and email reminder form. Leaving the room unmounts the watch app. |
 | Other `/[slug]` pages | Channels renders the channel details and an HLS player when a stream is configured. |
 
 ## App previews and playback

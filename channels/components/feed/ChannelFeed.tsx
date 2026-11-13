@@ -3,7 +3,9 @@
 import { ArrowUpRight, Heart } from 'lucide-react'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getSoundMuted, setSoundMuted } from '@/lib/room-controls'
 import { FollowButton, ShareButton } from '@/components/channels/actions'
+import { ChannelHeadingFonts } from '@/components/channels/ChannelHeadingFonts'
 import { ChannelMeta } from '@/components/channels/ChannelMeta'
 import { ChannelPreview, useChannelPreview } from '@/components/channels/ChannelPreview'
 import type { Channel } from '@/components/channels/data'
@@ -14,23 +16,26 @@ import styles from './ChannelFeed.module.css'
 function ChannelPanel({
   channel: initialChannel,
   live,
+  muted,
   onVisible,
 }: {
   channel: Channel
   live: boolean
+  muted: boolean
   onVisible: (slug: string) => void
 }) {
   const [ref, { visible }] = useOnScreen<HTMLElement>()
   const active = live && visible
   const channel = useChannelPreview(initialChannel, active)
-  const headingId = `channel-${channel.slug}`
+  const panelId = `channel-${channel.slug}`
+  const headingId = `${panelId}-title`
 
   useEffect(() => {
     if (visible) onVisible(channel.slug)
   }, [visible, channel.slug, onVisible])
 
   return (
-    <section className={styles.panel} aria-labelledby={headingId} ref={ref}>
+    <section id={panelId} className={styles.panel} aria-labelledby={headingId} ref={ref}>
       <div className={styles.stack}>
         <div className={styles.videoFrame}>
           <div className={styles.video}>
@@ -38,17 +43,19 @@ function ChannelPanel({
               channel={channel}
               active={active}
               playVideo={live}
+              muted={muted}
               noteClassName={styles.videoNote}
             />
-            <ChannelMeta channel={channel} />
+            <ChannelMeta channel={channel} className={styles.meta} />
           </div>
         </div>
 
-        <h2 className={styles.name} id={headingId}>
-          {channel.title}
-        </h2>
-
-        {channel.description && <p className={styles.description}>{channel.description}</p>}
+        <div className={styles.summary}>
+          <h2 className={styles.name} id={headingId} style={channel.heading}>
+            {channel.title}
+          </h2>
+          {channel.description && <p className={styles.description}>{channel.description}</p>}
+        </div>
 
         <div className={styles.actions}>
           <Link className={styles.primary} href={`/${channel.slug}`}>
@@ -75,6 +82,19 @@ export function ChannelFeed({ channels }: { channels: Channel[] }) {
   const frame = useRef(0)
   const [progress, setProgress] = useState(0)
   const [live, setLive] = useState<string | null>(null)
+  const [muted, setMuted] = useState(true)
+
+  useEffect(() => {
+    setMuted(getSoundMuted())
+  }, [])
+
+  const toggleSound = useCallback(() => {
+    setMuted(value => {
+      const next = !value
+      setSoundMuted(next)
+      return next
+    })
+  }, [])
 
   /* The feed holds one stream at a time. Which panel that is comes from that
      panel's own visibility, not from scroll arithmetic, so a stream is never
@@ -125,7 +145,8 @@ export function ChannelFeed({ channels }: { channels: Channel[] }) {
 
   return (
     <>
-      <Rail />
+      <ChannelHeadingFonts channels={channels} />
+      <Rail sound={{ muted, toggle: toggleSound }} />
 
       <div className={styles.progress} aria-hidden="true">
         <span className={styles.progressFill} style={{ transform: `scaleY(${progress})` }} />
@@ -137,6 +158,7 @@ export function ChannelFeed({ channels }: { channels: Channel[] }) {
             key={channel.slug}
             channel={channel}
             live={live === channel.slug}
+            muted={muted}
             onVisible={takeOver}
           />
         ))}

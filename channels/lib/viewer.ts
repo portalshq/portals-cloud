@@ -1,6 +1,7 @@
-type Session = { token: string; refreshToken: string | null; expiresAt: number | null; displayName: string | null }
+type Session = { userId?: string; token: string; refreshToken: string | null; expiresAt: number | null; displayName: string | null }
 const SESSION = 'channels:viewer'
 const HANDOFF = 'channels:sign-in'
+const USERNAME_PROMPT = 'channels:username-prompt'
 const listeners = new Set<() => void>()
 let current: Session | null | undefined
 let sessionVersion = 0
@@ -56,6 +57,25 @@ export async function startSignIn() {
   location.assign(data.loginUrl)
 }
 
+export function consumeUsernamePrompt(): boolean {
+  try {
+    const pending = sessionStorage.getItem(USERNAME_PROMPT)
+    sessionStorage.removeItem(USERNAME_PROMPT)
+    const viewer = getViewer()
+    if (!viewer || viewer.displayName || pending !== 'pending') return false
+    if (viewer.userId) {
+      const seen = `${USERNAME_PROMPT}:${viewer.userId}`
+      try {
+        if (localStorage.getItem(seen)) return false
+        localStorage.setItem(seen, 'seen')
+      } catch { /* The prompt is still consumed for this tab. */ }
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function finishSignIn() {
   const params = new URLSearchParams(location.search)
   const pending = JSON.parse(sessionStorage.getItem(HANDOFF) ?? 'null')
@@ -68,6 +88,8 @@ export async function finishSignIn() {
   const viewer: Session = await response.json()
   sessionVersion++
   save(viewer)
+  if (viewer.displayName) sessionStorage.removeItem(USERNAME_PROMPT)
+  else sessionStorage.setItem(USERNAME_PROMPT, 'pending')
   return typeof pending.returnTo === 'string' && /^\/(?![\/\\])/.test(pending.returnTo) ? pending.returnTo : '/'
 }
 
@@ -90,8 +112,10 @@ function refresh() {
       if (response.status === 400 || response.status === 401) return 'rejected' as const
       if (!response.ok) return 'unavailable' as const
       const next: Session = await response.json()
-      if (getViewer()?.refreshToken === original.refreshToken) save(next)
-      else if (next.refreshToken) await post('sign-out', { refreshToken: next.refreshToken }).catch(() => {})
+      const viewer = getViewer()
+      if (viewer && viewer.refreshToken === original.refreshToken) {
+        save({ ...next, displayName: next.displayName || viewer.displayName })
+      } else if (next.refreshToken) await post('sign-out', { refreshToken: next.refreshToken }).catch(() => {})
       return 'refreshed' as const
     } catch {
       return 'unavailable' as const

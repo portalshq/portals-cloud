@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     return new Response(upstream.body, {
       headers: {
         'Content-Type': upstream.headers.get('content-type') ?? 'application/octet-stream',
-        'Cache-Control': path.startsWith('assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=0',
+        'Cache-Control': path.startsWith('assets/') ? 'public, max-age=31536000, immutable' : publicPath && publicPath === app.headingFont ? 'public, max-age=604800' : 'public, max-age=0',
         'X-Content-Type-Options': 'nosniff',
       },
     })

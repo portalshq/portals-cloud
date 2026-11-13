@@ -1,26 +1,26 @@
 .rail {
   position: fixed;
-  z-index: 30;
+  z-index: 40;
   display: flex;
-  transition: clip-path var(--duration) var(--ease-drawer);
-  inset-block: 0 auto;
-  background: color-mix(in srgb, var(--color-surface) 10%, transparent);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  inset-inline: 0;
   width: 100%;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-5);  
+  margin: var(--space-7) 0;
+  padding: 0 var(--space-7);
+  height: 38px;
+  @media (min-width: 1401px) and (orientation: landscape) and (pointer: coarse) {
+    padding-block-start: calc(var(--space-2) + env(safe-area-inset-top, 0px));
+  }
+  @media (max-width: 1400px) and (pointer: coarse) {
+    height: 31px;
+    margin-block: var(--space-6);
+    margin-inline: 0;
+    padding-block: 0;
+    padding-inline: max(var(--space-6), env(safe-area-inset-left, 0px)) max(var(--space-6), env(safe-area-inset-right, 0px));
+  }
 }
 
-.rail:focus-within {
-  clip-path: inset(0 0 0 0);
-}
-
-/* Labels sit in the clipped region, so they stay transparent until the drawer
-   is open. The clip still slices them; opacity keeps that invisible.
-   `data-rail-label` lets callers add their own drawer items under the same rule. */
+/* Reveal auxiliary labels on hover or keyboard focus. */
 .rail :is(.wordmark, .link span, .counter, [data-rail-label]) {
   opacity: 0;
   transform: translateX(-6px);
@@ -54,6 +54,7 @@
   padding: 0;
   display: flex;
   gap: var(--space-1);
+  height: 100%;
 }
 
 .link {
@@ -61,7 +62,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
+  height: 100%;
   padding-inline: var(--space-3);
   border-radius: var(--radius-pill);
   color: var(--color-muted);
@@ -92,39 +93,13 @@
 
 .foot {
   display: flex;
-
-    margin-top: 0;
-    margin-left: auto;
-    flex-direction: row;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-
-.profile {
-  font: var(--font-normal);
-  display: inline-flex;
-  aspect-ratio: 1/1;
+  height: 100%;
+  margin-top: 0;
+  margin-left: auto;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
   gap: var(--space-2);
-  min-height: 44px;
-  padding-inline: var(--space-2);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-2);
-  color: var(--color-fg);
-  cursor: pointer;
-  transition: background var(--duration) var(--ease-out), var(--press-transition);
-
-  @media (max-width: 640px) {
-    & svg {
-      opacity: 1;
-      transform: none;
-    }
-  }
 }
-
 
 .counter {
   @media (max-width: 640px) {
@@ -133,10 +108,6 @@
 }
 
 @media (hover: hover) {
-  .rail:hover {
-    clip-path: inset(0 0 0 0);
-  }
-
   .rail:hover :is(.wordmark, .link span, .counter, [data-rail-label]) {
     opacity: 1;
     transform: none;
@@ -154,11 +125,61 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rail,
   .rail :is(.wordmark, .link span, .counter, [data-rail-label]),
   .link,
   .profile,
   .profile svg {
     transition: none;
+  }
+}
+
+.back,
+.sound {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 100%;
+  aspect-ratio: 1/1;
+  padding-inline: var(--space-3);
+  color: var(--color-fg);
+  border-radius: var(--radius-pill);
+  font: var(--font-micro);
+  background: transparent;
+  cursor: pointer;
+  svg {
+    color: var(--color-fg);
+    flex: none;
+  }
+}
+
+.back {
+  border: none;
+}
+
+.sound {
+  width: 16ch;
+  flex: none;
+  border: 1px solid var(--color-surface);
+  border: none;
+  white-space: nowrap;
+}
+
+.sound[aria-pressed="true"] {
+  border: transparent;
+}
+
+.sound:disabled {
+  cursor: default;
+}
+
+@media (max-width: 1200px), (max-width: 1400px) and (pointer: coarse) {
+  .sound {
+    padding: 0;
+    width: auto;
+  }
+
+  .sound span {
+    display: none;
   }
 }

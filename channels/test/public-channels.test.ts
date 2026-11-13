@@ -33,8 +33,10 @@ describe('public catalog', () => {
     const { getChannelCatalog } = await import('../lib/catalog')
     const catalog = await getChannelCatalog()
     expect(catalog[0]).toMatchObject({
-      slug: 'bears', title: 'Bears live', app: { entry: '/channel-apps/bears/watch.js', legacyMountExport: 'mountBears' }, live: false, nextSession: next, previewStatus: 'off-air',
+      slug: 'bears', title: 'Bears live', app: { entry: '/channel-apps/bears/watch.js', legacyMountExport: 'mountBears', theme: 'light' }, live: false, nextSession: next, previewStatus: 'off-air',
     })
+    expect(catalog[0].headingFontUrl).toBe('/channel-apps/bears/public/fonts/baloo-2-latin-700-v1.woff2')
+    expect(catalog[0].heading).toEqual({ fontFamily: '"Channel bears", "Baloo 2", sans-serif', fontWeight: 700 })
     expect(catalog.filter(({ slug }) => slug === 'night-shift')).toEqual([
       expect.objectContaining({ title: 'Night Shift Central', live: false }),
     ])
@@ -145,7 +147,10 @@ describe('registered channel apps', () => {
   it('lists a second app with its own bundle, preview, and public assets', async () => {
     vi.stubEnv('ADMIN_CENTRAL_DATABASE_URL', '')
     vi.stubEnv('CHANNELS_APPS', JSON.stringify({
-      garden: { origin: 'https://garden.test', name: 'Garden', backdrop: true, poster: 'images/garden.webp' },
+      garden: {
+        origin: 'https://garden.test', name: 'Garden', backdrop: true, poster: 'images/garden.webp',
+        heading: { fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: '99px', fontUrl: 'https://garden.test/fonts/heading.woff2' },
+      },
     }))
     const fetch = vi.fn(async (url: URL) => {
       if (url.pathname === '/images/garden.webp') return new Response('poster')
@@ -154,7 +159,11 @@ describe('registered channel apps', () => {
     vi.stubGlobal('fetch', fetch)
     const { getChannelCatalog } = await import('../lib/catalog')
     const catalog = await getChannelCatalog()
-    expect(catalog.find(({ slug }) => slug === 'garden')).toMatchObject({
+    const garden = catalog.find(({ slug }) => slug === 'garden')
+    expect(garden?.heading).toEqual({ fontFamily: '"Channel garden", Georgia, serif', fontWeight: 700 })
+    expect(garden?.headingFontUrl).toBeUndefined()
+    expect(garden?.headingFontFallbackUrl).toBe('https://garden.test/fonts/heading.woff2')
+    expect(garden).toMatchObject({
       title: 'Garden',
       app: { entry: '/channel-apps/garden/watch.js' },
       preview: {

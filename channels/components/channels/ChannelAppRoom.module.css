@@ -8,8 +8,23 @@
   padding-inline: var(--text-inset);
 }
 
+@media (min-width: 1401px) and (orientation: landscape) and (pointer: coarse) {
+  .room {
+    --bears-room-height: calc(100dvh - var(--tablet-nav-height));
+    padding-block-start: var(--tablet-nav-height);
+  }
+}
+
 @media (max-width: 640px) {
   .room {
     margin-inline-start: 0;
   }
+}
+
+.room > [data-channel-heading-family] :is(h1, h2, h3, h4, h5, h6, [role='heading']) {
+  font-family: var(--channel-heading-family);
+}
+
+.room > [data-channel-heading-weight] :is(h1, h2, h3, h4, h5, h6, [role='heading']) {
+  font-weight: var(--channel-heading-weight);
 }

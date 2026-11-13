@@ -1,32 +1,94 @@
 'use client'
 
-import { UserRound } from 'lucide-react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { finishSignIn, getViewer, setDisplayName, signOut, startSignIn, subscribeViewer } from '@/lib/viewer'
+import { ChevronDown, UserRound } from 'lucide-react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { consumeUsernamePrompt, finishSignIn, getViewer, setDisplayName, signOut, startSignIn, subscribeViewer, viewerFetch } from '@/lib/viewer'
+import type { RoomAccount } from '@/lib/room-controls'
 import styles from './ViewerAccount.module.css'
 
-export function ViewerAccount() {
+export function ViewerAccount({ roomAccount }: { roomAccount?: RoomAccount | null }) {
+  const menuId = `channels-account-menu-${useId().replace(/:/g, '')}`
   const viewer = useSyncExternalStore(subscribeViewer, getViewer, () => null)
-  const dialog = useRef<HTMLDialogElement>(null)
-  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editingName, setEditingName] = useState(false)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [name, setName] = useState('')
+  const [fetchedBalance, setFetchedBalance] = useState<number | null>(null)
+  const balance = roomAccount?.balance ?? fetchedBalance
 
   useEffect(() => {
-    const show = () => setOpen(true)
+    if (roomAccount?.balance != null) {
+      setFetchedBalance(roomAccount.balance)
+      return
+    }
+    let active = true
+    async function refreshBalance() {
+      try {
+        const guestToken = readBearsGuestToken()
+        if (viewer?.token && guestToken) {
+          try {
+            const claim = await viewerFetch('/api/channels/bears/interactions/guest/claim', {
+              method: 'POST', headers: { 'X-Guest-Token': guestToken },
+            })
+            if (claim.ok) clearBearsGuestToken()
+          } catch { /* A failed guest claim must not block the signed-in balance read. */ }
+        }
+
+        let token = viewer?.token ? null : readBearsGuestToken()
+        if (!viewer?.token && !token) {
+          const response = await viewerFetch('/api/channels/bears/channel')
+          if (!response.ok) throw new Error('Could not initialize viewer credits')
+          const data = await response.json() as { guestToken?: string | null }
+          if (data.guestToken) {
+            token = data.guestToken
+            saveBearsGuestToken(token)
+          }
+        }
+
+        const headers = new Headers()
+        if (token) headers.set('X-Guest-Token', token)
+        const response = await viewerFetch('/api/channels/bears/guides/balance', { headers })
+        if (!response.ok) throw new Error('Could not read viewer credits')
+        const data = await response.json() as { balance?: unknown }
+        if (active) setFetchedBalance(typeof data.balance === 'number' ? data.balance : null)
+      } catch {
+        if (active) setFetchedBalance(null)
+      }
+    }
+    void refreshBalance()
+    return () => { active = false }
+  }, [viewer?.token, roomAccount?.balance, menuOpen])
+
+  useEffect(() => {
+    const show = () => setMenuOpen(true)
     window.addEventListener('channels:open-account', show)
     return () => window.removeEventListener('channels:open-account', show)
   }, [])
 
   useEffect(() => {
-    if (viewer && !viewer.displayName) setOpen(true)
-  }, [viewer?.displayName, Boolean(viewer)])
+    if (consumeUsernamePrompt()) {
+      setEditingName(true)
+      setMenuOpen(true)
+    }
+  }, [])
 
   useEffect(() => {
-    if (open && !dialog.current?.open) dialog.current?.showModal()
-    if (!open && dialog.current?.open) dialog.current.close()
-  }, [open])
+    if (!menuOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setMenuOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [menuOpen])
 
   async function perform(action: () => Promise<unknown>) {
     if (busy) return
@@ -42,33 +104,93 @@ export function ViewerAccount() {
   }
 
   return (
-    <>
-      <button type="button" className={styles.account} onClick={() => setOpen(true)}
+    <div className={styles.root} ref={root} data-account-menu-open={menuOpen ? 'true' : undefined}>
+      <button type="button" className={styles.account}
+        onClick={() => setMenuOpen(value => !value)}
+        aria-expanded={menuOpen} aria-controls={menuId}
         aria-label={viewer ? 'Your account' : 'Sign in'} title={viewer ? 'Your account' : 'Sign in'}>
-        <UserRound size={18} aria-hidden="true" />
+        <span>{viewer?.displayName || (viewer ? <UserRound size={18} aria-hidden="true" /> : 'Sign in')}</span>
+        {viewer && <ChevronDown size={15} aria-hidden="true" />}
       </button>
-      <dialog ref={dialog} className={styles.dialog} aria-label="Your account" onClose={() => setOpen(false)}>
-        <button type="button" className={styles.close} onClick={() => setOpen(false)} aria-label="Close account">×</button>
+      <CreditCoin amount={balance} decorative={menuOpen} className={styles.cornerCoin} />
+      <div id={menuId} className={`${styles.menu} ${menuOpen ? styles.menuOpen : ''}`} role="group" aria-label="Account menu" aria-hidden={!menuOpen} inert={!menuOpen}>
+        <div className={styles.menuSummary}>
+          <strong>{viewer?.displayName || (viewer ? 'Your account' : 'Sign in')}</strong>
+          <span className={styles.credits}>
+            <CreditCoin amount={balance ?? null} />
+            <span aria-hidden="true">{balance == null ? 'Credits' : 'credits'}</span>
+          </span>
+        </div>
         {viewer ? (
           <>
-            {viewer.displayName ? <strong>{viewer.displayName}</strong> : (
-              <form onSubmit={event => {
-                event.preventDefault()
-                void perform(() => setDisplayName(name))
+            {roomAccount?.invite && (
+              <button type="button" className={styles.action} onClick={() => {
+                roomAccount.invite?.run()
+                setMenuOpen(false)
               }}>
-                <label htmlFor="viewer-display-name">Display name</label>
-                <input id="viewer-display-name" value={name} onChange={event => setName(event.target.value)} maxLength={64} required />
-                <button type="submit" disabled={busy}>Save</button>
-              </form>
+                {roomAccount.invite.label}
+              </button>
             )}
-            <button type="button" disabled={busy} onClick={() => void perform(signOut)}>Sign out</button>
+            {!viewer.displayName && (editingName ? (
+              <form className={styles.nameForm} onSubmit={event => {
+                event.preventDefault()
+                void perform(async () => {
+                  await setDisplayName(name)
+                  setName('')
+                  setEditingName(false)
+                  setMenuOpen(false)
+                })
+              }}>
+                <label htmlFor={menuId + '-username'}>Username</label>
+                <input id={menuId + '-username'} value={name} onChange={event => setName(event.target.value)} maxLength={64} required />
+                <button type="submit" className={styles.action} disabled={busy}>Save</button>
+              </form>
+            ) : (
+              <button type="button" className={styles.action} onClick={() => setEditingName(true)}>Set username</button>
+            ))}
+            <button type="button" className={styles.action} disabled={busy} onClick={() => {
+              void perform(async () => {
+                await signOut()
+                setMenuOpen(false)
+              })
+            }}>Sign out</button>
           </>
         ) : (
-          <button type="button" disabled={busy} onClick={() => void perform(startSignIn)}>Sign in</button>
+          <button type="button" className={styles.action} disabled={busy} onClick={() => void perform(startSignIn)}>Sign in</button>
         )}
-        {notice && <p role="alert">{notice}</p>}
-      </dialog>
-    </>
+        {notice && <p className={styles.notice} role="alert">{notice}</p>}
+      </div>
+    </div>
+  )
+}
+
+const BEARS_GUEST_TOKEN = 'bears:guest-token'
+
+function readBearsGuestToken() {
+  try {
+    const token = localStorage.getItem(BEARS_GUEST_TOKEN)
+    return token?.startsWith('gt1.') ? token : null
+  } catch { return null }
+}
+
+function saveBearsGuestToken(token: string) {
+  try { localStorage.setItem(BEARS_GUEST_TOKEN, token) } catch { /* Storage can be unavailable. */ }
+}
+
+function clearBearsGuestToken() {
+  try { localStorage.removeItem(BEARS_GUEST_TOKEN) } catch { /* Storage can be unavailable. */ }
+}
+
+function CreditCoin({ amount, decorative = false, className }: { amount: number | null; decorative?: boolean; className?: string }) {
+  const arcId = `channel-credit-arc-${useId().replace(/:/g, '')}`
+  return (
+    <svg className={`${styles.creditCoin} ${className ?? ''}`} viewBox="0 0 48 48" focusable="false"
+      {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': amount === null ? 'Credits' : `${amount} credit${amount === 1 ? '' : 's'}` })}>
+      <defs><path id={arcId} d="M 8 38 A 90 36 0 0 0 42 37" fill="none" /></defs>
+      <text className={styles.creditAmount} fontSize={amount !== null && amount >= 100 ? 22 : 28} fontWeight="600">
+        <textPath href={`#${arcId}`} startOffset="50%" textAnchor="middle">{amount ?? '…'}</textPath>
+      </text>
+    </svg>
   )
 }
 
