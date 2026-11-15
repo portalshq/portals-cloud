@@ -6,9 +6,9 @@ the sibling `bears-live-app/` project.
 
 ## Run the local development stack
 
-Open this `cloud/channels` directory as the VS Code workspace folder, then run
-`Tasks: Run Task` → `Start Channels + Bears (all)`. VS Code launches each
-process in its own dedicated terminal panel.
+With the Portals workspace root open in VS Code, run `Tasks: Run Task` →
+`Start Channels + Bears (all)`. VS Code launches each process in its own
+dedicated terminal panel.
 
 From this directory, the same stack can also be started from a terminal:
 
