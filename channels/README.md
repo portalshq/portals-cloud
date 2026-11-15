@@ -6,7 +6,11 @@ the sibling `bears-live-app/` project.
 
 ## Run the local development stack
 
-From this directory, start all five processes with:
+Open this `cloud/channels` directory as the VS Code workspace folder, then run
+`Tasks: Run Task` → `Start Channels + Bears (all)`. VS Code launches each
+process in its own dedicated terminal panel.
+
+From this directory, the same stack can also be started from a terminal:
 
 ```bash
 node scripts/dev-all.mjs

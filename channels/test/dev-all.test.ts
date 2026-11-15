@@ -1,4 +1,6 @@
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
   assertHostInterfaceAvailable,
@@ -9,6 +11,24 @@ import {
 } from "../scripts/dev-all.mjs";
 
 describe("development process launcher", () => {
+  it("configures the VS Code compound task with a dedicated terminal per process", () => {
+    const tasksFile = fileURLToPath(new URL("../.vscode/tasks.json", import.meta.url));
+    const taskConfiguration = JSON.parse(readFileSync(tasksFile, "utf8"));
+    const compoundTask = taskConfiguration.tasks.find(
+      (task: { label: string }) => task.label === "Start Channels + Bears (all)",
+    );
+    const processTasks = taskConfiguration.tasks.filter(
+      (task: { label: string }) => task.label !== "Start Channels + Bears (all)",
+    );
+
+    expect(compoundTask.dependsOrder).toBe("parallel");
+    expect(compoundTask.dependsOn).toHaveLength(5);
+    expect(processTasks).toHaveLength(5);
+    expect(processTasks.every(
+      (task: { presentation: { panel: string } }) => task.presentation.panel === "dedicated",
+    )).toBe(true);
+  });
+
   it("defines the five requested services with distinct client ports", () => {
     const processes = getDevelopmentProcesses({
       channelsDirectory: "/workspace/cloud/channels",
