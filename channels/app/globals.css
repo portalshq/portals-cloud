@@ -59,7 +59,10 @@
   --color-accent: #F06C49;
   --color-accent-hover: #F58C70;
   --color-accent-fg: #fff;
+  --color-gold: #f5bc47;
   --color-border: oklch(0.42 0.016 150);
+  --color-fg-fade: rgb(255 255 255 / 10%);
+
 
   /* Functional signals only. Never decoration. */
   --color-success: var(--color-accent);
@@ -77,10 +80,13 @@
   --glow-card: 0 14px 34px -20px oklch(0.96 0.01 140 / 0.1);
   --shadow-sm: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.05);
   --shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 16px 38px rgb(0 0 0 / 32%);
 
   --duration: 120ms;
+  --duration-menu-close: .12s;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-accel: cubic-bezier(.4, 0, 1, 1);
 
   --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
   --press-scale: 0.97;

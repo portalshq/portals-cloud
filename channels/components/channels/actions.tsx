@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, CornerUpRight } from 'lucide-react'
+import { Bell, Forward } from 'lucide-react'
 import { useState } from 'react'
 import { channelEvents } from '@/lib/analytics-contract'
 import { recordChannelEvent } from '@/lib/analytics-client'
@@ -58,9 +58,7 @@ export function ShareButton({ url, channel }: { url: string; channel: string }) 
           })
       }}
     >
-      {/* The curved arrow. Left outlined: the fill on Share2's nodes read as a
-          graph, and a solid arrow is heavier than the label beside it. */}
-      <CornerUpRight size={16} strokeWidth={1.75} aria-hidden="true" />
+      <Forward size={16} strokeWidth={1.75} aria-hidden="true" />
       {shared ? 'Link copied' : 'Share'}
     </button>
   )

@@ -15,6 +15,7 @@ export const leadSubmissionTypes = [
   'workflow_review',
   'pilot_request',
   'contact',
+  'show_subscription',
   'commercial_event',
 ] as const
 
@@ -367,6 +368,10 @@ export const leadRequestSchema = z.discriminatedUnion('submissionType', [
   commonSchema.extend({
     submissionType: z.literal('contact'),
     answers: contactAnswersSchema,
+  }),
+  commonSchema.extend({
+    submissionType: z.literal('show_subscription'),
+    answers: z.object({ programId: z.string().trim().min(1).max(256), episode: z.boolean(), weekly: z.boolean(), generalSchedule: z.boolean().default(false), referral: optionalText(160) }),
   }),
   commonSchema.extend({
     submissionType: z.literal('commercial_event'),

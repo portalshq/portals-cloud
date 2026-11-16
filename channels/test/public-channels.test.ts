@@ -131,6 +131,24 @@ describe('channel viewer proxy', () => {
     expect(headers.has('cookie')).toBe(false)
   })
 
+  it('forwards immutable choice images while rejecting malformed image keys', async () => {
+    const fetch = vi.fn(async () => new Response('image bytes', { headers: { 'content-type': 'image/png' } }))
+    vi.stubGlobal('fetch', fetch)
+    const { GET } = await import('../app/api/channels/[slug]/[...path]/route')
+    const hash = 'a'.repeat(64)
+    const response = await GET(new Request(`https://channels.test/api/channels/bears/choice-images/${hash}`), {
+      params: Promise.resolve({ slug: 'bears', path: ['choice-images', hash] }),
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect(fetch).toHaveBeenCalledOnce()
+    const bad = await GET(new Request('https://channels.test/api/channels/bears/choice-images/invalid'), {
+      params: Promise.resolve({ slug: 'bears', path: ['choice-images', 'invalid'] }),
+    })
+    expect(bad.status).toBe(404)
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
   it('keeps privileged routes outside the public proxy', async () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)

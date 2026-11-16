@@ -2,6 +2,13 @@ import type { NextConfig } from 'next'
 import { resolve } from 'node:path'
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [{ source: '/notifications/verify', headers: [
+      { key: 'Referrer-Policy', value: 'no-referrer' },
+      { key: 'Cache-Control', value: 'no-store' },
+      { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+    ] }]
+  },
   serverExternalPackages: ['@portalshq/capability-identity'],
   // Channels only uses HLS; the video package's optional WebRTC SDK is not installed.
   turbopack: {

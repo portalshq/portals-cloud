@@ -3,7 +3,7 @@ import { getChannelApps } from '../../../../../lib/channel-apps'
 
 type Context = { params: Promise<{ slug: string; path: string[] }> }
 
-const reads = /^(channel|chat\/stream|interactions\/(stream|squads\/[A-Za-z0-9-]+)|auth\/(me|session\/[A-Fa-f0-9-]+)|guides\/balance|sessions\/next\.ics|reactor\/state|entity-image)$/
+const reads = /^(channel|chat\/stream|interactions\/(stream|squads\/[A-Za-z0-9-]+)|auth\/(me|session\/[A-Fa-f0-9-]+)|guides\/balance|sessions\/next\.ics|reactor\/state|entity-image|choice-images\/[a-f0-9]{64})$/
 const writes = /^(chat|guides|reminders|auth\/(session|refresh|logout|display-name)|reactor\/session|interactions\/(guest\/claim|feedback|reactions|squads|squads\/[A-Za-z0-9-]+\/join|[A-Za-z0-9-]+\/vote))$/
 
 async function forward(request: Request, { params }: Context): Promise<Response> {
@@ -48,7 +48,8 @@ async function forward(request: Request, { params }: Context): Promise<Response>
       init.duplex = 'half'
     }
     const upstream = await fetch(url, init)
-    const responseHeaders = new Headers({ 'Cache-Control': 'no-store' })
+    const cacheableChoiceImage = read && /^choice-images\/[a-f0-9]{64}$/.test(path) && upstream.ok && (upstream.headers.get('content-type') ?? '').startsWith('image/')
+    const responseHeaders = new Headers({ 'Cache-Control': cacheableChoiceImage ? 'public, max-age=31536000, immutable' : 'no-store' })
     for (const key of ['content-type', 'content-disposition', 'retry-after', 'x-accel-buffering']) {
       const value = upstream.headers.get(key)
       if (value) responseHeaders.set(key, value)

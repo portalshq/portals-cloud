@@ -50,7 +50,10 @@ export default async function PaidPilotPage({
   const [document, knownContext, offerVariant, packages] = await Promise.all([
     getResourceDocument('paid-pilot'),
     getKnownLeadContext(),
-    resolveCurrentPilotOffer(offer).catch(() => null),
+    resolveCurrentPilotOffer(offer).catch((cause) => {
+      console.error('pilot offer resolution failed', cause)
+      return null
+    }),
     getPublishedPackageSpecifications(),
   ])
   if (!document || document.landingPage?.enabled === false) notFound()

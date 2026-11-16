@@ -43,6 +43,8 @@ Entering the room uses the same playback, chat, and interactions as standalone B
    recreate the gateway container to apply the environment. Sign-in returns
    to Channels' `/auth/complete` and resumes the page where it started.
    Channels owns the account menu and viewer session for all mounted apps.
+   In Channels, the corner credit coin expands into the account menu. The
+   menu closes from its summary row, an outside click, or Escape.
    Bears receives a session subscription and authenticated request function
    when mounted. Standalone Bears continues to manage its own session through
    the same gateway and account base. Each browser origin has its own session.

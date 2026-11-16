@@ -1,4 +1,15 @@
 .root {
+  --account-menu-open: 110ms;
+  --account-menu-close: 75ms;
+  --account-menu-fast: 50ms;
+  --account-menu-instant: 25ms;
+  --account-menu-content: 100ms;
+  --account-menu-content-delay: 40ms;
+  --account-menu-name-delay: 20ms;
+  --account-menu-coin-delay: 45ms;
+  --account-menu-spring: cubic-bezier(0.34, 1.42, 0.64, 1);
+  --account-menu-closed: translate(1.25rem, -1rem) scale(.92) rotate(-4deg);
+
   position: relative;
   z-index: 40;
   height: 100%;
@@ -14,67 +25,155 @@
   border: 0;
   border-radius: var(--radius);
   color: var(--color-fg);
-  background: var(--color-surface-2);
+  background: var(--color-fg-fade);
   font: var(--font-normal);
   cursor: pointer;
   box-shadow: var(--shadow-sm);
+  transition: background var(--account-menu-fast) ease, transform var(--account-menu-fast) ease-out;
+}
+
+.account:active {
+  transform: scale(.96);
+}
+
+.arrow {
+  transition: transform var(--account-menu-fast) ease-out;
+}
+
+.account[aria-expanded='true'] .arrow {
+  transform: scale(1.25);
 }
 
 .menu {
   position: absolute;
-  top: calc(100% + var(--space-2));
+  top: 0;
   right: 0;
   z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  justify-content: center;
   width: max-content;
-  min-width: 14rem;
-  max-width: min(24rem, calc(100vw - 2rem));
-  max-height: 0;
+  min-width: 14ch;
+  max-width: min(40rem, calc(100vw - 2rem));
   overflow: clip;
-  border: 1px solid color-mix(in srgb, var(--color-accent-fg) 18%, transparent);
-  border-radius: var(--radius);
+  border: .15rem solid var(--color-gold);
+  border-radius: 1.2rem;
   color: var(--color-accent-fg);
   background: var(--color-accent);
-  box-shadow: 0 16px 38px rgb(0 0 0 / 32%);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-0.5rem) scale(0.94);
+  box-shadow: var(--shadow-lg);
+  transform: translate(0, 0);
   transform-origin: top right;
   transition:
-    max-height 220ms cubic-bezier(.2, .8, .2, 1),
-    opacity 140ms ease-in,
-    transform 220ms cubic-bezier(.2, .8, .2, 1),
-    visibility 0s linear 220ms;
-  visibility: hidden;
+    grid-template-rows var(--account-menu-open) var(--account-menu-spring),
+    max-width var(--account-menu-open) var(--account-menu-spring),
+    min-width var(--account-menu-open) var(--account-menu-spring),
+    top var(--account-menu-open) var(--account-menu-spring),
+    transform var(--account-menu-open) var(--account-menu-spring),
+    border-radius var(--account-menu-open) var(--account-menu-spring);
 }
 
-.menuOpen {
-  max-height: min(70vh, 28rem);
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0) scale(1);
+.account[aria-expanded='false'] + .menu {
+  grid-template-rows: auto 0fr;
+  top: var(--space-7);
+  min-width: 0;
+  min-height: 3ch;
+  max-width: 3ch;
+  aspect-ratio: 1;
+  overflow: clip;
+  border-radius: 100%;
+  transform: var(--account-menu-closed);
   transition:
-    max-height 220ms cubic-bezier(.2, .8, .2, 1),
-    opacity 160ms ease-out 40ms,
-    transform 220ms cubic-bezier(.2, .8, .2, 1),
-    visibility 0s;
-  visibility: visible;
+    grid-template-rows var(--account-menu-close) var(--ease-in-accel),
+    max-width var(--account-menu-close) var(--ease-in-accel),
+    min-width var(--account-menu-close) var(--ease-in-accel),
+    top var(--account-menu-close) var(--ease-in-accel),
+    transform var(--account-menu-close) var(--ease-in-accel),
+    border-radius var(--account-menu-close) var(--ease-in-accel);
+}
+
+.spacer {
+  position: relative;
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  background: inherit;
+}
+
+.spacerButton {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.spacerButton:focus-visible {
+  outline: 2px solid var(--color-accent-fg);
+  outline-offset: -3px;
+}
+
+.menuInner {
+  width: 100%;
+  min-height: 0;
+  overflow: clip;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--account-menu-close) ease-out var(--account-menu-content-delay),
+    transform var(--account-menu-content) var(--account-menu-spring) var(--account-menu-content-delay);
+}
+
+.account[aria-expanded='false'] + .menu .menuInner {
+  opacity: 0;
+  transform: translateY(calc(-1 * var(--space-2)));
+  transition: opacity var(--account-menu-instant) ease-in, transform var(--account-menu-fast) ease-in;
 }
 
 .menuSummary {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
   min-height: 3.5rem;
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid color-mix(in srgb, var(--color-accent-fg) 20%, transparent);
+  overflow: clip;
+  transition:
+    grid-template-columns var(--account-menu-open) var(--account-menu-spring),
+    min-height var(--account-menu-open) var(--account-menu-spring),
+    gap var(--account-menu-open) var(--account-menu-spring),
+    padding var(--account-menu-open) var(--account-menu-spring);
+}
+
+.account[aria-expanded='false'] + .menu .menuSummary {
+  grid-template-columns: 0fr auto;
+  min-height: 0;
+  gap: 0;
+  padding: .2rem var(--space-2);
+  overflow: clip;
+  border-color: transparent;
+  transition:
+    grid-template-columns var(--account-menu-close) var(--ease-in-accel),
+    min-height var(--account-menu-close) var(--ease-in-accel),
+    gap var(--account-menu-close) var(--ease-in-accel),
+    padding var(--account-menu-close) var(--ease-in-accel);
 }
 
 .menuSummary strong {
   min-width: 0;
-  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity var(--account-menu-close) ease-out var(--account-menu-name-delay),
+    transform var(--account-menu-content) var(--account-menu-spring) var(--account-menu-name-delay);
 }
 
 .credits {
@@ -82,35 +181,69 @@
   flex: none;
   align-items: center;
   gap: var(--space-1);
+  white-space: nowrap;
+  transform: translateX(0) scale(1);
+  transform-origin: right center;
+  transition:
+    opacity var(--account-menu-close) ease-out var(--account-menu-content-delay),
+    transform var(--account-menu-content) var(--account-menu-spring) var(--account-menu-content-delay),
+    font-size var(--account-menu-content) var(--account-menu-spring) var(--account-menu-fast);
+}
+
+.account[aria-expanded='false'] + .menu .menuSummary strong {
+  opacity: 0;
+  transform: translateX(.4rem);
+  transition: opacity var(--account-menu-instant) ease-in, transform var(--account-menu-fast) ease-in;
+}
+
+.account[aria-expanded='false'] + .menu .credits {
+  font-size: 0;
+  opacity: .9;
+  transform: translateX(.35rem) scale(.85);
+  transition: opacity var(--account-menu-fast) ease-in, transform var(--account-menu-close) ease-in, font-size var(--account-menu-close) ease-in;
 }
 
 .creditCoin {
   display: inline-block;
   width: 1.45rem;
   height: 1.45rem;
-  border: 1.5px solid currentColor;
+  border: 2px solid var(--color-gold);
   border-radius: 50%;
   color: #fff;
   fill: currentColor;
   vertical-align: middle;
 }
 
-.cornerCoin {
-  position: absolute;
-  z-index: 1;
-  inset-block-end: -9px;
-  inset-inline-end: -16px;
-  width: 24px;
-  height: 24px;
-  border: 2px solid #f5bc47;
-  background: var(--color-accent);
-  color: #fff7e7;
-  pointer-events: none;
-  transform: rotate(-4deg);
+.credits .creditCoin {
+  transition:
+    width var(--account-menu-content) var(--account-menu-spring) var(--account-menu-fast),
+    height var(--account-menu-content) var(--account-menu-spring) var(--account-menu-fast),
+    border-width var(--account-menu-content) var(--account-menu-spring) var(--account-menu-fast);
 }
 
-.root[data-account-menu-open='true'] .cornerCoin {
-  visibility: hidden;
+.account[aria-expanded='false'] + .menu .credits .creditCoin {
+  width: 0;
+  height: 0;
+  border-width: 0;
+  transition: width var(--account-menu-close) ease-in, height var(--account-menu-close) ease-in, border-width var(--account-menu-close) ease-in;
+}
+
+.menu .cornerCoin {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  color: #fff7e7;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity var(--account-menu-instant) ease-in;
+}
+
+.account[aria-expanded='false'] + .menu .cornerCoin {
+  opacity: 1;
+  transition: opacity var(--account-menu-fast) ease-out var(--account-menu-coin-delay);
 }
 
 .creditAmount {
@@ -127,7 +260,9 @@
   color: inherit;
   background: transparent;
   font: var(--font-normal);
-  text-align: start;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
   transition: background var(--duration) var(--ease-out), var(--press-transition);
 }
@@ -238,10 +373,34 @@
   text-align: center;
 }
 
+@media (max-width: 960px) {
+  .menu {
+    border-radius: .6rem;
+  }
+
+  .account[aria-expanded='false'] + .menu {
+    top: var(--space-6);
+  }
+}
+
+@media (max-width: 580px) {
+  .menu {
+    border-width: .05rem;
+  }
+}
+
 @media (hover: hover) {
   .account:hover {
     color: var(--color-accent-fg);
     background: var(--color-accent);
+  }
+
+  .account[aria-expanded='false'] + .menu:hover {
+    transform: translate(1.25rem, -1rem) scale(1.02) rotate(-2deg);
+  }
+
+  .account[aria-expanded='true'] + .menu .spacer:hover {
+    background: var(--color-accent-hover);
   }
 
   .dialog button:hover {
@@ -254,8 +413,23 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .menu,
-  .menuOpen,
+  .root {
+    --account-menu-open: 100ms;
+    --account-menu-close: 100ms;
+    --account-menu-content: 100ms;
+    --account-menu-content-delay: 0ms;
+    --account-menu-name-delay: 0ms;
+    --account-menu-coin-delay: 0ms;
+    --account-menu-spring: ease-out;
+  }
+
+  .account[aria-expanded='true'] + .menu .credits,
+  .account[aria-expanded='true'] + .menu .credits .creditCoin {
+    transition-delay: 0ms;
+  }
+
+  .account,
+  .arrow,
   .action {
     transition: none;
   }

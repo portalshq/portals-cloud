@@ -11,7 +11,12 @@
     {"name": "Nurture", "modality": "accounts", "operationalRank": 0}
   ],
   "customFields": [
-    {"key":"lead_intent","label":"Lead intent","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["guide_download","security_download","pilot_brief_download","assessment","commercial_readiness","workflow_review","pilot_request","contact","commercial_event","workflow_assessment","pilot_scope","pilot_revision","assessment_override","general","workflow-review","security-review","integration","commercial","other"]},
+    {"key":"lead_intent","label":"Lead intent","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["guide_download","security_download","pilot_brief_download","assessment","commercial_readiness","workflow_review","pilot_request","contact","show_subscription","commercial_event","workflow_assessment","pilot_scope","pilot_revision","assessment_override","general","workflow-review","security-review","integration","commercial","other"]},
+    {"key":"subscribed_program","label":"Subscribed program","modalities":["contact"],"type":"string"},
+    {"key":"show_episode_reminders","label":"Show episode reminders","modalities":["contact"],"type":"boolean"},
+    {"key":"show_weekly_schedule","label":"Show weekly schedule","modalities":["contact"],"type":"boolean"},
+    {"key":"show_general_schedule","label":"General live schedule","modalities":["contact"],"type":"boolean"},
+    {"key":"show_referral","label":"Show referral","modalities":["contact"],"type":"string"},
     {"key":"cta_label","label":"CTA label","modalities":["contact"],"type":"string"},
     {"key":"source_page","label":"Source page","modalities":["contact"],"type":"string"},
     {"key":"use_case_interest","label":"Use case interest","modalities":["contact"],"type":"textarea","inputKind":"multi-select","allowedValues":["approved-version-retrieval","asset-reproduction","five-more-like-this","character-continuity","production-handoff","campaign-variant-control","other","data-protection","access-controls","resilience","data-lifecycle","vendors","assurance"]},
@@ -27,7 +32,7 @@
     {"key":"workflow_risk_score","label":"Workflow risk score","modalities":["contact"],"type":"number"},
     {"key":"qualifying_submission_id","label":"Qualifying submission ID","modalities":["contact","account"],"type":"string"},
     {"key":"last_submission_id","label":"Last submission ID","modalities":["contact"],"type":"string"},
-    {"key":"last_submission_type","label":"Last submission type","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["guide_download","security_download","pilot_brief_download","assessment","commercial_readiness","workflow_review","pilot_request","contact","commercial_event"]},
+    {"key":"last_submission_type","label":"Last submission type","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["guide_download","security_download","pilot_brief_download","assessment","commercial_readiness","workflow_review","pilot_request","contact","show_subscription","commercial_event"]},
     {"key":"production_role","label":"Production role","modalities":["contact"],"type":"string"},
     {"key":"company_type","label":"Company type","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["agency","creative-studio","production-company","in-house-creative","brand-marketing","film-animation","game-entertainment","independent-creator","other"]},
     {"key":"team_size","label":"Team size","modalities":["contact"],"type":"string","inputKind":"select","allowedValues":["1","2-4","5-9","10-24","25-plus"]},

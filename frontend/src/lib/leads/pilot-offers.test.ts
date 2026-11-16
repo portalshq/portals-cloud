@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {validateAndNormalizeOffer} from './pilot-offers'
+import {publishedOfferClient, resolveCurrentPilotOffer, validateAndNormalizeOffer} from './pilot-offers'
 
 const now = new Date('2026-09-15T12:00:00.000Z')
 const offer = {
@@ -20,6 +20,14 @@ const offer = {
   pilotDurationDays: 21,
   annualCreditRedemptionPolicy: 'standard-pilot-conversion-window',
 }
+
+test('published offers resolve without a Sanity token for automatic and explicit selection', async (t) => {
+  assert.equal(publishedOfferClient.config().token, undefined)
+  const fetch = t.mock.method(publishedOfferClient, 'fetch', async () => [{...offer}])
+  assert.equal((await resolveCurrentPilotOffer(undefined, undefined, now))?.pilotPriceLabel, '$3,750')
+  assert.equal((await resolveCurrentPilotOffer('fast-start', undefined, now))?.pilotPriceLabel, '$3,750')
+  assert.equal(fetch.mock.calls.length, 2)
+})
 
 test('valid active offer keeps price and credit labels congruent with numeric terms', () => {
   const resolved = validateAndNormalizeOffer({...offer}, now)

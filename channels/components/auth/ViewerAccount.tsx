@@ -10,6 +10,7 @@ export function ViewerAccount({ roomAccount }: { roomAccount?: RoomAccount | nul
   const menuId = `channels-account-menu-${useId().replace(/:/g, '')}`
   const viewer = useSyncExternalStore(subscribeViewer, getViewer, () => null)
   const root = useRef<HTMLDivElement>(null)
+  const accountButton = useRef<HTMLButtonElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -80,7 +81,9 @@ export function ViewerAccount({ roomAccount }: { roomAccount?: RoomAccount | nul
       if (!root.current?.contains(event.target as Node)) setMenuOpen(false)
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuOpen(false)
+      if (event.key !== 'Escape') return
+      if (root.current?.contains(document.activeElement)) accountButton.current?.focus()
+      setMenuOpen(false)
     }
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKeyDown)
@@ -104,61 +107,78 @@ export function ViewerAccount({ roomAccount }: { roomAccount?: RoomAccount | nul
   }
 
   return (
-    <div className={styles.root} ref={root} data-account-menu-open={menuOpen ? 'true' : undefined}>
-      <button type="button" className={styles.account}
+    <div className={styles.root} ref={root} data-account-menu-open={menuOpen ? 'true' : undefined} onClick={event => {
+      // A click that starts on the trigger and ends on the moving spacer
+      // targets their common ancestor.
+      if (event.target === event.currentTarget) setMenuOpen(false)
+    }}>
+      <button type="button" className={styles.account} ref={accountButton}
         onClick={() => setMenuOpen(value => !value)}
         aria-expanded={menuOpen} aria-controls={menuId}
         aria-label={viewer ? 'Your account' : 'Sign in'} title={viewer ? 'Your account' : 'Sign in'}>
         <span>{viewer?.displayName || (viewer ? <UserRound size={18} aria-hidden="true" /> : 'Sign in')}</span>
-        {viewer && <ChevronDown size={15} aria-hidden="true" />}
+        {viewer && <ChevronDown size={15} aria-hidden="true" className={styles.arrow} />}
       </button>
-      <CreditCoin amount={balance} decorative={menuOpen} className={styles.cornerCoin} />
-      <div id={menuId} className={`${styles.menu} ${menuOpen ? styles.menuOpen : ''}`} role="group" aria-label="Account menu" aria-hidden={!menuOpen} inert={!menuOpen}>
-        <div className={styles.menuSummary}>
-          <strong>{viewer?.displayName || (viewer ? 'Your account' : 'Sign in')}</strong>
-          <span className={styles.credits}>
-            <CreditCoin amount={balance ?? null} />
-            <span aria-hidden="true">{balance == null ? 'Credits' : 'credits'}</span>
-          </span>
+      <div id={menuId} className={styles.menu} role="group" aria-label="Account menu" onClick={event => {
+        // While the shell moves, pointerdown and pointerup can land on the
+        // shell and spacer respectively, making the shell the click target.
+        if (event.target === event.currentTarget) setMenuOpen(value => !value)
+      }}>
+        <div className={styles.spacer}>
+          <div className={styles.menuSummary} aria-hidden={!menuOpen}>
+            <strong>{viewer?.displayName || (viewer ? 'Your account' : 'guest')}</strong>
+            <span className={styles.credits}>
+              <CreditCoin amount={balance ?? null} />
+              <span aria-hidden="true">{balance == null ? 'Credits' : 'credits'}</span>
+            </span>
+          </div>
+          <button type="button" className={styles.spacerButton}
+            onClick={() => setMenuOpen(value => !value)}
+            aria-expanded={menuOpen} aria-controls={menuId}
+            aria-label={menuOpen ? 'Close account menu' : 'Open account menu'} />
         </div>
-        {viewer ? (
-          <>
-            {roomAccount?.invite && (
-              <button type="button" className={styles.action} onClick={() => {
-                roomAccount.invite?.run()
-                setMenuOpen(false)
-              }}>
-                {roomAccount.invite.label}
-              </button>
-            )}
-            {!viewer.displayName && (editingName ? (
-              <form className={styles.nameForm} onSubmit={event => {
-                event.preventDefault()
+        <div className={styles.menuInner} inert={!menuOpen}>
+          {viewer ? (
+            <>
+              {roomAccount?.invite && (
+                <button type="button" className={styles.action} onClick={() => {
+                  roomAccount.invite?.run()
+                  setMenuOpen(false)
+                }}>
+                  {roomAccount.invite.label}
+                </button>
+              )}
+              {!viewer.displayName && (editingName ? (
+                <form className={styles.nameForm} onSubmit={event => {
+                  event.preventDefault()
+                  void perform(async () => {
+                    await setDisplayName(name)
+                    setName('')
+                    setEditingName(false)
+                    setMenuOpen(false)
+                  })
+                }}>
+                  <label htmlFor={menuId + '-username'}>Username</label>
+                  <input id={menuId + '-username'} value={name} onChange={event => setName(event.target.value)} maxLength={64} required />
+                  <button type="submit" className={styles.action} disabled={busy}>Save</button>
+                </form>
+              ) : (
+                <button type="button" className={styles.action} onClick={() => setEditingName(true)}>Set username</button>
+              ))}
+              <a className={styles.action} href="/account/notifications">Followed shows &amp; reminders</a>
+              <button type="button" className={styles.action} disabled={busy} onClick={() => {
                 void perform(async () => {
-                  await setDisplayName(name)
-                  setName('')
-                  setEditingName(false)
+                  await signOut()
                   setMenuOpen(false)
                 })
-              }}>
-                <label htmlFor={menuId + '-username'}>Username</label>
-                <input id={menuId + '-username'} value={name} onChange={event => setName(event.target.value)} maxLength={64} required />
-                <button type="submit" className={styles.action} disabled={busy}>Save</button>
-              </form>
-            ) : (
-              <button type="button" className={styles.action} onClick={() => setEditingName(true)}>Set username</button>
-            ))}
-            <button type="button" className={styles.action} disabled={busy} onClick={() => {
-              void perform(async () => {
-                await signOut()
-                setMenuOpen(false)
-              })
-            }}>Sign out</button>
-          </>
-        ) : (
-          <button type="button" className={styles.action} disabled={busy} onClick={() => void perform(startSignIn)}>Sign in</button>
-        )}
-        {notice && <p className={styles.notice} role="alert">{notice}</p>}
+              }}>Sign out</button>
+            </>
+          ) : (
+            <button type="button" className={styles.action} disabled={busy} onClick={() => void perform(startSignIn)}>Sign in</button>
+          )}
+          {notice && <p className={styles.notice} role="alert">{notice}</p>}
+        </div>
+        <CreditCoin amount={balance} decorative className={styles.cornerCoin} />
       </div>
     </div>
   )

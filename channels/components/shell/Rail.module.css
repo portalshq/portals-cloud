@@ -87,7 +87,7 @@
 
 .link[aria-current] {
   color: var(--color-fg);
-  background: var(--color-surface-2);
+  background: var(--color-fg-fade);
 }
 
 
@@ -114,7 +114,7 @@
   }
 
   .link:hover {
-    background: var(--color-surface-2);
+    background: var(--color-fg-fade);
     color: var(--color-fg);
   }
 
@@ -145,12 +145,13 @@
   color: var(--color-fg);
   border-radius: var(--radius-pill);
   font: var(--font-micro);
-  background: transparent;
+  background: var(--color-fg-fade);
   cursor: pointer;
   svg {
     color: var(--color-fg);
     flex: none;
   }
+  transition: background var(--duration-menu-close);
 }
 
 .back {
@@ -167,6 +168,7 @@
 
 .sound[aria-pressed="true"] {
   border: transparent;
+  background: none;
 }
 
 .sound:disabled {

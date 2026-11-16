@@ -884,6 +884,9 @@ export async function POST(request: Request) {
   if (parsed.data.provider !== 'browser') {
     return NextResponse.json({ ok: false, error: 'invalid provider' }, { status: 400 })
   }
+  if (parsed.data.submissionType === 'show_subscription') {
+    return NextResponse.json({ ok: false, error: 'invalid submission type' }, { status: 400 })
+  }
   const applicationSession = request.headers.get('cookie')
     ?.split(';')
     .map((part) => part.trim())

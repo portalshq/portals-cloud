@@ -1238,7 +1238,7 @@ async function upsertProfile(
     profile.marketingConsent =
       !profile.marketingSuppressed &&
       (profile.marketingConsent || input.request.consent.marketing)
-    profile.analyticsConsent = input.request.consent.analytics
+    if (input.request.submissionType !== 'show_subscription') profile.analyticsConsent = input.request.consent.analytics
     memory().profiles.set(profile.id, profile)
     return {
       profile,
@@ -1304,7 +1304,7 @@ async function upsertProfile(
     profile.marketingConsent =
       !profile.marketingSuppressed &&
       (profile.marketingConsent || input.request.consent.marketing)
-    profile.analyticsConsent = input.request.consent.analytics
+    if (input.request.submissionType !== 'show_subscription') profile.analyticsConsent = input.request.consent.analytics
     await client.query(
       `UPDATE lead_profiles
           SET email_hash = COALESCE(email_hash, $2),
@@ -1314,9 +1314,9 @@ async function upsertProfile(
               last_touch = $6,
               marketing_consent = CASE WHEN marketing_suppressed THEN false ELSE $7 END,
               analytics_consent = $8,
-              consent_version = $9,
-              consent_source = $10,
-              consent_recorded_at = now(),
+              consent_version = CASE WHEN $11 THEN consent_version ELSE $9 END,
+              consent_source = CASE WHEN $11 THEN consent_source ELSE $10 END,
+              consent_recorded_at = CASE WHEN $11 THEN consent_recorded_at ELSE now() END,
               updated_at = now()
         WHERE id = $1`,
       [
@@ -1332,6 +1332,7 @@ async function upsertProfile(
         profile.analyticsConsent,
         input.request.consent.disclosureVersion,
         input.request.attribution.sourcePage,
+        input.request.submissionType === 'show_subscription',
       ],
     )
   }
@@ -1393,6 +1394,7 @@ export function outboxActions(
   if (request.submissionType === 'commercial_event') {
     return request.consent.analytics ? ['analytics'] : []
   }
+  if (request.submissionType === 'show_subscription') return ['apollo_sync']
   const actions = ['apollo_sync']
   if (request.submissionType === 'pilot_request') actions.push('account_invitation')
   if (request.consent.analytics) actions.push('analytics')

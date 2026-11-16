@@ -63,6 +63,7 @@ const configuredFields = schemaSource.customFields as Array<{
   label: string
   modalities: FieldModality[]
 }>
+const showSubscriptionFields = new Set(['subscribed_program', 'show_episode_reminders', 'show_weekly_schedule', 'show_general_schedule', 'show_referral'])
 const configuredDealStages = schemaSource.dealStages as string[]
 const configuredNativeStages = (schemaSource.nativeStages || {}) as {
   contact?: Record<'not_qualified' | 'qualified' | 'pilot_requested', string>
@@ -182,8 +183,8 @@ async function discoverApolloSchema(): Promise<ApolloSchema> {
     for (const modality of field.modalities) {
       const record = availableFields.find((item) => item.modality === modality && item.label === field.label)
       const target: FieldTarget = modality === 'opportunity' ? 'deal' : modality
-      if (!record?.id) missingFields.push(`${modality}:${field.label}`)
-      else fields[target][field.key] = record.id
+      if (record?.id) fields[target][field.key] = record.id
+      else if (!showSubscriptionFields.has(field.key)) missingFields.push(`${modality}:${field.label}`)
     }
   }
   const availableDealStages = collection<ApolloStage>(dealStagePayload, ['opportunity_stages', 'stages', 'data'])
@@ -493,6 +494,11 @@ export function contactFields(submission: StoredSubmission): Record<string, unkn
     use_case_interest: attribution.useCase ? [attribution.useCase] : undefined,
     last_submission_id: submission.id,
     last_submission_type: submission.request.submissionType,
+    subscribed_program: submission.request.submissionType === 'show_subscription' ? answers.programId : undefined,
+    show_episode_reminders: submission.request.submissionType === 'show_subscription' ? answers.episode : undefined,
+    show_weekly_schedule: submission.request.submissionType === 'show_subscription' ? answers.weekly : undefined,
+    show_general_schedule: submission.request.submissionType === 'show_subscription' ? answers.generalSchedule : undefined,
+    show_referral: submission.request.submissionType === 'show_subscription' ? answers.referral : undefined,
     qualification_state: qualificationState(submission),
     qualification_score: scores ? assessmentScore(scores) : undefined,
     qualification_tier: submission.tier,
@@ -735,6 +741,10 @@ async function upsertPilotDeal(schema: ApolloSchema, submission: StoredSubmissio
 export async function syncSubmissionToApollo(submission: StoredSubmission): Promise<void> {
   if (leadsDryRun()) return
   const schema = await discoverApolloSchema()
+  if (submission.request.submissionType === 'show_subscription') {
+    const missing = [...showSubscriptionFields].filter(key => !schema.fields.contact[key])
+    if (missing.length) throw new Error(`Apollo show subscription fields are missing: ${missing.join(', ')}. Run the Apollo provisioning step.`)
+  }
   const pilot = await getPilotBySubmissionId(submission.id)
   let contactId = await upsertContact(schema, submission)
   const lists = listConfig()

@@ -38,13 +38,13 @@
   display: grid;
   place-items: center;
   padding: var(--space-10) var(--space-6);
-  padding-inline-start: calc(var(--rail-collapsed) + var(--space-6));
+  padding-inline-start: var(--space-6);
   padding-inline-end: var(--space-6);
-
-  @media (max-width: 640px) {
+  padding-bottom: var(--space-6);
+  @media (max-width: 1200px) {
     padding-inline: var(--space-5);
-    padding-top: calc(60px + var(--space-3));
-    padding-bottom: var(--space-2);
+    padding-top: calc(var(--rail-collapsed) + var(--space-3));
+    padding-bottom: var(--space-6);
   }
 }
 
@@ -57,11 +57,8 @@
   padding-inline: var(--text-inset);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
   align-items: center;
-  @media (max-width: 640px) {
-    gap: var(--space-2);
-  }
 }
 
 /* The frame takes whatever height the text leaves over, so the player can
@@ -180,8 +177,7 @@
   }
 }
 
-.primary,
-.save {
+.primary {
   font: var(--font-normal);
   display: flex;
   align-items: center;
@@ -201,11 +197,6 @@
   background: var(--color-accent);
   color: var(--color-accent-fg);
   padding-inline: var(--space-6);
-}
-
-.save {
-  background: var(--color-surface-2);
-  color: var(--color-fg);
 }
 
 @media (min-width: 641px) and (max-width: 1400px) and (orientation: landscape) and (pointer: coarse) {
@@ -319,16 +310,11 @@
   .primary:hover {
     background: var(--color-accent-hover);
   }
-
-  .save:hover {
-    background: oklch(0.32 0.018 150);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .progressFill,
-  .primary,
-  .save {
+  .primary {
     transition: none;
   }
 }
@@ -391,7 +377,7 @@
   .video > .meta {
     position: absolute;
     z-index: 2;
-    inset: calc(60px + var(--space-2) + env(safe-area-inset-top, 0px)) auto auto max(var(--space-4), env(safe-area-inset-left));
+    inset: calc(60px + var(--space-6) + env(safe-area-inset-top, 0px)) auto auto max(var(--space-4), env(safe-area-inset-left));
     max-width: 70%;
     align-items: flex-start;
     gap: var(--space-1);

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@portalshq/analytics": "0.2.0",
+    "@portalshq/capability-email-notifications": "^0.1.0",
     "@portalshq/capability-identity": "^0.6.0",
     "@portalshq/capability-video-delivery": "^0.1.8",
     "hls.js": "^1.5.0",
