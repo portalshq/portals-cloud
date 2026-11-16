@@ -6,6 +6,7 @@ export type PlaybackPreview = {
   stream?: string
   previewVideo?: string
   nextSession?: string
+  program?: { id: string; description?: string; tagline?: string }
 }
 
 export type ChannelApp = {
@@ -18,12 +19,16 @@ export type ChannelHeading = Pick<CSSProperties, 'fontFamily' | 'fontWeight'>
 
 export type Channel = {
   slug: string
+  programId?: string
   title: string
   heading?: ChannelHeading
   headingFontUrl?: string
   headingFontFallbackUrl?: string
   by: string
   description: string
+  tagline?: string
+  /** Preserves the existing room-page metadata independently of promotional copy. */
+  metadataDescription?: string
   category: string
   live?: boolean
   viewers: string
@@ -58,17 +63,6 @@ export const PLACEHOLDER_STREAM =
 export const BUNNY_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
 
 export const channels: Channel[] = [
-  {
-    slug: 'massively-social',
-    title: 'The 25th Chapter',
-    by: 'Massively Social',
-    description: 'A mystery that keeps unfolding. Step in whenever you like; the story never stops.',
-    category: 'Live worlds',
-    live: true,
-    viewers: '2.4k here now',
-    source: 'Always on',
-    stream: PLACEHOLDER_STREAM,
-  },
   {
     slug: 'night-shift',
     title: 'Night Shift FM',

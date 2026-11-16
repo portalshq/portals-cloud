@@ -15,6 +15,60 @@ afterEach(async () => {
 })
 
 describe('public catalog', () => {
+  it('uses the selected central program copy while preserving room metadata', async () => {
+    const pool = makePool(() => ({ rows: [{
+      channel_id: 'bears', program_id: 'bears-live', program_name: 'Bears live',
+      program_description: 'The central description.', program_tagline: 'The central tagline.',
+      station_name: 'Wildlife', scheduled_live: false, next_start: null,
+    }] }))
+    const { setPoolsForTest } = await import('../lib/admin/db')
+    setPoolsForTest({ central: pool })
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      playback: null, program: { id: 'another-program', description: 'Wrong program', secret: 'private-value' },
+    })))
+    const { getChannelCatalog } = await import('../lib/catalog')
+    const bears = (await getChannelCatalog()).find((channel) => channel.slug === 'bears')
+    expect(bears).toMatchObject({
+      programId: 'bears-live', description: 'The central description.', tagline: 'The central tagline.', metadataDescription: '',
+    })
+    expect(JSON.stringify(bears)).not.toContain('private-value')
+  })
+
+  it('uses safe app metadata as a fallback when the central catalog is unavailable', async () => {
+    const pool = makePool(() => { throw new Error('offline') })
+    const { setPoolsForTest } = await import('../lib/admin/db')
+    setPoolsForTest({ central: pool })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      playback: null, guestToken: 'private-guest',
+      program: { id: 'bears-live', description: 'Cached description.', tagline: 'Cached tagline.', private: 'private-value' },
+    })))
+    const { getChannelCatalog } = await import('../lib/catalog')
+    const bears = (await getChannelCatalog()).find((channel) => channel.slug === 'bears')
+    expect(bears).toMatchObject({ programId: 'bears-live', description: 'Cached description.', tagline: 'Cached tagline.', metadataDescription: '' })
+    expect(JSON.stringify(bears)).not.toContain('private-')
+    vi.restoreAllMocks()
+  })
+
+  it('retains the last central description if both central and the app become unavailable', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(100_000)
+    let available = true
+    const pool = makePool(() => {
+      if (!available) throw new Error('offline')
+      return { rows: [{ channel_id: 'bears', program_id: 'bears-live', program_name: 'Bears', program_description: 'Last known description.', program_tagline: 'Last known tagline.', station_name: null, scheduled_live: false, next_start: null }] }
+    })
+    const { setPoolsForTest } = await import('../lib/admin/db')
+    setPoolsForTest({ central: pool })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 503 })))
+    const { getChannelCatalog } = await import('../lib/catalog')
+    expect((await getChannelCatalog())[0]).toMatchObject({ description: 'Last known description.' })
+    available = false
+    now.mockReturnValue(116_000)
+    expect((await getChannelCatalog())[0]).toMatchObject({ programId: 'bears-live', description: 'Last known description.', tagline: 'Last known tagline.' })
+    vi.restoreAllMocks()
+  })
+
   it('merges central entries by slug, preserves other mocks, and uses Bears playback state', async () => {
     const pool = makePool(() => ({ rows: [
       { channel_id: 'bears', program_name: 'Bears live', station_name: 'Wildlife', scheduled_live: true, next_start: null },
@@ -204,5 +258,33 @@ describe('registered channel apps', () => {
     const calls = fetch.mock.calls.length
     expect((await api(request, { params: Promise.resolve({ slug: 'unknown', path: ['channel'] }) })).status).toBe(404)
     expect(fetch).toHaveBeenCalledTimes(calls)
+  })
+
+  it('applies the 25th Chapter defaults so its entry only needs an origin', async () => {
+    vi.stubEnv('ADMIN_CENTRAL_DATABASE_URL', '')
+    vi.stubEnv('CHANNELS_APPS', JSON.stringify({ '25th-chapter': { origin: 'https://chapter.test' } }))
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      playback: { playbackManifestUrl: '/live/main/index.m3u8' },
+      program: { id: '25th-chapter', description: 'A live, social ebook.', tagline: 'Your daily story.', guestToken: 'private-guest' },
+    })))
+
+    const { getChannelCatalog } = await import('../lib/catalog')
+    const chapter = (await getChannelCatalog()).find((channel) => channel.slug === '25th-chapter')
+    expect(chapter).toMatchObject({
+      title: '25th Chapter',
+      by: 'Massively Social',
+      live: true,
+      stream: 'https://chapter.test/live/main/index.m3u8',
+      description: 'A live, social ebook.',
+      tagline: 'Your daily story.',
+      previewStatus: 'live',
+    })
+    expect(chapter?.preview?.poster).toBe('/channel-apps/25th-chapter/public/heroes.png')
+    expect(chapter?.headingFontUrl).toBe('/channel-apps/25th-chapter/public/fonts/playfair-display-v40-latin.woff2')
+    expect(chapter?.heading).toEqual({
+      fontFamily: '"Channel 25th-chapter", "Playfair Display", Georgia, serif',
+      fontWeight: 600,
+    })
+    expect(JSON.stringify(chapter)).not.toContain('private-guest')
   })
 })

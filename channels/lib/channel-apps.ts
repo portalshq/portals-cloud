@@ -8,6 +8,8 @@ type RegisteredApp = {
   slug: string
   origin: string
   name: string
+  /** Credit line shown as the channel owner. Falls back to the app name. */
+  by?: string
   theme?: 'light'
   heading?: ChannelHeading
   headingFont?: string
@@ -20,7 +22,7 @@ type RegisteredApp = {
 
 function register(slug: string, value: unknown): RegisteredApp | undefined {
   if (!CHANNEL_SLUG.test(slug) || !value || typeof value !== 'object') return
-  const { origin, name, poster, backdrop, publicAssets, heading, theme } = value as Record<string, unknown>
+  const { origin, name, by, poster, backdrop, publicAssets, heading, theme } = value as Record<string, unknown>
   if (typeof origin !== 'string') return
   let url: URL
   try {
@@ -56,6 +58,7 @@ function register(slug: string, value: unknown): RegisteredApp | undefined {
       : undefined,
     origin: url.origin,
     name: typeof name === 'string' && name.trim() ? name.trim() : slug,
+    by: typeof by === 'string' && by.trim() ? by.trim() : undefined,
     backdrop: backdrop === true,
     poster: image,
     publicAssets: [
@@ -77,6 +80,22 @@ const bearsDefaults = {
   publicAssets: ['bears/forest-background.png'],
 }
 
+/* The 25th Chapter ebook app: Playfair Display headings and the preview
+   splash are served from the app's public directory. Massively Social is the
+   publisher; the program name stays "25th Chapter". */
+const chapterDefaults = {
+  name: '25th Chapter',
+  by: 'Massively Social',
+  heading: { fontFamily: '"Playfair Display", Georgia, serif', fontWeight: 600, fontFile: 'fonts/playfair-display-v40-latin.woff2' },
+  poster: 'heroes.png',
+  publicAssets: ['preview/2.png'],
+}
+
+const appDefaults: Record<string, Record<string, unknown>> = {
+  bears: bearsDefaults,
+  '25th-chapter': chapterDefaults,
+}
+
 export function getChannelApps(): Map<string, RegisteredApp> {
   const apps = new Map<string, RegisteredApp>()
   const bears = register('bears', {
@@ -89,8 +108,9 @@ export function getChannelApps(): Map<string, RegisteredApp> {
     const config: unknown = JSON.parse(process.env.CHANNELS_APPS?.trim() || '{}')
     if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Expected an object')
     for (const [slug, value] of Object.entries(config)) {
-      const app = register(slug, slug === 'bears' && value && typeof value === 'object'
-        ? { ...bearsDefaults, ...value }
+      const defaults = appDefaults[slug]
+      const app = register(slug, defaults && value && typeof value === 'object'
+        ? { ...defaults, ...value }
         : value)
       if (app) apps.set(slug, slug === 'bears' ? { ...app, legacyMountExport: 'mountBears' } : app)
     }
@@ -124,17 +144,24 @@ export function getChannelPreview(app: RegisteredApp): Promise<PlaybackPreview |
     try {
       const response = await fetch(url, { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(2500) })
       if (!response.ok) return null
-      const { playback, nextSession: next } = await response.json()
+      const { playback, nextSession: next, program: rawProgram } = await response.json()
+      const program = rawProgram && typeof rawProgram === 'object' && typeof rawProgram.id === 'string'
+        ? {
+            id: rawProgram.id,
+            ...(typeof rawProgram.description === 'string' ? { description: rawProgram.description } : {}),
+            ...(typeof rawProgram.tagline === 'string' ? { tagline: rawProgram.tagline } : {}),
+          }
+        : undefined
       const date = typeof next?.startsAt === 'string' ? Date.parse(next.startsAt) : NaN
       const nextSession = Number.isFinite(date) ? new Date(date).toISOString() : undefined
-      if (playback === null) return { live: false, nextSession }
-      if (playback?.kind === 'reactor') return { live: true, nextSession }
+      if (playback === null) return { live: false, nextSession, ...(program ? { program } : {}) }
+      if (playback?.kind === 'reactor') return { live: true, nextSession, ...(program ? { program } : {}) }
       if (playback?.kind === 'video') {
         const previewVideo = mediaUrl(playback.url, url)
-        return previewVideo ? { live: true, previewVideo, nextSession } : null
+        return previewVideo ? { live: true, previewVideo, nextSession, ...(program ? { program } : {}) } : null
       }
       const stream = mediaUrl(playback?.playbackManifestUrl, url)
-      return stream ? { live: true, stream, nextSession } : null
+      return stream ? { live: true, stream, nextSession, ...(program ? { program } : {}) } : null
     } catch {
       return null
     }

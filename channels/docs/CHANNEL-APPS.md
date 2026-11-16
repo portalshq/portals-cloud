@@ -5,9 +5,23 @@ maps a channel slug to a trusted backend origin and optional presentation
 settings. The slug is the room URL and the key used to merge central catalog
 metadata.
 
+Program descriptions and taglines are stored on the central `programs` row,
+not in `CHANNELS_APPS`. In Channels admin, use **Edit program details** and
+select the intended program when a channel has multiple bindings. Empty fields
+clear the corresponding copy. The feed and browse view read the selected
+program; a compatible app may expose the same public fields from `/api/channel`
+to keep its room and the active feed in sync. The preview includes only the
+program id, description, and tagline, never the app's guest token or private data.
+The existing room-page description metadata is unchanged.
+
 ```dotenv
 CHANNELS_APPS='{"garden":{"origin":"https://garden.example","name":"Garden","backdrop":true,"poster":"images/garden.webp","publicAssets":["images/background.png"]}}'
 ```
+
+`name` is the channel title used until the central catalog supplies a program
+name. An optional `by` sets the owner/credit line independently of the title —
+for example `"by":"Massively Social"` keeps "25th Chapter" as the title while
+crediting the publisher. `by` falls back to `name`.
 
 An optional `heading` object sets `fontFamily` and/or `fontWeight` for
 the channel's feed title, browse card, and detail title. For example,
@@ -77,6 +91,9 @@ unknown slugs and privileged routes. The registry is server configuration.
 Register only apps you trust to execute JavaScript on the Channels origin.
 
 `BEARS_API_BASE_URL` still registers the existing Bears defaults. A
-`CHANNELS_APPS` entry for `bears` overrides those settings. Channels also
+`CHANNELS_APPS` entry for `bears` overrides those settings. The `25th-chapter`
+slug likewise merges built-in defaults — the 25th Chapter title, "Massively
+Social" owner credit, Playfair Display heading font, and the `/preview` splash
+poster — so its entry only needs an `origin`. Channels also
 accepts the older Bears bundle's `mountBears` export during rollout. Bears
 production controls still use their existing admin configuration.
