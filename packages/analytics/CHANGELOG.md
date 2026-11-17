@@ -1,5 +1,11 @@
 # @portalshq/analytics
 
+## 0.4.0
+
+### Minor Changes
+
+- 4164a51: Add shared acquisition, viewing, conversion, community, privacy-preference, and verified browser identity integrations for Channels and channel applications.
+
 ## 0.2.0
 
 ### Minor Changes
