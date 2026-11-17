@@ -29,7 +29,7 @@ const tabletBrowse = '(max-width: 1200px)'
 function Actions({ channel }: { channel: Channel }) {
   return (
     <div className={styles.actions}>
-      <FollowButton channel={channel.slug} />
+      <FollowButton channel={channel.slug} programId={channel.programId} />
       <ShareButton channel={channel.slug} url={`/${channel.slug}`} />
     </div>
   )
@@ -293,7 +293,7 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
                 <span aria-hidden="true">·</span>
                 {featured.viewers}
               </span>
-              <p className={styles.featuredLine}>{browseCopy.featuredLine}</p>
+              <p className={styles.featuredLine}>{featured.description}</p>
             </span>
           </Link>
         </section>
@@ -390,7 +390,7 @@ function ChannelDetail({ channel }: { channel: Channel }) {
 
   return (
     <>
-      <Rail roomSlug={channel.slug} sound={{ muted, toggle: sound.toggle, disabled: !hasSound }} account={account} />
+      <Rail roomSlug={channel.slug} program={{ id: channel.programId, slug: channel.slug }} sound={{ muted, toggle: sound.toggle, disabled: !hasSound }} account={account} />
       {channel.app ? (
         <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title}
           heading={channel.heading} sound={sound} onAccountChange={setAccount} onSoundAvailable={setAppSoundAvailable} />

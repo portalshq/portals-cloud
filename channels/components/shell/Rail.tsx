@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import type { RoomAccount } from '@/lib/room-controls'
 import { ViewerAccount } from '@/components/auth/ViewerAccount'
+import { FollowButton } from '@/components/channels/actions'
 import styles from './Rail.module.css'
 
 const links = [
@@ -14,11 +15,13 @@ const links = [
 
 type RailProps = {
   roomSlug?: string
+  /** The program the room is showing; powers the global follow button. */
+  program?: { id?: string; slug: string }
   sound?: { muted: boolean; toggle: () => void; disabled?: boolean }
   account?: RoomAccount | null
 }
 
-export function Rail({ roomSlug, sound, account }: RailProps) {
+export function Rail({ roomSlug, program, sound, account }: RailProps) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -64,6 +67,11 @@ export function Rail({ roomSlug, sound, account }: RailProps) {
       </ul>
 
       <div className={styles.foot}>
+        {program && (
+          <span className={styles.follow}>
+            <FollowButton channel={program.slug} programId={program.id} />
+          </span>
+        )}
         {sound && (
           <button type="button" className={styles.sound} aria-label="Stage sound"
             aria-pressed={!sound.muted} disabled={sound.disabled} onClick={sound.toggle}>

@@ -62,7 +62,7 @@ function ChannelPanel({
             Enter channel
             <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden="true" />
           </Link>
-          <FollowButton channel={channel.slug} />
+          <FollowButton channel={channel.slug} programId={channel.programId} />
           <ShareButton channel={channel.slug} url={`/${channel.slug}`} />
         </div>
       </div>
