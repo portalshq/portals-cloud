@@ -36,3 +36,12 @@ flowchart TB
 - Dry run supplies a progressive demo video even between episodes. A Reactor-only channel can be live while its feed panel shows the backdrop. Reactor playback is available inside the room.
 - A successful response with no playback shows “Bears is off-air right now.” A failed preview request shows “Bears is unavailable right now.” The reminder form appears only in the Bears room when an upcoming episode is available.
 - The backdrop entry reuses the Bears forest renderer and scene clock. Channels mounts it independently of the watch bundle, so previewing a card opens no chat, interaction, or Reactor sessions. [Bears integration](./BEARS.md)
+
+## Follows and reminders
+
+Every Follow button — feed panels, the featured banner, channel details, and the room rail — reads one shared client store, so follow state is consistent everywhere a program appears. [Store implementation](../lib/follows.ts)
+
+- Signed-in viewers persist follows to central `program_follows` through `/api/follows`. The store hydrates from the server once and broadcasts updates to all mounted buttons.
+- Guests follow anonymously: state persists in `localStorage` (`channels:follows`) with no sign-in prompt. On the next authenticated load the store POSTs each stored program to `/api/follows` and removes it locally only after success, so failed transfers retry on the following visit.
+- A successful follow opens a reminders dialog wired to `POST /api/notifications/subscriptions` with `ensureFollow`, which writes the follow row and the reminder preference in one transaction for verified recipients. Guests leave an email address and confirm through the verification link; `claimVerifiedEmail` creates the subscription and associates the recipient with their account when they sign up.
+- Channels without a bound `programId` keep the local chip behaviour — no persistence, no reminder prompt.
