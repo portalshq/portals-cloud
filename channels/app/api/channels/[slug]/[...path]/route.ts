@@ -3,8 +3,8 @@ import { getChannelApps } from '../../../../../lib/channel-apps'
 
 type Context = { params: Promise<{ slug: string; path: string[] }> }
 
-const reads = /^(channel|chat\/stream|interactions\/(stream|squads\/[A-Za-z0-9-]+)|auth\/(me|session\/[A-Fa-f0-9-]+)|guides\/balance|sessions\/next\.ics|reactor\/state|entity-image|choice-images\/[a-f0-9]{64})$/
-const writes = /^(chat|guides|reminders|auth\/(session|refresh|logout|display-name)|reactor\/session|interactions\/(guest\/claim|feedback|reactions|squads|squads\/[A-Za-z0-9-]+\/join|[A-Za-z0-9-]+\/vote))$/
+const reads = /^(channel|chat(?:\/stream)?|channels\/[A-Za-z0-9-]+\/playback|monetization\/catalog|interactions\/(choice|stream|squads\/[A-Za-z0-9-]+)|auth\/(me|session\/[A-Fa-f0-9-]+)|guides\/balance|sessions\/next\.ics|reactor\/state|entity-image|choice-images\/[a-f0-9]{64})$/
+const writes = /^(chat|guides|reminders|monetization\/checkout|auth\/(session|refresh|logout|display-name)|reactor\/session|interactions\/(guest\/claim|feedback|reactions|squads|squads\/[A-Za-z0-9-]+\/join|[A-Za-z0-9-]+\/vote))$/
 
 async function forward(request: Request, { params }: Context): Promise<Response> {
   const { slug, path: segments } = await params
@@ -14,7 +14,7 @@ async function forward(request: Request, { params }: Context): Promise<Response>
     return new Response(null, { status: 403 })
   }
   if (!(read ? reads : writes).test(path)) return new Response(null, { status: 404 })
-  const app = getChannelApps().get(slug)
+  const app = (await getChannelApps()).get(slug)
   if (!app) return new Response(null, { status: 404 })
   const url = new URL('/api/' + path, app.origin)
   const requestUrl = new URL(request.url)

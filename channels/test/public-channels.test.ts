@@ -287,4 +287,39 @@ describe('registered channel apps', () => {
     })
     expect(JSON.stringify(chapter)).not.toContain('private-guest')
   })
+
+  it('registers channel apps from central program rows, which override CHANNELS_APPS', async () => {
+    vi.stubEnv('CHANNELS_APPS', JSON.stringify({ '25th-chapter': { origin: 'https://stale-env.test' } }))
+    const pool = makePool((text) => {
+      if (text.includes('app_origin')) return { rows: [{
+        channel_id: '25th-chapter', app_origin: 'https://chapter.test/',
+        app_config: { publicAssets: ['preview/3.png'] },
+      }] }
+      return { rows: [] }
+    })
+    const { setPoolsForTest } = await import('../lib/admin/db')
+    setPoolsForTest({ central: pool })
+    vi.stubGlobal('fetch', vi.fn(async (url: URL) => {
+      if (url.hostname === 'chapter.test' && url.pathname === '/api/channel') {
+        return Response.json({ playback: { playbackManifestUrl: '/live/main/index.m3u8' } })
+      }
+      return new Response('asset')
+    }))
+    const { getChannelCatalog } = await import('../lib/catalog')
+    const chapter = (await getChannelCatalog()).find((channel) => channel.slug === '25th-chapter')
+    expect(chapter).toMatchObject({
+      title: '25th Chapter',
+      by: 'Massively Social',
+      live: true,
+      stream: 'https://chapter.test/live/main/index.m3u8',
+      previewStatus: 'live',
+    })
+    const { GET: asset } = await import('../app/channel-apps/[slug]/[...path]/route')
+    const merged = new Request('https://channels.test/channel-apps/25th-chapter/public/preview/3.png')
+    expect((await asset(merged, { params: Promise.resolve({ slug: '25th-chapter', path: ['public', 'preview', '3.png'] }) })).status).toBe(200)
+    const envOrigin = new Request('https://channels.test/api/channels/25th-chapter/channel')
+    const { GET: api } = await import('../app/api/channels/[slug]/[...path]/route')
+    await api(envOrigin, { params: Promise.resolve({ slug: '25th-chapter', path: ['channel'] }) })
+    expect(fetch).toHaveBeenLastCalledWith(new URL('https://chapter.test/api/channel'), expect.any(Object))
+  })
 })

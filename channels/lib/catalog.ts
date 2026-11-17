@@ -62,7 +62,7 @@ function readCentral(): Promise<CatalogRow[]> {
 }
 
 export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
-  const apps = [...getChannelApps().values()]
+  const apps = [...(await getChannelApps()).values()]
   const [rows, previews] = await Promise.all([
     readCentral(),
     Promise.all(apps.map(getChannelPreview)),

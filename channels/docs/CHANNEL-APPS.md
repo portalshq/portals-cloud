@@ -1,9 +1,19 @@
 # Register a channel app
 
-Set `CHANNELS_APPS` in the Channels server environment. The JSON object
+Channel app registrations are central database records. When an app publishes
+`app_origin` on its central `programs` row — the 25th Chapter sync sets it
+from `PORTALS_APP_ORIGIN` — the Channels registry mounts that app on every
+channel the program is bound to. `app_origin` is the trusted backend origin
+serving `/api/channel` and the app bundle. An optional `app_config` jsonb
+column carries the same presentation fields `CHANNELS_APPS` accepts (`name`,
+`by`, `theme`, `heading`, `backdrop`, `poster`, `publicAssets`); code-owned
+per-slug defaults in `lib/channel-apps.ts` fill anything `app_config` omits.
+
+`CHANNELS_APPS` remains as a local-server fallback. The JSON object
 maps a channel slug to a trusted backend origin and optional presentation
 settings. The slug is the room URL and the key used to merge central catalog
-metadata.
+metadata. A central `app_origin` record always wins over a `CHANNELS_APPS`
+entry for the same slug.
 
 Program descriptions and taglines are stored on the central `programs` row,
 not in `CHANNELS_APPS`. In Channels admin, use **Edit program details** and

@@ -4,7 +4,7 @@ const buildAsset = /^(watch\.(js|css)|backdrop\.js|assets\/[\w.-]+\.(js|css|wasm
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string; path: string[] }> }) {
   const { slug, path: segments } = await params
-  const app = getChannelApps().get(slug)
+  const app = (await getChannelApps()).get(slug)
   if (!app) return new Response(null, { status: 404 })
   const path = segments.join('/')
   const publicPath = path.startsWith('public/') ? path.slice('public/'.length) : ''
