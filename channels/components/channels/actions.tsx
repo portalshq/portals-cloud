@@ -12,28 +12,34 @@ import styles from './actions.module.css'
  *  outside the accent, and the button keeps a fixed width so swapping
  *  "Follow" for "Following" cannot reflow the row.
  *
- *  When the channel carries a central `programId` the button follows the real
- *  program — shared reactive state keeps every surface in sync: signed-in
- *  viewers through /api/follows, anonymous viewers through local state that
- *  merges into program_follows on sign-in. Following is gated by the reminders
+ *  It renders only for channels bound to a central `programId` — the static
+ *  catalog entries carry no program, so there is nothing to follow and no
+ *  affordance is offered. When it renders it follows the real program —
+ *  shared reactive state keeps every surface in sync: signed-in viewers
+ *  through /api/follows, anonymous viewers through local state that merges
+ *  into program_follows on sign-in. Following is gated by the reminders
  *  form: the click opens it and the follow commits only when the form
  *  completes — dismissing it cancels the process and the button stays
- *  "Follow". Unfollow is a single immediate write. Without a `programId` it
- *  keeps the in-memory chip state. */
+ *  "Follow". Unfollow is a single immediate write. */
 export function FollowButton({ channel, programId, className }: { channel: string; programId?: string; className?: string }) {
-  const subscribed = useSyncExternalStore(
+  // The gate is hook-free so a programId arriving after mount — a preview
+  // resolving the binding late — cannot reorder the action's hooks.
+  if (!programId) return null
+  return <FollowAction channel={channel} programId={programId} className={className} />
+}
+
+function FollowAction({ channel, programId, className }: { channel: string; programId: string; className?: string }) {
+  const following = useSyncExternalStore(
     subscribeFollows,
-    () => (programId ? followsSnapshot().has(programId) : false),
+    () => followsSnapshot().has(programId),
     () => false,
   )
-  const [chipFollowing, setChipFollowing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [promptOpen, setPromptOpen] = useState(false)
-  const following = programId ? subscribed : chipFollowing
 
   useEffect(() => {
-    if (programId) ensureFollowsLoaded()
-  }, [programId])
+    ensureFollowsLoaded()
+  }, [])
 
   return (
     <>
@@ -43,13 +49,7 @@ export function FollowButton({ channel, programId, className }: { channel: strin
         aria-pressed={following}
         disabled={busy}
         onClick={() => {
-          const next = !following
-          if (!programId) {
-            setChipFollowing(next)
-            recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, following: next, outcome: 'succeeded'})
-            return
-          }
-          if (next) {
+          if (!following) {
             setPromptOpen(true)
             return
           }
@@ -63,17 +63,15 @@ export function FollowButton({ channel, programId, className }: { channel: strin
         <Bell className={following ? "filled" : ""} size={16} strokeWidth={1.75} />
         {following ? 'Following' : 'Follow'}
       </button>
-      {programId && (
-        <ReminderPrompt
-          programId={programId}
-          open={promptOpen}
-          onClose={() => setPromptOpen(false)}
-          onFollowSettled={(applied) => {
-            if (applied) recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: true, outcome: 'succeeded'})
-          }}
-          onCancelled={() => recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: false, outcome: 'cancelled'})}
-        />
-      )}
+      <ReminderPrompt
+        programId={programId}
+        open={promptOpen}
+        onClose={() => setPromptOpen(false)}
+        onFollowSettled={(applied) => {
+          if (applied) recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: true, outcome: 'succeeded'})
+        }}
+        onCancelled={() => recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: false, outcome: 'cancelled'})}
+      />
     </>
   )
 }
