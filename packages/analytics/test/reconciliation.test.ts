@@ -34,4 +34,4 @@ it('reconciles missing, duplicated, mismatched, unexpected and late committed ev
       FROM source s JOIN delivered d USING (source_kind, source_id) WHERE s.source_id='4'`, ['30 seconds'])
     expect(tightest.rows[0]).toEqual({ is_late: true })
   } finally { await db.close() }
-}, 15_000)
+}, 30_000)

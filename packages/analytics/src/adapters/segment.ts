@@ -22,7 +22,7 @@ export function createSegmentSink(transport: SegmentTransport, serverIdentity?: 
   return {
     async send(events: readonly Observation[]) {
       for (const event of events) {
-        const identity = event.identity ?? serverIdentity;
+        const identity = event.identity ?? serverIdentity ?? (event.provenance === 'server' ? {anonymousId: `server-event:${event.id}`} : undefined);
         if (!identity?.anonymousId && !identity?.userId) throw new Error("Segment requires an anonymousId or userId");
         await transport.track({ messageId: event.id, event: event.name, timestamp: event.occurredAt, ...identity,
           properties: {...event.properties, portals_event_id: event.id, portals_schema_version: event.version, portals_provenance: event.provenance,

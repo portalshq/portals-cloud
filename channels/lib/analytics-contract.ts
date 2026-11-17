@@ -1,5 +1,4 @@
-import { createChannelRegistry } from '@portalshq/analytics/channel-events'
-import { channels } from '../components/channels/data'
+import { createExperienceRegistry, experienceEvents } from '@portalshq/analytics/experience-events'
 
-export { channelEvents } from '@portalshq/analytics/channel-events'
-export function channelRegistry() { return createChannelRegistry(channels.map(item => item.slug)) }
+export { experienceEvents }
+export function channelRegistry() { return createExperienceRegistry() }

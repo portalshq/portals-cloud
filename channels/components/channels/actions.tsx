@@ -2,7 +2,7 @@
 
 import { Bell, Forward, X } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { channelEvents } from '@/lib/analytics-contract'
+import { experienceEvents } from '@/lib/analytics-contract'
 import { recordChannelEvent } from '@/lib/analytics-client'
 import { ensureFollowsLoaded, followsSnapshot, setFollow, subscribeFollows } from '@/lib/follows'
 import { getViewer, subscribeViewer, viewerFetch } from '@/lib/viewer'
@@ -41,14 +41,18 @@ export function FollowButton({ channel, programId, className }: { channel: strin
         disabled={busy}
         onClick={() => {
           const next = !following
-          recordChannelEvent(channelEvents.follow, {channel, following: next})
           if (!programId) {
             setChipFollowing(next)
+            recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, following: next, outcome: 'succeeded'})
             return
           }
           setBusy(true)
           void setFollow(programId, next)
-            .then((applied) => { if (applied === true && next) setPromptOpen(true) })
+            .then((applied) => {
+              if (applied === true && next) setPromptOpen(true)
+              recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: next, outcome: applied === true ? 'succeeded' : applied === false ? 'failed' : 'unavailable'})
+            })
+            .catch(() => recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: next, outcome: 'unavailable'}))
             .finally(() => setBusy(false))
         }}
       >
@@ -78,6 +82,7 @@ function ReminderPrompt({ programId, open, onClose }: { programId: string; open:
     if (!node) return
     if (open && !node.open) node.showModal()
     if (!open && node.open) node.close()
+    if (open) recordChannelEvent(experienceEvents.reminderPromptOpened, {surface: 'channels_room', program_id: programId})
   }, [open])
 
   return (
@@ -105,13 +110,20 @@ function ReminderPrompt({ programId, open, onClose }: { programId: string; open:
           })
             .then(async (response) => {
               const result = await response.json().catch(() => null)
-              if (response.ok) setDone(result?.verified ? 'Reminders are on — we will email you when new episodes air.' : 'Check your email to confirm reminders.')
+              if (response.ok) {
+                setDone(result?.verified ? 'Reminders are on — we will email you when new episodes air.' : 'Check your email to confirm reminders.')
+                recordChannelEvent(experienceEvents.reminderSaveResult, {surface: 'channels_room', program_id: programId, outcome: 'succeeded', episode: true, weekly: false, verification_required: result?.verified !== true})
+              }
               else {
                 if (typeof result?.settingsUrl === 'string') setSettingsUrl(result.settingsUrl)
                 setError(result?.error || 'Could not save reminders.')
+                recordChannelEvent(experienceEvents.reminderSaveResult, {surface: 'channels_room', program_id: programId, outcome: response.status === 401 ? 'unauthorized' : 'failed', episode: true, weekly: false, verification_required: !viewer})
               }
             })
-            .catch(() => setError('Could not save reminders.'))
+            .catch(() => {
+              setError('Could not save reminders.')
+              recordChannelEvent(experienceEvents.reminderSaveResult, {surface: 'channels_room', program_id: programId, outcome: 'unavailable', episode: true, weekly: false, verification_required: !viewer})
+            })
             .finally(() => setBusy(false))
         }}>
           <p>Get an email when new episodes air.</p>
@@ -136,23 +148,22 @@ export function ShareButton({ url, channel }: { url: string; channel: string }) 
       className={`${styles.button} ${styles.share}`}
       type="button"
       onClick={() => {
-        recordChannelEvent(channelEvents.shareAttempt, {channel})
         // The clipboard rejects in a non-secure context and can be denied by
         // the browser, so only claim success once the write actually lands.
         // `void` on a rejected promise would surface as an unhandled rejection.
         if (!navigator.clipboard) {
           setShared(false)
-          recordChannelEvent(channelEvents.shareResult, {channel, outcome: 'failed'})
+          recordChannelEvent(experienceEvents.shareResult, {surface: 'channels_room', channel_id: channel, share_kind: 'channel', outcome: 'unavailable'})
           return
         }
         navigator.clipboard.writeText(new URL(url, window.location.origin).href)
           .then(() => {
             setShared(true)
-            recordChannelEvent(channelEvents.shareResult, {channel, outcome: 'copied'})
+            recordChannelEvent(experienceEvents.shareResult, {surface: 'channels_room', channel_id: channel, share_kind: 'channel', outcome: 'succeeded'})
           })
           .catch(() => {
             setShared(false)
-            recordChannelEvent(channelEvents.shareResult, {channel, outcome: 'failed'})
+            recordChannelEvent(experienceEvents.shareResult, {surface: 'channels_room', channel_id: channel, share_kind: 'channel', outcome: 'failed'})
           })
       }}
     >

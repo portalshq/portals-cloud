@@ -42,9 +42,21 @@ export interface TrustedRequestContext {
   anonymousId: string;
   attribution: Attribution;
 }
-export function createAnonymousIngestion(options: {registry: import('./index.js').Registry; sink: Sink; maxBytes?: number; maxEvents?: number; resolveContext?: (request: Request) => Promise<TrustedRequestContext | undefined>}) {
+const attributionId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+export function createAnonymousIngestion(options: {
+  registry: import('./index.js').Registry;
+  sink: Sink;
+  /** Trusted application attribution, also applied to anonymous batches. */
+  attribution?: Attribution;
+  maxBytes?: number;
+  maxEvents?: number;
+  resolveContext?: (request: Request) => Promise<TrustedRequestContext | undefined>;
+  isSuppressed?: (userId: string) => Promise<boolean>;
+}) {
   const maxBytes = options.maxBytes ?? 16_384, maxEvents = options.maxEvents ?? 20;
+  if (options.attribution && ![options.attribution.tenantId, options.attribution.appId].every(attributionId)) throw new Error('Invalid analytics attribution');
   return async (request: Request): Promise<Response> => {
+    if (request.headers.get('sec-gpc') === '1') return new Response(null, {status: 204});
     if (Number(request.headers.get('content-length') || 0) > maxBytes) return new Response(null, {status: 413});
     let observations: Observation[];
     try {
@@ -70,8 +82,11 @@ export function createAnonymousIngestion(options: {registry: import('./index.js'
     catch { return new Response(null, {status: 401}); }
     if (context) {
       const {userId, anonymousId, attribution} = context;
-      if (!userId || userId.length > 128 || userId.includes('@') || !uuid.test(anonymousId) || !attribution || ![attribution.tenantId, attribution.appId].every(id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id)) || observations.some(event => event.identity?.anonymousId !== anonymousId)) return new Response(null, {status: 403});
+      if (!userId || userId.length > 128 || userId.includes('@') || !uuid.test(anonymousId) || !attribution || ![attribution.tenantId, attribution.appId].every(attributionId) || observations.some(event => event.identity?.anonymousId !== anonymousId)) return new Response(null, {status: 403});
+      if (await options.isSuppressed?.(userId)) return new Response(null, {status: 204});
       observations = observations.map(event => ({...event, identity: {anonymousId, userId}, attribution: {tenantId: attribution.tenantId, appId: attribution.appId}}));
+    } else if (options.attribution) {
+      observations = observations.map(event => ({...event, attribution: {...options.attribution!}}));
     }
     try {
       if (context) {
@@ -81,5 +96,70 @@ export function createAnonymousIngestion(options: {registry: import('./index.js'
       await options.sink.send(observations); return new Response(null, {status: 204});
     }
     catch { return new Response(null, {status: 502}); }
+  };
+}
+
+function bearer(request: Request): string | undefined {
+  const value = request.headers.get('authorization');
+  return value?.startsWith('Bearer ') ? value.slice(7).trim() || undefined : undefined;
+}
+
+/** Server endpoint for linking the recorder UUID to an identity verified by the host provider. */
+export function createVerifiedIdentifyIngestion(options: {
+  provider: VerifiedIdentityProvider;
+  sink: Sink;
+  isSuppressed?: (userId: string) => Promise<boolean>;
+}) {
+  return async (request: Request): Promise<Response> => {
+    if (request.headers.get('sec-fetch-site') === 'cross-site') return new Response(null, {status: 403});
+    const accessToken = bearer(request);
+    if (!accessToken) return new Response(null, {status: 401});
+    let anonymousId: string;
+    try {
+      const body = await request.json() as {anonymousId?: unknown};
+      if (typeof body.anonymousId !== 'string' || !uuid.test(body.anonymousId)) throw new Error('Invalid anonymous ID');
+      anonymousId = body.anonymousId;
+    } catch { return new Response(null, {status: 400}); }
+    try {
+      const identity = await options.provider.getIdentity(accessToken);
+      if (!identity.userId || identity.userId.length > 128 || identity.userId.includes('@')) return new Response(null, {status: 403});
+      if (await options.isSuppressed?.(identity.userId)) return new Response(null, {status: 204});
+      if (!options.sink.identify) return new Response(null, {status: 503});
+      await options.sink.identify({anonymousId, userId: identity.userId});
+      return new Response(null, {status: 204});
+    } catch { return new Response(null, {status: 401}); }
+  };
+}
+
+export interface AnalyticsPreferenceDatabase {
+  query(sql: string, params?: unknown[]): Promise<{rows: Record<string, unknown>[]}>;
+}
+export interface AnalyticsPreferenceStore {
+  isSuppressed(userId: string): Promise<boolean>;
+  setSuppressed(userId: string, suppressed: boolean): Promise<void>;
+}
+const opaqueUserId = (value: string) => Boolean(value && value.length <= 128 && !value.includes('@'));
+
+/** Apply the small platform preference table to the caller's central database. */
+export async function migrateAnalyticsPreferences(db: AnalyticsPreferenceDatabase): Promise<void> {
+  await db.query(`CREATE TABLE IF NOT EXISTS portals_analytics_preferences (
+    user_id text PRIMARY KEY,
+    suppressed boolean NOT NULL DEFAULT false,
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`);
+}
+
+export function createAnalyticsPreferenceStore(db: AnalyticsPreferenceDatabase): AnalyticsPreferenceStore {
+  return {
+    async isSuppressed(userId) {
+      if (!opaqueUserId(userId)) throw new Error('Invalid opaque user ID');
+      const result = await db.query('SELECT suppressed FROM portals_analytics_preferences WHERE user_id=$1', [userId]);
+      return result.rows[0]?.suppressed === true;
+    },
+    async setSuppressed(userId, suppressed) {
+      if (!opaqueUserId(userId)) throw new Error('Invalid opaque user ID');
+      await db.query(`INSERT INTO portals_analytics_preferences(user_id,suppressed) VALUES($1,$2)
+        ON CONFLICT(user_id) DO UPDATE SET suppressed=EXCLUDED.suppressed, updated_at=now()`, [userId, suppressed]);
+    },
   };
 }

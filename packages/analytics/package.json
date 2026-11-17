@@ -1,6 +1,6 @@
 {
   "name": "@portalshq/analytics",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Privacy-conscious analytics contracts and integrations for Portals",
   "type": "module",
   "exports": {
@@ -35,6 +35,14 @@
     "./channel-events": {
       "types": "./dist/channel-events.d.ts",
       "import": "./dist/channel-events.js"
+    },
+    "./experience-events": {
+      "types": "./dist/experience-events.d.ts",
+      "import": "./dist/experience-events.js"
+    },
+    "./media": {
+      "types": "./dist/media.d.ts",
+      "import": "./dist/media.js"
     },
     "./connector": {
       "types": "./dist/connector.d.ts",

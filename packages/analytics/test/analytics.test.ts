@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { Registry } from "../src/index.js";
 import { ActivityWindow, AnalyticsClient } from "../src/browser.js";
+import { createBrowserPrivacyPreference } from "../src/browser.js";
+import { createExperienceRegistry, experienceEvents } from "../src/experience-events.js";
+import { MediaEngagementTracker } from "../src/media.js";
 import { mapBillingEvent } from "../src/adapters/monetization.js";
 import { mapInteractionEvent } from "../src/adapters/interaction-orchestrator.js";
 import { createSegmentHttpTransport, createSegmentSink } from "../src/adapters/segment.js";
@@ -87,6 +90,30 @@ describe("analytics", () => {
     let now = 0; const w = new ActivityWindow("a", () => now); now = 10; w.pause(); now = 30; w.resume(); now = 35;
     expect(w.end("completed")).toEqual({id: "a", elapsedMs: 35, activeMs: 15, reason: "completed"});
     expect(w.end("unknown").reason).toBe("completed");
+  });
+  it("supports optional allowlisted properties without accepting unknown data", () => {
+    const r = createExperienceRegistry();
+    expect(r.validate(experienceEvents.pageViewed, {surface: "standalone", route: "/", entry_source: "direct"}).name).toBe(experienceEvents.pageViewed);
+    expect(() => r.validate(experienceEvents.pageViewed, {surface: "standalone", route: "/", entry_source: "direct", email: "private@example.com"})).toThrow("Invalid property");
+  });
+  it("honors persistent opt-out and Global Privacy Control", () => {
+    const values = new Map<string, string>();
+    let gpc = false;
+    const preference = createBrowserPrivacyPreference({storage: {getItem: key => values.get(key) ?? null, setItem: (key, value) => {values.set(key, value)}, removeItem: key => {values.delete(key)}}, globalPrivacyControl: () => gpc});
+    expect(preference.allowed()).toBe(true);
+    preference.setOptOut(true); expect(preference.allowed()).toBe(false);
+    preference.setOptOut(false); gpc = true; expect(preference.allowed()).toBe(false);
+  });
+  it("emits sparse active-view and completion milestones", () => {
+    let now = 0;
+    const record = vi.fn(() => true);
+    const tracker = new MediaEngagementTracker({record}, {surface: "standalone", content_kind: "on_demand", player_kind: "hls"}, () => now);
+    tracker.impression(); tracker.play(); now = 11_000; tracker.progress(25, 100); tracker.pause(); tracker.end("interrupted");
+    const names = record.mock.calls.map(call => call[0]);
+    expect(names).toContain(experienceEvents.mediaEngaged);
+    expect(names).toContain(experienceEvents.mediaProgress);
+    expect(names).toContain(experienceEvents.mediaEnded);
+    expect(names.filter(name => name === experienceEvents.mediaProgress)).toHaveLength(1);
   });
 });
 

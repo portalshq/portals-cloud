@@ -96,6 +96,7 @@ export function ChannelPreview({
           channel={{ ...channel, stream: hls }}
           paused={!active}
           muted={muted || !active}
+          contentKind="preview"
           noteClassName={noteClassName ?? styles.status}
         />
       ) : video ? (

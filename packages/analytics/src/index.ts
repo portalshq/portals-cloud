@@ -1,6 +1,10 @@
 export type Value = string | number | boolean | null;
 export type Properties = Readonly<Record<string, Value>>;
-export type PropertyRule = { type: "number" | "boolean" } | { type: "enum"; values: readonly string[] } | { type: "string"; maxLength: number; pattern: string };
+export type PropertyRule = (
+  | { type: "number" | "boolean" }
+  | { type: "enum"; values: readonly string[] }
+  | { type: "string"; maxLength: number; pattern: string }
+) & { required?: boolean };
 export interface EventDefinition {
   name: string;
   purpose: string;
@@ -44,8 +48,8 @@ export class Registry {
   validate(name: string, properties: Properties): EventDefinition {
     const definition = this.definitions.get(name);
     if (!definition) throw new Error("Unregistered event");
-    for (const key of Object.keys(definition.properties)) {
-      if (!Object.hasOwn(properties, key)) throw new Error(`Missing property: ${key}`);
+    for (const [key, rule] of Object.entries(definition.properties)) {
+      if (rule.required !== false && !Object.hasOwn(properties, key)) throw new Error(`Missing property: ${key}`);
     }
     for (const [key, value] of Object.entries(properties)) {
       const rule = definition.properties[key];

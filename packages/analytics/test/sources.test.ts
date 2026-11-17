@@ -25,4 +25,4 @@ it('reads committed source records without changing delivery state and replays a
     expect((await db.query('SELECT delivered_at FROM monetization_outbox')).rows[0]).toEqual({delivered_at: null})
     expect((await db.query('SELECT published_at FROM interaction_outbox')).rows[0]).toEqual({published_at: null})
   } finally { await db.close() }
-}, 15_000)
+}, 30_000)

@@ -5,7 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoomSound, type RoomAccount } from '@/lib/room-controls'
+import { experienceEvents } from '@/lib/analytics-contract'
+import { recordChannelEvent } from '@/lib/analytics-client'
 import { Rail } from '@/components/shell/Rail'
+import { AnalyticsPrivacy } from '@/components/analytics/AnalyticsPrivacy'
 import { FollowButton, ShareButton } from './actions'
 import { ChannelAppRoom } from './ChannelAppRoom'
 import { ChannelHeadingFonts } from './ChannelHeadingFonts'
@@ -47,6 +50,7 @@ function Card({
   onPreference: (slug: string, preferred: boolean) => void
 }) {
   const [ref, { visible }] = useOnScreen<HTMLLIElement>()
+  const impressionRecorded = useRef(false)
   const channel = useChannelPreview(initialChannel, active && visible)
   const { slug, preview } = initialChannel
 
@@ -56,11 +60,25 @@ function Card({
     return () => onVisibility(slug, false)
   }, [onVisibility, preview, slug, visible])
 
+  useEffect(() => {
+    if (!visible || impressionRecorded.current) return
+    const timer = window.setTimeout(() => {
+      impressionRecorded.current = true
+      recordChannelEvent(experienceEvents.channelCardImpression, {
+        surface: 'channels_browse', channel_id: slug,
+        ...(initialChannel.programId ? {program_id: initialChannel.programId} : {}),
+        position: 0, featured: false,
+      })
+    }, 1_000)
+    return () => window.clearTimeout(timer)
+  }, [initialChannel.programId, slug, visible])
+
   return (
     <li ref={ref}>
       <Link
         className={styles.card}
         href={`/${slug}`}
+        onClick={() => recordChannelEvent(experienceEvents.channelOpened, {surface: 'channels_browse', channel_id: slug, ...(initialChannel.programId ? {program_id: initialChannel.programId} : {}), origin: 'grid'})}
         onPointerEnter={preview ? () => onPreference(slug, true) : undefined}
         onPointerLeave={preview ? () => onPreference(slug, false) : undefined}
         onFocus={preview ? () => onPreference(slug, true) : undefined}
@@ -221,6 +239,10 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
   const [visiblePreviews, setVisiblePreviews] = useState<Set<string>>(() => new Set())
   const [preferredPreview, setPreferredPreview] = useState<string | null>(null)
 
+  useEffect(() => {
+    recordChannelEvent(experienceEvents.pageViewed, {surface: 'channels_browse', route: location.pathname, entry_source: document.referrer ? 'referral' : 'direct'})
+  }, [])
+
   const scrollToBrowseHead = () => {
     if (!window.matchMedia(tabletBrowse).matches) return
 
@@ -252,6 +274,15 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
     [channels, filter, query, featured],
   )
 
+  useEffect(() => {
+    if (!query.trim()) return
+    const timer = window.setTimeout(() => {
+      const length = query.trim().length
+      recordChannelEvent(experienceEvents.channelSearchUsed, {surface: 'channels_browse', results: visible.length, query_length_bucket: length < 4 ? 'short' : length < 12 ? 'medium' : 'long'})
+    }, 500)
+    return () => window.clearTimeout(timer)
+  }, [query, visible.length])
+
   const activePreview = visible.find(({ slug }) => slug === preferredPreview && visiblePreviews.has(slug))
     ?? visible.find(({ slug }) => visiblePreviews.has(slug))
 
@@ -274,7 +305,7 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
           </div>
         </section> */}
         <section className={styles.featured} aria-labelledby="featured-heading">
-          <Link className={styles.featuredCard} href={`/${featured.slug}`}>
+          <Link className={styles.featuredCard} href={`/${featured.slug}`} onClick={() => recordChannelEvent(experienceEvents.channelOpened, {surface: 'channels_browse', channel_id: featured.slug, ...(featured.programId ? {program_id: featured.programId} : {}), origin: 'featured'})}>
             <span className={styles.featuredMedia}>
               <ChannelPreview channel={featured} active={false} />
               {featured.live && <span className={styles.pill}>live now</span>}
@@ -312,7 +343,10 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
             )} */}
             <Tools
               filter={filter}
-              onFilter={setFilter}
+              onFilter={(next) => {
+                setFilter(next)
+                recordChannelEvent(experienceEvents.channelFilterChanged, {surface: 'channels_browse', filter: (next ?? 'all').toLowerCase().replace(/\s+/g, '_'), enabled: next !== null})
+              }}
               query={query}
               onQuery={setQuery}
               onSearchOpen={scrollToBrowseHead}
@@ -351,6 +385,7 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
 
         <footer className={styles.footer}>
           <span>© 2026</span>
+          <AnalyticsPrivacy />
         </footer>
       </main>
     </>
@@ -387,6 +422,12 @@ function ChannelDetail({ channel, embed }: { channel: Channel; embed?: boolean }
   const [account, setAccount] = useState<RoomAccount | null>(null)
   const [appSoundAvailable, setAppSoundAvailable] = useState(false)
   const hasSound = channel.app ? appSoundAvailable : Boolean(channel.stream)
+
+  useEffect(() => {
+    const surface = embed ? 'channels_embed' : channel.app ? 'channels_app_room' : 'channels_room'
+    recordChannelEvent(experienceEvents.pageViewed, {surface, route: location.pathname, channel_id: channel.slug, ...(channel.programId ? {program_id: channel.programId} : {}), entry_source: embed ? 'social' : document.referrer ? 'referral' : 'direct'})
+    recordChannelEvent(experienceEvents.channelOpened, {surface, channel_id: channel.slug, ...(channel.programId ? {program_id: channel.programId} : {}), origin: embed ? 'embed' : 'direct'})
+  }, [channel.app, channel.programId, channel.slug, embed])
 
   return (
     <>

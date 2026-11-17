@@ -128,7 +128,7 @@ describe('analytics connector', () => {
 
   it('delivers interaction events only with a verified identity and blocks otherwise', async () => {
     const { db, query } = await database(BILLING_TABLE, INTERACTION_TABLE,
-      INTERACTION('with-id'), INTERACTION('without-id', 'resolution_failed'))
+      INTERACTION('with-id', 'submission_created'), INTERACTION('without-id', 'submission_created'), INTERACTION('aggregate', 'resolution_failed'))
     try {
       const send = vi.fn().mockResolvedValue(undefined)
       const resolveInteractionIdentity = vi.fn(async (record: Record<string, unknown>) =>
@@ -137,14 +137,15 @@ describe('analytics connector', () => {
         sink: { send }, resolveWorld: async (w: string) => (w === 'world-1' ? 'tenant' : undefined), resolveInteractionIdentity,
       }))
       const result = await connector.drainOnce()
-      expect(result).toMatchObject({ delivered: 1, blocked: 1 })
-      const message = send.mock.calls[0][0][0]
+      expect(result).toMatchObject({ delivered: 2, blocked: 1 })
+      const message = send.mock.calls.map(call => call[0][0]).find(m => m.id.endsWith(':interaction:with-id'))
       expect(message.id).toBe('portals-analytics:app:tenant:interaction:with-id')
       expect(message.occurredAt).toBe('2026-05-30T00:00:00.000Z')
       expect(message.identity).toEqual({ userId: 'verified-user' })
       expect(message.properties).toMatchObject({ portals_source_id: 'with-id', portals_source_kind: 'interaction' })
       expect(JSON.stringify(message)).not.toContain('private')
       expect(await state(query, 'without-id')).toMatchObject({ state: 'blocked', last_failure_category: 'missing_identity' })
+      expect(await state(query, 'aggregate')).toMatchObject({ state: 'delivered' })
       expect((await query('SELECT published_at FROM interaction_outbox')).rows[0]!.published_at).toBeNull()
     } finally { await db.close() }
   }, 20_000)

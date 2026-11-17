@@ -3,8 +3,8 @@ import { getChannelApps } from '../../../../../lib/channel-apps'
 
 type Context = { params: Promise<{ slug: string; path: string[] }> }
 
-const reads = /^(channel|chat(?:\/stream)?|channels\/[A-Za-z0-9-]+\/playback|monetization\/catalog|interactions\/(choice|stream|squads\/[A-Za-z0-9-]+)|auth\/(me|session\/[A-Fa-f0-9-]+)|guides\/balance|sessions\/next\.ics|reactor\/state|entity-image|choice-images\/[a-f0-9]{64})$/
-const writes = /^(chat|guides|reminders|monetization\/checkout|auth\/(session|refresh|logout|display-name)|reactor\/session|interactions\/(guest\/claim|feedback|reactions|squads|squads\/[A-Za-z0-9-]+\/join|[A-Za-z0-9-]+\/vote))$/
+const reads = /^(channel|chat(?:\/stream)?|analytics\/preferences|channels\/[A-Za-z0-9-]+\/playback|monetization\/catalog|interactions\/(choice|stream|squads\/[A-Za-z0-9-]+)|auth\/(me|session\/[A-Fa-f0-9-]+)|guides\/balance|sessions\/next\.ics|reactor\/state|entity-image|choice-images\/[a-f0-9]{64})$/
+const writes = /^(chat|guides|reminders|analytics\/(events|identify|preferences)|monetization\/checkout|auth\/(session|refresh|logout|display-name)|reactor\/session|interactions\/(guest\/claim|feedback|reactions|squads|squads\/[A-Za-z0-9-]+\/join|[A-Za-z0-9-]+\/vote))$/
 
 async function forward(request: Request, { params }: Context): Promise<Response> {
   const { slug, path: segments } = await params
@@ -23,7 +23,7 @@ async function forward(request: Request, { params }: Context): Promise<Response>
     'X-Channel-Surface': 'channels',
     'X-Channel-Origin': request.headers.get('origin') ?? requestUrl.origin,
   })
-  for (const key of ['accept', 'authorization', 'content-type', 'last-event-id', 'x-guest-token']) {
+  for (const key of ['accept', 'authorization', 'content-type', 'last-event-id', 'x-guest-token', 'x-analytics-anonymous-id', 'sec-gpc']) {
     const value = request.headers.get(key)
     if (value) headers.set(key, value)
   }

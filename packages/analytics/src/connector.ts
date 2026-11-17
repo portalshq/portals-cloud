@@ -1,6 +1,7 @@
 import type { Attribution, Observation, Sink } from './index.js';
 import { mapBillingEvent } from './adapters/monetization.js';
 import { mapInteractionEvent } from './adapters/interaction-orchestrator.js';
+import { interactionEventRequiresIdentity } from './adapters/interaction-orchestrator.js';
 import { SegmentDeliveryError } from './adapters/segment.js';
 import { runMigrations, validateSourceSchema, type SourceKind } from './migrations.js';
 
@@ -212,6 +213,7 @@ export class AnalyticsConnector {
         return 'dead';
       }
       let event: Observation | undefined, tenantId: string | undefined;
+      let identityRequired = kind === 'billing';
       if (kind === 'billing') {
         const payload = source.payload as Record<string, unknown>;
         try {
@@ -239,6 +241,7 @@ export class AnalyticsConnector {
           return 'excluded';
         }
         tenantId = await this.options.resolveWorld!(String(source.world_id));
+        identityRequired = interactionEventRequiresIdentity(String(source.event_type));
       }
       if (!tenantId || !identifier(tenantId) || !(await this.options.authorizeTenant(tenantId))) {
         await this.mark(kind, id, token, 'blocked', 'invalid_attribution');
@@ -262,7 +265,7 @@ export class AnalyticsConnector {
         await this.mark(kind, id, token, 'excluded', null);
         return 'excluded';
       }
-      if (!event.identity?.userId && !event.identity?.anonymousId) {
+      if (identityRequired && !event.identity?.userId && !event.identity?.anonymousId) {
         await this.mark(kind, id, token, 'blocked', 'missing_identity');
         this.lastFailure = 'missing_identity';
         return 'blocked';
@@ -270,7 +273,8 @@ export class AnalyticsConnector {
       const messageId = `portals-analytics:${this.options.appId}:${tenantId}:${kind}:${id}`;
       const delivery: Observation = {
         ...event, id: messageId,
-        properties: {...event.properties, portals_source_id: id, portals_source_kind: kind},
+        properties: {...event.properties, portals_source_id: id, portals_source_kind: kind,
+          ...(kind === 'interaction' ? {portals_world_id: String(source.world_id)} : {})},
         attribution: {tenantId, appId: this.options.appId} satisfies Attribution,
       };
       await this.options.sink.send([delivery]);

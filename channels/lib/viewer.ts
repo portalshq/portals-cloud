@@ -1,3 +1,6 @@
+import { experienceEvents } from './analytics-contract'
+import { bindChannelAnalyticsIdentity, flushChannelAnalytics, recordChannelEvent, resetChannelAnalyticsIdentity } from './analytics-client'
+
 type Session = { userId?: string; token: string; refreshToken: string | null; expiresAt: number | null; displayName: string | null }
 const SESSION = 'channels:viewer'
 const HANDOFF = 'channels:sign-in'
@@ -49,6 +52,7 @@ export function requestSignIn() {
 }
 
 export async function startSignIn() {
+  recordChannelEvent(experienceEvents.authStarted, {surface: 'channels_shell', method: 'hosted'})
   const response = await post('start')
   const data = await response.json()
   if (!response.ok) throw new Error(data.error)
@@ -82,12 +86,20 @@ export async function finishSignIn() {
   sessionStorage.removeItem(HANDOFF)
   history.replaceState(history.state, '', location.pathname)
   if (!pending || params.get('error') || pending.state !== params.get('state')
-    || pending.sessionCode !== params.get('session_code')) throw new Error('Sign-in did not complete. Try again.')
+    || pending.sessionCode !== params.get('session_code')) {
+    recordChannelEvent(experienceEvents.authResult, {surface: 'channels_shell', method: 'hosted', outcome: 'failed'})
+    throw new Error('Sign-in did not complete. Try again.')
+  }
   const response = await post('complete', { sessionCode: pending.sessionCode, state: pending.state })
-  if (!response.ok) throw new Error('Sign-in did not complete. Try again.')
+  if (!response.ok) {
+    recordChannelEvent(experienceEvents.authResult, {surface: 'channels_shell', method: 'hosted', outcome: 'failed'})
+    throw new Error('Sign-in did not complete. Try again.')
+  }
   const viewer: Session = await response.json()
   sessionVersion++
   save(viewer)
+  recordChannelEvent(experienceEvents.authResult, {surface: 'channels_shell', method: 'hosted', outcome: 'succeeded'})
+  void bindChannelAnalyticsIdentity()
   if (viewer.displayName) sessionStorage.removeItem(USERNAME_PROMPT)
   else sessionStorage.setItem(USERNAME_PROMPT, 'pending')
   return typeof pending.returnTo === 'string' && /^\/(?![\/\\])/.test(pending.returnTo) ? pending.returnTo : '/'
@@ -98,6 +110,8 @@ export async function signOut() {
   const credential = getViewer()?.refreshToken
   sessionVersion++
   save(null)
+  recordChannelEvent(experienceEvents.authSignedOut, {surface: 'channels_shell'})
+  void (flushChannelAnalytics() ?? Promise.resolve()).finally(() => resetChannelAnalyticsIdentity())
   await pending
   if (credential) await post('sign-out', { refreshToken: credential }).catch(() => {})
 }
