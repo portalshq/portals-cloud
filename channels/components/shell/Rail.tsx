@@ -3,9 +3,11 @@
 import { ChevronLeft, Compass, Home, Volume2, VolumeX } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import type { RoomAccount } from '@/lib/room-controls'
 import { ViewerAccount } from '@/components/auth/ViewerAccount'
 import { FollowButton } from '@/components/channels/actions'
+import { openFullRoom } from '@/lib/x-card'
 import styles from './Rail.module.css'
 
 const links = [
@@ -19,11 +21,21 @@ type RailProps = {
   program?: { id?: string; slug: string }
   sound?: { muted: boolean; toggle: () => void; disabled?: boolean }
   account?: RoomAccount | null
+  /** X Player Card room: no in-app navigation or account menu. The wordmark
+   *  opens the full room, and sign-in requests hand off to it. */
+  embed?: boolean
 }
 
-export function Rail({ roomSlug, program, sound, account }: RailProps) {
+export function Rail({ roomSlug, program, sound, account, embed }: RailProps) {
   const router = useRouter()
   const pathname = usePathname()
+
+  useEffect(() => {
+    if (!embed || !roomSlug) return
+    const handoff = () => openFullRoom(roomSlug)
+    window.addEventListener('channels:open-account', handoff)
+    return () => window.removeEventListener('channels:open-account', handoff)
+  }, [embed, roomSlug])
 
   function goBack() {
     const navigation = (window as Window & {
@@ -42,7 +54,13 @@ export function Rail({ roomSlug, program, sound, account }: RailProps) {
   return (
     <nav className={styles.rail} aria-label="Primary">
       <ul className={styles.links}>
-        {roomSlug ? (
+        {embed && roomSlug ? (
+          <li>
+            <a className={styles.link} href={`/${roomSlug}`} target="_blank" rel="noopener">
+              <span>channels</span>
+            </a>
+          </li>
+        ) : roomSlug ? (
           <li>
             <button type="button" className={styles.back} aria-label="Back" onClick={goBack}>
               <ChevronLeft size={18} aria-hidden="true" />
@@ -77,8 +95,12 @@ export function Rail({ roomSlug, program, sound, account }: RailProps) {
             <span>{sound.muted ? 'Tap for Sound' : 'Sound On'}</span>
           </button>
         )}
-        <ViewerAccount roomAccount={account} />
-        <span className={styles.wordmark}>channels</span>
+        {!embed && (
+          <>
+            <ViewerAccount roomAccount={account} />
+            <span className={styles.wordmark}>channels</span>
+          </>
+        )}
       </div>
     </nav>
   )

@@ -7,7 +7,14 @@ const nextConfig: NextConfig = {
       { key: 'Referrer-Policy', value: 'no-referrer' },
       { key: 'Cache-Control', value: 'no-store' },
       { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
-    ] }]
+    ] }, {
+      // X Player Cards frame only the slim player route; every other route keeps the default.
+      source: '/embed/:slug',
+      headers: [
+        { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://x.com https://*.x.com https://twitter.com https://*.twitter.com" },
+        { key: 'X-Robots-Tag', value: 'noindex' },
+      ],
+    }]
   },
   serverExternalPackages: ['@portalshq/capability-identity'],
   // Channels only uses HLS; the video package's optional WebRTC SDK is not installed.

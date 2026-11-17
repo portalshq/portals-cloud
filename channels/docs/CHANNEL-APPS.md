@@ -107,3 +107,6 @@ Social" owner credit, Playfair Display heading font, and the `/preview` splash
 poster — so its entry only needs an `origin`. Channels also
 accepts the older Bears bundle's `mountBears` export during rollout. Bears
 production controls still use their existing admin configuration.
+
+A registered app with a `poster` is also shareable on X as a Player Card; see
+[Share a program on X](./X-PLAYER-CARD.md).

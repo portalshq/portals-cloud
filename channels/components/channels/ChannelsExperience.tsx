@@ -381,7 +381,7 @@ function Stage({ channel, muted }: { channel: Channel & { stream: string }; mute
   )
 }
 
-function ChannelDetail({ channel }: { channel: Channel }) {
+function ChannelDetail({ channel, embed }: { channel: Channel; embed?: boolean }) {
   const [sound] = useState(createRoomSound)
   const muted = useSyncExternalStore(sound.subscribe, sound.getMuted, () => true)
   const [account, setAccount] = useState<RoomAccount | null>(null)
@@ -390,7 +390,7 @@ function ChannelDetail({ channel }: { channel: Channel }) {
 
   return (
     <>
-      <Rail roomSlug={channel.slug} program={{ id: channel.programId, slug: channel.slug }} sound={{ muted, toggle: sound.toggle, disabled: !hasSound }} account={account} />
+      <Rail roomSlug={channel.slug} embed={embed} program={{ id: channel.programId, slug: channel.slug }} sound={{ muted, toggle: sound.toggle, disabled: !hasSound }} account={account} />
       {channel.app ? (
         <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title}
           heading={channel.heading} sound={sound} onAccountChange={setAccount} onSoundAvailable={setAppSoundAvailable} />
@@ -410,11 +410,13 @@ function ChannelDetail({ channel }: { channel: Channel }) {
   )
 }
 
-export function ChannelsExperience({ channels, channel }: { channels: Channel[]; channel?: Channel }) {
+/** `embed` renders the room for an X Player Card: the same room and rail
+ *  controls, without in-app navigation or the account menu. */
+export function ChannelsExperience({ channels, channel, embed }: { channels: Channel[]; channel?: Channel; embed?: boolean }) {
   return (
     <>
       <ChannelHeadingFonts channels={channel ? [channel] : channels} />
-      {channel ? <ChannelDetail key={channel.slug} channel={channel} /> : <BrowseIndex channels={channels} />}
+      {channel ? <ChannelDetail key={channel.slug} channel={channel} embed={embed} /> : <BrowseIndex channels={channels} />}
     </>
   )
 }

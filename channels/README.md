@@ -37,3 +37,10 @@ stops; the dry-run database containers remain running. See the
 [Bears dry-run documentation](../../bears-live-app/README.md#dry-run-mode) and
 [`run-dryrun.sh`](../../bears-live-app/scripts/run-dryrun.sh) for configuration
 and lifecycle details.
+
+## Share a program on X
+
+Program room links (`/<slug>`) render as playable X Player Cards. X frames the
+slim player at `/embed/<slug>`, the only route Channels allows to be framed.
+See [Share a program on X](docs/X-PLAYER-CARD.md) for the routes, sandbox
+limits, and test steps.
