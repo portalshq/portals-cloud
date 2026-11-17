@@ -1,29 +1,10 @@
 .room {
   position: relative;
   z-index: 0;
-  /* The rail is fixed over every page: top margin (--space-7) + 38px bar, plus
-     a step of air so mounted room UI never starts underneath it. */
-  --room-rail-clearance: calc(38px + var(--space-7) + var(--space-3));
-  min-height: calc(100dvh - var(--room-rail-clearance));
-  padding-block-start: var(--room-rail-clearance);
 }
 
 .room > p {
   padding-inline: var(--text-inset);
-}
-
-@media (max-width: 1400px) and (pointer: coarse) {
-  .room {
-    /* Coarse rail: 31px bar on a --space-6 margin. */
-    --room-rail-clearance: calc(31px + var(--space-6) + var(--space-2));
-  }
-}
-
-@media (min-width: 1401px) and (orientation: landscape) and (pointer: coarse) {
-  .room {
-    --room-rail-clearance: var(--tablet-nav-height);
-    --bears-room-height: calc(100dvh - var(--tablet-nav-height));
-  }
 }
 
 @media (max-width: 640px) {

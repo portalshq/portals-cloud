@@ -6,3 +6,4 @@ dist/
 next-env.d.ts
 public/admin/
 .env.local
+.env.production

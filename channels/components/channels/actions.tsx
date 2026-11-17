@@ -56,7 +56,7 @@ export function FollowButton({ channel, programId, className }: { channel: strin
             .finally(() => setBusy(false))
         }}
       >
-        <Bell className="filled" size={16} strokeWidth={1.75} />
+        <Bell className={following ? "filled" : ""} size={16} strokeWidth={1.75} />
         {following ? 'Following' : 'Follow'}
       </button>
       {programId && <ReminderPrompt programId={programId} open={promptOpen} onClose={() => setPromptOpen(false)} />}

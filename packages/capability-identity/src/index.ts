@@ -5,4 +5,5 @@ export * from "./guest-store.js";
 export * from "./signup-bonus.js";
 export { CentralIdentityStore } from "./central-store.js";
 export * from "./auth-gateway-client.js";
+export * from "./program-follows.js";
 export { runCentralMigrations } from "./migrations.js";

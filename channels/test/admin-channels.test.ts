@@ -79,6 +79,20 @@ describe("GET /api/admin/channels", () => {
     const body = await res.json();
     expect(body[0]).toMatchObject({ id: "bears", stationId: null, programId: null, nextSession: null });
   });
+
+  it("returns each distinct bound program for explicit selection", async () => {
+    const central = makePool((sql) => sql.includes("bindings") ? { rows: [
+      { ...bindingRow, program_name: "Bears", description: "Bears story", tagline: "Bears tagline" },
+      { ...bindingRow, station_id: "station-2", program_name: "Bears", description: "Bears story", tagline: "Bears tagline" },
+      { ...bindingRow, program_id: "other", program_name: "Other", description: null, tagline: null },
+    ] } : { rows: [] });
+    usePools({ app: makePool(appHandler), central });
+    const body = await (await GET(adminRequest("/api/admin/channels"))).json();
+    expect(body[0].programs).toEqual([
+      { id: "bears-live", name: "Bears", description: "Bears story", tagline: "Bears tagline" },
+      { id: "other", name: "Other", description: null, tagline: null },
+    ]);
+  });
 });
 
 describe("POST /api/admin/channels", () => {

@@ -26,6 +26,9 @@ interface BindingRow {
   channel_id: string;
   station_id: string | null;
   program_id: string;
+  program_name: string;
+  description: string | null;
+  tagline: string | null;
 }
 
 interface NextSlotRow {
@@ -54,17 +57,19 @@ export async function GET(request: Request): Promise<Response> {
     ]);
 
     const bindings = new Map<string, BindingRow>();
+    const programsByChannel = new Map<string, Map<string, AdminChannelDto["programs"][number]>>();
     const nextByChannel = new Map<string, NextSlotRow>();
     if (adminEnv().centralDatabaseUrl) {
       try {
         const central = centralDb();
         const [bindingRows, nextRows] = await Promise.all([
           central.query<BindingRow>(
-            `SELECT DISTINCT channel_id, station_id, program_id FROM (
+            `SELECT DISTINCT bindings.channel_id, bindings.station_id, bindings.program_id, p.name AS program_name, p.description, p.tagline FROM (
                SELECT channel_id, station_id, program_id FROM station_schedule_rules
                UNION
                SELECT channel_id, station_id, program_id FROM station_program_slots
-             ) bindings`,
+             ) bindings JOIN programs p ON p.id = bindings.program_id
+             ORDER BY bindings.channel_id, bindings.program_id, bindings.station_id NULLS LAST`,
           ),
           central.query<NextSlotRow>(
             `SELECT DISTINCT ON (channel_id) channel_id, starts_at, ends_at, metadata
@@ -73,7 +78,12 @@ export async function GET(request: Request): Promise<Response> {
              ORDER BY channel_id, starts_at`,
           ),
         ]);
-        for (const row of bindingRows.rows) bindings.set(row.channel_id, row);
+        for (const row of bindingRows.rows) {
+          bindings.set(row.channel_id, row);
+          const programs = programsByChannel.get(row.channel_id) ?? new Map();
+          programs.set(row.program_id, { id: row.program_id, name: row.program_name ?? row.program_id, description: row.description ?? null, tagline: row.tagline ?? null });
+          programsByChannel.set(row.channel_id, programs);
+        }
         for (const row of nextRows.rows) nextByChannel.set(row.channel_id, row);
       } catch (error) {
         console.error("[admin] central enrichment failed; returning app channels only:", error);
@@ -100,6 +110,7 @@ export async function GET(request: Request): Promise<Response> {
           : null,
         stationId: binding?.station_id ?? null,
         programId: binding?.program_id ?? null,
+        programs: [...(programsByChannel.get(channel.id)?.values() ?? [])],
         nextSession: next
           ? {
               startsAt: next.starts_at.toISOString(),
@@ -158,6 +169,7 @@ export async function POST(request: Request): Promise<Response> {
           },
           stationId: null,
           programId: null,
+          programs: [],
           nextSession: null,
         } satisfies AdminChannelDto,
         201,

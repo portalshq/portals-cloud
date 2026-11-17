@@ -65,8 +65,8 @@
   --color-accent-fg: #fff;
   --color-gold: #f5bc47;
   --color-border: oklch(0.42 0.016 150);
+  --color-bg-fade: oklch(0.16 0.012 150 / 0.4);
   --color-fg-fade: rgb(255 255 255 / 10%);
-
 
   /* Functional signals only. Never decoration. */
   --color-success: var(--color-accent);
@@ -84,7 +84,8 @@
   --glow-card: 0 14px 34px -20px oklch(0.96 0.01 140 / 0.1);
   --shadow-sm: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.05);
   --shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.15);
-  --shadow-lg: 0 16px 38px rgb(0 0 0 / 32%);
+  --shadow-lg: 0 16px 38px rgb(0 0 0 / 100%);
+  --text-shadow: 0 1px 2px var(--color-bg-fade);
 
   --duration: 120ms;
   --duration-menu-close: .12s;
@@ -130,6 +131,10 @@ body {
 
 button, a {
   font-weight: 300 !important;
+  text-shadow: var(--text-shadow);
+  & svg {
+    filter: drop-shadow(var(--text-shadow));
+  }
 }
 
 @media (max-width: 640px) {

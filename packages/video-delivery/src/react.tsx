@@ -265,3 +265,6 @@ function ReactorWebRTCWrapper({
     style: { width: "100%", height: "100%", objectFit: "contain" },
   });
 }
+
+export { useProgramOpening } from "./use-program-opening.js";
+export type { ProgramOpeningPhase } from "./program-opening.js";

@@ -7,6 +7,11 @@ adapters require an active local account for those operations. Profile sync and 
 validation are explicit trusted-server operations: they do **not** verify access tokens or
 establish authorization. Never expose sync with an arbitrary browser-supplied user ID.
 
+`ProgramFollowsStore` stores and lists program follows independently of email
+subscriptions. Its caller must authenticate the user before calling it. It
+requires the `program_follows` central migration in the consuming application;
+it does not enable notifications or verify an email address.
+
 ## Program and producer nomenclature
 
 Channels own programs; stations hold schedules and program slots. Tenants are

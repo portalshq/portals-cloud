@@ -110,10 +110,10 @@ export type Filter = (typeof filters)[number]
 
 /* Each filter is an icon with its label set underneath it. */
 export const filterIcons = {
-  'Live now': Radio,
-  Play: Gamepad2,
-  Stories: BookOpen,
-  Learning: GraduationCap,
+  'Live now': { icon: Radio, size: 19 },
+  Play: { icon: Gamepad2, size: 19 },
+  Stories: { icon: BookOpen, size: 17 },
+  Learning: { icon: GraduationCap, size: 19 },
 } as const
 
 export const browseCopy = {

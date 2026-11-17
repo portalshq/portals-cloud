@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { isIP } from 'node:net'
 import type { Pool } from 'pg'
-import { createResendNotifications, EmailVerificationStore, type VerificationIntent } from '@portalshq/capability-email-notifications'
+import { createResendNotifications, EmailVerificationStore, notificationOrigin, type VerificationIntent } from '@portalshq/capability-email-notifications'
 
 export class NotificationVerificationError extends Error {
   constructor(message: string, readonly status: number) { super(message) }
@@ -10,8 +10,7 @@ export class NotificationVerificationError extends Error {
 /** Sends a mailbox proof without treating a claimed account address as verified. */
 export async function sendNotificationVerification(db: Pool, request: Request, email: string, userId: string | null,
   timezone: string, intent?: VerificationIntent): Promise<void> {
-  const publicUrl = new URL(process.env.NOTIFICATIONS_PUBLIC_URL ?? '')
-  if (publicUrl.protocol !== 'https:' || publicUrl.username || publicUrl.password || publicUrl.pathname !== '/' || publicUrl.search || publicUrl.hash) throw new Error('Notifications public URL must be an HTTPS origin')
+  const publicUrl = notificationOrigin(process.env.NOTIFICATIONS_PUBLIC_URL ?? '', process.env.NOTIFICATIONS_ALLOW_PRIVATE_HTTP === 'true')
   const key = process.env.RESEND_API_KEY ?? '', from = process.env.RESEND_FROM_EMAIL ?? ''
   if (!key || !from) throw new Error('Notification email is not configured')
   const rateSecret = process.env.NOTIFICATIONS_UNSUBSCRIBE_SECRET ?? ''

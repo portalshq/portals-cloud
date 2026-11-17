@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "next dev -H 100.125.2.45 -p 4000",
     "dev:admin": "npm --prefix admin run dev",
-    "build": "npm --prefix admin install && npm --prefix admin run build && next build",
-    "start": "next start --port 4000",
+    "build": "npm run build --workspace=@portalshq/channel-registry && npm run build --workspace=@portalshq/capability-email-notifications && npm --prefix admin install && npm --prefix admin run build && next build",
+    "start": "next start -H 100.125.2.45 -p 4000",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -16,6 +16,7 @@
     "@portalshq/capability-email-notifications": "^0.1.0",
     "@portalshq/capability-identity": "^0.6.0",
     "@portalshq/capability-video-delivery": "^0.1.8",
+    "@portalshq/channel-registry": "0.2.3",
     "hls.js": "^1.5.0",
     "lucide-react": "^1.24.0",
     "next": "^16.2.12",
@@ -25,6 +26,7 @@
     "three": "0.184.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
     "@types/node": "^26.1.1",
     "@types/pg": "^8.20.0",
     "@types/react": "^19.2.17",

@@ -133,7 +133,6 @@
   }
 }
 
-.follow,
 .back,
 .sound {
   display: inline-flex;
@@ -141,8 +140,8 @@
   justify-content: center;
   gap: var(--space-2);
   height: 100%;
+  overflow: clip;
   aspect-ratio: 1/1;
-  padding-inline: var(--space-3);
   color: var(--color-fg);
   border-radius: var(--radius-pill);
   font: var(--font-micro);
@@ -157,6 +156,34 @@
 
 .back {
   border: none;
+}
+
+.foot .follow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 0;
+  height: 100%;
+  aspect-ratio: 1/1;
+  padding-inline: var(--space-3);
+  border: 0;
+  color: var(--color-fg);
+  border-radius: var(--radius-pill);
+  font: var(--font-micro);
+  background: var(--color-fg-fade);
+  cursor: pointer;
+  transition: background var(--duration-menu-close), width var(--duration) var(--ease-out);
+}
+
+.foot .follow[aria-pressed="true"] {
+  content: "";
+}
+
+@media (hover: hover) {
+  .foot .follow:hover {
+    background: var(--color-fg-fade);
+  }
 }
 
 .sound {

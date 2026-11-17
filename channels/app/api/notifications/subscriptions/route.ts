@@ -1,5 +1,5 @@
 import { CentralIdentityStore, ProgramFollowsStore } from '@portalshq/capability-identity'
-import { NotificationPreferencesStore, validateTimeZone } from '@portalshq/capability-email-notifications'
+import { NotificationPreferencesStore, notificationOrigin, validateTimeZone } from '@portalshq/capability-email-notifications'
 import { centralDb } from '../../../../lib/admin/db'
 import { notificationViewer } from '../../../../lib/notification-auth'
 import { NotificationVerificationError, sendNotificationVerification } from '../../../../lib/notification-verification'
@@ -7,8 +7,7 @@ import { NotificationVerificationError, sendNotificationVerification } from '../
 const response = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
 function settingsUrl(): string | null {
   try {
-    const origin = new URL(process.env.NOTIFICATIONS_PUBLIC_URL ?? '')
-    if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) return null
+    const origin = notificationOrigin(process.env.NOTIFICATIONS_PUBLIC_URL ?? '', process.env.NOTIFICATIONS_ALLOW_PRIVATE_HTTP === 'true')
     return new URL('/account/notifications', origin).href
   } catch { return null }
 }

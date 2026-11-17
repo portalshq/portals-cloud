@@ -1,7 +1,12 @@
 import { randomInt } from "node:crypto";
 
-export interface ChoiceOption { id: string; kind: "character" | "prop"; name: string }
+export interface ChoiceOption { id: string; kind: string; name: string }
 export interface ChoiceBallot { actorId: string; optionId: string }
+
+/** PX entity types are dynamic filesystem-safe names. */
+export function isChoiceEntityType(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+}
 
 /** Tally a closed choice window. The caller persists the returned result atomically. */
 export function resolveCollectiveChoice(
@@ -12,7 +17,7 @@ export function resolveCollectiveChoice(
   if (options.length < 2 || options.length > 6) throw new RangeError("A choice requires two to six options");
   const byId = new Map<string, ChoiceOption>();
   for (const option of options) {
-    if (!option.id?.trim() || !option.name?.trim() || !["character", "prop"].includes(option.kind) || byId.has(option.id)) throw new TypeError("Invalid or duplicate choice option");
+    if (!option.id?.trim() || !option.name?.trim() || !isChoiceEntityType(option.kind) || byId.has(option.id)) throw new TypeError("Invalid or duplicate choice option");
     byId.set(option.id, option);
   }
   const counts = new Map<string, number>();

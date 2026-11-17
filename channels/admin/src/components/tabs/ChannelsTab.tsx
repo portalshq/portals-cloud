@@ -12,6 +12,69 @@ const MODE_STYLES: Record<string, string> = {
   stopped: 'text-gray-500 bg-gray-100',
 }
 
+function ProgramCopyEditor({ programs, token, refresh, onError }: {
+  programs: AdminChannel['programs']
+  token: string
+  refresh: () => void
+  onError: (message: string | null) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [selected, setSelected] = useState('')
+  const [description, setDescription] = useState('')
+  const [tagline, setTagline] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const select = (id: string) => {
+    const program = programs.find((item) => item.id === id)
+    setSelected(id)
+    setDescription(program?.description ?? '')
+    setTagline(program?.tagline ?? '')
+  }
+  const save = async () => {
+    if (!selected) return
+    setSaving(true)
+    onError(null)
+    try {
+      await adminFetch(`/programs/${encodeURIComponent(selected)}`, token, {
+        method: 'PATCH', body: JSON.stringify({ description, tagline }),
+      })
+      setEditing(false)
+      refresh()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Save failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!programs.length) return <span className="fontMicro text-gray-400">—</span>
+  if (!editing) return <button className="fontMicro text-blue-600 hover:underline" onClick={() => {
+    select(programs.length === 1 ? programs[0].id : '')
+    setEditing(true)
+  }}>Edit program details</button>
+
+  return (
+    <div className="min-w-64 space-y-2">
+      <label className="block fontMicro text-gray-600">Program
+        <select className="block w-full border rounded px-2 py-1" value={selected} onChange={(event) => select(event.target.value)}>
+          <option value="">Select a program</option>
+          {programs.map((program) => <option key={program.id} value={program.id}>{program.name} ({program.id})</option>)}
+        </select>
+      </label>
+      {selected && <>
+        <label className="block fontMicro text-gray-600">Description
+          <textarea className="block w-full border rounded px-2 py-1" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} />
+        </label>
+        <label className="block fontMicro text-gray-600">Tagline
+          <input className="block w-full border rounded px-2 py-1" value={tagline} onChange={(event) => setTagline(event.target.value)} />
+        </label>
+      </>}
+      <button className="fontMicro text-blue-600 hover:underline mr-3 disabled:text-gray-500" disabled={!selected || saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</button>
+      <button className="fontMicro text-gray-500 hover:underline" onClick={() => setEditing(false)}>Cancel</button>
+    </div>
+  )
+}
+
 export default function ChannelsTab() {
   const { token } = useAdminToken()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -121,6 +184,7 @@ export default function ChannelsTab() {
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Name</th>
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Production</th>
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Binding</th>
+              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Program details</th>
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Next session</th>
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Created</th>
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Actions</th>
@@ -162,6 +226,7 @@ export default function ChannelsTab() {
                       ? `${channel.stationId ?? '—'} / ${channel.programId ?? '—'}`
                       : 'unbound'}
                   </td>
+                  <td className="py-2 px-3 align-top"><ProgramCopyEditor programs={channel.programs ?? []} token={token} refresh={refresh} onError={setError} /></td>
                   <td className="py-2 px-3 fontNormal text-gray-600">
                     {channel.nextSession
                       ? formatInTimeZone(new Date(channel.nextSession.startsAt), 'UTC', "MMM d 'at' h:mm a 'UTC'")

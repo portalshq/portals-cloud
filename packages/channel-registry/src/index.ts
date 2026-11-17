@@ -2,6 +2,8 @@ import { readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
+export * from "./program-metadata.js";
+
 const secretRef = z.string().regex(/^[A-Z][A-Z0-9_]*$/);
 const entityUri = z.string().regex(/^px:\/\/[\w.-]+\/[\w.-]+\/[\w.-]+$/);
 

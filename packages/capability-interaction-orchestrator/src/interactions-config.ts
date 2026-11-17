@@ -14,6 +14,8 @@ export interface ChoiceSettings {
   windowSeconds: number;
   /** Whether the resolved winner may persist as a reusable prop. */
   persistent: boolean;
+  /** PX representation used for existing choice options; absent lets the app use its default. */
+  pxImageRepresentation?: string;
   schedule: InteractionSchedule;
 }
 
@@ -70,18 +72,22 @@ function parseSchedule(interval: unknown, model: unknown, section: string): Inte
 function parseChoice(choice: unknown): ChoiceSettings {
   if (!choice || typeof choice !== "object" || Array.isArray(choice)) throw new TypeError("interactions.choice entries must be objects");
   const c = choice as Record<string, unknown>;
-  const allowed = new Set(["option-count", "price", "window-seconds", "persistent", "interval-seconds", "model-interval"]);
+  const allowed = new Set(["option-count", "price", "window-seconds", "persistent", "interval-seconds", "model-interval", "px-image-representation"]);
   for (const key of Object.keys(c)) if (!allowed.has(key)) throw new TypeError(`Unknown choice setting: ${key}`);
   const optionCount = c["option-count"] ?? 3;
   const price = c.price ?? 0;
   const windowSeconds = c["window-seconds"] ?? 8;
   const persistent = c.persistent ?? false;
+  const pxImageRepresentation = c["px-image-representation"];
   if (!Number.isSafeInteger(optionCount) || (optionCount as number) < 2 || (optionCount as number) > 6) throw new TypeError("choice option-count must be an integer from 2 to 6");
   if (!Number.isSafeInteger(price) || (price as number) < 0) throw new TypeError("price must be a non-negative integer");
   if (typeof windowSeconds !== "number" || !Number.isFinite(windowSeconds) || windowSeconds <= 0) throw new TypeError("choice window-seconds must be positive");
   if (typeof persistent !== "boolean") throw new TypeError("persistent must be boolean");
+  if (pxImageRepresentation !== undefined && (typeof pxImageRepresentation !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(pxImageRepresentation))) {
+    throw new TypeError("choice px-image-representation must be a representation name");
+  }
   const schedule = parseSchedule(c["interval-seconds"], c["model-interval"], "choice");
-  return { optionCount: optionCount as number, price: price as number, windowSeconds, persistent, schedule };
+  return { optionCount: optionCount as number, price: price as number, windowSeconds, persistent, ...(typeof pxImageRepresentation === "string" ? { pxImageRepresentation } : {}), schedule };
 }
 
 function parseChoiceSection(choice: unknown): ChoiceSettings[] | undefined {

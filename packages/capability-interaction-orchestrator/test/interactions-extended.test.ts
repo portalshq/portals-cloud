@@ -13,7 +13,7 @@ import type { CreditDebitInput, CreditDebitResult, CreditGrantInput } from "../.
 import { database, grant, openWindow, terms, windowInput } from "./database.js";
 
 const OPTIONS = [
-  { id: "atlas", kind: "character" as const, name: "Atlas", pxUri: "px://bears/character/atlas" },
+  { id: "atlas", kind: "character" as const, name: "Atlas", pxUri: "px://bears/character/atlas", imageUrl: "/api/choice-images/test" },
   { id: "sunny", kind: "character" as const, name: "Sunny", pxUri: "px://bears/character/sunny" },
   { id: "kite", kind: "prop" as const, name: "a red kite", description: "a tangled red kite" },
 ];
@@ -99,9 +99,23 @@ describe("external debit settlement and choice lifecycle", () => {
     // Exactly one pending handoff carrying the winner.
     const handoffs = await app.handoffs.list(worldId, "pending");
     expect(handoffs).toHaveLength(1);
-    expect(handoffs[0].option).toMatchObject({ id: "atlas", kind: "character" });
+    expect(handoffs[0].option).toMatchObject({ id: "atlas", kind: "character", imageUrl: "/api/choice-images/test", votes: 1, ballotCount: 1 });
     // Offer counts persisted.
     expect((await app.choices.getOptionSelectionCounts(worldId)).get("px://bears/character/atlas")).toBe(1);
+  });
+
+  it("retains a generated location and its artwork through resolution and the durable handoff", async () => {
+    const app = new (await import("../src/orchestrator.js")).InteractionOrchestrator(db.repository);
+    const worldId = crypto.randomUUID();
+    const winner = { id: "generated-location", kind: "location", name: "Forest", createdEntity: true, imageUrl: "/api/choice-images/location" };
+    const window = await app.choices.openChoice({ worldId, branchId: "main", sessionId: "session", options: [winner, { id: "prop", kind: "prop", name: "Kite" }], durationSeconds: 60 });
+    await app.submissions.submitIntent({ windowId: window.id, actorId: crypto.randomUUID(), idempotencyKey: crypto.randomUUID(), kind: "vote", payload: { option: winner.id } });
+    await db.pool.query("UPDATE input_windows SET closes_at=clock_timestamp() - interval '1 second' WHERE id=$1", [window.id]);
+    await app.windows.closeWindow(window.id);
+    const result = await app.choices.resolveChoice(window.id);
+    expect(result).toMatchObject({ status: "resolved", winner });
+    const handoffs = await app.handoffs.list(worldId, "pending");
+    expect(handoffs[0].option).toMatchObject({ ...winner, votes: 1, ballotCount: 1 });
   });
 
   it("rejects insufficient voters without charge and stays stable on retry", async () => {

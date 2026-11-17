@@ -10,6 +10,17 @@ describe("parseChoiceSettings", () => {
     expect(parseChoiceSettings(undefined)).toBeUndefined();
   });
 
+  it("accepts a per-choice PX image representation and rejects invalid names", () => {
+    const settings = parseChoiceSettings({ choice: [
+      { "interval-seconds": 60, "px-image-representation": "portrait" },
+      { "model-interval": true, "px-image-representation": "character_sheet" },
+    ] });
+    expect(settings?.map(choice => choice.pxImageRepresentation)).toEqual(["portrait", "character_sheet"]);
+    for (const value of ["", "../portrait", "portrait#x", 42]) {
+      expect(() => parseChoiceSettings({ choice: { "interval-seconds": 60, "px-image-representation": value } })).toThrow(/px-image-representation/);
+    }
+  });
+
   it("parses polymorphic choice arrays", () => {
     const parsed = parseChoiceSettings({
       choice: [

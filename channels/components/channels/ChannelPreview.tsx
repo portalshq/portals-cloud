@@ -39,12 +39,16 @@ export function useChannelPreview(channel: Channel, active: boolean): Channel {
   }, [endpoint, active])
 
   if (snapshot === undefined) return channel
+  const program = snapshot?.program
   return {
     ...channel,
     live: snapshot?.live ?? false,
     stream: snapshot?.stream,
     previewVideo: snapshot?.previewVideo,
     nextSession: snapshot?.nextSession,
+    ...(program && program.id === channel.programId && program.description !== undefined
+      ? { description: program.description, tagline: program.tagline }
+      : {}),
     previewStatus: snapshot ? (snapshot.live ? 'live' : 'off-air') : 'unavailable',
   }
 }

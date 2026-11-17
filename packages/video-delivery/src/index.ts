@@ -4,3 +4,4 @@ export * from "./live-programming.js";
 export * from "./webrtc-player.js";
 
 export * from "./buffered-programming-pipeline.js";
+export * from "./program-opening.js";

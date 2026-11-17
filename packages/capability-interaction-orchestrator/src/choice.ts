@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { resolveCollectiveChoice, type ChoiceOption } from "./collective-choice.js";
+import { resolveCollectiveChoice, isChoiceEntityType, type ChoiceOption } from "./collective-choice.js";
 import type { InteractionRepository } from "./db/repository.js";
 import type { NarrativeHandoffQueue } from "./narrative-handoff.js";
 import type { InteractionMetrics } from "./metrics.js";
@@ -25,8 +25,12 @@ export interface ChoiceOptionDescriptor extends ChoiceOption {
   description?: string;
   /** Stable PX URI for existing entities, or a server-created prop identity. */
   pxUri?: string;
-  /** True for a prop created by this product (guide- or model-introduced). */
+  /** True for a new entity proposed by this product. */
+  createdEntity?: boolean;
+  /** Legacy marker for previously opened prop choices. */
   createdProp?: boolean;
+  /** Stable, cacheable URL for the image shown on the ballot. */
+  imageUrl?: string;
 }
 
 export interface OpenChoiceInput {
@@ -59,8 +63,8 @@ export function validateChoiceOptions(options: readonly ChoiceOptionDescriptor[]
     record(option, `choice option ${index}`);
     text(option.id, `choice option ${index} id`, 512);
     text(option.name, `choice option ${index} name`, 200);
-    if (option.kind !== "character" && option.kind !== "prop") {
-      throw new InteractionError("INVALID_INPUT", `choice option ${index} kind must be character or prop`);
+    if (!isChoiceEntityType(option.kind)) {
+      throw new InteractionError("INVALID_INPUT", `choice option ${index} kind must be a valid PX entity type`);
     }
     if (seen.has(option.id)) {
       throw new InteractionError("INVALID_INPUT", `Duplicate choice option id: ${option.id}`);
@@ -73,6 +77,17 @@ export function validateChoiceOptions(options: readonly ChoiceOptionDescriptor[]
         throw new InteractionError("INVALID_INPUT", `choice option ${index} pxUri is malformed`);
       }
     }
+    if (option.imageUrl !== undefined) {
+      text(option.imageUrl, `choice option ${index} imageUrl`, 2048);
+      const sameOrigin = option.imageUrl.startsWith("/") && !option.imageUrl.startsWith("//");
+      const https = /^https:\/\/[^/\s]+/i.test(option.imageUrl);
+      if ((!sameOrigin && !https) || /[\\\u0000-\u001f\u007f]/.test(option.imageUrl)) {
+        throw new InteractionError("INVALID_INPUT", `choice option ${index} imageUrl must be an HTTPS or same-origin path`);
+      }
+    }
+    if (option.createdEntity !== undefined && typeof option.createdEntity !== "boolean") {
+      throw new InteractionError("INVALID_INPUT", `choice option ${index} createdEntity must be boolean`);
+    }
     if (option.createdProp !== undefined && typeof option.createdProp !== "boolean") {
       throw new InteractionError("INVALID_INPUT", `choice option ${index} createdProp must be boolean`);
     }
@@ -82,7 +97,9 @@ export function validateChoiceOptions(options: readonly ChoiceOptionDescriptor[]
       name: option.name,
       ...(option.description !== undefined ? { description: option.description } : {}),
       ...(option.pxUri !== undefined ? { pxUri: option.pxUri } : {}),
+      ...(option.createdEntity === true ? { createdEntity: true } : {}),
       ...(option.createdProp === true ? { createdProp: true } : {}),
+      ...(option.imageUrl !== undefined ? { imageUrl: option.imageUrl } : {}),
     };
   });
 }
@@ -252,7 +269,7 @@ export class ChoiceCoordinator {
           worldId: w.worldId,
           windowId,
           resolutionId: resolution.id,
-          option: winner as unknown as Record<string, unknown>,
+          option: { ...winner, votes: tally.get(winner.id) ?? 0, ballotCount: ballots.length },
         });
         await this.recordSelections(r, w.worldId, options);
       }

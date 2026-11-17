@@ -71,3 +71,11 @@ The Reactor WebRTC wrapper:
 - Native HLS is used where available; `hls.js` is an optional peer dependency for other browsers. React is required only for the `/react` entry point.
 - The manifest URL must be public/unlisted or otherwise playable by the browser. Do not expose origin/control-plane credentials.
 - WebRTC player is a stub; use `@reactor-team/js-sdk` for production Reactor WebRTC connections.
+
+## Program openings
+
+`useProgramOpening(live, startsAt)` from the React export provides `idle`,
+`fade-out`, `title`, and `fade-in` phases for an observed scheduled start or
+an off-air-to-live transition. Render the treatment over the video stage and
+keep chat outside that layer. The hook does not replay on a mid-session join;
+applications own the title, styling, and playback readiness.

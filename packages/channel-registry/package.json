@@ -18,6 +18,7 @@
   },
   "files": [
     "dist",
+    "sql",
     "README.md"
   ],
   "scripts": {
@@ -30,6 +31,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
     "@types/node": "^20.0.0",
     "typescript": "^5.6.3",
     "vitest": "^3.2.7"

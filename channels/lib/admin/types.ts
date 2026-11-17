@@ -51,6 +51,7 @@ export interface AdminChannelDto {
   /** Station/program this channel's rules and slots are bound to. */
   stationId: string | null;
   programId: string | null;
+  programs: { id: string; name: string; description: string | null; tagline: string | null }[];
   /** Earliest future scheduled/live slot for this channel, if any. */
   nextSession: { startsAt: string; endsAt: string; title: string | null } | null;
 }

@@ -2,4 +2,4 @@
 "@portalshq/capability-interaction-orchestrator": minor
 ---
 
-Add `once-per-user` guide config and `oncePerUser` window flag: a window marked `oncePerUser` counts `fulfilled` submissions toward its per-actor admission cap, so once-per-window quotas (one guide per viewer per window) hold after the first prompt is claimed and consumed — the same mechanism `feedbackEvent` windows already use.
+Add `user-submissions-per-window` guide config and `userSubmissionsPerWindow` window flag: a window carrying the cap counts an actor's pending *and* fulfilled submissions toward it, so a claimed-and-consumed guide still occupies the slot and per-window submission limits (e.g. one guide per viewer per window) hold — extending the mechanism `feedbackEvent` windows already use.

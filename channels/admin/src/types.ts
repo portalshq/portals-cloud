@@ -50,6 +50,7 @@ export interface AdminChannel {
   } | null
   stationId: string | null
   programId: string | null
+  programs: { id: string; name: string; description: string | null; tagline: string | null }[]
   nextSession: { startsAt: string; endsAt: string; title: string | null } | null
 }
 

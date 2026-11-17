@@ -36,9 +36,24 @@ beforeEach(async () => {
   process.env.RESEND_API_KEY = 'test'; process.env.RESEND_FROM_EMAIL = 'shows@example.com'
   process.env.NOTIFICATIONS_UNSUBSCRIBE_SECRET = '0123456789abcdef0123456789abcdef'
 })
-afterEach(async () => { await pg.close() })
+afterEach(async () => { delete process.env.NOTIFICATIONS_ALLOW_PRIVATE_HTTP; await pg.close() })
 
 describe('notification signup', () => {
+  it('supports an explicitly configured private HTTP Channels origin', async () => {
+    process.env.NOTIFICATIONS_PUBLIC_URL = 'http://100.125.2.45:4000'
+    process.env.NOTIFICATIONS_ALLOW_PRIVATE_HTTP = 'true'
+    const response = await signup(new Request('http://100.125.2.45:4000/api/notifications/subscriptions', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'viewer@example.com', programId: 'bears', episode: true, weekly: true, timezone: 'UTC' }),
+    }))
+    expect(response.status).toBe(200)
+    const text = mocks.send.mock.calls[0][0].text as string
+    const link = text.match(/http:\/\/100\.125\.2\.45:4000\/\S+/)?.[0]
+    expect(link).toBeDefined()
+    expect((await verify(new Request(link!, { method: 'POST' }))).status).toBe(200)
+    expect((await pg.query('SELECT episode_enabled,weekly_enabled FROM program_email_subscriptions')).rows)
+      .toEqual([{ episode_enabled: true, weekly_enabled: true }])
+  })
   it('confirms a guest mailbox before activating both options', async () => {
     const response = await signup(new Request('https://shows.example.com/api/notifications/subscriptions', {
       method: 'POST', headers: { 'content-type': 'application/json' },

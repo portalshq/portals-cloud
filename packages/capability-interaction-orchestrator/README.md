@@ -81,6 +81,7 @@ DC-style ratings: **E** (all ages), **T** (12+), **T+** (15+), **M** (17+). Wind
       "price": 0,                 // credits per vote (default 0)
       "window-seconds": 14,       // window duration (default 8)
       "persistent": true,         // winner may persist as a reusable prop
+      "px-image-representation": "portrait", // optional choice-card artwork; app chooses default
       "interval-seconds": 120     // timed: open every ~interval (jittered)
       // OR "model-interval": true — the model proposes openings
     }
@@ -110,6 +111,8 @@ Rules:
 - Exactly one scheduling mode per event: `interval-seconds` (timed) **or** `model-interval: true` (model-driven). `always-open` guides declare no schedule.
 - `feedback` is a single object (or single-element array); extra elements warn and are ignored.
 - Unknown keys throw — typos fail loudly at registry validation.
+
+The choice image representation selects artwork shown to voters; it does not control which PX representations production uses as image-generation references.
 
 Parsed types: `InteractionSettings`, `ChoiceSettings`, `GuideSettings`, `FeedbackSettings`, and the shared `InteractionSchedule` (`{ mode: "timed"; intervalSeconds } | { mode: "model" }`).
 
@@ -214,3 +217,7 @@ npm run test:coverage
 ## License
 
 MIT
+
+Choice options may carry a stable `imageUrl` (HTTPS or same-origin path). The durable winner handoff retains that image URL together with `votes` and `ballotCount`, so applications can show the same image and calculate the result after production consumes the choice. Applications own image generation and cache storage.
+
+Choice option `kind` carries the actual PX entity type, including custom types; `createdEntity` marks a newly proposed entity. The durable winner retains that type and marker for application-owned PX persistence.

@@ -278,7 +278,8 @@ this Mac release. To enable same-tab app sign-in, set
 (scheme://host[:port]) that may receive post-login redirects — e.g.
 `https://bears.portals.works,http://localhost:5173`. Each requesting app's
 `post_login_redirect_uri` must match one of these origins exactly or the
-gateway serves the interstitial fallback page instead. Test real login, token
+gateway rejects the login request. After editing `AUTH_ENV_FILE`, recreate
+the `auth-gateway` service with its existing image so it loads the new values. Test real login, token
 refresh rotation/reuse rejection,
 JWKS publication, and signing-key rotation before public exposure.
 
