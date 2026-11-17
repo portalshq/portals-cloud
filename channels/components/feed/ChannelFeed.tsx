@@ -8,10 +8,28 @@ import { FollowButton, ShareButton } from '@/components/channels/actions'
 import { ChannelHeadingFonts } from '@/components/channels/ChannelHeadingFonts'
 import { ChannelMeta } from '@/components/channels/ChannelMeta'
 import { ChannelPreview, useChannelPreview } from '@/components/channels/ChannelPreview'
-import type { Channel } from '@/components/channels/data'
+import { channelOffAir, formatSessionTime, type Channel } from '@/components/channels/data'
 import { useOnScreen } from '@/components/channels/use-on-screen'
 import { Rail } from '@/components/shell/Rail'
 import styles from './ChannelFeed.module.css'
+
+/* The program's off-air card, recreated for the feed: a label, the next
+   start in the words the room uses ("Today 8:00 PM"), and the follow action
+   whose click opens the reminder form. With no session on the schedule the
+   card still answers when — "No upcoming session scheduled". */
+function NextSessionCard({ channel }: { channel: Channel }) {
+  return (
+    <div className={styles.sessionCard}>
+      <span className={styles.sessionLabel}>Next session</span>
+      <span className={styles.sessionDate}>
+        {channel.nextSession
+          ? <time dateTime={channel.nextSession}>{formatSessionTime(channel.nextSession)}</time>
+          : 'No upcoming session scheduled'}
+      </span>
+      <FollowButton channel={channel.slug} programId={channel.programId} className={styles.roomFollow} />
+    </div>
+  )
+}
 
 function ChannelPanel({
   channel: initialChannel,
@@ -34,37 +52,57 @@ function ChannelPanel({
     if (visible) onVisible(channel.slug)
   }, [visible, channel.slug, onVisible])
 
+  /* Off-air panels carry the same content the program's off-air stage does —
+     title, the off-air line, and the session card — and no preview. The
+     panel still owns the playback slot while visible, so the same preview
+     poll that found the off-air state flips the panel back to the player the
+     moment a session starts. */
+  const offAir = channelOffAir(channel)
+  const name = channel.preview?.name ?? channel.title
+
   return (
     <section id={panelId} className={styles.panel} aria-labelledby={headingId} ref={ref}>
       <div className={styles.stack}>
-        <div className={styles.videoFrame}>
-          <div className={styles.video}>
-            <ChannelPreview
-              channel={channel}
-              active={active}
-              playVideo={live}
-              muted={muted}
-              noteClassName={styles.videoNote}
-            />
-            <ChannelMeta channel={channel} className={styles.meta} />
+        {offAir ? (
+          <div className={styles.roomContent}>
+            <h2 className={styles.name} id={headingId} style={channel.heading}>
+              {channel.title}
+            </h2>
+            <p className={styles.roomStatus}>{name} is off air. Check back soon.</p>
+            <NextSessionCard channel={channel} />
           </div>
-        </div>
+        ) : (
+          <>
+            <div className={styles.videoFrame}>
+              <div className={styles.video}>
+                <ChannelPreview
+                  channel={channel}
+                  active={active}
+                  playVideo={live}
+                  muted={muted}
+                  noteClassName={styles.videoNote}
+                />
+                <ChannelMeta channel={channel} className={styles.meta} />
+              </div>
+            </div>
 
-        <div className={styles.summary}>
-          <h2 className={styles.name} id={headingId} style={channel.heading}>
-            {channel.title}
-          </h2>
-          {channel.description && <p className={styles.description}>{channel.description}</p>}
-        </div>
+            <div className={styles.summary}>
+              <h2 className={styles.name} id={headingId} style={channel.heading}>
+                {channel.title}
+              </h2>
+              {channel.description && <p className={styles.description}>{channel.description}</p>}
+            </div>
 
-        <div className={styles.actions}>
-          <Link className={styles.primary} href={`/${channel.slug}`}>
-            Enter channel
-            <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden="true" />
-          </Link>
-          <FollowButton channel={channel.slug} programId={channel.programId} />
-          <ShareButton channel={channel.slug} url={`/${channel.slug}`} />
-        </div>
+            <div className={styles.actions}>
+              <Link className={styles.primary} href={`/${channel.slug}`}>
+                Enter channel
+                <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden="true" />
+              </Link>
+              <FollowButton channel={channel.slug} programId={channel.programId} />
+              <ShareButton channel={channel.slug} url={`/${channel.slug}`} />
+            </div>
+          </>
+        )}
       </div>
     </section>
   )

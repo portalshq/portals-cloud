@@ -38,6 +38,22 @@ stops; the dry-run database containers remain running. See the
 [`run-dryrun.sh`](../../bears-live-app/scripts/run-dryrun.sh) for configuration
 and lifecycle details.
 
+## Routes at a glance
+
+- `/` is the scroll feed: one full-height panel per channel, one active player
+  at a time. While a channel is off-air its panel carries the same off-air
+  content the program room does — the title, the off-air line, and the
+  next-session card with the follow action — and flips back to the player
+  when the next session starts.
+- `/channels` is the browsable index. Entries for off-air channels open the
+  channel's feed panel (`/#channel-<slug>`) rather than a room.
+- `/<slug>` is the channel room. Program apps mount their watch bundle only
+  while the program is on air; an off-air room URL redirects to the feed
+  panel. Channels without an app render channel details plus an HLS stage.
+- `/embed/<slug>` is the program room framed for the X Player Card.
+
+See [Channel content by page](docs/CHANNEL-CONTENT.md) for the full diagram.
+
 ## Share a program on X
 
 Program room links (`/<slug>`) render as playable X Player Cards. X frames the

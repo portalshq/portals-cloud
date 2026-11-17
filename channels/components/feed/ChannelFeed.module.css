@@ -155,6 +155,66 @@
   color: var(--color-muted);
 }
 
+/* --- Off-air: the panel is the channel room ---
+
+   The same composition the program's off-air stage carries, centred where a
+   live panel puts its player: the title, the off-air line, and the session
+   card. The auto block margin centres the column vertically. */
+.roomContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  margin-block: auto;
+  text-align: center;
+}
+
+.roomStatus {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+/* The card floats on the panel like the program's on its stage — no box,
+   just the fact and the action stacked on the same centre line. */
+.sessionCard {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+  margin-top: var(--space-5);
+}
+
+.sessionLabel {
+  font: var(--font-micro);
+  color: var(--color-muted);
+}
+
+.sessionDate {
+  font: var(--font-h2);
+  letter-spacing: var(--heading-tracking);
+  color: var(--color-fg);
+}
+
+/* The one accent in the card is the action: the follow button opens the
+   reminder form, so it takes the primary treatment the program gives it. */
+.sessionCard .roomFollow {
+  width: min(100%, 20rem);
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+
+.sessionCard .roomFollow[aria-pressed='true'] svg {
+  fill: var(--color-accent-fg);
+  color: var(--color-accent-fg);
+}
+
+@media (hover: hover) {
+  .sessionCard .roomFollow:hover {
+    background: var(--color-accent-hover);
+  }
+}
+
 /* --- Actions, ranked by importance --- */
 
 .actions {
@@ -301,6 +361,15 @@
     }
   }
 
+  .stack:has(> .roomContent) {
+    align-content: stretch;
+  }
+
+  .roomContent {
+    grid-column: 1 / -1;
+    align-self: stretch;
+  }
+
   .primary {
     padding-inline: var(--space-3);
   }
@@ -413,6 +482,15 @@
     align-self: end;
     gap: var(--space-2);
     margin: 0;
+  }
+
+  .stack:has(> .roomContent) {
+    align-content: stretch;
+  }
+
+  .roomContent {
+    grid-column: 1 / -1;
+    align-self: stretch;
   }
 
   .primary {

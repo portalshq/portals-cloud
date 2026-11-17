@@ -18,8 +18,14 @@ Browse animates one visible preview at a time and prioritizes the card being
 hovered or focused. The feed uses muted HLS or progressive video when
 available and the backdrop when no preview video is available. The poster
 covers inactive cards and cases where the backdrop module cannot load.
-An explicit response with no playback shows an off-air notice. A failed
-request shows an unavailable notice. The reminder form lives in the room.
+An explicit response with no playback marks the panel off-air: it drops the
+media frame and carries the same off-air content the watch room's stage does
+— the title, the off-air line, and the next-session card with the follow
+action — while the preview poll keeps watching for the next session. The same report points
+browse entries at that feed panel and redirects the room URL to it, so the
+program room only exists while the program is on air. A failed request shows
+an unavailable notice and still lets the room mount. The reminder form lives
+in the room and behind the Follow button's reminders prompt.
 
 While a preview is active, Channels refreshes its descriptor every 15 seconds.
 The Bears endpoint shares the server's short cache and returns playback

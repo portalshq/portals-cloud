@@ -1,7 +1,7 @@
 'use client'
 
 import { Sparkles } from 'lucide-react'
-import type { Channel } from './data'
+import { formatSessionStart, type Channel } from './data'
 import styles from './ChannelMeta.module.css'
 
 /** One line of channel identity: who runs it, what powers it, and where it is
@@ -9,8 +9,7 @@ import styles from './ChannelMeta.module.css'
  *  here rather than being assembled twice. */
 export function ChannelMeta({ channel, className }: { channel: Channel; className?: string }) {
   const status = channel.live ? 'Live now' : channel.nextSession
-    ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })
-      .format(new Date(channel.nextSession)) + ' UTC'
+    ? formatSessionStart(channel.nextSession)
     : channel.viewers
   return (
     <p className={className ? `${styles.meta} ${className}` : styles.meta}>

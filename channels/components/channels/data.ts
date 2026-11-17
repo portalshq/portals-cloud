@@ -47,6 +47,44 @@ export type Channel = {
   previewStatus?: 'live' | 'off-air' | 'unavailable'
 }
 
+/* Session starts render in UTC everywhere: the schedule is published in UTC
+   and the zone is clearer stated than implied. */
+export function formatSessionStart(iso: string): string {
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })
+    .format(new Date(iso)) + ' UTC'
+}
+
+/* The session card speaks like the program's off-air card: a day the viewer
+   already owns ("Today 8:00 PM") before a dated one — both in the viewer's
+   own zone, which a one-line card can trust. The meta line keeps the stated
+   UTC form. */
+export function formatSessionTime(iso: string, now = new Date()): string {
+  const start = new Date(iso)
+  if (Number.isNaN(start.getTime())) return ''
+  const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(start)
+  if (start.toDateString() === now.toDateString()) return `Today ${time}`
+  const day = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(start)
+  return `${day}, ${time}`
+}
+
+/* A channel is off-air when there is nothing to watch. App channels learn it
+   from the preview endpoint — 'off-air' is the app's own report, while
+   'unavailable' only means the report could not be fetched. Catalog channels
+   without playback plumbing have nothing to preview whenever they are not
+   live. */
+export function channelOffAir(channel: Channel): boolean {
+  if (channel.previewStatus !== undefined) return channel.previewStatus === 'off-air'
+  return !channel.live && !channel.app && !channel.stream && !channel.previewVideo && !channel.preview
+}
+
+/* Where an entry point takes the reader. Off-air channels have no program to
+   enter, so they open their feed panel — the panel already shows the channel
+   room content and scrolls on to the rest of the feed. On air, the room URL
+   still mounts the program. */
+export function channelEntryHref(channel: Channel): string {
+  return channelOffAir(channel) ? `/#channel-${channel.slug}` : `/${channel.slug}`
+}
+
 export const PLACEHOLDER_STREAM =
   'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8'
 export const BUNNY_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'

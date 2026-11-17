@@ -258,6 +258,21 @@ is worth stating as a rule rather than a fix: **the gutter is for scrollers, and
   `reconnecting` and restarting the video every few seconds. `onstalled` is now
   left unbound. A real outage still surfaces as `waiting` (underrun) or a fatal
   hls.js `NETWORK_ERROR`, and both are still handled.
+- **Off-air panels are the channel room.** A channel with nothing to play
+  drops the media frame entirely — no poster, backdrop, or status overlay —
+  and the panel carries the same off-air composition the program's own stage
+  does: the title, the off-air line ("X is off air. Check back soon."), and
+  the next-session card — a micro label, the next start in the room's words
+  ("Today 8:00 PM", or "No upcoming session scheduled"), and the follow
+  button whose click opens the reminder form — centred as one column where
+  the player would be. The card floats on the panel like the program's on its
+  stage: no box, the accent reserved for the follow action. The
+  Enter-channel link is gone there because the reader is already in the room
+  content; the panel still owns the playback slot while visible, so the
+  preview poll turns the panel back into a player the moment a session
+  starts. Off-air browse entries and room URLs both land on that panel —
+  `/#channel-<slug>` — so the program room only exists while the program is
+  on air, and the rail's back target and the room URL stay one surface.
 - **Channel room.** The page *is* the channel, so there is no gate: no "enter
   the room" button, no `aria-pressed` toggle, and no primary action anywhere on
   this route. The stage is a presence surface, not an entry point, and it

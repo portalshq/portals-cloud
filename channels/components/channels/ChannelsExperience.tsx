@@ -17,6 +17,7 @@ import { ChannelPreview, useChannelPreview } from './ChannelPreview'
 import { ChannelStream } from './ChannelStream'
 import {
   browseCopy,
+  channelEntryHref,
   filterIcons,
   filters,
   gridChannels,
@@ -77,7 +78,7 @@ function Card({
     <li ref={ref}>
       <Link
         className={styles.card}
-        href={`/${slug}`}
+        href={channelEntryHref(channel)}
         onClick={() => recordChannelEvent(experienceEvents.channelOpened, {surface: 'channels_browse', channel_id: slug, ...(initialChannel.programId ? {program_id: initialChannel.programId} : {}), origin: 'grid'})}
         onPointerEnter={preview ? () => onPreference(slug, true) : undefined}
         onPointerLeave={preview ? () => onPreference(slug, false) : undefined}
@@ -305,7 +306,7 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
           </div>
         </section> */}
         <section className={styles.featured} aria-labelledby="featured-heading">
-          <Link className={styles.featuredCard} href={`/${featured.slug}`} onClick={() => recordChannelEvent(experienceEvents.channelOpened, {surface: 'channels_browse', channel_id: featured.slug, ...(featured.programId ? {program_id: featured.programId} : {}), origin: 'featured'})}>
+          <Link className={styles.featuredCard} href={channelEntryHref(featured)} onClick={() => recordChannelEvent(experienceEvents.channelOpened, {surface: 'channels_browse', channel_id: featured.slug, ...(featured.programId ? {program_id: featured.programId} : {}), origin: 'featured'})}>
             <span className={styles.featuredMedia}>
               <ChannelPreview channel={featured} active={false} />
               {featured.live && <span className={styles.pill}>live now</span>}
