@@ -16,6 +16,7 @@ import {
   browseCopy,
   filterIcons,
   filters,
+  gridChannels,
   type Channel,
   type Filter,
 } from './data'
@@ -186,7 +187,7 @@ function Tools({
             >
               <span className={styles.toolIcon}>
                 {active ? (
-                  <X size={19} strokeWidth={1.75} aria-hidden="true" />
+                  <Icon size={21} strokeWidth={1.75} aria-hidden="true" />
                 ) : (
                   <Icon size={19} strokeWidth={1.75} aria-hidden="true" />
                 )}
@@ -243,17 +244,12 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
   const preferPreview = useCallback((slug: string, preferred: boolean) => {
     setPreferredPreview((current) => preferred ? slug : current === slug ? null : current)
   }, [])
-  const featured = channels.find((channel) => channel.slug === 'massively-social') ?? channels[0]
+  const featured = channels.find((channel) => channel.slug === '25th-chapter') ?? channels[0]
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return channels.filter((channel) => {
-      const matchesFilter =
-        filter === null || (filter === 'Live now' ? channel.live : channel.category === filter)
-      const haystack = `${channel.title} ${channel.by} ${channel.category}`.toLowerCase()
-      return matchesFilter && haystack.includes(needle)
-    })
-  }, [channels, filter, query])
+  const visible = useMemo(
+    () => gridChannels(channels, featured, filter, query),
+    [channels, filter, query, featured],
+  )
 
   const activePreview = visible.find(({ slug }) => slug === preferredPreview && visiblePreviews.has(slug))
     ?? visible.find(({ slug }) => visiblePreviews.has(slug))
@@ -265,7 +261,7 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
     <>
       <Rail />
       <main className={styles.page}>
-        <section className={styles.hero}>
+        {/* <section className={styles.hero}>
           <div className={styles.heroTop}>
             <h1 className={styles.heroHeading}>{browseCopy.heading}</h1>
             <dl className={styles.heroStats}>
@@ -275,8 +271,7 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
               </div>
             </dl>
           </div>
-        </section>
-
+        </section> */}
         <section className={styles.featured} aria-labelledby="featured-heading">
           <Link className={styles.featuredCard} href={`/${featured.slug}`}>
             <span className={styles.featuredMedia}>
@@ -300,11 +295,10 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
             </span>
           </Link>
         </section>
-
         <section className={styles.browse} aria-labelledby="browse-heading">
           <div ref={browseHead} className={styles.browseHead}>
               <h2 className={styles.sectionHeading} id="browse-heading">
-                Find channels
+                Watch now
               </h2>
             {/* {(
               <div className={styles.heroStats}>
