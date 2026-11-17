@@ -271,7 +271,7 @@ describe('registered channel apps', () => {
     const { getChannelCatalog } = await import('../lib/catalog')
     const chapter = (await getChannelCatalog()).find((channel) => channel.slug === '25th-chapter')
     expect(chapter).toMatchObject({
-      title: '25th Chapter',
+      title: 'The 25th Chapter',
       by: 'Massively Social',
       live: true,
       stream: 'https://chapter.test/live/main/index.m3u8',
@@ -308,7 +308,7 @@ describe('registered channel apps', () => {
     const { getChannelCatalog } = await import('../lib/catalog')
     const chapter = (await getChannelCatalog()).find((channel) => channel.slug === '25th-chapter')
     expect(chapter).toMatchObject({
-      title: '25th Chapter',
+      title: 'The 25th Chapter',
       by: 'Massively Social',
       live: true,
       stream: 'https://chapter.test/live/main/index.m3u8',

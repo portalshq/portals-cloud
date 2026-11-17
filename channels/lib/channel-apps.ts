@@ -85,7 +85,7 @@ const bearsDefaults = {
    splash are served from the app's public directory. Massively Social is the
    publisher; the program name stays "25th Chapter". */
 const chapterDefaults = {
-  name: '25th Chapter',
+  name: 'The 25th Chapter',
   by: 'Massively Social',
   heading: { fontFamily: '"Playfair Display", Georgia, serif', fontWeight: 600, fontFile: 'fonts/playfair-display-v40-latin.woff2' },
   poster: 'heroes.png',
