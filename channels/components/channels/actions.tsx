@@ -15,8 +15,10 @@ import styles from './actions.module.css'
  *  When the channel carries a central `programId` the button follows the real
  *  program — shared reactive state keeps every surface in sync: signed-in
  *  viewers through /api/follows, anonymous viewers through local state that
- *  merges into program_follows on sign-in. A successful follow offers email
- *  reminders. Without a `programId` it keeps the in-memory chip state. */
+ *  merges into program_follows on sign-in. Signed-in writes move the button
+ *  only after the server confirms, so a failed or superseded request never
+ *  shows "Following". A successful follow offers email reminders. Without a
+ *  `programId` it keeps the in-memory chip state. */
 export function FollowButton({ channel, programId, className }: { channel: string; programId?: string; className?: string }) {
   const subscribed = useSyncExternalStore(
     subscribeFollows,
@@ -50,7 +52,7 @@ export function FollowButton({ channel, programId, className }: { channel: strin
           void setFollow(programId, next)
             .then((applied) => {
               if (applied === true && next) setPromptOpen(true)
-              recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: next, outcome: applied === true ? 'succeeded' : applied === false ? 'failed' : 'unavailable'})
+              recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: applied, outcome: applied === next ? 'succeeded' : 'failed'})
             })
             .catch(() => recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: next, outcome: 'unavailable'}))
             .finally(() => setBusy(false))
