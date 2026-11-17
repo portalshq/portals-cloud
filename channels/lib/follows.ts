@@ -143,6 +143,31 @@ function mergeAnonymousFollows(): Promise<void> {
   return merging
 }
 
+/** Publishes a follow that a sibling route already committed — the reminders
+ *  subscription writes program_follows inside its own transaction for verified
+ *  recipients — so every surface updates without a redundant write. */
+export function confirmFollow(programId: string, follow: boolean) {
+  if (!getViewer()) return
+  writeRevision++
+  const committed = new Set(active())
+  if (follow) committed.add(programId)
+  else committed.delete(programId)
+  server = committed
+  notify()
+}
+
+/** Settles a follow after the reminders form completes the process: a verified
+ *  subscription response already wrote program_follows in its transaction, a
+ *  guest's submitted email is this browser's truth, and a signed-in viewer
+ *  whose address still needs verifying stays unfollowed until the claim lands
+ *  the write. Returns whether the program now reads as followed. */
+export async function settleReminderFollow(programId: string, verified: boolean): Promise<boolean> {
+  if (!getViewer()) return setFollow(programId, true)
+  if (!verified) return active().has(programId)
+  confirmFollow(programId, true)
+  return true
+}
+
 /** Applies a follow change for whoever is viewing. Anonymous writes land
  *  immediately because local storage is the whole process; signed-in writes
  *  commit only after the server confirms. Returns the state that stuck. */

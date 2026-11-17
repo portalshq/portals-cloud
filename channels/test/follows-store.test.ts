@@ -216,6 +216,44 @@ describe('follows store', () => {
     await vi.waitFor(() => expect(follows.followsSnapshot().has('program-g')).toBe(false))
   })
 
+  it('commits a guest follow when the reminder form completes it', async () => {
+    const follows = await loadFollows()
+    expect(await follows.settleReminderFollow('program-h', false)).toBe(true)
+    expect(follows.followsSnapshot().has('program-h')).toBe(true)
+    expect(JSON.parse(backing.get('channels:follows') ?? '[]')).toEqual(['program-h'])
+  })
+
+  it('publishes a verified follow without issuing another write', async () => {
+    const follows = await loadFollows()
+    viewerState.session = { token: 't', userId: 'u' }
+    const serverSide = new Set<string>(['program-v'])
+    fetchMock.mockImplementation(serverBacked(serverSide))
+    follows.ensureFollowsLoaded()
+    await vi.waitFor(() => expect(follows.followsSnapshot().has('program-v')).toBe(true))
+    const callsBefore = fetchMock.mock.calls.length
+    expect(await follows.settleReminderFollow('program-w', true)).toBe(true)
+    expect(follows.followsSnapshot().has('program-w')).toBe(true)
+    // The subscription transaction already wrote program_follows — no POST.
+    expect(fetchMock.mock.calls.length).toBe(callsBefore)
+  })
+
+  it('keeps a signed-in viewer unfollowed while verification is pending', async () => {
+    const follows = await loadFollows()
+    viewerState.session = { token: 't', userId: 'u' }
+    const serverSide = new Set<string>()
+    fetchMock.mockImplementation(serverBacked(serverSide))
+    follows.ensureFollowsLoaded()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(await follows.settleReminderFollow('program-x', false)).toBe(false)
+    expect(follows.followsSnapshot().has('program-x')).toBe(false)
+  })
+
+  it('ignores a confirmed write once the viewer is signed out', async () => {
+    const follows = await loadFollows()
+    follows.confirmFollow('program-y', true)
+    expect(follows.followsSnapshot().has('program-y')).toBe(false)
+  })
+
   it('keeps every subscriber consistent for the same program', async () => {
     const follows = await loadFollows()
     const rail: boolean[] = []

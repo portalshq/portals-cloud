@@ -4,7 +4,7 @@ import { Bell, Forward, X } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { experienceEvents } from '@/lib/analytics-contract'
 import { recordChannelEvent } from '@/lib/analytics-client'
-import { ensureFollowsLoaded, followsSnapshot, setFollow, subscribeFollows } from '@/lib/follows'
+import { ensureFollowsLoaded, followsSnapshot, setFollow, settleReminderFollow, subscribeFollows } from '@/lib/follows'
 import { getViewer, subscribeViewer, viewerFetch } from '@/lib/viewer'
 import styles from './actions.module.css'
 
@@ -15,10 +15,11 @@ import styles from './actions.module.css'
  *  When the channel carries a central `programId` the button follows the real
  *  program — shared reactive state keeps every surface in sync: signed-in
  *  viewers through /api/follows, anonymous viewers through local state that
- *  merges into program_follows on sign-in. Signed-in writes move the button
- *  only after the server confirms, so a failed or superseded request never
- *  shows "Following". A successful follow offers email reminders. Without a
- *  `programId` it keeps the in-memory chip state. */
+ *  merges into program_follows on sign-in. Following is gated by the reminders
+ *  form: the click opens it and the follow commits only when the form
+ *  completes — dismissing it cancels the process and the button stays
+ *  "Follow". Unfollow is a single immediate write. Without a `programId` it
+ *  keeps the in-memory chip state. */
 export function FollowButton({ channel, programId, className }: { channel: string; programId?: string; className?: string }) {
   const subscribed = useSyncExternalStore(
     subscribeFollows,
@@ -48,29 +49,47 @@ export function FollowButton({ channel, programId, className }: { channel: strin
             recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, following: next, outcome: 'succeeded'})
             return
           }
+          if (next) {
+            setPromptOpen(true)
+            return
+          }
           setBusy(true)
-          void setFollow(programId, next)
-            .then((applied) => {
-              if (applied === true && next) setPromptOpen(true)
-              recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: applied, outcome: applied === next ? 'succeeded' : 'failed'})
-            })
-            .catch(() => recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: next, outcome: 'unavailable'}))
+          void setFollow(programId, false)
+            .then((applied) => recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: applied, outcome: applied === false ? 'succeeded' : 'failed'}))
+            .catch(() => recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: true, outcome: 'unavailable'}))
             .finally(() => setBusy(false))
         }}
       >
         <Bell className={following ? "filled" : ""} size={16} strokeWidth={1.75} />
         {following ? 'Following' : 'Follow'}
       </button>
-      {programId && <ReminderPrompt programId={programId} open={promptOpen} onClose={() => setPromptOpen(false)} />}
+      {programId && (
+        <ReminderPrompt
+          programId={programId}
+          open={promptOpen}
+          onClose={() => setPromptOpen(false)}
+          onFollowSettled={(applied) => {
+            if (applied) recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: true, outcome: 'succeeded'})
+          }}
+          onCancelled={() => recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: false, outcome: 'cancelled'})}
+        />
+      )}
     </>
   )
 }
 
-/** Offered after a successful follow: signed-in viewers enable reminders in one
- *  tap (the server writes the follow and subscription together); anonymous
- *  viewers leave an email and confirm it via the verification link — the
- *  verified recipient links to their account when they later sign up. */
-function ReminderPrompt({ programId, open, onClose }: { programId: string; open: boolean; onClose: () => void }) {
+/** The form that completes a follow: submitting it commits the follow — a
+ *  verified response means the subscription transaction already wrote
+ *  program_follows, a guest's email is this browser's truth, and a signed-in
+ *  verification lands the write on claim. Closing before a successful submit
+ *  cancels the process: nothing was written, so the button stays "Follow". */
+function ReminderPrompt({ programId, open, onClose, onFollowSettled, onCancelled }: {
+  programId: string
+  open: boolean
+  onClose: () => void
+  onFollowSettled?: (applied: boolean) => void
+  onCancelled?: () => void
+}) {
   const dialog = useRef<HTMLDialogElement>(null)
   const viewer = useSyncExternalStore(subscribeViewer, getViewer, () => null)
   const [email, setEmail] = useState('')
@@ -78,20 +97,31 @@ function ReminderPrompt({ programId, open, onClose }: { programId: string; open:
   const [done, setDone] = useState('')
   const [error, setError] = useState('')
   const [settingsUrl, setSettingsUrl] = useState('')
+  const completed = useRef(false)
 
   useEffect(() => {
     const node = dialog.current
     if (!node) return
     if (open && !node.open) node.showModal()
     if (!open && node.open) node.close()
-    if (open) recordChannelEvent(experienceEvents.reminderPromptOpened, {surface: 'channels_room', program_id: programId})
+    if (open) {
+      // Each open is a fresh attempt — a stale "done" would hide the form.
+      completed.current = false
+      setDone('')
+      setError('')
+      setSettingsUrl('')
+      recordChannelEvent(experienceEvents.reminderPromptOpened, {surface: 'channels_room', program_id: programId})
+    }
   }, [open])
 
   return (
     <dialog
       ref={dialog}
       className={styles.dialog}
-      onClose={onClose}
+      onClose={() => {
+        if (!completed.current) onCancelled?.()
+        onClose()
+      }}
       onClick={(event) => { if (event.target === dialog.current) dialog.current?.close() }}
     >
       <div className={styles.dialogHeader}>
@@ -113,7 +143,11 @@ function ReminderPrompt({ programId, open, onClose }: { programId: string; open:
             .then(async (response) => {
               const result = await response.json().catch(() => null)
               if (response.ok) {
+                completed.current = true
                 setDone(result?.verified ? 'Reminders are on — we will email you when new episodes air.' : 'Check your email to confirm reminders.')
+                void settleReminderFollow(programId, result?.verified === true)
+                  .then((applied) => onFollowSettled?.(applied))
+                  .catch(() => onFollowSettled?.(false))
                 recordChannelEvent(experienceEvents.reminderSaveResult, {surface: 'channels_room', program_id: programId, outcome: 'succeeded', episode: true, weekly: false, verification_required: result?.verified !== true})
               }
               else {
