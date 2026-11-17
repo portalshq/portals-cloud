@@ -50,6 +50,10 @@
   --rail-collapsed: 76px;
   --rail-expanded: 264px;
 
+  /* The strip the fixed rail owns at the top of a room: margin + bar + margin.
+     Apps mounting under the rail reserve this as their header gap. */
+  --channel-rail-clearance: calc(38px + 2 * var(--space-7));
+
   /* Low-chroma neutrals give the accent room to stand out. */
   --color-bg: oklch(0.16 0.012 150);
   --color-surface: oklch(0.215 0.014 150);
@@ -180,6 +184,20 @@ body {
     --tablet-inline-start: max(var(--space-5), env(safe-area-inset-left));
     --tablet-inline-end: max(var(--space-5), env(safe-area-inset-right));
     --tablet-nav-height: calc(44px + 2 * var(--space-2) + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* Rail.module.css switches the rail to a shorter bar and tighter margins on
+   coarse/tablet, and adds safe-area padding on large landscape touchscreens. */
+@media (max-width: 1400px) and (pointer: coarse) {
+  :root {
+    --channel-rail-clearance: calc(31px + 2 * var(--space-6));
+  }
+}
+
+@media (min-width: 1401px) and (orientation: landscape) and (pointer: coarse) {
+  :root {
+    --channel-rail-clearance: calc(38px + 2 * var(--space-7) + var(--space-2) + env(safe-area-inset-top, 0px));
   }
 }
 
