@@ -40,3 +40,69 @@
     transition: none;
   }
 }
+
+.dialog {
+  width: min(90vw, 22rem);
+  padding: var(--space-4);
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--color-fg);
+  background: var(--color-surface-2);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: center;
+  margin-block-end: var(--space-3);
+}
+
+.dialogHeader strong {
+  flex: 1;
+}
+
+.dialogClose {
+  display: grid;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dialog form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.dialog input,
+.dialog button[type='submit'] {
+  height: 44px;
+  padding-inline: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: inherit;
+}
+
+.dialog input {
+  color: var(--color-fg);
+  background: var(--color-surface);
+}
+
+.dialog button[type='submit'] {
+  color: var(--color-accent-fg);
+  background: var(--color-accent);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .dialog button[type='submit']:hover {
+    background: var(--color-accent-hover);
+  }
+}
