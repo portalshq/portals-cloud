@@ -4,6 +4,7 @@ import { Bell, Forward } from 'lucide-react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { channelEvents } from '@/lib/analytics-contract'
 import { recordChannelEvent } from '@/lib/analytics-client'
+import { followsSnapshot, mergeAnonymousFollows, setAnonymousFollow, subscribeFollows } from '@/lib/follows'
 import { getViewer, requestSignIn, subscribeViewer, viewerFetch } from '@/lib/viewer'
 import styles from './actions.module.css'
 
@@ -12,23 +13,33 @@ import styles from './actions.module.css'
  *  "Follow" for "Following" cannot reflow the row.
  *
  *  When the channel carries a central `programId` the button follows the real
- *  program through /api/follows; without one it keeps the local chip state. */
+ *  program: signed-in viewers through /api/follows, anonymous viewers through
+ *  local state that merges into program_follows on sign-in. Without a
+ *  `programId` it keeps the in-memory chip state. */
 export function FollowButton({ channel, programId, className }: { channel: string; programId?: string; className?: string }) {
   const session = useSyncExternalStore(subscribeViewer, getViewer, () => null)
-  const [following, setFollowing] = useState(false)
+  const anonymousFollowing = useSyncExternalStore(
+    subscribeFollows,
+    () => (programId ? followsSnapshot().has(programId) : false),
+    () => false,
+  )
+  const [serverFollowing, setServerFollowing] = useState(false)
+  const [chipFollowing, setChipFollowing] = useState(false)
   const [busy, setBusy] = useState(false)
+  const following = programId ? (session ? serverFollowing : anonymousFollowing) : chipFollowing
 
   useEffect(() => {
     if (!session || !programId) {
-      setFollowing(false)
+      setServerFollowing(false)
       return
     }
     let live = true
-    void viewerFetch('/api/follows')
+    void mergeAnonymousFollows()
+      .then(() => viewerFetch('/api/follows'))
       .then(async (response) => {
         if (!response.ok || !live) return
         const body = await response.json().catch(() => null)
-        if (live && Array.isArray(body?.programs)) setFollowing(body.programs.includes(programId))
+        if (live && Array.isArray(body?.programs)) setServerFollowing(body.programs.includes(programId))
       })
       .catch(() => {})
     return () => {
@@ -46,11 +57,11 @@ export function FollowButton({ channel, programId, className }: { channel: strin
         const next = !following
         recordChannelEvent(channelEvents.follow, {channel, following: next})
         if (!programId) {
-          setFollowing(next)
+          setChipFollowing(next)
           return
         }
         if (!session) {
-          requestSignIn()
+          setAnonymousFollow(programId, next)
           return
         }
         setBusy(true)
@@ -60,7 +71,7 @@ export function FollowButton({ channel, programId, className }: { channel: strin
           body: JSON.stringify({ programId, follow: next }),
         })
           .then((response) => {
-            if (response.ok) setFollowing(next)
+            if (response.ok) setServerFollowing(next)
             else if (response.status === 401) requestSignIn()
           })
           .catch(() => {})

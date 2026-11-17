@@ -51,5 +51,5 @@ describe('central program descriptions', () => {
     } finally {
       await db.close()
     }
-  })
+  }, 30_000)
 })
