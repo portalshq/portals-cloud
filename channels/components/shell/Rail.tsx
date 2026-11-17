@@ -68,9 +68,7 @@ export function Rail({ roomSlug, program, sound, account }: RailProps) {
 
       <div className={styles.foot}>
         {program && (
-          <span className={styles.follow}>
-            <FollowButton channel={program.slug} programId={program.id} />
-          </span>
+          <FollowButton className={styles.follow} channel={program.slug} programId={program.id} />
         )}
         {sound && (
           <button type="button" className={styles.sound} aria-label="Stage sound"

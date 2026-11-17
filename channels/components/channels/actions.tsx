@@ -13,7 +13,7 @@ import styles from './actions.module.css'
  *
  *  When the channel carries a central `programId` the button follows the real
  *  program through /api/follows; without one it keeps the local chip state. */
-export function FollowButton({ channel, programId }: { channel: string; programId?: string }) {
+export function FollowButton({ channel, programId, className }: { channel: string; programId?: string; className?: string }) {
   const session = useSyncExternalStore(subscribeViewer, getViewer, () => null)
   const [following, setFollowing] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -38,7 +38,7 @@ export function FollowButton({ channel, programId }: { channel: string; programI
 
   return (
     <button
-      className={`${styles.button} ${styles.follow}`}
+      className={`${styles.button} ${styles.follow} ${className ?? ''}`}
       type="button"
       aria-pressed={following}
       disabled={busy}
