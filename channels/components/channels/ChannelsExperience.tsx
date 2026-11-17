@@ -175,7 +175,8 @@ function Tools({
     <div className={styles.tools} data-search-open={expanded}>
       <div className={styles.toolRow}>
         {filters.map((item) => {
-          const Icon = filterIcons[item]
+          const Icon = filterIcons[item].icon
+          const {size} = filterIcons[item]
           const active = filter === item
           return (
             <button
@@ -187,9 +188,9 @@ function Tools({
             >
               <span className={styles.toolIcon}>
                 {active ? (
-                  <Icon size={21} strokeWidth={1.75} aria-hidden="true" />
+                  <Icon size={size+2} strokeWidth={1.75} aria-hidden="true" />
                 ) : (
-                  <Icon size={19} strokeWidth={1.75} aria-hidden="true" />
+                  <Icon size={size} strokeWidth={1.75} aria-hidden="true" />
                 )}
               </span>
               <span className={styles.toolLabel}>{item}</span>
@@ -275,7 +276,8 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
         <section className={styles.featured} aria-labelledby="featured-heading">
           <Link className={styles.featuredCard} href={`/${featured.slug}`}>
             <span className={styles.featuredMedia}>
-              <span className={styles.pill}>live now</span>
+              <ChannelPreview channel={featured} active={false} />
+              {featured.live && <span className={styles.pill}>live now</span>}
             </span>
             <span className={styles.featuredBody}>
               <h2 className={styles.featuredTitle} style={featured.heading} id="featured-heading">
