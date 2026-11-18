@@ -62,9 +62,9 @@ describe('channelOffAir', () => {
 })
 
 describe('channelEntryHref', () => {
-  it('points off-air entries at the feed panel, which carries the room content', () => {
-    expect(channelEntryHref(appChannel('bears', 'off-air'))).toBe('/#channel-bears')
-    expect(channelEntryHref(channel('night-shift', { live: false }))).toBe('/#channel-night-shift')
+  it('keeps off-air entries at their canonical room', () => {
+    expect(channelEntryHref(appChannel('bears', 'off-air'))).toBe('/bears')
+    expect(channelEntryHref(channel('night-shift', { live: false }))).toBe('/night-shift')
   })
 
   it('points live and unknown-status entries at the room', () => {

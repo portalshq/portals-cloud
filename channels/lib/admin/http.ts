@@ -45,6 +45,10 @@ export function adminErrorResponse(error: unknown): Response {
   if (error instanceof AdminApiError) {
     return jsonError(error.status, error.message);
   }
+  if (error && typeof error === "object" && "code" in error && error.code === "23P01"
+    && "constraint" in error && error.constraint === "station_program_slots_no_overlap") {
+    return jsonError(409, "The station already has a slot in this time window.");
+  }
   console.error("[admin] request failed:", error);
   return jsonError(500, "Internal server error");
 }

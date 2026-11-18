@@ -20,7 +20,7 @@ function session(tokens: AuthSessionTokens) {
 
 export async function POST(request: Request, { params }: { params: Promise<{ action: string }> }) {
   const { action } = await params
-  if (!['start', 'complete', 'refresh', 'sign-out', 'display-name'].includes(action)) {
+  if (!['start', 'start-popup', 'poll', 'complete', 'refresh', 'sign-out', 'display-name'].includes(action)) {
     return json({ error: 'Not found' }, 404)
   }
   if (request.headers.get('sec-fetch-site') === 'cross-site') return json({ error: 'Forbidden' }, 403)
@@ -32,20 +32,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
       address,
       useTls: process.env.AUTH_GATEWAY_TLS?.trim().toLowerCase() === 'true',
     })
-    if (action === 'start') {
+    if (action === 'start' || action === 'start-popup') {
       const origin = request.headers.get('origin')
       const origins = process.env.CHANNELS_AUTH_ORIGINS?.split(',').map(value => value.trim()) ?? []
       if (!origin || !origins.includes(origin)) return json({ error: 'This Channels address is not configured for sign-in.' }, 403)
       const state = randomUUID()
-      return json({ ...await gateway.startAuthSession(state, new URL('/auth/complete', origin).href), state })
+      const start = action === 'start-popup' ? await gateway.startAuthSession(state)
+        : await gateway.startAuthSession(state, new URL('/auth/complete', origin).href)
+      return json({ ...start, state })
     }
     const body = await request.json().catch(() => null)
     if (!body) return json({ error: 'Invalid request' }, 400)
-    if (action === 'complete') {
+    if (action === 'complete' || action === 'poll') {
       if (typeof body.sessionCode !== 'string' || !uuid.test(body.sessionCode)
         || typeof body.state !== 'string' || !uuid.test(body.state)) return json({ error: 'Invalid sign-in session' }, 400)
       const tokens = await gateway.getAuthSession(body.sessionCode, body.state)
-      if (!tokens) return json({ error: 'Sign-in did not complete. Try again.' }, 401)
+      if (!tokens) return action === 'poll'
+        ? json({ pending: true }, 202)
+        : json({ error: 'Sign-in did not complete. Try again.' }, 401)
       if (!tokens.userName) {
         const profile = await gateway.verifyUser(tokens.userToken).catch(() => null)
         if (profile?.displayName) return session({ ...tokens, userName: profile.displayName })
@@ -77,7 +81,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
     return tokens ? session(tokens) : json({ error: 'Session expired' }, 401)
   } catch (error) {
     const code = (error as { code?: number }).code
-    if (action === 'start' && code === 7) {
+    if ((action === 'start' || action === 'start-popup') && code === 7) {
       return json({ error: 'This Channels address is not approved by the sign-in gateway.' }, 403)
     }
     if (action === 'refresh' && (code === 7 || code === 16)) return json({ error: 'Session expired' }, 401)

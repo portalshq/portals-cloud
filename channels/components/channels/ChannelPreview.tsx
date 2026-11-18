@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ChannelStream } from './ChannelStream'
-import type { Channel, PlaybackPreview } from './data'
+import { channelOffAir, formatSessionTime, type Channel, type PlaybackPreview } from './data'
 import styles from './ChannelPreview.module.css'
 
 export function useChannelPreview(channel: Channel, active: boolean): Channel {
   const endpoint = channel.preview?.endpoint
   const [snapshot, setSnapshot] = useState<PlaybackPreview | null | undefined>()
+  const [nextSession, setNextSession] = useState(channel.nextSession)
 
   useEffect(() => {
     if (!endpoint || !active) return
@@ -20,7 +21,10 @@ export function useChannelPreview(channel: Channel, active: boolean): Channel {
       try {
         const response = await fetch(endpoint, { signal: controller.signal })
         const value: PlaybackPreview | null = response.ok ? await response.json() : null
-        if (!controller.signal.aborted) setSnapshot(value)
+        if (!controller.signal.aborted) {
+          setSnapshot(value)
+          if (value?.nextSession) setNextSession(value.nextSession)
+        }
       } catch {
         if (!controller.signal.aborted) setSnapshot(null)
       } finally {
@@ -45,7 +49,7 @@ export function useChannelPreview(channel: Channel, active: boolean): Channel {
     live: snapshot?.live ?? false,
     stream: snapshot?.stream,
     previewVideo: snapshot?.previewVideo,
-    nextSession: snapshot?.nextSession,
+    nextSession: snapshot?.nextSession ?? (nextSession && Date.parse(nextSession) > Date.now() ? nextSession : channel.nextSession),
     ...(program && program.id === channel.programId && program.description !== undefined
       ? { description: program.description, tagline: program.tagline }
       : {}),
@@ -89,7 +93,7 @@ export function ChannelPreview({
   noteClassName?: string
 }) {
   const { preview, previewStatus } = channel
-  const hls = playVideo ? channel.stream : undefined
+  const hls = playVideo && active ? channel.stream : undefined
   const video = playVideo && active ? channel.previewVideo : undefined
   const name = preview?.name ?? channel.title
 
@@ -116,6 +120,24 @@ export function ChannelPreview({
       )}
       {previewStatus === 'unavailable' && (
         <span className={styles.status} role="status">{name} is unavailable right now</span>
+      )}
+    </>
+  )
+}
+
+export function RoomPreviewFallback({ channel: initial, active, muted, noteClassName }: {
+  channel: Channel; active: boolean; muted: boolean; noteClassName?: string
+}) {
+  const channel = useChannelPreview(initial, active)
+  const startsAt = channel.nextSession && Date.parse(channel.nextSession) > Date.now() ? channel.nextSession : undefined
+  return (
+    <>
+      <ChannelPreview channel={channel} active={active} playVideo={active} muted={muted} noteClassName={noteClassName} />
+      {(channelOffAir(channel) || channel.previewStatus === 'off-air' || channel.previewStatus === 'unavailable') && (
+        <div className={styles.schedule}>
+          {startsAt ? <>Next session <time dateTime={startsAt}>{formatSessionTime(startsAt)}</time></>
+            : 'No upcoming session scheduled.'}
+        </div>
       )}
     </>
   )

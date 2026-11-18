@@ -1,12 +1,14 @@
 import type { ChannelHeading, PlaybackPreview } from '../components/channels/data'
 import { centralDb } from './admin/db'
 import { adminEnv } from './admin/env'
+import { previewElements } from './room-controls'
 
 export const CHANNEL_SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/
 const PUBLIC_ASSET = /^(?:[\w-]+\/)*[\w-]+\.(?:png|jpe?g|webp|avif|gif|woff2?)$/i
 
 type RegisteredApp = {
   slug: string
+  programId?: string
   origin: string
   name: string
   /** Credit line shown as the channel owner. Falls back to the app name. */
@@ -16,6 +18,7 @@ type RegisteredApp = {
   headingFont?: string
   headingFontFallbackUrl?: string
   backdrop: boolean
+  chatMessages?: number
   poster?: string
   publicAssets: string[]
   legacyMountExport?: string
@@ -23,7 +26,7 @@ type RegisteredApp = {
 
 function register(slug: string, value: unknown): RegisteredApp | undefined {
   if (!CHANNEL_SLUG.test(slug) || !value || typeof value !== 'object') return
-  const { origin, name, by, poster, backdrop, publicAssets, heading, theme } = value as Record<string, unknown>
+  const { origin, name, by, poster, backdrop, publicAssets, heading, theme, chatMessages } = value as Record<string, unknown>
   if (typeof origin !== 'string') return
   let url: URL
   try {
@@ -61,6 +64,7 @@ function register(slug: string, value: unknown): RegisteredApp | undefined {
     name: typeof name === 'string' && name.trim() ? name.trim() : slug,
     by: typeof by === 'string' && by.trim() ? by.trim() : undefined,
     backdrop: backdrop === true,
+    chatMessages: previewElements(chatMessages).chatMessages,
     poster: image,
     publicAssets: [
       ...(headingFont ? [headingFont] : []),
@@ -99,6 +103,7 @@ const appDefaults: Record<string, Record<string, unknown>> = {
 
 type RegistrationRow = {
   channel_id: string
+  program_id?: string
   app_origin: string
   app_config: Record<string, unknown> | null
 }
@@ -113,16 +118,20 @@ async function readRegistrations(): Promise<RegistrationRow[]> {
   try {
     const db = centralDb()
     const { rows } = await db.query<RegistrationRow>(
-      `SELECT DISTINCT ON (bindings.channel_id)
-         bindings.channel_id, p.app_origin, p.app_config
-       FROM (
+      `WITH bindings AS (
          SELECT channel_id, program_id FROM station_schedule_rules
          UNION
          SELECT channel_id, program_id FROM station_program_slots
-       ) bindings
-       JOIN programs p ON p.id = bindings.program_id
-       WHERE p.app_origin IS NOT NULL
-       ORDER BY bindings.channel_id, bindings.program_id`,
+       ), legacy AS (
+         SELECT channel_id, min(program_id) AS program_id
+         FROM bindings GROUP BY channel_id HAVING count(*) = 1
+       )
+       SELECT coalesce(to_jsonb(p)->>'slug', b.channel_id) AS channel_id,
+              p.id AS program_id, p.app_origin, p.app_config
+       FROM programs p
+       LEFT JOIN legacy b ON b.program_id = p.id AND to_jsonb(p)->>'slug' IS NULL
+       WHERE p.app_origin IS NOT NULL AND coalesce(to_jsonb(p)->>'slug', b.channel_id) IS NOT NULL
+       ORDER BY (to_jsonb(p)->>'slug' IS NOT NULL), p.id`,
     )
     return rows
   } catch (error) {
@@ -164,7 +173,8 @@ export function getChannelApps(): Promise<Map<string, RegisteredApp>> {
         ...(row.app_config && typeof row.app_config === 'object' ? row.app_config : {}),
         origin: row.app_origin,
       })
-      if (app) apps.set(app.slug, app.slug === 'bears' ? { ...app, legacyMountExport: 'mountBears' } : app)
+      if (app) apps.set(app.slug, { ...app, programId: row.program_id, ...(app.slug === 'bears' ? { legacyMountExport: 'mountBears' } : {}) })
+      else if (typeof row.app_origin === 'string') apps.delete(row.channel_id)
     }
     return apps
   })()
@@ -204,6 +214,10 @@ export function getChannelPreview(app: RegisteredApp): Promise<PlaybackPreview |
       const response = await fetch(url, { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(2500) })
       if (!response.ok) return null
       const { playback, nextSession: next, program: rawProgram } = await response.json()
+      if (app.programId && rawProgram?.id && rawProgram.id !== app.programId) {
+        console.error('[channels] Program preview registration mismatch', { slug: app.slug, programId: app.programId })
+        return null
+      }
       const program = rawProgram && typeof rawProgram === 'object' && typeof rawProgram.id === 'string'
         ? {
             id: rawProgram.id,

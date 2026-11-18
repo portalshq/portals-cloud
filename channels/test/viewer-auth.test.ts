@@ -19,6 +19,24 @@ async function start(origin: string) {
 }
 
 describe('Channels sign-in', () => {
+  it('starts a popup without redirecting the card and polls without redeeming an unfinished session', async () => {
+    const { POST } = await import('../app/api/auth/[action]/route')
+    const id = '00000000-0000-0000-0000-000000000001'
+    gateway.startAuthSession.mockResolvedValueOnce({ sessionCode: id, loginUrl: 'https://auth.test/login' })
+    const popup = await POST(new Request('http://localhost:4000/api/auth/start-popup', {
+      method: 'POST', headers: { origin: 'http://localhost:4000' },
+    }), { params: Promise.resolve({ action: 'start-popup' }) })
+    expect(popup.status).toBe(200)
+    const { state } = await popup.json()
+    expect(gateway.startAuthSession).toHaveBeenCalledWith(state)
+    gateway.getAuthSession.mockResolvedValueOnce(null)
+    const poll = await POST(new Request('http://localhost:4000/api/auth/poll', {
+      method: 'POST', body: JSON.stringify({ state, sessionCode: id }),
+    }), { params: Promise.resolve({ action: 'poll' }) })
+    expect(poll.status).toBe(202)
+    expect(await poll.json()).toEqual({ pending: true })
+  })
+
   it('uses the Channels callback on the exact requesting origin', async () => {
     gateway.startAuthSession.mockResolvedValue({ sessionCode: 'session', loginUrl: 'https://auth.test/login' })
     const response = await start('http://100.125.2.45:4000')

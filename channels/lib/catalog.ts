@@ -6,6 +6,7 @@ import { CHANNEL_SLUG, getChannelApps, getChannelPreview } from './channel-apps'
 
 type CatalogRow = {
   channel_id: string
+  tenant_id?: string
   program_id: string
   program_name: string
   program_description: string | null
@@ -18,9 +19,9 @@ type CatalogRow = {
 let centralCache: { until: number; result: Promise<CatalogRow[]> } | undefined
 let lastProgramRows = new Map<string, CatalogRow>()
 
-function readCentral(): Promise<CatalogRow[]> {
+function readCentral(slug?: string): Promise<CatalogRow[]> {
   if (!adminEnv().centralDatabaseUrl) return Promise.resolve([])
-  if (centralCache && centralCache.until > Date.now()) return centralCache.result
+  if (!slug && centralCache && centralCache.until > Date.now()) return centralCache.result
   const result = (async () => {
     try {
       const { rows } = await centralDb().query<CatalogRow>(`
@@ -31,40 +32,45 @@ function readCentral(): Promise<CatalogRow[]> {
           WHERE status IN ('scheduled', 'live', 'completed')
         ), slot_state AS (
           SELECT channel_id, program_id, station_id,
-                 bool_or(status = 'live' AND starts_at <= now()) AS scheduled_live,
+                 bool_or(starts_at <= now()) AS scheduled_live,
                  min(starts_at) FILTER (WHERE starts_at > now()) AS next_start
           FROM station_program_slots
           WHERE status IN ('scheduled', 'live') AND ends_at > now()
           GROUP BY channel_id, program_id, station_id
         )
-        SELECT DISTINCT ON (b.channel_id)
-          b.channel_id, b.program_id, p.name AS program_name,
+        SELECT DISTINCT ON (coalesce(to_jsonb(p)->>'slug', b.channel_id))
+          coalesce(to_jsonb(p)->>'slug', b.channel_id) AS channel_id, p.id AS program_id,
+          to_jsonb(p)->>'tenant_id' AS tenant_id, p.name AS program_name,
           p.description AS program_description, p.tagline AS program_tagline, s.name AS station_name,
           coalesce(ss.scheduled_live, false) AS scheduled_live, ss.next_start
-        FROM bindings b
-        JOIN programs p ON p.id = b.program_id
+        FROM programs p
+        LEFT JOIN bindings b ON p.id = b.program_id
         LEFT JOIN stations s ON s.id = b.station_id
         LEFT JOIN slot_state ss ON ss.channel_id = b.channel_id AND ss.program_id = b.program_id
           AND ss.station_id IS NOT DISTINCT FROM b.station_id
-        WHERE ($1::text IS NULL OR b.station_id = $1)
-        ORDER BY b.channel_id, scheduled_live DESC, ss.next_start NULLS LAST,
+        WHERE coalesce(to_jsonb(p)->>'slug', b.channel_id) IS NOT NULL
+          AND ($2::text IS NULL OR coalesce(to_jsonb(p)->>'slug', b.channel_id) = $2)
+          AND ($1::text IS NULL OR b.station_id = $1)
+        ORDER BY coalesce(to_jsonb(p)->>'slug', b.channel_id),
+                 (to_jsonb(p)->>'slug' IS NOT NULL) DESC, scheduled_live DESC, ss.next_start NULLS LAST,
                  b.program_id, b.station_id NULLS LAST
-      `, [process.env.CHANNELS_CATALOG_STATION_ID?.trim() || null])
-      lastProgramRows = new Map(rows.map((row) => [row.channel_id, row]))
+      `, [slug ? null : process.env.CHANNELS_CATALOG_STATION_ID?.trim() || null, slug ?? null])
+      for (const row of rows) lastProgramRows.set(row.channel_id, row)
       return rows
     } catch (error) {
       console.error('[channels] Central catalog unavailable', error)
       return []
     }
   })()
-  centralCache = { until: Date.now() + 15_000, result }
+  if (!slug) centralCache = { until: Date.now() + 15_000, result }
   return result
 }
 
-export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
-  const apps = [...(await getChannelApps()).values()]
+async function catalog(slug?: string): Promise<Channel[]> {
+  const registry = await getChannelApps()
+  const apps = slug ? [...registry.values()].filter(app => app.slug === slug) : [...registry.values()]
   const [rows, previews] = await Promise.all([
-    readCentral(),
+    readCentral(slug),
     Promise.all(apps.map(getChannelPreview)),
   ])
   const merged = new Map(mocks.map((channel) => [channel.slug, channel]))
@@ -75,6 +81,7 @@ export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
     merged.set(row.channel_id, {
       slug: row.channel_id,
       programId: row.program_id,
+      creatorId: row.tenant_id ?? undefined,
       title: row.program_name,
       heading: mock?.heading,
       by: row.station_name ?? mock?.by ?? row.program_name,
@@ -99,7 +106,8 @@ export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
     merged.delete(app.slug)
     return {
       slug: app.slug,
-      programId: existing?.programId ?? appProgram?.id ?? previous?.program_id,
+      programId: app.programId ?? existing?.programId ?? appProgram?.id ?? previous?.program_id,
+      creatorId: existing?.creatorId ?? previous?.tenant_id ?? undefined,
       title: existing?.title ?? app.name,
       heading: app.heading ?? existing?.heading,
       headingFontFallbackUrl: app.headingFontFallbackUrl,
@@ -111,7 +119,7 @@ export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
       category: existing?.category ?? 'Live worlds',
       viewers: '',
       source: 'Live video',
-      nextSession: playback?.nextSession ?? existing?.nextSession,
+      nextSession: playback?.nextSession ?? existing?.nextSession ?? previous?.next_start?.toISOString(),
       live: playback?.live ?? false,
       stream: playback?.stream,
       previewVideo: playback?.previewVideo,
@@ -122,6 +130,7 @@ export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
       },
       preview: {
         name: app.name,
+        chatMessages: app.chatMessages,
         endpoint: `/api/channels/${app.slug}/preview`,
         backdropModule: app.backdrop ? `${assets}/backdrop.js` : undefined,
         poster: app.poster ? `${assets}/public/${app.poster}` : undefined,
@@ -130,4 +139,8 @@ export const getChannelCatalog = cache(async (): Promise<Channel[]> => {
     }
   })
   return [...appChannels, ...merged.values()]
-})
+}
+
+export const getChannelCatalog = cache(() => catalog())
+export const getProgramRoom = cache(async (slug: string) =>
+  (await catalog(slug)).find(channel => channel.slug === slug))

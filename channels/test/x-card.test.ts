@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Channel } from '../components/channels/data'
 import nextConfig from '../next.config'
-import { openFullRoom, requestOrigin, roomMetadata, X_PLAYER_SIZE } from '../lib/x-card'
+import { NextRequest } from 'next/server'
+import { config as proxyConfig, proxy } from '../proxy'
+import { openFullRoom, playerMetadata, requestOrigin, roomMetadata, X_PLAYER_SIZE } from '../lib/x-card'
 
 const origin = new URL('https://channels.example')
 const base = { title: 'Bears · Bears', description: 'A forest show.' }
@@ -48,7 +50,14 @@ describe('roomMetadata', () => {
 
   it('keeps exactly the base metadata for channels that are not embeddable', () => {
     expect(roomMetadata({ ...room, app: undefined }, origin, base)).toBe(base)
-    expect(roomMetadata({ ...room, preview: undefined }, origin, base)).toBe(base)
+    expect(roomMetadata({ ...room, preview: undefined }, origin, base).twitter).toMatchObject({ card: 'player' })
+  })
+
+  it('shares the watch path rather than the currently tuned program', () => {
+    const path = `/g/${'z'.repeat(32)}`
+    const metadata = playerMetadata(path, '/poster.webp', origin, base, 'watch_party')
+    expect(metadata.openGraph).toMatchObject({ url: new URL(path, origin).href })
+    expect(metadata.other?.['twitter:player']).toBe(`${origin.origin}/embed${path}?utm_source=x&utm_medium=player_card&utm_campaign=watch_party`)
   })
 })
 
@@ -75,10 +84,25 @@ describe('openFullRoom', () => {
 describe('frame headers', () => {
   it('lets X frame only the embed player route', async () => {
     const rules = await nextConfig.headers!()
-    const framing = rules.filter((rule) => rule.headers.some(({ value }) => value.includes('frame-ancestors')))
-    expect(framing.map(({ source }) => source)).toEqual(['/embed/:slug'])
-    expect(framing[0].headers).toContainEqual({ key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://x.com https://*.x.com https://twitter.com https://*.twitter.com" })
+    expect(rules.some((rule) => rule.headers.some(({ value }) => value.includes('frame-ancestors')))).toBe(false)
+    expect(proxyConfig.matcher).toContain('/embed/:slug')
+    expect(proxy(new NextRequest('https://channels.example/embed/bears')).headers.get('content-security-policy'))
+      .toBe("frame-ancestors 'self' https://x.com https://*.x.com https://twitter.com https://*.twitter.com")
     expect(rules.find(({ source }) => source === '/notifications/verify')!.headers).toHaveLength(3)
     expect(rules.flatMap(({ headers }) => headers).some(({ key }) => key === 'X-Frame-Options')).toBe(false)
+  })
+
+  it('does not widen the standard card even with duplicate variant parameters', () => {
+    vi.stubEnv('CHANNELS_PREVIEW_FRAME_ORIGINS', 'https://partner.example')
+    try {
+      const headers = (query: string) => proxy(new NextRequest(`https://channels.example/embed/bears?${query}`)).headers
+      expect(headers('variant=preview').get('content-security-policy')).toContain('https://partner.example')
+      expect(headers('variant=preview&variant=preview').get('content-security-policy')).not.toContain('https://partner.example')
+      expect(headers('variant=preview').get('cache-control')).toBe('private, no-store')
+      expect(proxy(new NextRequest(`https://channels.example/embed/g/${'a'.repeat(32)}?variant=preview`)).headers
+        .get('content-security-policy')).not.toContain('https://partner.example')
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })

@@ -13,6 +13,13 @@ session windows get created, and how operators revise the grid.
 | `program_sessions` | app DB | App-owned occurrences (currently unused by bears-live-app) |
 | `production_checkpoints` | app DB | Last reconcile mode (`stopped`/`ambient`/`preparing`/`episode`) |
 
+A station is one curated stream. Its ID is separate from both the program
+ID and its creator tenant ID. Central migration `0011` rejects overlapping
+`scheduled` or `live` slots on the same station, including simultaneous
+writes from the scheduler and admin. Windows are half-open, so a second
+program may start exactly when the first ends. Before deploying, resolve
+any invalid or overlapping rows reported by the migration.
+
 ### `schedule` JSONB shape
 
 ```json

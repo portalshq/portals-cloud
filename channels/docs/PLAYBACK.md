@@ -39,8 +39,9 @@ on what kind of delivery the channel uses.
 
 ## The model that fits
 
-The catalog stores a *reference*, not a stream — and we already have it: the
-`station/program/channel` binding names which app owns playback. The browse
+The catalog stores a *reference*, not a stream: the program's registered
+`app_origin` identifies the app that owns playback. A station slot selects a
+program; it does not identify a playback backend by creator ID. The browse
 app resolves the live descriptor lazily — a route handler that calls the
 owning app's `/api/channel` for the focused tile or channel page (same pattern
 as the admin `production/status` proxy), returning `{playback, nextSession}`

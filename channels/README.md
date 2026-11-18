@@ -40,18 +40,26 @@ and lifecycle details.
 
 ## Routes at a glance
 
-- `/` is the scroll feed: one full-height panel per channel, one active player
-  at a time. While a program is off-air its panel mounts the program room
-  itself — the app's own off-air stage — and flips back to the player when
-  the next session starts. Channels without a program get a room card:
-  title, off-air line, and the next-session card — the follow action renders
-  only when a program is bound.
-- `/channels` is the browsable index. Entries for off-air channels open the
-  channel's feed panel (`/#channel-<slug>`) rather than a room.
-- `/<slug>` is the channel room. Program apps mount their watch bundle only
-  while the program is on air; an off-air room URL redirects to the feed
-  panel. Channels without an app render channel details plus an HLS stage.
+- `/` is the scroll feed. Only the active program preview plays media or
+  refreshes chat. It shows up to three public messages by default; enter the
+  room to post. Off-air previews retain the session schedule.
+- `/channels` is the browsable index. All program entries link to their room,
+  even before a show begins.
+- `/<slug>` is the canonical program room. It opens the program's stage or
+  off-air lobby without redirecting.
 - `/embed/<slug>` is the program room framed for the X Player Card.
+- `/embed/<slug>?variant=preview` is the read-only room preview. Set
+  `CHANNELS_PREVIEW_FRAME_ORIGINS` to comma-separated, exact HTTPS partner
+  origins if needed. This does not widen full-player framing.
+- `/g/<code>` opens a group's current room. `/embed/g/<code>` tracks the same
+  program and starts muted so X can remain the audio host.
+
+A channel is a creator tenant, not a program or a station. Programs have their
+own public slugs and app registrations. Stations schedule programs without
+overlapping live or scheduled slots. Apply central migrations `0011` and
+`0012` before enabling groups and the shared conversation. See
+[program registration](docs/CHANNEL-APPS.md) and [X Player Cards](docs/X-PLAYER-CARD.md)
+for rollout details.
 
 See [Channel content by page](docs/CHANNEL-CONTENT.md) for the full diagram.
 

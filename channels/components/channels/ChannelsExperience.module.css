@@ -1,3 +1,47 @@
+.previewEmbed {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.groupRoom {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.groupStage {
+  position: relative;
+  min-height: min(70dvh, 25rem);
+}
+
+.groupControl {
+  position: relative;
+}
+
+.groupControl > div {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + var(--space-2));
+  display: grid;
+  gap: var(--space-2);
+  width: min(16rem, 80vw);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
+.groupControl summary {
+  cursor: pointer;
+}
+
+.groupControl > summary {
+  list-style: none;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font: var(--font-normal);
+  text-transform: lowercase;
+}
 /* Both views of /channels: the browse index and the channel room.
    Same tokens, same lit-object signature, same rail as the feed. */
 

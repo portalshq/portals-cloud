@@ -1,0 +1,102 @@
+'use client'
+
+import { useEffect, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
+import { getViewer, requestSignIn, subscribeViewer, viewerFetch } from '@/lib/viewer'
+import styles from './RoomChat.module.css'
+
+type Message = { id: string; name: string; text: string }
+const noViewer = () => null
+
+function useMessages(endpoint: string | undefined, limit: number, active: boolean, privateRead: boolean) {
+  const [snapshot, setSnapshot] = useState<{ endpoint: string; messages: Message[] }>()
+  useEffect(() => {
+    if (!endpoint || !limit || !active) return
+    const abort = new AbortController()
+    let running = false
+    async function read() {
+      if (document.hidden || running || abort.signal.aborted) return
+      running = true
+      try {
+        const path = `${endpoint}?limit=${limit}`
+        const response = privateRead ? await viewerFetch(path, { signal: abort.signal })
+          : await fetch(path, { signal: abort.signal, credentials: 'omit' })
+        if (abort.signal.aborted) return
+        if (!response.ok) {
+          if (privateRead) setSnapshot(undefined)
+          return
+        }
+        const value = await response.json() as { messages: Message[] }
+        if (!abort.signal.aborted) setSnapshot({ endpoint: endpoint!, messages: value.messages })
+      } catch {
+        if (!abort.signal.aborted && privateRead) setSnapshot(undefined)
+      } finally { running = false }
+    }
+    void read()
+    const timer = window.setInterval(read, 2500)
+    document.addEventListener('visibilitychange', read)
+    return () => {
+      abort.abort()
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', read)
+    }
+  }, [active, endpoint, limit, privateRead])
+  return active && limit && snapshot && snapshot.endpoint === endpoint ? snapshot.messages.slice(-limit) : []
+}
+
+export function AmbientChat({ limit, active }: { limit: number; active: boolean }) {
+  const messages = useMessages('/api/chat', limit, active, false)
+  if (!active || !limit || !messages.length) return null
+  return <ol className={styles.ambient} aria-label="Recent public chat">
+    {messages.map(message => <li key={message.id}><strong>{message.name}</strong> {message.text}</li>)}
+  </ol>
+}
+
+export function RoomChat({ groupCode, member = false }: { groupCode?: string; member?: boolean }) {
+  const viewer = useSyncExternalStore(subscribeViewer, getViewer, noViewer)
+  const privateEndpoint = viewer && member && groupCode ? `/api/groups/${groupCode}/chat` : undefined
+  const [publicSelected, setPublicSelected] = useState(false)
+  const selected = privateEndpoint && !publicSelected ? privateEndpoint : '/api/chat'
+  return <section className={styles.window} aria-label="Chat">
+    {privateEndpoint && <div className={styles.scopes} aria-label="Chat conversation" role="group">
+      <button type="button" aria-pressed={!publicSelected} onClick={() => setPublicSelected(false)}>Group</button>
+      <button type="button" aria-pressed={publicSelected} onClick={() => setPublicSelected(true)}>Public</button>
+    </div>}
+    <Thread key={`${viewer?.userId}:${selected}`} endpoint={selected} privateRead={selected === privateEndpoint} signedIn={Boolean(viewer)} />
+  </section>
+}
+
+function Thread({ endpoint, privateRead, signedIn }: { endpoint: string; privateRead: boolean; signedIn: boolean }) {
+  const messages = useMessages(endpoint, 40, true, privateRead)
+  const [draft, setDraft] = useState('')
+  const [pending, setPending] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  async function send() {
+    if (pending || !draft.trim()) return
+    setPending(true)
+    setFailed(false)
+    try {
+      const response = await viewerFetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: draft, clientId: crypto.randomUUID() }) })
+      if (!response.ok) throw new Error(`Chat send returned ${response.status}`)
+      setDraft('')
+    } catch { setFailed(true) }
+    finally { setPending(false) }
+  }
+
+  const submitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+    event.preventDefault()
+    void send()
+  }
+  return <>
+    <ol className={styles.messages} aria-label={privateRead ? 'Group messages' : 'Public messages'}>
+      {[...messages].reverse().map(message => <li key={message.id}><strong>{message.name}</strong> {message.text}</li>)}
+    </ol>
+    {signedIn ? <div className={styles.composer}>
+      <input aria-label="Chat message" value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={submitOnEnter} maxLength={500} readOnly={pending} />
+      <button type="button" disabled={pending || !draft.trim()} onClick={() => void send()}>Send</button>
+    </div> : <button type="button" onClick={requestSignIn}>Sign in to chat</button>}
+    {failed && <p role="alert">Message not sent. Please try again.</p>}
+  </>
+}

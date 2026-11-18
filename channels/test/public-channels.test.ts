@@ -97,7 +97,7 @@ describe('public catalog', () => {
     expect(catalog.find(({ slug }) => slug === 'night-shift')?.stream).toBeUndefined()
     expect(catalog.some(({ slug }) => slug === 'unfolding')).toBe(true)
     expect(JSON.stringify(catalog)).not.toContain('private-guest')
-    expect(pool.query).toHaveBeenCalledWith(expect.any(String), ['public-station'])
+    expect(pool.query).toHaveBeenCalledWith(expect.any(String), ['public-station', null])
   })
 })
 

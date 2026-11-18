@@ -20,6 +20,7 @@ export type ChannelHeading = Pick<CSSProperties, 'fontFamily' | 'fontWeight'>
 export type Channel = {
   slug: string
   programId?: string
+  creatorId?: string
   title: string
   heading?: ChannelHeading
   headingFontUrl?: string
@@ -43,6 +44,7 @@ export type Channel = {
     poster?: string
     backdropModule?: string
     name?: string
+    chatMessages?: number
   }
   previewStatus?: 'live' | 'off-air' | 'unavailable'
 }
@@ -77,12 +79,8 @@ export function channelOffAir(channel: Channel): boolean {
   return !channel.live && !channel.app && !channel.stream && !channel.previewVideo && !channel.preview
 }
 
-/* Where an entry point takes the reader. Off-air channels have no program to
-   enter, so they open their feed panel — the panel already shows the channel
-   room content and scrolls on to the rest of the feed. On air, the room URL
-   still mounts the program. */
 export function channelEntryHref(channel: Channel): string {
-  return channelOffAir(channel) ? `/#channel-${channel.slug}` : `/${channel.slug}`
+  return `/${channel.slug}`
 }
 
 export const PLACEHOLDER_STREAM =

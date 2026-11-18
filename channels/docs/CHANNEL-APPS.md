@@ -2,18 +2,50 @@
 
 Channel app registrations are central database records. When an app publishes
 `app_origin` on its central `programs` row — the 25th Chapter sync sets it
-from `PORTALS_APP_ORIGIN` — the Channels registry mounts that app on every
-channel the program is bound to. `app_origin` is the trusted backend origin
+from `PORTALS_APP_ORIGIN` — the Channels registry mounts that app at its
+published `programs.slug`, independent of any schedule. `programs.tenant_id`
+identifies the creator channel. One creator can register multiple programs.
+`app_origin` is the trusted backend origin
 serving `/api/channel` and the app bundle. An optional `app_config` jsonb
 column carries the same presentation fields `CHANNELS_APPS` accepts (`name`,
 `by`, `theme`, `heading`, `backdrop`, `poster`, `publicAssets`); code-owned
 per-slug defaults in `lib/channel-apps.ts` fill anything `app_config` omits.
 
 `CHANNELS_APPS` remains as a local-server fallback. The JSON object
-maps a channel slug to a trusted backend origin and optional presentation
+maps a program slug to a trusted backend origin and optional presentation
 settings. The slug is the room URL and the key used to merge central catalog
 metadata. A central `app_origin` record always wins over a `CHANNELS_APPS`
 entry for the same slug.
+
+Apply central migration `0011` before publishing new slugs. It reserves route
+names, preserves published slugs and rejects station-slot overlaps. The known
+default program IDs retain `/bears` and `/25th-chapter`; reconcile custom
+program IDs explicitly. The registry supports unambiguous legacy bindings
+while operators populate slugs. Do not use a shared creator identifier as a
+public program slug.
+
+## Preview and chat
+
+`mountChannel` receives `controls.variant === 'preview'` in the active feed
+panel and the preview embed. A compatible bundle exports `supportsPreview =
+true`, renders only stage/backdrop and schedule, and doesn't open full-chat,
+reaction, account, write or reminder connections. The host renders the public
+chat overlay once, including for old bundles with a read-only fallback. Set
+`chatMessages` to an integer from 0 to 10 in the app configuration; omitted
+defaults to 3. `data-channel-room-variant="preview"` is a layout hook, not a
+substitute for suppressing interactive elements.
+
+After central migration `0012`, set `CHANNELS_CHAT_ORIGIN` on Bears and the
+25th Chapter to the Channels origin. Set the same server-only
+`CHANNELS_CHAT_SERVICE_TOKEN` on those servers and Channels. Configure the two
+apps together so standalone and framed viewers use the same public chat.
+The public tail reads the central committed log; the legacy app histories and
+external or paid chat feeds are not republished to the global thread.
+`CHANNELS_CHAT_BLOCKED_TERMS` adds comma-separated shared blocked terms.
+Groups use the same chat window for public and private scopes and require
+separate membership authorization. Bundles can export `supportsShellChat =
+true` and honor `controls.shellChat` to suppress their own window in group
+rooms.
 
 Program descriptions and taglines are stored on the central `programs` row,
 not in `CHANNELS_APPS`. In Channels admin, use **Edit program details** and

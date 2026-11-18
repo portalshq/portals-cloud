@@ -13,7 +13,9 @@ import { FollowButton, ShareButton } from './actions'
 import { ChannelAppRoom } from './ChannelAppRoom'
 import { ChannelHeadingFonts } from './ChannelHeadingFonts'
 import { ChannelMeta } from './ChannelMeta'
-import { ChannelPreview, useChannelPreview } from './ChannelPreview'
+import { ChannelPreview, RoomPreviewFallback, useChannelPreview } from './ChannelPreview'
+import { AmbientChat, RoomChat } from './RoomChat'
+import { StartGroup } from './GroupRoom'
 import { ChannelStream } from './ChannelStream'
 import {
   browseCopy,
@@ -417,23 +419,36 @@ function Stage({ channel, muted }: { channel: Channel & { stream: string }; mute
   )
 }
 
-function ChannelDetail({ channel, embed }: { channel: Channel; embed?: boolean }) {
-  const [sound] = useState(createRoomSound)
+function ChannelDetail({ channel, surface }: { channel: Channel; surface?: 'embed' | 'preview' }) {
+  const embed = surface !== undefined
+  const preview = surface === 'preview'
+  const [sound] = useState(() => createRoomSound())
   const muted = useSyncExternalStore(sound.subscribe, sound.getMuted, () => true)
   const [account, setAccount] = useState<RoomAccount | null>(null)
   const [appSoundAvailable, setAppSoundAvailable] = useState(false)
-  const hasSound = channel.app ? appSoundAvailable : Boolean(channel.stream)
+  const hasSound = preview ? appSoundAvailable || Boolean(channel.stream || channel.previewVideo)
+    : channel.app ? appSoundAvailable : Boolean(channel.stream)
 
   useEffect(() => {
-    const surface = embed ? 'channels_embed' : channel.app ? 'channels_app_room' : 'channels_room'
+    const surface = preview ? 'channels_embed_preview' : embed ? 'channels_embed' : channel.app ? 'channels_app_room' : 'channels_room'
     recordChannelEvent(experienceEvents.pageViewed, {surface, route: location.pathname, channel_id: channel.slug, ...(channel.programId ? {program_id: channel.programId} : {}), entry_source: embed ? 'social' : document.referrer ? 'referral' : 'direct'})
     recordChannelEvent(experienceEvents.channelOpened, {surface, channel_id: channel.slug, ...(channel.programId ? {program_id: channel.programId} : {}), origin: embed ? 'embed' : 'direct'})
-  }, [channel.app, channel.programId, channel.slug, embed])
+  }, [channel.app, channel.programId, channel.slug, embed, preview])
 
   return (
     <>
-      <Rail roomSlug={channel.slug} embed={embed} program={{ id: channel.programId, slug: channel.slug }} sound={{ muted, toggle: sound.toggle, disabled: !hasSound }} account={account} />
-      {channel.app ? (
+      <Rail roomSlug={channel.slug} surface={surface} program={preview ? undefined : { id: channel.programId, slug: channel.slug }} sound={{ muted, toggle: sound.toggle, disabled: !hasSound }} account={account}
+        groupControl={!embed && channel.creatorId && channel.programId ? <StartGroup programId={channel.programId} /> : undefined} />
+      {preview ? (
+        <main className={styles.previewEmbed}>
+          {channel.app ? <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title}
+            heading={channel.heading} sound={sound} onAccountChange={setAccount} onSoundAvailable={setAppSoundAvailable}
+            variant="preview" chatMessages={channel.preview?.chatMessages}
+            fallback={<RoomPreviewFallback channel={channel} active muted={muted} />} />
+            : <RoomPreviewFallback channel={channel} active muted={muted} />}
+          <AmbientChat active limit={channel.preview?.chatMessages ?? 3} />
+        </main>
+      ) : channel.app ? (
         <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title}
           heading={channel.heading} sound={sound} onAccountChange={setAccount} onSoundAvailable={setAppSoundAvailable} />
       ) : (
@@ -446,6 +461,7 @@ function ChannelDetail({ channel, embed }: { channel: Channel; embed?: boolean }
           </div>
 
           {channel.stream && <Stage channel={{ ...channel, stream: channel.stream }} muted={muted} />}
+          <RoomChat />
         </main>
       )}
     </>
@@ -454,11 +470,11 @@ function ChannelDetail({ channel, embed }: { channel: Channel; embed?: boolean }
 
 /** `embed` renders the room for an X Player Card: the same room and rail
  *  controls, without in-app navigation or the account menu. */
-export function ChannelsExperience({ channels, channel, embed }: { channels: Channel[]; channel?: Channel; embed?: boolean }) {
+export function ChannelsExperience({ channels, channel, surface }: { channels: Channel[]; channel?: Channel; surface?: 'embed' | 'preview' }) {
   return (
     <>
       <ChannelHeadingFonts channels={channel ? [channel] : channels} />
-      {channel ? <ChannelDetail key={channel.slug} channel={channel} embed={embed} /> : <BrowseIndex channels={channels} />}
+      {channel ? <ChannelDetail key={channel.slug} channel={channel} surface={surface} /> : <BrowseIndex channels={channels} />}
     </>
   )
 }

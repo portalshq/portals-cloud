@@ -3,6 +3,9 @@ export type RoomAccount = {
   invite?: { label: string; run: () => void }
 }
 
+export type RoomSurface = 'embed' | 'preview'
+export { previewElements, type PreviewElements } from './room-preview'
+
 const SOUND_MUTED_KEY = 'channels:sound-muted'
 
 export function getSoundMuted() {
@@ -23,8 +26,8 @@ export function setSoundMuted(muted: boolean) {
   }
 }
 
-export function createRoomSound() {
-  let muted = getSoundMuted()
+export function createRoomSound(forceMuted = false) {
+  let muted = forceMuted || getSoundMuted()
   const listeners = new Set<() => void>()
   return {
     getMuted: () => muted,
@@ -34,7 +37,7 @@ export function createRoomSound() {
     },
     toggle() {
       muted = !muted
-      setSoundMuted(muted)
+      if (!forceMuted) setSoundMuted(muted)
       for (const listener of listeners) listener()
     },
   }

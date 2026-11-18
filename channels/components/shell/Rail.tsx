@@ -4,10 +4,12 @@ import { ChevronLeft, Compass, Home, Volume2, VolumeX } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import type { RoomAccount } from '@/lib/room-controls'
+import type { RoomAccount, RoomSurface } from '@/lib/room-controls'
+import type { ReactNode } from 'react'
 import { ViewerAccount } from '@/components/auth/ViewerAccount'
 import { FollowButton } from '@/components/channels/actions'
 import { openFullRoom } from '@/lib/x-card'
+import { signInWithinFrame } from '@/lib/viewer'
 import styles from './Rail.module.css'
 
 const links = [
@@ -23,19 +25,44 @@ type RailProps = {
   account?: RoomAccount | null
   /** X Player Card room: no in-app navigation or account menu. The wordmark
    *  opens the full room, and sign-in requests hand off to it. */
-  embed?: boolean
+  surface?: RoomSurface
+  roomHref?: string
+  groupControl?: ReactNode
 }
 
-export function Rail({ roomSlug, program, sound, account, embed }: RailProps) {
+export function Rail({ roomSlug, program, sound, account, surface, groupControl, roomHref }: RailProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const embed = surface !== undefined
+  const target = roomHref?.slice(1) ?? roomSlug
 
   useEffect(() => {
-    if (!embed || !roomSlug) return
-    const handoff = () => openFullRoom(roomSlug)
+    if (surface !== 'embed' || !target) return
+    let attempt: AbortController | undefined
+    const handoff = () => {
+      if (window.top === window.self) return openFullRoom(target)
+      if (attempt) return
+      const popup = window.open('about:blank', '_blank')
+      if (!popup) return openFullRoom(target)
+      popup.opener = null
+      const controller = new AbortController()
+      attempt = controller
+      void signInWithinFrame(popup, controller.signal)
+        .catch(() => {
+          if (controller.signal.aborted) return
+          try {
+            if (popup.closed) return
+            popup.location.replace(new URL(`/${target}`, window.location.origin).href)
+          } catch { openFullRoom(target) }
+        })
+        .finally(() => { attempt = undefined })
+    }
     window.addEventListener('channels:open-account', handoff)
-    return () => window.removeEventListener('channels:open-account', handoff)
-  }, [embed, roomSlug])
+    return () => {
+      attempt?.abort()
+      window.removeEventListener('channels:open-account', handoff)
+    }
+  }, [surface, target])
 
   function goBack() {
     const navigation = (window as Window & {
@@ -54,9 +81,9 @@ export function Rail({ roomSlug, program, sound, account, embed }: RailProps) {
   return (
     <nav className={styles.rail} aria-label="Primary">
       <ul className={styles.links}>
-        {embed && roomSlug ? (
+        {embed && target ? (
           <li>
-            <a className={styles.link} href={`/${roomSlug}`} target="_blank" rel="noopener">
+            <a className={styles.link} href={`/${target}`} target="_blank" rel="noopener">
               <span>channels</span>
             </a>
           </li>
@@ -85,6 +112,7 @@ export function Rail({ roomSlug, program, sound, account, embed }: RailProps) {
       </ul>
 
       <div className={styles.foot}>
+        {groupControl}
         {program && (
           <FollowButton className={styles.follow} channel={program.slug} programId={program.id} />
         )}

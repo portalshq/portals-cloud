@@ -9,7 +9,7 @@ flowchart TB
     Catalog --> Room["/[slug] · Channel room"]
 
     Feed --> FeedContent["Active panel<br/>Muted HLS or demo video when available<br/>Animated backdrop or poster as fallback"]
-    Feed --> OffAir["Off-air panel<br/>The program room mounts inside<br/>the panel — its own off-air stage"]
+    Feed --> OffAir["Off-air panel<br/>Read-only stage and next-session information"]
     Browse --> BrowseContent["Searchable card grid<br/>One visible card animates its backdrop<br/>Other cards use their configured poster"]
     Room --> Bears["/bears · Full Bears watch app<br/>Forest canvas + HLS, demo video, or Reactor<br/>Chat, sound, and audience interactions"]
     Room --> Other["Other channel rooms<br/>Registered watch bundle or channel details and an HLS stage"]
@@ -17,7 +17,7 @@ flowchart TB
     FeedContent --> PreviewStatus["Shared preview status<br/>Off air when the app reports no playback<br/>Unavailable when the preview request fails"]
     OffAir --> PreviewStatus
     BrowseContent --> PreviewStatus
-    BrowseContent --> OffAirEntry["Off-air entries open the feed panel,<br/>not the room"]
+    BrowseContent --> OffAirEntry["Off-air entries open the canonical room"]
     Bears --> Lobby["Off-air lobby<br/>Next episode and email reminder form if scheduled<br/>(embeds and live rooms that end mid-visit)"]
 ```
 
@@ -25,10 +25,11 @@ flowchart TB
 
 | Page | Media and controls |
 | --- | --- |
-| `/` | One feed panel owns playback at a time. It plays HLS or a looping progressive video. The feed starts muted, and the rail sound setting follows the active panel as viewers scroll. When no preview video is available, a configured backdrop can animate on the active panel. Inactive panels use their configured poster. An off-air panel drops the media frame entirely and mounts the program's own room inside the panel — the same bundle and off-air stage the room route gives it, lazily on first view — while the preview poll keeps watching for the next session to begin. A channel without a program gets a room card instead: title, off-air line, next-session card — the follow action renders only when a program is bound. |
-| `/channels` | The browse grid uses the same preview component with video playback disabled. It animates one visible backdrop at a time, prioritizing the hovered or focused card. The featured banner has its own layout. Cards and the featured banner open the feed panel (`/#channel-<slug>`) rather than the room while their channel is off-air. |
-| `/bears` | The Channels shell mounts the Bears watch bundle on entry while the program is on air. Bears supplies the stage, chat, and audience interactions. The rail handles sound and the account dialog. The embedded Bears header stays in the layout while hidden. Back uses same-origin history when available and otherwise opens the matching feed panel. When the app reports off-air, `/bears` redirects to the feed panel — the off-air lobby only appears inside embeds and for rooms that end while the viewer is inside. Leaving the room unmounts the watch app. |
-| Other `/[slug]` pages | Channels renders the channel details and an HLS player when a stream is configured. App rooms redirect to the feed panel whenever the app reports off-air; an unreachable preview still mounts the room so the app can report its own state. |
+| `/` | Only the active panel mounts the read-only preview, plays media or polls public chat. The preview uses the program's stage and schedule and shows up to three public messages by default. It never offers a composer. |
+| `/channels` | The browse grid uses posters and one visible backdrop without starting a player. Program cards always open the canonical room. |
+| `/[slug]` | The watch bundle owns the stage and off-air lobby before, during and after the show. Unbundled catalog entries use the Channels stage when a stream is available. |
+| `/embed/[slug]?variant=preview` | The same preview contract as the feed, with an explicit partner frame allowlist. |
+| `/g/[code]` and `/embed/g/[code]` | The stage follows tuning without replacing the chat window. The public player never reads membership or private chat. |
 
 ## App previews and playback
 

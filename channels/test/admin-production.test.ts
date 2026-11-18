@@ -75,7 +75,7 @@ describe("GET /api/admin/production/status", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })));
     usePools({
       central: makePool((text) =>
-        text.includes("DISTINCT ON (bindings.channel_id)") ? { rows: [gardenRegistration] } : centralHandler(text),
+        text.includes("p.app_origin, p.app_config") ? { rows: [gardenRegistration] } : centralHandler(text),
       ),
     });
     const res = await GET(adminRequest("/api/admin/production/status"));

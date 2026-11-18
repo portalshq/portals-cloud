@@ -61,6 +61,40 @@ export async function startSignIn() {
   location.assign(data.loginUrl)
 }
 
+export async function signInWithinFrame(popup: Window, signal: AbortSignal) {
+  const version = sessionVersion
+  const response = await post('start-popup')
+  if (!response.ok) throw new Error(`Sign-in start returned ${response.status}`)
+  const { loginUrl, state, sessionCode } = await response.json()
+  if (typeof loginUrl !== 'string' || typeof state !== 'string' || typeof sessionCode !== 'string') {
+    throw new Error('Invalid sign-in session')
+  }
+  const login = new URL(loginUrl)
+  if (login.protocol !== 'https:' && login.protocol !== 'http:') throw new Error('Invalid sign-in URL')
+  if (signal.aborted || popup.closed) return
+  popup.location.replace(login.href)
+  const deadline = Date.now() + 5 * 60_000
+  while (!signal.aborted && Date.now() < deadline && version === sessionVersion) {
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    if (signal.aborted) return
+    const result = await post('poll', { state, sessionCode })
+    if (result.status === 202) {
+      // A popup opener relationship may be severed by the login provider
+      // even while its tab is open. Poll the server, not the window handle.
+      continue
+    }
+    if (!result.ok) throw new Error(`Sign-in poll returned ${result.status}`)
+    const viewer: Session = await result.json()
+    if (!signal.aborted && version === sessionVersion) {
+      sessionVersion++
+      save(viewer)
+      recordChannelEvent(experienceEvents.authResult, {surface: 'channels_shell', method: 'hosted', outcome: 'succeeded'})
+      void bindChannelAnalyticsIdentity()
+    }
+    return
+  }
+}
+
 export function consumeUsernamePrompt(): boolean {
   try {
     const pending = sessionStorage.getItem(USERNAME_PROMPT)

@@ -5,6 +5,11 @@ Ported from `massively-social-ebook/admin` (ControlRoom) onto the station-grid
 schema used by `bears-live-app`. Read `SCHEDULING.md` first for the scheduling
 model and `CHANNEL-APPS.md` for the app registry.
 
+The public room key is `programs.slug`, not the tenant ID or a station ID.
+Existing admin scopes still refer to the stored `channel_id` on legacy
+bindings. When an admin slot write overlaps another scheduled or live slot
+on the same station, the database rejects it and the API returns `409`.
+
 The admin manages **any app in the channels registry** — not just bears. A
 channel appears in the admin when a program is bound to it (schedule rules or
 session slots) or an app is registered for it (central `programs.app_origin`,
