@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useAdminToken } from '../../hooks/useAdminToken'
 import { usePolling } from '../../hooks/usePolling'
 import { adminFetch } from '../../api/client'
-import type { ProductionStatus } from '../../types'
+import type { ProductionAppStatus, ProductionStatus } from '../../types'
 import { formatDisplayDate } from '../../lib/dates'
 
 const MODE_STYLES: Record<string, string> = {
@@ -11,6 +11,26 @@ const MODE_STYLES: Record<string, string> = {
   ambient: 'text-blue-700 bg-blue-50',
   stopped: 'text-gray-500 bg-gray-100',
 }
+
+type ProductionAction = 'start' | 'stop' | 'test-closing'
+
+const ACTIONS: { id: ProductionAction; label: string; className: string }[] = [
+  {
+    id: 'start',
+    label: 'Start production',
+    className: 'bg-[#F06C49] text-[#24110c] hover:bg-[#F58C70] disabled:bg-gray-500',
+  },
+  {
+    id: 'stop',
+    label: 'Stop production',
+    className: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-500',
+  },
+  {
+    id: 'test-closing',
+    label: 'Test closing (dry-run only)',
+    className: 'bg-amber-500 text-white hover:bg-amber-600 disabled:bg-gray-500',
+  },
+]
 
 function JsonPanel({ title, value }: { title: string; value: unknown }) {
   return (
@@ -23,26 +43,85 @@ function JsonPanel({ title, value }: { title: string; value: unknown }) {
   )
 }
 
+function AppPanel({ app, onAction }: {
+  app: ProductionAppStatus
+  onAction: (app: ProductionAppStatus, action: ProductionAction) => void
+}) {
+  const [acting, setActing] = useState<ProductionAction | null>(null)
+
+  const runAction = async (action: ProductionAction) => {
+    if (action === 'stop' && !confirm(`Stop production on ${app.channelId}? This ends the show and releases its sessions.`)) return
+    setActing(action)
+    try {
+      await onAction(app, action)
+    } finally {
+      setActing(null)
+    }
+  }
+
+  return (
+    <div className="border border-gray-200 rounded p-4">
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <h3 className="fontH2 text-gray-700">{app.channelId}</h3>
+        <span className="fontMicro text-gray-400">{app.origin}</span>
+        {!app.controlConfigured && (
+          <span
+            className="px-2 py-0.5 rounded fontMicro text-amber-700 bg-amber-50"
+            title="No credential in channel_app_control_tokens for this channel"
+          >
+            control not configured
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {ACTIONS.map((action) => (
+          <button
+            key={action.id}
+            onClick={() => void runAction(action.id)}
+            disabled={acting !== null || !app.controlConfigured}
+            className={`px-3 py-1.5 rounded fontNormal disabled:cursor-not-allowed ${action.className}`}
+          >
+            {acting === action.id ? '…' : action.label}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <JsonPanel title="GET /api/health" value={app.health} />
+        <JsonPanel title="GET /api/channel" value={app.channel} />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Production across every registered app in the token's scope. Each panel
+ * proxies start/stop/test-closing to that app's own production-control
+ * endpoint with a server-side credential — the browser only holds the admin
+ * token. The checkpoint table below shows the configured app database's
+ * desired/mode state when one is available.
+ */
 export default function ProductionTab() {
   const { token } = useAdminToken()
-  const [actionResult, setActionResult] = useState<string>('')
-  const [acting, setActing] = useState(false)
+  const [actionResults, setActionResults] = useState<Record<string, string>>({})
 
   const fetchStatus = useCallback(() => adminFetch<ProductionStatus>('/production/status', token), [token])
   const { data: status, loading, error, refresh, lastUpdated } = usePolling(fetchStatus, 10000, [token])
 
-  const runAction = async (action: 'start' | 'stop' | 'test-closing') => {
-    if (action === 'stop' && !confirm('Stop production? This ends the show and releases the Reactor session.')) return
-    setActing(true)
-    setActionResult('')
+  const runAction = async (app: ProductionAppStatus, action: ProductionAction) => {
+    setActionResults((results) => ({ ...results, [app.channelId]: '' }))
     try {
-      const result = await adminFetch<unknown>(`/production/${action}`, token, { method: 'POST' })
-      setActionResult(JSON.stringify(result, null, 2))
+      const result = await adminFetch<unknown>(
+        `/production/${encodeURIComponent(app.channelId)}/${action}`,
+        token,
+        { method: 'POST' },
+      )
+      setActionResults((results) => ({ ...results, [app.channelId]: JSON.stringify(result, null, 2) }))
       refresh()
     } catch (err) {
-      setActionResult(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setActing(false)
+      setActionResults((results) => ({
+        ...results,
+        [app.channelId]: `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      }))
     }
   }
 
@@ -56,37 +135,27 @@ export default function ProductionTab() {
         {error && <span className="fontMicro text-red-500 ml-auto">Error: {error.message}</span>}
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button
-          onClick={() => runAction('start')}
-          disabled={acting}
-          className="px-3 py-1.5 bg-[#F06C49] text-[#24110c] rounded fontNormal hover:bg-[#F58C70] disabled:bg-gray-500"
-        >
-          Start production
-        </button>
-        <button
-          onClick={() => runAction('stop')}
-          disabled={acting}
-          className="px-3 py-1.5 bg-red-600 text-white rounded fontNormal hover:bg-red-700 disabled:bg-gray-500"
-        >
-          Stop production
-        </button>
-        <button
-          onClick={() => runAction('test-closing')}
-          disabled={acting}
-          className="px-3 py-1.5 bg-amber-500 text-white rounded fontNormal hover:bg-amber-600 disabled:bg-gray-500"
-        >
-          Test closing (dry-run only)
-        </button>
-      </div>
-
-      {actionResult && (
-        <pre className="mb-4 bg-gray-100 p-3 rounded fontMicro overflow-x-auto max-w-2xl">{actionResult}</pre>
-      )}
-
       {loading && <p className="text-gray-500 fontNormal">Loading…</p>}
 
+      <h2 className="fontH2 text-gray-700 mb-2">Registered apps</h2>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+        {status?.apps.map((app) => (
+          <div key={app.channelId}>
+            <AppPanel app={app} onAction={runAction} />
+            {actionResults[app.channelId] && (
+              <pre className="mt-2 bg-gray-100 p-3 rounded fontMicro overflow-x-auto">{actionResults[app.channelId]}</pre>
+            )}
+          </div>
+        ))}
+        {status && status.apps.length === 0 && !loading && (
+          <p className="text-gray-500 fontNormal">No registered apps in this token's scope</p>
+        )}
+      </div>
+
       <h2 className="fontH2 text-gray-700 mb-2">Production checkpoints</h2>
+      <p className="fontMicro text-gray-400 mb-2">
+        From the configured app database. Apps own their own checkpoints; the table below only covers the app database Channels can reach.
+      </p>
       <div className="overflow-x-auto mb-6">
         <table className="w-full fontNormal border-collapse">
           <thead>
@@ -121,12 +190,6 @@ export default function ProductionTab() {
             )}
           </tbody>
         </table>
-      </div>
-
-      <h2 className="fontH2 text-gray-700 mb-2">Bears server</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
-        <JsonPanel title="GET /api/health" value={status?.bearsHealth} />
-        <JsonPanel title="GET /api/channel" value={status?.bearsChannel} />
       </div>
     </div>
   )

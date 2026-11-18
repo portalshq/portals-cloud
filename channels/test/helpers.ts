@@ -1,8 +1,16 @@
+import { createHash } from "node:crypto";
 import { vi } from "vitest";
 import type pg from "pg";
 import { setPoolsForTest } from "../lib/admin/db";
 
 export const ADMIN_TOKEN = "test-admin-token";
+/** Bearer whose sha256 row in channel_admin_tokens scopes it to SCOPED_CHANNEL_IDS. */
+export const SCOPED_TOKEN = "scoped-admin-token";
+export const SCOPED_CHANNEL_IDS = ["bears"];
+
+export function sha256Hex(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
 
 type QueryResult = { rows: unknown[]; rowCount?: number };
 type QueryHandler = (text: string, values?: unknown[]) => QueryResult;

@@ -1,5 +1,10 @@
 # @portalshq/channel-registry
 
+## Unreleased
+
+- Add `updateProgramDetails(query, programId, patch)` for partial updates of a program's public `name`, `description`, and `tagline`.
+- Add `sql/003_channel_admin.sql`: central `channel_admin_tokens` (scoped Channels admin tokens) and `channel_app_control_tokens` (per-channel app production-control credentials).
+
 ## 0.2.3
 
 ### Patch Changes

@@ -172,6 +172,13 @@ export function getChannelApps(): Promise<Map<string, RegisteredApp>> {
   return result
 }
 
+/** Test seam: drop cached registrations and previews so the next
+ *  getChannelApps call re-reads env + central state. */
+export function resetChannelAppsForTest(): void {
+  registrationCache = undefined
+  previewCache.clear()
+}
+
 function mediaUrl(value: unknown, base: URL): string | undefined {
   if (typeof value !== 'string' || !value) return undefined
   try {

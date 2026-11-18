@@ -1,8 +1,14 @@
 # Channels admin
 
-Operator console for channel scheduling, ported from
-`massively-social-ebook/admin` (ControlRoom) onto the station-grid schema used
-by `bears-live-app`. Read `SCHEDULING.md` first for the scheduling model.
+Operator console for channel scheduling, programs, sessions, and production.
+Ported from `massively-social-ebook/admin` (ControlRoom) onto the station-grid
+schema used by `bears-live-app`. Read `SCHEDULING.md` first for the scheduling
+model and `CHANNEL-APPS.md` for the app registry.
+
+The admin manages **any app in the channels registry** — not just bears. A
+channel appears in the admin when a program is bound to it (schedule rules or
+session slots) or an app is registered for it (central `programs.app_origin`,
+with `CHANNELS_APPS`/`BEARS_API_BASE_URL` as env fallbacks).
 
 ## Components
 
@@ -10,7 +16,26 @@ by `bears-live-app`. Read `SCHEDULING.md` first for the scheduling model.
 |---|---|---|
 | SPA | `admin/` | Standalone Vite + React + Tailwind app (not an npm workspace). Tabs: Sessions, Schedules, Channels, Production. |
 | API | `app/api/admin/*` | Next.js route handlers; the SPA's `/api/admin` calls land here. |
-| Data layer | `lib/admin/` | Lazy `pg` pools (`db.ts`), bearer guard (`auth.ts`), env (`env.ts`), ScheduleConfig validation (`schedule.ts`), DTOs (`types.ts`). |
+| Data layer | `lib/admin/` | Lazy `pg` pools (`db.ts`), scoped bearer auth (`auth.ts` + `scope.ts`), env (`env.ts`), per-app control credentials (`production.ts`), ScheduleConfig validation (`schedule.ts`), DTOs (`types.ts`). |
+
+## Authentication and scoping
+
+Every route requires `Authorization: Bearer <token>`. The token decides the
+scope:
+
+- `CHANNELS_ADMIN_TOKEN` (env) — the platform superuser: every channel, every
+  operation. Unset → scoped tokens still work through the central database.
+- A **scoped token** — a row in the central `channel_admin_tokens` table
+  (created by `packages/channel-registry/sql/003_channel_admin.sql`).
+  `token_hash` is `sha256(token)` hex (compute it with
+  `printf %s "$TOKEN" | shasum -a 256`); `channel_ids` lists the channel
+  slugs the token may view and mutate; `revoked_at` soft-revokes.
+
+Scoped tokens only see and edit their channels' programs, schedules, and
+sessions; `GET /api/admin/info` reports the scope (the SPA shows it in the
+header). A program is editable only when **every** channel it is bound to is
+in scope. When neither the env token nor the central database is configured,
+all admin routes answer 503.
 
 ## Environment variables
 
@@ -20,34 +45,41 @@ stay gitignored.
 
 | Var | Purpose |
 |---|---|
-| `CHANNELS_ADMIN_TOKEN` | Bearer token required by every `/api/admin/*` route. Unset → all routes 503. |
-| `ADMIN_APP_DATABASE_URL` | Bears **app** database (`channels`, `program_sessions`, `production_checkpoints`) — the bears server's `DATABASE_URL`. |
-| `ADMIN_CENTRAL_DATABASE_URL` | Central platform database (`stations`, `programs`, `station_schedule_rules`, `station_program_slots`, `next_program_session`) — the bears server's `CENTRAL_DATABASE_URL`. |
-| `BEARS_API_BASE_URL` | Bears server origin for status reads and production proxying. Production tab only. |
-| `BEARS_PRODUCTION_CONTROL_TOKEN` | Server-only bearer forwarded to bears `POST /api/production/*` — equals the bears server's `PRODUCTION_CONTROL_TOKEN`. Never reaches the browser. |
+| `CHANNELS_ADMIN_TOKEN` | Platform superuser bearer for `/api/admin/*`. Scoped tokens come from the `channel_admin_tokens` table instead. |
+| `ADMIN_CENTRAL_DATABASE_URL` | Central platform database — the channel source of truth (`stations`, `programs`, `station_schedule_rules`, `station_program_slots`, `channel_admin_tokens`, `channel_app_control_tokens`). |
+| `ADMIN_APP_DATABASE_URL` | Optional app database enrichment: `production_checkpoints` for the Channels list/Production tab (the bears server's `DATABASE_URL`). Any single app's database; not required. |
+| `BEARS_API_BASE_URL` | Bears server origin: registers the bears app in the registry and acts as its production origin. |
+| `BEARS_PRODUCTION_CONTROL_TOKEN` | Legacy fallback forwarded to bears `POST /api/production/*`. Prefer the `channel_app_control_tokens` table. Never reaches the browser. |
 
-SPA-side (admin/.env*): `VITE_ADMIN_API_ORIGIN` (dev proxy target,
-default `http://localhost:4000`), `VITE_POLL_INTERVAL_MS`, optional
-`VITE_ADMIN_TOKEN` (build-time token baked into the bundle — prefer the
-prompt or `?token=`).
+## App production control
+
+`POST /api/admin/production/:channelId/:action` (`start`, `stop`,
+`test-closing`) resolves the channel's registered app origin and forwards the
+call with a server-side credential from the central
+`channel_app_control_tokens` table (`channel_id` → `control_token`). The bears
+env token remains as that channel's fallback. The browser only ever holds the
+operator's admin token. `GET /api/admin/production/status` reports, per
+in-scope registered app, its `GET /api/health` and `GET /api/channel`
+snapshots plus whether a control credential is configured.
 
 ## API surface
 
-All routes require `Authorization: Bearer <CHANNELS_ADMIN_TOKEN>`.
+All routes require `Authorization: Bearer <token>` and enforce the token's
+scope.
 
 | Route | Methods | Notes |
 |---|---|---|
-| `/api/admin/info` | GET | version + per-database configured/connected probes |
-| `/api/admin/schedules` | GET, POST | `station_schedule_rules`; filters `channelId`, `stationId`, `programId`, `enabled=false` |
+| `/api/admin/info` | GET | version, token scope, per-database configured/connected probes |
+| `/api/admin/schedules` | GET, POST | `station_schedule_rules`; filters `channelId`, `stationId`, `programId`, `enabled=false`; scoped tokens only see their channels. |
 | `/api/admin/schedules/:id` | PATCH, DELETE | PATCH merges `schedule` JSONB fields and/or `enabled`, always resets `next_run_at = NULL`. DELETE disables — never removes. |
 | `/api/admin/sessions` | GET, POST | `station_program_slots`; filters `channelId`, `stationId`, `programId`, `status`, `scope=all`, `limit`. POST inserts a one-off slot; unique-slot conflict → 409. |
 | `/api/admin/sessions/:id` | PATCH | `startsAt`/`endsAt` (validated end>start pre-write), `status`, `title` (→ `metadata.title`) |
 | `/api/admin/sessions/:id/cancel` | POST | `status='cancelled'` |
-| `/api/admin/channels` | GET, POST | App `channels` joined with `production_checkpoints`, central binding (station/program), and next upcoming slot. POST also seeds a `stopped` checkpoint in one transaction. |
-| `/api/admin/channels/:id` | PATCH | rename only — the id is a referenced PK |
-| `/api/admin/meta` | GET | `stations` + `programs` picklists for create forms |
-| `/api/admin/production/status` | GET | checkpoints + bears `/api/health` + `/api/channel` (bears failures are data, never request failures) |
-| `/api/admin/production/:action` | POST | `start`/`stop`/`test-closing` proxied to bears with the control token |
+| `/api/admin/channels` | GET | Channels from central bindings + the app registry; the configured app database's checkpoints are optional enrichment. |
+| `/api/admin/meta` | GET | `stations` + `programs` picklists for create forms (scoped tokens only see programs bound to their channels) |
+| `/api/admin/programs/:id` | PATCH | partial update of `name`, `description`, `tagline` (empty strings clear copy) |
+| `/api/admin/production/status` | GET | per-app health/channel snapshots + app-database checkpoints (app failures are data, never request failures) |
+| `/api/admin/production/:channelId/:action` | POST | `start`/`stop`/`test-closing` proxied to that channel's registered app with its control credential |
 
 ## Mutation semantics
 
@@ -59,6 +91,9 @@ All routes require `Authorization: Bearer <CHANNELS_ADMIN_TOKEN>`.
   materializes on its next ~30s tick, so no reload endpoint is needed.
 - **Slots**: `ON CONFLICT (station_id, program_id, starts_at) DO NOTHING`
   guards against duplicates, matching the scheduler's own idempotent writes.
+- **Channel identity** is central: create a channel by binding a program to a
+  channel id with a schedule rule (Schedules tab). Rows in an app's own
+  `channels` table are that app's concern, not the admin's.
 
 ## Running locally
 

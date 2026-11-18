@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, POST } from "../app/api/admin/schedules/route";
 import { DELETE, PATCH } from "../app/api/admin/schedules/[id]/route";
 import {
+  SCOPED_CHANNEL_IDS,
+  SCOPED_TOKEN,
   adminRequest,
   makePool,
   resetPools,
@@ -72,6 +74,20 @@ describe("GET /api/admin/schedules", () => {
     const res = await GET(adminRequest("/api/admin/schedules"));
     expect(res.status).toBe(503);
   });
+
+  it("restricts the listing to the scoped token's channels", async () => {
+    const central = makePool((text) =>
+      text.includes("channel_admin_tokens")
+        ? { rows: [{ channel_ids: SCOPED_CHANNEL_IDS }] }
+        : { rows: [ruleRow] },
+    );
+    usePools({ central });
+    const res = await GET(adminRequest("/api/admin/schedules", { token: SCOPED_TOKEN }));
+    expect(res.status).toBe(200);
+    const [text, values] = central.query.mock.calls.at(-1)!;
+    expect(text).toContain("channel_id = ANY($1)");
+    expect(values).toEqual([SCOPED_CHANNEL_IDS]);
+  });
 });
 
 describe("POST /api/admin/schedules", () => {
@@ -109,6 +125,24 @@ describe("POST /api/admin/schedules", () => {
       const res = await POST(adminRequest("/api/admin/schedules", { method: "POST", body }));
       expect(res.status).toBe(400);
     }
+  });
+
+  it("403s when the target channel is outside the token's scope", async () => {
+    usePools({
+      central: makePool((text) =>
+        text.includes("channel_admin_tokens")
+          ? { rows: [{ channel_ids: SCOPED_CHANNEL_IDS }] }
+          : { rows: [] },
+      ),
+    });
+    const res = await POST(
+      adminRequest("/api/admin/schedules", {
+        method: "POST",
+        token: SCOPED_TOKEN,
+        body: { programId: "garden-live", channelId: "garden", schedule: ruleRow.schedule },
+      }),
+    );
+    expect(res.status).toBe(403);
   });
 });
 
@@ -156,6 +190,22 @@ describe("PATCH /api/admin/schedules/:id", () => {
       (await PATCH(adminRequest("/api/admin/schedules/rule-1", { method: "PATCH", body: {} }), params("rule-1"))).status,
     ).toBe(400);
   });
+
+  it("403s edits to rules on channels outside the token's scope", async () => {
+    usePools({
+      central: makePool((text) =>
+        text.includes("channel_admin_tokens")
+          ? { rows: [{ channel_ids: ["garden"] }] }
+          : { rows: [ruleRow] },
+      ),
+    });
+    expect(
+      (await PATCH(
+        adminRequest("/api/admin/schedules/rule-1", { method: "PATCH", token: SCOPED_TOKEN, body: { enabled: false } }),
+        params("rule-1"),
+      )).status,
+    ).toBe(403);
+  });
 });
 
 describe("DELETE /api/admin/schedules/:id", () => {
@@ -164,9 +214,24 @@ describe("DELETE /api/admin/schedules/:id", () => {
     usePools({ central });
     const res = await DELETE(adminRequest("/api/admin/schedules/rule-1", { method: "DELETE" }), params("rule-1"));
     expect(res.status).toBe(200);
-    const [text] = central.query.mock.calls[0];
-    expect(text).toContain("enabled = false");
-    expect(text).not.toContain("DELETE FROM");
+    const update = central.query.mock.calls.find(([t]) => t.startsWith("UPDATE"))!;
+    expect(update[0]).toContain("enabled = false");
+    expect(update[0]).not.toContain("DELETE FROM");
+  });
+
+  it("403s deletes on channels outside the token's scope", async () => {
+    usePools({
+      central: makePool((text) =>
+        text.includes("channel_admin_tokens")
+          ? { rows: [{ channel_ids: ["garden"] }] }
+          : { rows: [ruleRow] },
+      ),
+    });
+    const res = await DELETE(
+      adminRequest("/api/admin/schedules/rule-1", { method: "DELETE", token: SCOPED_TOKEN }),
+      params("rule-1"),
+    );
+    expect(res.status).toBe(403);
   });
 
   it("404s unknown rules", async () => {

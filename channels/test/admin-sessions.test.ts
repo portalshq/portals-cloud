@@ -3,6 +3,8 @@ import { GET, POST } from "../app/api/admin/sessions/route";
 import { PATCH } from "../app/api/admin/sessions/[id]/route";
 import { POST as CANCEL } from "../app/api/admin/sessions/[id]/cancel/route";
 import {
+  SCOPED_CHANNEL_IDS,
+  SCOPED_TOKEN,
   adminRequest,
   makePool,
   resetPools,
@@ -57,6 +59,20 @@ describe("GET /api/admin/sessions", () => {
     const res = await GET(adminRequest("/api/admin/sessions?status=bogus"));
     expect(res.status).toBe(400);
   });
+
+  it("restricts the listing to the scoped token's channels", async () => {
+    const central = makePool((text) =>
+      text.includes("channel_admin_tokens")
+        ? { rows: [{ channel_ids: SCOPED_CHANNEL_IDS }] }
+        : { rows: [slotRow] },
+    );
+    usePools({ central });
+    const res = await GET(adminRequest("/api/admin/sessions", { token: SCOPED_TOKEN }));
+    expect(res.status).toBe(200);
+    const [text, values] = central.query.mock.calls.at(-1)!;
+    expect(text).toContain("channel_id = ANY($1)");
+    expect(values).toEqual([SCOPED_CHANNEL_IDS]);
+  });
 });
 
 describe("POST /api/admin/sessions", () => {
@@ -98,6 +114,22 @@ describe("POST /api/admin/sessions", () => {
       const res = await POST(adminRequest("/api/admin/sessions", { method: "POST", body }));
       expect(res.status).toBe(400);
     }
+  });
+
+  it("403s when the target channel is outside the token's scope", async () => {
+    usePools({
+      central: makePool((text) =>
+        text.includes("channel_admin_tokens")
+          ? { rows: [{ channel_ids: SCOPED_CHANNEL_IDS }] }
+          : { rows: [] },
+      ),
+    });
+    const res = await POST(adminRequest("/api/admin/sessions", {
+      method: "POST",
+      token: SCOPED_TOKEN,
+      body: { ...validBody, channelId: "garden" },
+    }));
+    expect(res.status).toBe(403);
   });
 });
 
@@ -166,16 +198,48 @@ describe("PATCH /api/admin/sessions/:id", () => {
       )).status,
     ).toBe(404);
   });
+
+  it("403s edits to slots on channels outside the token's scope", async () => {
+    usePools({
+      central: makePool((text) =>
+        text.includes("channel_admin_tokens")
+          ? { rows: [{ channel_ids: ["garden"] }] }
+          : { rows: [slotRow] },
+      ),
+    });
+    expect(
+      (await PATCH(
+        adminRequest("/api/admin/sessions/slot-1", { method: "PATCH", token: SCOPED_TOKEN, body: { status: "live" } }),
+        params("slot-1"),
+      )).status,
+    ).toBe(403);
+  });
 });
 
 describe("POST /api/admin/sessions/:id/cancel", () => {
-  it("marks the slot cancelled", async () => {
-    const central = makePool(() => ({ rows: [{ id: "slot-1" }] }));
+  it("marks the slot cancelled after checking its channel scope", async () => {
+    const central = makePool(() => ({ rows: [{ id: "slot-1", channel_id: "bears" }, { id: "slot-1" }] }));
     usePools({ central });
     const res = await CANCEL(adminRequest("/api/admin/sessions/slot-1/cancel", { method: "POST" }), params("slot-1"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ id: "slot-1", status: "cancelled" });
-    expect(central.query.mock.calls[0][0]).toContain("status = 'cancelled'");
+    const update = central.query.mock.calls.find(([t]) => t.startsWith("UPDATE"))!;
+    expect(update[0]).toContain("status = 'cancelled'");
+  });
+
+  it("403s cancels on channels outside the token's scope", async () => {
+    usePools({
+      central: makePool((text) =>
+        text.includes("channel_admin_tokens")
+          ? { rows: [{ channel_ids: ["garden"] }] }
+          : { rows: [{ id: "slot-1", channel_id: "bears" }] },
+      ),
+    });
+    const res = await CANCEL(
+      adminRequest("/api/admin/sessions/slot-1/cancel", { method: "POST", token: SCOPED_TOKEN }),
+      params("slot-1"),
+    );
+    expect(res.status).toBe(403);
   });
 
   it("404s unknown slots", async () => {

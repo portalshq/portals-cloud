@@ -51,3 +51,46 @@ export async function updateProgramPromotionalCopy(
   );
   return rows[0] ? fromRow(rows[0]) : null;
 }
+
+/** Editable public details of a program. `name` must be non-empty when present;
+ *  description/tagline may be empty strings to clear the copy. */
+export interface ProgramDetailsPatch {
+  name?: string;
+  description?: string;
+  tagline?: string;
+}
+
+export interface ProgramDetails extends ProgramMetadata {
+  name: string;
+}
+
+/**
+ * Updates only the fields present in the patch. The caller is responsible for
+ * authorizing edits to the named program (e.g. every channel the program is
+ * bound to must be inside the caller's admin scope).
+ */
+export async function updateProgramDetails(
+  query: ProgramMetadataQuery,
+  programId: string,
+  patch: ProgramDetailsPatch,
+): Promise<ProgramDetails | null> {
+  const sets: string[] = [];
+  const values: unknown[] = [programId];
+  for (const [column, field] of [
+    ["name", patch.name],
+    ["description", patch.description],
+    ["tagline", patch.tagline],
+  ] as const) {
+    if (field === undefined) continue;
+    values.push(field);
+    sets.push(`${column} = $${values.length}`);
+  }
+  if (!sets.length) throw new Error("updateProgramDetails requires at least one field");
+  const { rows } = await query(
+    `UPDATE programs SET ${sets.join(", ")} WHERE id = $1
+     RETURNING name, description, tagline, page_title, social_site_name, default_share_image, theme_color`,
+    values,
+  );
+  const row = rows[0];
+  return row ? { name: String(row.name), ...fromRow(row) } : null;
+}

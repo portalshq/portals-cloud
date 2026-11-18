@@ -35,12 +35,22 @@ export interface ProgramSlotDto {
 export const SLOT_STATUSES = ["scheduled", "live", "completed", "cancelled"] as const;
 export type SlotStatus = (typeof SLOT_STATUSES)[number];
 
-/** App-DB channels row joined with production + central binding info. */
+/** A channel listed by GET /api/admin/channels — central-DB driven. */
 export interface AdminChannelDto {
   id: string;
+  /** Display name: registered app name, else first program name, else id. */
   name: string;
-  createdAt: string;
-  /** production_checkpoints row, when the channel has been produced before. */
+  /** Registered channel app (public origin + presentation name), when one exists. */
+  app: { origin: string; name: string } | null;
+  /** Distinct station/program bindings feeding this channel. */
+  bindings: { stationId: string | null; programId: string }[];
+  /** Distinct programs across bindings, for copy editing. */
+  programs: { id: string; name: string; description: string | null; tagline: string | null }[];
+  /**
+   * production_checkpoints row from the configured app database, when one is
+   * configured and the channel has been produced before. Best-effort: absent
+   * for channels whose app owns its own checkpoints.
+   */
   production: {
     desired: string;
     mode: string;
@@ -48,10 +58,6 @@ export interface AdminChannelDto {
     sessionId: string | null;
     updatedAt: string;
   } | null;
-  /** Station/program this channel's rules and slots are bound to. */
-  stationId: string | null;
-  programId: string | null;
-  programs: { id: string; name: string; description: string | null; tagline: string | null }[];
   /** Earliest future scheduled/live slot for this channel, if any. */
   nextSession: { startsAt: string; endsAt: string; title: string | null } | null;
 }
@@ -64,6 +70,8 @@ export interface AdminMetaDto {
 
 export interface AdminInfoDto {
   version: string;
+  /** Scope granted to the presented token. */
+  scope: { allChannels: boolean; channelIds: string[] | null };
   databases: {
     app: { configured: boolean; connected: boolean };
     central: { configured: boolean; connected: boolean };
@@ -80,8 +88,20 @@ export interface ProductionCheckpointDto {
   updatedAt: string;
 }
 
+/** Live read of one registered app's production surface. */
+export interface ProductionAppStatusDto {
+  channelId: string;
+  origin: string;
+  /** Whether a production-control credential is configured for the app. */
+  controlConfigured: boolean;
+  /** GET /api/health — reported as data, never a request failure. */
+  health: unknown;
+  /** GET /api/channel — playback/session snapshot. */
+  channel: unknown;
+}
+
 export interface ProductionStatusDto {
   checkpoints: ProductionCheckpointDto[];
-  bearsHealth: unknown;
-  bearsChannel: unknown;
+  /** One entry per registered app within the token's scope. */
+  apps: ProductionAppStatusDto[];
 }

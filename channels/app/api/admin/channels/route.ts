@@ -1,26 +1,13 @@
-import { requireAdmin } from "../../../../lib/admin/auth";
+import { authenticateAdmin } from "../../../../lib/admin/auth";
 import { appDb, centralDb } from "../../../../lib/admin/db";
 import { adminEnv } from "../../../../lib/admin/env";
-import { adminErrorResponse, badRequest, json } from "../../../../lib/admin/http";
+import { adminErrorResponse, json } from "../../../../lib/admin/http";
+import { channelInScope } from "../../../../lib/admin/scope";
 import type { AdminChannelDto } from "../../../../lib/admin/types";
+import { getChannelApps } from "../../../../lib/channel-apps";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-interface ChannelRow {
-  id: string;
-  name: string;
-  created_at: Date;
-}
-
-interface CheckpointRow {
-  channel_id: string;
-  desired: string;
-  mode: string;
-  slot_key: string | null;
-  session_id: string | null;
-  updated_at: Date;
-}
 
 interface BindingRow {
   channel_id: string;
@@ -38,151 +25,120 @@ interface NextSlotRow {
   metadata: { title?: string } | null;
 }
 
-/**
- * Channels from the app DB, joined with production state (app DB) and the
- * central binding + next upcoming slot (central DB). Central enrichment is
- * best-effort: an unconfigured/unreachable central DB must not hide the app
- * channels an operator came to edit.
- */
-export async function GET(request: Request): Promise<Response> {
-  const denied = requireAdmin(request);
-  if (denied) return denied;
-  try {
-    const app = appDb();
-    const [channels, checkpoints] = await Promise.all([
-      app.query<ChannelRow>("SELECT id, name, created_at FROM channels ORDER BY id"),
-      app.query<CheckpointRow>(
-        "SELECT channel_id, desired, mode, slot_key, session_id, updated_at FROM production_checkpoints",
-      ),
-    ]);
-
-    const bindings = new Map<string, BindingRow>();
-    const programsByChannel = new Map<string, Map<string, AdminChannelDto["programs"][number]>>();
-    const nextByChannel = new Map<string, NextSlotRow>();
-    if (adminEnv().centralDatabaseUrl) {
-      try {
-        const central = centralDb();
-        const [bindingRows, nextRows] = await Promise.all([
-          central.query<BindingRow>(
-            `SELECT DISTINCT bindings.channel_id, bindings.station_id, bindings.program_id, p.name AS program_name, p.description, p.tagline FROM (
-               SELECT channel_id, station_id, program_id FROM station_schedule_rules
-               UNION
-               SELECT channel_id, station_id, program_id FROM station_program_slots
-             ) bindings JOIN programs p ON p.id = bindings.program_id
-             ORDER BY bindings.channel_id, bindings.program_id, bindings.station_id NULLS LAST`,
-          ),
-          central.query<NextSlotRow>(
-            `SELECT DISTINCT ON (channel_id) channel_id, starts_at, ends_at, metadata
-             FROM station_program_slots
-             WHERE starts_at > now() AND status IN ('scheduled', 'live')
-             ORDER BY channel_id, starts_at`,
-          ),
-        ]);
-        for (const row of bindingRows.rows) {
-          bindings.set(row.channel_id, row);
-          const programs = programsByChannel.get(row.channel_id) ?? new Map();
-          programs.set(row.program_id, { id: row.program_id, name: row.program_name ?? row.program_id, description: row.description ?? null, tagline: row.tagline ?? null });
-          programsByChannel.set(row.channel_id, programs);
-        }
-        for (const row of nextRows.rows) nextByChannel.set(row.channel_id, row);
-      } catch (error) {
-        console.error("[admin] central enrichment failed; returning app channels only:", error);
-      }
-    }
-
-    const checkpointsByChannel = new Map(checkpoints.rows.map((row) => [row.channel_id, row]));
-    const body: AdminChannelDto[] = channels.rows.map((channel) => {
-      const checkpoint = checkpointsByChannel.get(channel.id);
-      const binding = bindings.get(channel.id);
-      const next = nextByChannel.get(channel.id);
-      return {
-        id: channel.id,
-        name: channel.name,
-        createdAt: channel.created_at.toISOString(),
-        production: checkpoint
-          ? {
-              desired: checkpoint.desired,
-              mode: checkpoint.mode,
-              slotKey: checkpoint.slot_key,
-              sessionId: checkpoint.session_id,
-              updatedAt: checkpoint.updated_at.toISOString(),
-            }
-          : null,
-        stationId: binding?.station_id ?? null,
-        programId: binding?.program_id ?? null,
-        programs: [...(programsByChannel.get(channel.id)?.values() ?? [])],
-        nextSession: next
-          ? {
-              startsAt: next.starts_at.toISOString(),
-              endsAt: next.ends_at.toISOString(),
-              title: next.metadata?.title ?? null,
-            }
-          : null,
-      };
-    });
-    return json(body);
-  } catch (error) {
-    return adminErrorResponse(error);
-  }
+interface CheckpointRow {
+  channel_id: string;
+  desired: string;
+  mode: string;
+  slot_key: string | null;
+  session_id: string | null;
+  updated_at: Date;
 }
 
-const CHANNEL_ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
-
-/** Create an app-DB channel row. */
-export async function POST(request: Request): Promise<Response> {
-  const denied = requireAdmin(request);
-  if (denied) return denied;
+/**
+ * Channel list for the admin — driven by the central database and the channel
+ * app registry (central `programs.app_origin` plus the env fallbacks), not by
+ * any single app's database. A channel appears when it has a station/program
+ * binding (rules or slots) or a registered app. The configured app database
+ * is optional enrichment: its `production_checkpoints` are merged in when
+ * available, never required.
+ */
+export async function GET(request: Request): Promise<Response> {
+  const auth = await authenticateAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
-    const body = (await request.json()) as Record<string, unknown>;
-    const id = typeof body.id === "string" ? body.id.trim() : "";
-    const name = typeof body.name === "string" ? body.name.trim() : "";
-    if (!CHANNEL_ID_RE.test(id)) {
-      throw badRequest("id must be 1-64 chars of lowercase letters, digits, and hyphens");
-    }
-    if (!name) throw badRequest("name is required");
+    const central = centralDb();
+    const [bindingRows, nextRows, registryApps] = await Promise.all([
+      central.query<BindingRow>(
+        `SELECT DISTINCT b.channel_id, b.station_id, b.program_id, p.name AS program_name,
+                p.description, p.tagline
+         FROM (
+           SELECT channel_id, station_id, program_id FROM station_schedule_rules
+           UNION
+           SELECT channel_id, station_id, program_id FROM station_program_slots
+         ) b
+         JOIN programs p ON p.id = b.program_id
+         ORDER BY b.channel_id, b.program_id, b.station_id NULLS LAST`,
+      ),
+      central.query<NextSlotRow>(
+        `SELECT DISTINCT ON (channel_id) channel_id, starts_at, ends_at, metadata
+         FROM station_program_slots
+         WHERE starts_at > now() AND status IN ('scheduled', 'live')
+         ORDER BY channel_id, starts_at`,
+      ),
+      getChannelApps(),
+    ]);
 
-    const client = await appDb().connect();
-    try {
-      await client.query("BEGIN");
-      const inserted = await client.query<ChannelRow>(
-        "INSERT INTO channels (id, name) VALUES ($1, $2) RETURNING id, name, created_at",
-        [id, name],
-      );
-      await client.query(
-        `INSERT INTO production_checkpoints (channel_id, desired, mode)
-         VALUES ($1, 'stopped', 'stopped') ON CONFLICT (channel_id) DO NOTHING`,
-        [id],
-      );
-      await client.query("COMMIT");
-      const row = inserted.rows[0];
-      return json(
-        {
-          id: row.id,
-          name: row.name,
-          createdAt: row.created_at.toISOString(),
-          production: {
-            desired: "stopped",
-            mode: "stopped",
-            slotKey: null,
-            sessionId: null,
-            updatedAt: row.created_at.toISOString(),
-          },
-          stationId: null,
-          programId: null,
-          programs: [],
-          nextSession: null,
-        } satisfies AdminChannelDto,
-        201,
-      );
-    } catch (error) {
-      await client.query("ROLLBACK").catch(() => {});
-      if ((error as { code?: string }).code === "23505") {
-        throw badRequest(`Channel ${id} already exists`);
+    // Checkpoints live in each app's own database; only the configured app
+    // database is reachable. Best-effort enrichment — a channel whose app
+    // owns its checkpoints elsewhere still lists fine.
+    let checkpoints = new Map<string, CheckpointRow>();
+    if (adminEnv().appDatabaseUrl) {
+      try {
+        const { rows } = await appDb().query<CheckpointRow>(
+          "SELECT channel_id, desired, mode, slot_key, session_id, updated_at FROM production_checkpoints",
+        );
+        checkpoints = new Map(rows.map((row) => [row.channel_id, row]));
+      } catch (error) {
+        console.error("[admin] checkpoint enrichment failed; returning central channels only:", error);
       }
-      throw error;
-    } finally {
-      client.release();
     }
+
+    const bindingsByChannel = new Map<string, BindingRow[]>();
+    for (const row of bindingRows.rows) {
+      const bindings = bindingsByChannel.get(row.channel_id) ?? [];
+      bindings.push(row);
+      bindingsByChannel.set(row.channel_id, bindings);
+    }
+    const nextByChannel = new Map(nextRows.rows.map((row) => [row.channel_id, row]));
+
+    // Every channel with a binding or a registered app, within the token's scope.
+    const channelIds = new Set<string>([...bindingsByChannel.keys(), ...registryApps.keys()]);
+    const body: AdminChannelDto[] = [...channelIds]
+      .filter((channelId) => channelInScope(auth.scope, channelId))
+      .sort()
+      .map((channelId): AdminChannelDto => {
+        const bindings = bindingsByChannel.get(channelId) ?? [];
+        const registryApp = registryApps.get(channelId);
+        const programs = [
+          ...new Map(
+            bindings.map((row) => [
+              row.program_id,
+              {
+                id: row.program_id,
+                name: row.program_name ?? row.program_id,
+                description: row.description,
+                tagline: row.tagline,
+              },
+            ]),
+          ).values(),
+        ];
+        const checkpoint = checkpoints.get(channelId);
+        const next = nextByChannel.get(channelId);
+        return {
+          id: channelId,
+          name: registryApp?.name ?? programs[0]?.name ?? channelId,
+          app: registryApp ? { origin: registryApp.origin, name: registryApp.name } : null,
+          bindings: bindings.map((row) => ({ stationId: row.station_id, programId: row.program_id })),
+          programs,
+          production: checkpoint
+            ? {
+                desired: checkpoint.desired,
+                mode: checkpoint.mode,
+                slotKey: checkpoint.slot_key,
+                sessionId: checkpoint.session_id,
+                updatedAt: checkpoint.updated_at.toISOString(),
+              }
+            : null,
+          nextSession: next
+            ? {
+                startsAt: next.starts_at.toISOString(),
+                endsAt: next.ends_at.toISOString(),
+                title: next.metadata?.title ?? null,
+              }
+            : null,
+        };
+      });
+    return json(body);
   } catch (error) {
     return adminErrorResponse(error);
   }

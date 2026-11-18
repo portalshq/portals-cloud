@@ -24,6 +24,10 @@ export function badRequest(message: string): AdminApiError {
   return new AdminApiError(400, message);
 }
 
+export function forbidden(message: string): AdminApiError {
+  return new AdminApiError(403, message);
+}
+
 export function notFound(message: string): AdminApiError {
   return new AdminApiError(404, message);
 }

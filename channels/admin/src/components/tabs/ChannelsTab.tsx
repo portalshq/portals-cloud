@@ -3,7 +3,7 @@ import { useAdminToken } from '../../hooks/useAdminToken'
 import { usePolling } from '../../hooks/usePolling'
 import { adminFetch } from '../../api/client'
 import type { AdminChannel } from '../../types'
-import { formatDisplayDate, formatInTimeZone } from '../../lib/dates'
+import { formatInTimeZone } from '../../lib/dates'
 
 const MODE_STYLES: Record<string, string> = {
   episode: 'text-[#24110c] bg-[#F06C49]',
@@ -20,6 +20,7 @@ function ProgramCopyEditor({ programs, token, refresh, onError }: {
 }) {
   const [editing, setEditing] = useState(false)
   const [selected, setSelected] = useState('')
+  const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [tagline, setTagline] = useState('')
   const [saving, setSaving] = useState(false)
@@ -27,6 +28,7 @@ function ProgramCopyEditor({ programs, token, refresh, onError }: {
   const select = (id: string) => {
     const program = programs.find((item) => item.id === id)
     setSelected(id)
+    setName(program?.name ?? '')
     setDescription(program?.description ?? '')
     setTagline(program?.tagline ?? '')
   }
@@ -36,7 +38,12 @@ function ProgramCopyEditor({ programs, token, refresh, onError }: {
     onError(null)
     try {
       await adminFetch(`/programs/${encodeURIComponent(selected)}`, token, {
-        method: 'PATCH', body: JSON.stringify({ description, tagline }),
+        method: 'PATCH',
+        body: JSON.stringify({
+          ...(name.trim() ? { name: name.trim() } : {}),
+          description: description.trim(),
+          tagline: tagline.trim(),
+        }),
       })
       setEditing(false)
       refresh()
@@ -62,6 +69,9 @@ function ProgramCopyEditor({ programs, token, refresh, onError }: {
         </select>
       </label>
       {selected && <>
+        <label className="block fontMicro text-gray-600">Name
+          <input className="block w-full border rounded px-2 py-1" value={name} onChange={(event) => setName(event.target.value)} />
+        </label>
         <label className="block fontMicro text-gray-600">Description
           <textarea className="block w-full border rounded px-2 py-1" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} />
         </label>
@@ -75,14 +85,15 @@ function ProgramCopyEditor({ programs, token, refresh, onError }: {
   )
 }
 
+/**
+ * Channels as the central database and app registry define them: a channel
+ * exists when a program is bound to it (schedule rules or session slots) or
+ * an app is registered for it. Channel rows inside an app's own database are
+ * managed by that app, not here.
+ */
 export default function ChannelsTab() {
   const { token } = useAdminToken()
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
-  const [createForm, setCreateForm] = useState({ id: '', name: '' })
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
 
   const fetchChannels = useCallback(() => adminFetch<AdminChannel[]>('/channels', token), [token])
   const { data: channels, loading, error: fetchError, refresh, lastUpdated } = usePolling(
@@ -91,48 +102,10 @@ export default function ChannelsTab() {
     [token],
   )
 
-  const handleSave = async (channel: AdminChannel) => {
-    setSaving(true)
-    setError(null)
-    try {
-      await adminFetch(`/channels/${encodeURIComponent(channel.id)}`, token, {
-        method: 'PATCH',
-        body: JSON.stringify({ name: editName.trim() }),
-      })
-      setEditingId(null)
-      refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleCreate = async () => {
-    setSaving(true)
-    setError(null)
-    try {
-      await adminFetch('/channels', token, {
-        method: 'POST',
-        body: JSON.stringify({ id: createForm.id.trim(), name: createForm.name.trim() }),
-      })
-      setShowCreate(false)
-      setCreateForm({ id: '', name: '' })
-      refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Create failed')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <div className="p-4">
       <div className="flex gap-4 mb-4 items-center flex-wrap">
         <button onClick={refresh} className="fontNormal text-blue-600 hover:underline">Refresh</button>
-        <button onClick={() => setShowCreate((v) => !v)} className="fontNormal text-blue-600 hover:underline">
-          {showCreate ? 'Cancel' : '+ New channel'}
-        </button>
         {lastUpdated && (
           <span className="fontMicro text-gray-400">Updated: {lastUpdated.toLocaleTimeString()}</span>
         )}
@@ -140,39 +113,6 @@ export default function ChannelsTab() {
           <span className="fontMicro text-red-500 ml-auto">Error: {error ?? fetchError?.message}</span>
         )}
       </div>
-
-      {showCreate && (
-        <div className="mb-4 p-4 border border-gray-200 rounded bg-gray-50 max-w-xl">
-          <div className="fontNormal text-gray-700 mb-3">New channel</div>
-          <div className="grid grid-cols-2 gap-4">
-            <label className="fontMicro text-gray-600">
-              Channel id (lowercase, e.g. bears)
-              <input
-                type="text"
-                value={createForm.id}
-                onChange={(e) => setCreateForm({ ...createForm, id: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
-              />
-            </label>
-            <label className="fontMicro text-gray-600">
-              Display name
-              <input
-                type="text"
-                value={createForm.name}
-                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 fontNormal"
-              />
-            </label>
-          </div>
-          <button
-            onClick={handleCreate}
-            disabled={saving || !createForm.id.trim() || !createForm.name.trim()}
-            className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded fontNormal hover:bg-blue-700 disabled:bg-gray-500"
-          >
-            {saving ? 'Creating…' : 'Create channel'}
-          </button>
-        </div>
-      )}
 
       {loading && <p className="text-gray-500 fontNormal">Loading…</p>}
 
@@ -182,33 +122,25 @@ export default function ChannelsTab() {
             <tr className="border-b border-gray-200">
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">ID</th>
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Name</th>
+              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">App</th>
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Production</th>
-              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Binding</th>
+              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Bindings</th>
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Program details</th>
               <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Next session</th>
-              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Created</th>
-              <th className="text-left py-2 px-3 fontMicro text-gray-500 uppercase tracking-wide">Actions</th>
             </tr>
           </thead>
           <tbody>
             {channels?.map((channel) => {
-              const isEditing = editingId === channel.id
               const mode = channel.production?.mode ?? null
               return (
                 <tr key={channel.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-2 px-3 fontNormal text-gray-700">{channel.id}</td>
-                  <td className="py-2 px-3 fontNormal">
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSave(channel)}
-                        className="border border-gray-300 rounded px-2 py-1 fontNormal w-48"
-                        autoFocus
-                      />
+                  <td className="py-2 px-3 fontNormal">{channel.name}</td>
+                  <td className="py-2 px-3 fontMicro text-gray-500">
+                    {channel.app ? (
+                      <span title={channel.app.origin}>{channel.app.name}</span>
                     ) : (
-                      channel.name
+                      <span className="text-gray-400 italic">no app</span>
                     )}
                   </td>
                   <td className="py-2 px-3">
@@ -222,8 +154,10 @@ export default function ChannelsTab() {
                     )}
                   </td>
                   <td className="py-2 px-3 fontMicro text-gray-500">
-                    {channel.stationId || channel.programId
-                      ? `${channel.stationId ?? '—'} / ${channel.programId ?? '—'}`
+                    {channel.bindings.length
+                      ? channel.bindings
+                          .map((binding) => `${binding.stationId ?? '—'} / ${binding.programId}`)
+                          .join(', ')
                       : 'unbound'}
                   </td>
                   <td className="py-2 px-3 align-top"><ProgramCopyEditor programs={channel.programs ?? []} token={token} refresh={refresh} onError={setError} /></td>
@@ -233,30 +167,6 @@ export default function ChannelsTab() {
                       : '—'}
                     {channel.nextSession?.title && (
                       <div className="fontMicro text-gray-400">{channel.nextSession.title}</div>
-                    )}
-                  </td>
-                  <td className="py-2 px-3 fontNormal text-gray-600">{formatDisplayDate(channel.createdAt)}</td>
-                  <td className="py-2 px-3 fontNormal">
-                    {isEditing ? (
-                      <>
-                        <button
-                          onClick={() => handleSave(channel)}
-                          disabled={saving || !editName.trim()}
-                          className="fontMicro text-blue-600 hover:underline mr-3 disabled:text-gray-500"
-                        >
-                          {saving ? 'Saving…' : 'Save'}
-                        </button>
-                        <button onClick={() => setEditingId(null)} className="fontMicro text-gray-500 hover:underline">
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => { setEditingId(channel.id); setEditName(channel.name) }}
-                        className="fontMicro text-blue-600 hover:underline"
-                      >
-                        Rename
-                      </button>
                     )}
                   </td>
                 </tr>

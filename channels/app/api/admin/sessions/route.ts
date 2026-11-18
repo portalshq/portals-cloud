@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { requireAdmin } from "../../../../lib/admin/auth";
+import { authenticateAdmin } from "../../../../lib/admin/auth";
 import { centralDb } from "../../../../lib/admin/db";
 import { adminErrorResponse, badRequest, json } from "../../../../lib/admin/http";
+import { assertChannelInScope, scopedChannelClause } from "../../../../lib/admin/scope";
 import { SLOT_STATUSES, type ProgramSlotDto, type SlotStatus } from "../../../../lib/admin/types";
 
 export const runtime = "nodejs";
@@ -41,8 +42,8 @@ function parseInstant(value: unknown, name: string): Date {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const denied = requireAdmin(request);
-  if (denied) return denied;
+  const auth = await authenticateAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const url = new URL(request.url);
     const clauses: string[] = [];
@@ -51,6 +52,8 @@ export async function GET(request: Request): Promise<Response> {
       values.push(value);
       clauses.push(`${column} = $${values.length}`);
     };
+    const scopeClause = scopedChannelClause(auth.scope, values);
+    if (scopeClause) clauses.push(scopeClause);
     const channelId = url.searchParams.get("channelId");
     const stationId = url.searchParams.get("stationId");
     const programId = url.searchParams.get("programId");
@@ -86,8 +89,8 @@ export async function GET(request: Request): Promise<Response> {
  * duplicates; a conflict reports 409 rather than silently no-oping.
  */
 export async function POST(request: Request): Promise<Response> {
-  const denied = requireAdmin(request);
-  if (denied) return denied;
+  const auth = await authenticateAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const stationId = typeof body.stationId === "string" && body.stationId ? body.stationId : null;
@@ -95,6 +98,7 @@ export async function POST(request: Request): Promise<Response> {
     const channelId = typeof body.channelId === "string" ? body.channelId : null;
     if (!programId) throw badRequest("programId is required");
     if (!channelId) throw badRequest("channelId is required");
+    assertChannelInScope(auth.scope, channelId);
     const startsAt = parseInstant(body.startsAt, "startsAt");
     const endsAt = parseInstant(body.endsAt, "endsAt");
     if (endsAt <= startsAt) throw badRequest("endsAt must be after startsAt");

@@ -44,6 +44,16 @@ export default function Layout({
             <div className="flex items-center gap-3">
               <DbStatus label="app" {...info.databases.app} />
               <DbStatus label="central" {...info.databases.central} />
+              {info.scope.allChannels ? (
+                <span className="px-2 py-0.5 rounded fontMicro text-[#24110c] bg-[#F06C49]">all channels</span>
+              ) : (
+                <span
+                  className="px-2 py-0.5 rounded fontMicro text-gray-600 bg-gray-100"
+                  title={info.scope.channelIds?.join(', ') || 'no channels'}
+                >
+                  scoped{info.scope.channelIds?.length ? `: ${info.scope.channelIds.join(', ')}` : ''}
+                </span>
+              )}
             </div>
           )}
         </div>

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { requireAdmin } from "../../../../lib/admin/auth";
+import { authenticateAdmin } from "../../../../lib/admin/auth";
 import { centralDb } from "../../../../lib/admin/db";
 import { adminErrorResponse, badRequest, json } from "../../../../lib/admin/http";
+import { assertChannelInScope, scopedChannelClause } from "../../../../lib/admin/scope";
 import { parseScheduleConfig, type ScheduleConfig } from "../../../../lib/admin/schedule";
 import type { ScheduleRuleDto } from "../../../../lib/admin/types";
 
@@ -35,12 +36,14 @@ export function toScheduleRuleDto(row: RuleRow): ScheduleRuleDto {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const denied = requireAdmin(request);
-  if (denied) return denied;
+  const auth = await authenticateAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const url = new URL(request.url);
     const clauses: string[] = [];
-    const values: string[] = [];
+    const values: unknown[] = [];
+    const scopeClause = scopedChannelClause(auth.scope, values);
+    if (scopeClause) clauses.push(scopeClause);
     for (const [param, column] of [
       ["channelId", "channel_id"],
       ["stationId", "station_id"],
@@ -66,8 +69,8 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const denied = requireAdmin(request);
-  if (denied) return denied;
+  const auth = await authenticateAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const stationId = typeof body.stationId === "string" && body.stationId ? body.stationId : null;
@@ -75,6 +78,7 @@ export async function POST(request: Request): Promise<Response> {
     const channelId = typeof body.channelId === "string" ? body.channelId : null;
     if (!programId) throw badRequest("programId is required");
     if (!channelId) throw badRequest("channelId is required");
+    assertChannelInScope(auth.scope, channelId);
     const schedule = parseScheduleConfig(body.schedule);
     const enabled = body.enabled === undefined ? true : Boolean(body.enabled);
 

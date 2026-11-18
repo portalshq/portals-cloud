@@ -1,13 +1,13 @@
 # Channels Admin
 
 > Operator console for Portals channel scheduling: schedule rules, session
-> windows, channel info, and production controls for `bears-live-app`.
-> Standalone Vite + React app living at `channels/admin`; its API is served by
-> the channels Next.js app at `/api/admin/*` (see `../lib/admin/` and
-> `../app/api/admin/`).
+> windows, programs, channel info, and production controls for **any app in
+> the channels registry** — not just bears. Standalone Vite + React app living
+> at `channels/admin`; its API is served by the channels Next.js app at
+> `/api/admin/*` (see `../lib/admin/` and `../app/api/admin/`).
 
-Ported from `massively-social-ebook/admin` (ControlRoom) and reworked for the
-station-grid schema (`station_schedule_rules`, `station_program_slots`).
+Ported from `massively-social-ebook/admin` (ControlRoom) and reworked for
+the station-grid schema (`station_schedule_rules`, `station_program_slots`).
 
 ---
 
@@ -16,20 +16,25 @@ station-grid schema (`station_schedule_rules`, `station_program_slots`).
 ```
 channels/admin/        ← this SPA (Vite, React 18, Tailwind)
 channels/app/api/admin ← Next.js route handlers (the backend)
-channels/lib/admin     ← pg pools, bearer auth, schedule validation
+channels/lib/admin     ← pg pools, scoped bearer auth, schedule validation
 channels/public/admin  ← build output, served at /admin (gitignored)
 ```
 
-- **Auth**: every request sends `Authorization: Bearer <token>`; the channels
-  app compares it to `CHANNELS_ADMIN_TOKEN`. Enter the token in the UI, pass
-  `?token=` in the URL, or set `VITE_ADMIN_TOKEN` (build-time, last resort).
-- **Data**: route handlers query the bears app database
-  (`ADMIN_APP_DATABASE_URL`) and the central platform database
-  (`ADMIN_CENTRAL_DATABASE_URL`) directly. See `../docs/ADMIN.md` for the env
-  reference and `../docs/SCHEDULING.md` for scheduling semantics.
+- **Auth**: every request sends `Authorization: Bearer <token>`. The token
+  decides the scope: the env `CHANNELS_ADMIN_TOKEN` is the all-channels
+  superuser; scoped tokens live in the central `channel_admin_tokens` table
+  and only see their channels. Enter the token in the UI, pass `?token=` in
+  the URL, or set `VITE_ADMIN_TOKEN` (build-time, last resort).
+- **Data**: channel identity is database-driven — central bindings
+  (`station_schedule_rules`/`station_program_slots`) plus the app registry
+  (central `programs.app_origin`). Route handlers query the central platform
+  database (`ADMIN_CENTRAL_DATABASE_URL`) directly; an app database
+  (`ADMIN_APP_DATABASE_URL`) is optional checkpoint enrichment. See
+  `../docs/ADMIN.md` for the env reference, token scoping, and
+  `../docs/SCHEDULING.md` for scheduling semantics.
 - **No deletes**: rules are disabled (`enabled=false`), sessions are cancelled
   (`status='cancelled'`). Schedule edits reset `next_run_at` to NULL so the
-  bears slot scheduler rematerializes windows on its next ~30s tick.
+  slot scheduler rematerializes windows on its next ~30s tick.
 
 ## Tabs
 
@@ -37,8 +42,8 @@ channels/public/admin  ← build output, served at /admin (gitignored)
 |---|---|---|
 | Sessions | `station_program_slots` (central) | list/filter, create one-off slot, edit window/status/title, cancel |
 | Schedules | `station_schedule_rules` (central) | list, create, edit recurrence JSONB, enable/disable |
-| Channels | `channels` + `production_checkpoints` (app) | list w/ mode + binding + next session, rename, create |
-| Production | checkpoints + bears HTTP | status, start/stop/test-closing via `/api/production/*` proxy |
+| Channels | central bindings + app registry | list with app origin, bindings, next session, checkpoint mode; edit program name/description/tagline |
+| Production | app registry + `channel_app_control_tokens` | per-app status, start/stop/test-closing via `/api/admin/production/:channelId/:action` proxy |
 
 ## Development
 

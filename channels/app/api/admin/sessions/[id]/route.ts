@@ -1,6 +1,7 @@
-import { requireAdmin } from "../../../../../lib/admin/auth";
+import { authenticateAdmin } from "../../../../../lib/admin/auth";
 import { centralDb } from "../../../../../lib/admin/db";
 import { adminErrorResponse, badRequest, json, notFound } from "../../../../../lib/admin/http";
+import { assertChannelInScope } from "../../../../../lib/admin/scope";
 import { SLOT_STATUSES, type ProgramSlotDto } from "../../../../../lib/admin/types";
 
 export const runtime = "nodejs";
@@ -44,17 +45,18 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const denied = requireAdmin(request);
-  if (denied) return denied;
+  const auth = await authenticateAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const { id } = await context.params;
     const body = (await request.json()) as Record<string, unknown>;
 
     const current = await centralDb().query<SlotRow>(
-      "SELECT id, starts_at, ends_at FROM station_program_slots WHERE id = $1",
+      "SELECT id, channel_id, starts_at, ends_at FROM station_program_slots WHERE id = $1",
       [id],
     );
     if (!current.rows.length) throw notFound("Session not found");
+    assertChannelInScope(auth.scope, current.rows[0].channel_id);
 
     const startsAt = "startsAt" in body ? parseInstant(body.startsAt, "startsAt") : current.rows[0].starts_at;
     const endsAt = "endsAt" in body ? parseInstant(body.endsAt, "endsAt") : current.rows[0].ends_at;

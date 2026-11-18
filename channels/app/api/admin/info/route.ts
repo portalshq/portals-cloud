@@ -1,4 +1,4 @@
-import { requireAdmin } from "../../../../lib/admin/auth";
+import { authenticateAdmin } from "../../../../lib/admin/auth";
 import { adminEnv } from "../../../../lib/admin/env";
 import { appDb, centralDb } from "../../../../lib/admin/db";
 import { json } from "../../../../lib/admin/http";
@@ -19,8 +19,8 @@ async function probe(configured: boolean, query: () => Promise<unknown>): Promis
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const denied = requireAdmin(request);
-  if (denied) return denied;
+  const auth = await authenticateAdmin(request);
+  if (!auth.ok) return auth.response;
 
   const env = adminEnv();
   const [appConnected, centralConnected] = await Promise.all([
@@ -30,6 +30,10 @@ export async function GET(request: Request): Promise<Response> {
 
   const body: AdminInfoDto = {
     version: process.env.npm_package_version ?? "0.0.0",
+    scope: {
+      allChannels: auth.scope.allChannels,
+      channelIds: auth.scope.allChannels ? null : auth.scope.channelIds,
+    },
     databases: {
       app: { configured: Boolean(env.appDatabaseUrl), connected: appConnected },
       central: { configured: Boolean(env.centralDatabaseUrl), connected: centralConnected },
