@@ -89,9 +89,8 @@ A registered app provides the following interfaces:
   (`{kind:"video",url}`), HLS (`{playbackManifestUrl}`), or a Reactor
   descriptor (`{kind:"reactor"}`). The public preview returns only playback
   and scheduling fields. A null playback marks the channel off-air: its feed
-  panel carries the program's off-air content — title, off-air line, and the
-  next-session card with the follow action — instead of a preview, and the
-  room URL hands off to that panel until playback returns.
+  panel mounts the app's room — its own off-air stage — instead of a preview,
+  and the room URL hands off to that panel until playback returns.
 - If `backdrop` is true, `/channel-app/backdrop.js` exports
   `mountBackdrop(host)` and returns a cleanup function. The optional
   `poster` and `publicAssets` paths are served by the app at its root and

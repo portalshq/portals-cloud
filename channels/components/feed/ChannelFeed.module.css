@@ -157,9 +157,34 @@
 
 /* --- Off-air: the panel is the channel room ---
 
-   The same composition the program's off-air stage carries, centred where a
-   live panel puts its player: the title, the off-air line, and the session
-   card. The auto block margin centres the column vertically. */
+   An off-air program mounts its own room inside the panel — the same bundle
+   the room route mounts, held in the frame slot the video would take: the
+   leftover height, the media edge. */
+.roomFrame {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: calc(100% + var(--text-inset) + var(--text-inset));
+  margin-inline: calc(0px - var(--text-inset));
+  display: grid;
+  overflow: hidden;
+}
+
+.roomFrame [data-channel-room],
+.roomFrame [data-channel-room] > div {
+  height: 100%;
+}
+
+/* Apps lay their stage out for the viewport; inside the panel the frame
+   plays the viewport's role, so a 100dvh floor yields to the frame. */
+.roomFrame [data-channel-room] > div > main,
+.roomFrame [data-channel-room] > div > .app-shell {
+  min-height: 100%;
+  max-height: 100%;
+}
+
+/* A channel without a program still gets room content, centred where a live
+   panel puts its player: the title, the off-air line, and the session card.
+   The auto block margin centres the column vertically. */
 .roomContent {
   display: flex;
   flex-direction: column;
@@ -361,13 +386,17 @@
     }
   }
 
-  .stack:has(> .roomContent) {
+  .stack:has(> .roomContent),
+  .stack:has(> .roomFrame) {
     align-content: stretch;
   }
 
-  .roomContent {
+  .roomContent,
+  .roomFrame {
     grid-column: 1 / -1;
     align-self: stretch;
+    width: auto;
+    margin: 0;
   }
 
   .primary {
@@ -484,13 +513,17 @@
     margin: 0;
   }
 
-  .stack:has(> .roomContent) {
+  .stack:has(> .roomContent),
+  .stack:has(> .roomFrame) {
     align-content: stretch;
   }
 
-  .roomContent {
+  .roomContent,
+  .roomFrame {
     grid-column: 1 / -1;
     align-self: stretch;
+    width: auto;
+    margin: 0;
   }
 
   .primary {

@@ -41,10 +41,11 @@ and lifecycle details.
 ## Routes at a glance
 
 - `/` is the scroll feed: one full-height panel per channel, one active player
-  at a time. While a channel is off-air its panel carries the same off-air
-  content the program room does — the title, the off-air line, and the
-  next-session card with the follow action — and flips back to the player
-  when the next session starts.
+  at a time. While a program is off-air its panel mounts the program room
+  itself — the app's own off-air stage — and flips back to the player when
+  the next session starts. Channels without a program get a room card:
+  title, off-air line, and the next-session card — the follow action renders
+  only when a program is bound.
 - `/channels` is the browsable index. Entries for off-air channels open the
   channel's feed panel (`/#channel-<slug>`) rather than a room.
 - `/<slug>` is the channel room. Program apps mount their watch bundle only

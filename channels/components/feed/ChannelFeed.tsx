@@ -2,9 +2,10 @@
 
 import { ArrowUpRight, Heart } from 'lucide-react'
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { getSoundMuted, setSoundMuted } from '@/lib/room-controls'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { createRoomSound, type RoomAccount } from '@/lib/room-controls'
 import { FollowButton, ShareButton } from '@/components/channels/actions'
+import { ChannelAppRoom } from '@/components/channels/ChannelAppRoom'
 import { ChannelHeadingFonts } from '@/components/channels/ChannelHeadingFonts'
 import { ChannelMeta } from '@/components/channels/ChannelMeta'
 import { ChannelPreview, useChannelPreview } from '@/components/channels/ChannelPreview'
@@ -36,11 +37,17 @@ function ChannelPanel({
   live,
   muted,
   onVisible,
+  sound,
+  onRoomAccount,
+  onRoomSound,
 }: {
   channel: Channel
   live: boolean
   muted: boolean
   onVisible: (slug: string) => void
+  sound: ReturnType<typeof createRoomSound>
+  onRoomAccount: (slug: string, account: RoomAccount | null) => void
+  onRoomSound: (slug: string, available: boolean) => void
 }) {
   const [ref, { visible }] = useOnScreen<HTMLElement>()
   const active = live && visible
@@ -52,18 +59,48 @@ function ChannelPanel({
     if (visible) onVisible(channel.slug)
   }, [visible, channel.slug, onVisible])
 
-  /* Off-air panels carry the same content the program's off-air stage does —
-     title, the off-air line, and the session card — and no preview. The
-     panel still owns the playback slot while visible, so the same preview
-     poll that found the off-air state flips the panel back to the player the
-     moment a session starts. */
+  /* The program room mounts lazily on first view — a feed of rooms would
+     otherwise open every app's connections on page load. Once seen it stays
+     mounted, so scrolling back lands on the room as it was left. The room
+     control callbacks are stabilised because the app mounts (and unmounts)
+     on any change to them. */
+  const [seen, setSeen] = useState(false)
+  useEffect(() => {
+    if (visible) setSeen(true)
+  }, [visible])
+  const publishRoomAccount = useCallback(
+    (account: RoomAccount | null) => onRoomAccount(channel.slug, account),
+    [onRoomAccount, channel.slug],
+  )
+  const publishRoomSound = useCallback(
+    (available: boolean) => onRoomSound(channel.slug, available),
+    [onRoomSound, channel.slug],
+  )
+
+  /* Off-air panels drop the preview. An off-air program renders its own room
+     inside the panel — the same mount the room route gives it — while a
+     channel without a program shows the room card instead. The panel still
+     owns the playback slot while visible, so the same preview poll that
+     found the off-air state flips the panel back to the player the moment a
+     session starts. */
   const offAir = channelOffAir(channel)
   const name = channel.preview?.name ?? channel.title
+  const appRoom = offAir && channel.app ? channel.app : null
 
   return (
-    <section id={panelId} className={styles.panel} aria-labelledby={headingId} ref={ref}>
+    <section id={panelId} className={styles.panel}
+      aria-labelledby={appRoom ? undefined : headingId}
+      aria-label={appRoom ? channel.title : undefined}
+      ref={ref}>
       <div className={styles.stack}>
-        {offAir ? (
+        {appRoom ? (
+          <div className={styles.roomFrame}>
+            {seen && (
+              <ChannelAppRoom app={appRoom} name={name} heading={channel.heading}
+                sound={sound} onAccountChange={publishRoomAccount} onSoundAvailable={publishRoomSound} />
+            )}
+          </div>
+        ) : offAir ? (
           <div className={styles.roomContent}>
             <h2 className={styles.name} id={headingId} style={channel.heading}>
               {channel.title}
@@ -114,18 +151,21 @@ export function ChannelFeed({ channels }: { channels: Channel[] }) {
   const frame = useRef(0)
   const [progress, setProgress] = useState(0)
   const [live, setLive] = useState<string | null>(null)
-  const [muted, setMuted] = useState(true)
 
-  useEffect(() => {
-    setMuted(getSoundMuted())
+  /* One shared room-sound instance drives the rail and any mounted program
+     room, so the toggle behaves the same whether the active panel is a
+     preview player or an off-air room. */
+  const [sound] = useState(createRoomSound)
+  const muted = useSyncExternalStore(sound.subscribe, sound.getMuted, () => true)
+  /* Program rooms publish their account and sound support per slug; the rail
+     reads whichever panel currently owns the slot. */
+  const [roomAccounts, setRoomAccounts] = useState<Record<string, RoomAccount | null>>({})
+  const [roomSound, setRoomSound] = useState<Record<string, boolean>>({})
+  const publishRoomAccount = useCallback((slug: string, account: RoomAccount | null) => {
+    setRoomAccounts((prev) => ({ ...prev, [slug]: account }))
   }, [])
-
-  const toggleSound = useCallback(() => {
-    setMuted(value => {
-      const next = !value
-      setSoundMuted(next)
-      return next
-    })
+  const publishRoomSound = useCallback((slug: string, available: boolean) => {
+    setRoomSound((prev) => ({ ...prev, [slug]: available }))
   }, [])
 
   /* The feed holds one stream at a time. Which panel that is comes from that
@@ -178,7 +218,10 @@ export function ChannelFeed({ channels }: { channels: Channel[] }) {
   return (
     <>
       <ChannelHeadingFonts channels={channels} />
-      <Rail sound={{ muted, toggle: toggleSound }} />
+      <Rail
+        sound={{ muted, toggle: sound.toggle, disabled: live !== null && roomSound[live] === false }}
+        account={live ? roomAccounts[live] ?? null : null}
+      />
 
       <div className={styles.progress} aria-hidden="true">
         <span className={styles.progressFill} style={{ transform: `scaleY(${progress})` }} />
@@ -192,6 +235,9 @@ export function ChannelFeed({ channels }: { channels: Channel[] }) {
             live={live === channel.slug}
             muted={muted}
             onVisible={takeOver}
+            sound={sound}
+            onRoomAccount={publishRoomAccount}
+            onRoomSound={publishRoomSound}
           />
         ))}
       </main>
