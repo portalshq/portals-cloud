@@ -2,11 +2,11 @@
 
 ```mermaid
 flowchart TB
-    Catalog["Shared channel catalog<br/>Central schedule and program data + mock channels"]
+    Catalog["Program catalog<br/>Creator channels + station schedule + program data"]
 
     Catalog --> Feed["/ · Scroll feed"]
     Catalog --> Browse["/channels · Browse"]
-    Catalog --> Room["/[slug] · Channel room"]
+    Catalog --> Room["/[program-slug] · Program room"]
 
     Feed --> FeedContent["Active panel<br/>Muted HLS or demo video when available<br/>Animated backdrop or poster as fallback"]
     Feed --> OffAir["Off-air panel<br/>Read-only stage and next-session information"]
@@ -29,17 +29,17 @@ flowchart TB
 | `/channels` | The browse grid uses posters and one visible backdrop without starting a player. Program cards always open the canonical room. |
 | `/[slug]` | The watch bundle owns the stage and off-air lobby before, during and after the show. Unbundled catalog entries use the Channels stage when a stream is available. |
 | `/embed/[slug]?variant=preview` | The same preview contract as the feed, with an explicit partner frame allowlist. |
-| `/g/[code]` and `/embed/g/[code]` | The stage follows tuning without replacing the chat window. The public player never reads membership or private chat. |
+| `/g/[code]` and `/embed/g/[code]` | The stage follows tuning without replacing the chat window. The public watch link grants no membership; an authenticated existing member may select Group or Public chat. |
 
 ## App previews and playback
 
-[Register a channel app](./CHANNEL-APPS.md) to give another channel the same room and preview integration.
+[Register a program app](./CHANNEL-APPS.md) to give another program the same room and preview integration.
 
 - The catalog merges central schedule bindings and mock channels by slug. Bears contributes a preview endpoint, poster, and backdrop module when its backend is configured. [Catalog implementation](../lib/catalog.ts)
 - An active Bears preview refreshes every 15 seconds through `/api/channels/bears/preview`. The endpoint uses Bears’ `/api/channel` response to resolve playback and the next start time. The browser loads playable media from the returned URL. [Preview implementation](../components/channels/ChannelPreview.tsx)
 - Dry run supplies a progressive demo video even between episodes. A Reactor-only channel can be live while its feed panel shows the backdrop. Reactor playback is available inside the room.
-- A successful response with no playback marks the channel off-air: the feed panel mounts the program room — the app's own off-air stage — instead of a preview, and `/bears` hands off to that panel. A failed preview request shows “Bears is unavailable right now” and still lets the room mount. The reminder form appears in the Bears room when an upcoming episode is available, and behind every Follow button through the reminders prompt.
-- The backdrop entry reuses the Bears forest renderer and scene clock. Channels mounts it independently of the watch bundle, so previewing a card opens no chat, interaction, or Reactor sessions. [Bears integration](./BEARS.md)
+- A successful response with no playback keeps the feed in the same read-only room preview and renders the program's off-air stage and next-session information. `/bears` remains the canonical room before, during, and after air. A failed preview request uses the safe poster/schedule fallback. Reminder forms appear only in the full room, never in preview mode.
+- The preview bundle reuses the program's own backdrop and schedule presentation without opening write, reaction, vote, reminder, or full-chat connections. The shell adds the bounded program-scoped public-chat tail once. Legacy bundles receive the safe poster/schedule fallback instead of an unrestricted room mount.
 
 ## Follows and reminders
 

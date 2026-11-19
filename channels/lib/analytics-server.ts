@@ -13,7 +13,7 @@ function configured() {
   const writeKey = process.env.CHANNELS_SEGMENT_WRITE_KEY?.trim()
   const tenantId = process.env.CHANNELS_ANALYTICS_TENANT_ID?.trim()
   const appId = process.env.CHANNELS_ANALYTICS_APP_ID?.trim()
-  if (!writeKey || !tenantId || !appId || !process.env.ADMIN_CENTRAL_DATABASE_URL?.trim()) throw new Error('Channels analytics is enabled but Segment attribution or the central preference database is incomplete')
+  if (!writeKey || !tenantId || !appId || !process.env.CENTRAL_DATABASE_URL?.trim()) throw new Error('Channels analytics is enabled but Segment attribution or the central preference database is incomplete')
   return {writeKey, attribution: {tenantId, appId}}
 }
 

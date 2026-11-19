@@ -5,8 +5,9 @@ import { adminEnv } from './admin/env'
 import { CHANNEL_SLUG, getChannelApps, getChannelPreview } from './channel-apps'
 
 type CatalogRow = {
-  channel_id: string
+  slug: string
   tenant_id?: string
+  creator_name: string | null
   program_id: string
   program_name: string
   program_description: string | null
@@ -39,11 +40,12 @@ function readCentral(slug?: string): Promise<CatalogRow[]> {
           GROUP BY channel_id, program_id, station_id
         )
         SELECT DISTINCT ON (coalesce(to_jsonb(p)->>'slug', b.channel_id))
-          coalesce(to_jsonb(p)->>'slug', b.channel_id) AS channel_id, p.id AS program_id,
-          to_jsonb(p)->>'tenant_id' AS tenant_id, p.name AS program_name,
+          coalesce(to_jsonb(p)->>'slug', b.channel_id) AS slug, p.id AS program_id,
+          to_jsonb(p)->>'tenant_id' AS tenant_id, t.name AS creator_name, p.name AS program_name,
           p.description AS program_description, p.tagline AS program_tagline, s.name AS station_name,
           coalesce(ss.scheduled_live, false) AS scheduled_live, ss.next_start
         FROM programs p
+        LEFT JOIN tenants t ON t.id = p.tenant_id
         LEFT JOIN bindings b ON p.id = b.program_id
         LEFT JOIN stations s ON s.id = b.station_id
         LEFT JOIN slot_state ss ON ss.channel_id = b.channel_id AND ss.program_id = b.program_id
@@ -55,7 +57,7 @@ function readCentral(slug?: string): Promise<CatalogRow[]> {
                  (to_jsonb(p)->>'slug' IS NOT NULL) DESC, scheduled_live DESC, ss.next_start NULLS LAST,
                  b.program_id, b.station_id NULLS LAST
       `, [slug ? null : process.env.CHANNELS_CATALOG_STATION_ID?.trim() || null, slug ?? null])
-      for (const row of rows) lastProgramRows.set(row.channel_id, row)
+      for (const row of rows) lastProgramRows.set(row.slug, row)
       return rows
     } catch (error) {
       console.error('[channels] Central catalog unavailable', error)
@@ -74,17 +76,17 @@ async function catalog(slug?: string): Promise<Channel[]> {
     Promise.all(apps.map(getChannelPreview)),
   ])
   const merged = new Map(mocks.map((channel) => [channel.slug, channel]))
-  const centralRows = new Map(rows.map((row) => [row.channel_id, row]))
+  const centralRows = new Map(rows.map((row) => [row.slug, row]))
   for (const row of rows) {
-    if (!CHANNEL_SLUG.test(row.channel_id)) continue
-    const mock = merged.get(row.channel_id)
-    merged.set(row.channel_id, {
-      slug: row.channel_id,
+    if (!CHANNEL_SLUG.test(row.slug)) continue
+    const mock = merged.get(row.slug)
+    merged.set(row.slug, {
+      slug: row.slug,
       programId: row.program_id,
       creatorId: row.tenant_id ?? undefined,
       title: row.program_name,
       heading: mock?.heading,
-      by: row.station_name ?? mock?.by ?? row.program_name,
+      by: row.creator_name ?? mock?.by ?? row.program_name,
       description: row.program_description ?? '',
       tagline: row.program_tagline ?? undefined,
       metadataDescription: '',
@@ -112,7 +114,7 @@ async function catalog(slug?: string): Promise<Channel[]> {
       heading: app.heading ?? existing?.heading,
       headingFontFallbackUrl: app.headingFontFallbackUrl,
       headingFontUrl: app.headingFont ? `${assets}/public/${app.headingFont}` : undefined,
-      by: app.by ?? existing?.by ?? app.name,
+      by: central?.creator_name ?? app.by ?? existing?.by ?? app.name,
       description: central?.program_description ?? appProgram?.description ?? previous?.program_description ?? existing?.description ?? '',
       tagline: central?.program_tagline ?? appProgram?.tagline ?? previous?.program_tagline ?? existing?.tagline,
       metadataDescription: existing?.metadataDescription ?? existing?.description ?? '',

@@ -221,8 +221,6 @@
   color: var(--color-fg);
 }
 
-/* The one accent in the card is the action: the follow button opens the
-   reminder form, so it takes the primary treatment the program gives it. */
 .sessionCard .roomFollow {
   width: min(100%, 20rem);
   background: var(--color-accent);
@@ -240,26 +238,12 @@
   }
 }
 
-/* --- Actions, ranked by importance --- */
-
 .actions {
   display: flex;
   flex-wrap: wrap;
   align-self: start;
   gap: var(--space-3);
   margin-top: var(--space-2);
-
-  button,
-  a {
-    @media (max-width: 640px) {
-      display: inline-flex;
-      width: 44px;
-      min-width: 44px;
-      padding-inline: 0;
-      gap: 0;
-      font: 0 var(--font-body);
-    }
-  }
 }
 
 .primary {
@@ -284,7 +268,7 @@
   padding-inline: var(--space-6);
 }
 
-@media (min-width: 641px) and (max-width: 1400px) and (orientation: landscape) and (pointer: coarse) {
+@media (min-width: 641px) and (max-width: 1400px) and (pointer: coarse) {
   .panel {
     position: relative;
     isolation: isolate;
@@ -376,7 +360,6 @@
     align-self: end;
     gap: var(--space-2);
     margin: 0;
-
     button {
       width: 44px;
       min-width: 44px;
@@ -386,17 +369,13 @@
     }
   }
 
-  .stack:has(> .roomContent),
-  .stack:has(> .roomFrame) {
+  .stack:has(> .roomContent) {
     align-content: stretch;
   }
 
-  .roomContent,
-  .roomFrame {
+  .roomContent {
     grid-column: 1 / -1;
     align-self: stretch;
-    width: auto;
-    margin: 0;
   }
 
   .primary {
@@ -481,9 +460,8 @@
     gap: var(--space-1);
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius);
-    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+    background: color-mix(in srgb, var(--color-bg) 60%, transparent);
     font: var(--font-micro);
-
     span {
       flex: 0 1 auto;
       padding: 0;
@@ -511,19 +489,23 @@
     align-self: end;
     gap: var(--space-2);
     margin: 0;
+    button,
+    a {
+      width: 44px;
+      min-width: 44px;
+      padding-inline: 0;
+      gap: 0;
+      font: 0 var(--font-body);
+    }
   }
 
-  .stack:has(> .roomContent),
-  .stack:has(> .roomFrame) {
+  .stack:has(> .roomContent) {
     align-content: stretch;
   }
 
-  .roomContent,
-  .roomFrame {
+  .roomContent {
     grid-column: 1 / -1;
     align-self: stretch;
-    width: auto;
-    margin: 0;
   }
 
   .primary {

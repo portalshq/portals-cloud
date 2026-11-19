@@ -43,21 +43,27 @@ function useMessages(endpoint: string | undefined, limit: number, active: boolea
   return active && limit && snapshot && snapshot.endpoint === endpoint ? snapshot.messages.slice(-limit) : []
 }
 
-export function AmbientChat({ limit, active }: { limit: number; active: boolean }) {
-  const messages = useMessages('/api/chat', limit, active, false)
+function publicChatEndpoint(programId: string | undefined) {
+  return programId ? `/api/programs/${encodeURIComponent(programId)}/chat` : undefined
+}
+
+export function AmbientChat({ programId, limit, active }: { programId?: string; limit: number; active: boolean }) {
+  const messages = useMessages(publicChatEndpoint(programId), limit, active, false)
   if (!active || !limit || !messages.length) return null
   return <ol className={styles.ambient} aria-label="Recent public chat">
     {messages.map(message => <li key={message.id}><strong>{message.name}</strong> {message.text}</li>)}
   </ol>
 }
 
-export function RoomChat({ groupCode, member = false }: { groupCode?: string; member?: boolean }) {
+export function RoomChat({ programId, groupCode, member = false }: { programId?: string; groupCode?: string; member?: boolean }) {
   const viewer = useSyncExternalStore(subscribeViewer, getViewer, noViewer)
   const privateEndpoint = viewer && member && groupCode ? `/api/groups/${groupCode}/chat` : undefined
+  const publicEndpoint = publicChatEndpoint(programId)
   const [publicSelected, setPublicSelected] = useState(false)
-  const selected = privateEndpoint && !publicSelected ? privateEndpoint : '/api/chat'
+  const selected = privateEndpoint && (!publicSelected || !publicEndpoint) ? privateEndpoint : publicEndpoint
+  if (!selected) return null
   return <section className={styles.window} aria-label="Chat">
-    {privateEndpoint && <div className={styles.scopes} aria-label="Chat conversation" role="group">
+    {privateEndpoint && publicEndpoint && <div className={styles.scopes} aria-label="Chat conversation" role="group">
       <button type="button" aria-pressed={!publicSelected} onClick={() => setPublicSelected(false)}>Group</button>
       <button type="button" aria-pressed={publicSelected} onClick={() => setPublicSelected(true)}>Public</button>
     </div>}

@@ -17,7 +17,7 @@ afterEach(async () => {
 describe('public catalog', () => {
   it('uses the selected central program copy while preserving room metadata', async () => {
     const pool = makePool(() => ({ rows: [{
-      channel_id: 'bears', program_id: 'bears-live', program_name: 'Bears live',
+      slug: 'bears', program_id: 'bears-live', program_name: 'Bears live',
       program_description: 'The central description.', program_tagline: 'The central tagline.',
       station_name: 'Wildlife', scheduled_live: false, next_start: null,
     }] }))
@@ -55,7 +55,7 @@ describe('public catalog', () => {
     let available = true
     const pool = makePool(() => {
       if (!available) throw new Error('offline')
-      return { rows: [{ channel_id: 'bears', program_id: 'bears-live', program_name: 'Bears', program_description: 'Last known description.', program_tagline: 'Last known tagline.', station_name: null, scheduled_live: false, next_start: null }] }
+      return { rows: [{ slug: 'bears', program_id: 'bears-live', program_name: 'Bears', program_description: 'Last known description.', program_tagline: 'Last known tagline.', station_name: null, scheduled_live: false, next_start: null }] }
     })
     const { setPoolsForTest } = await import('../lib/admin/db')
     setPoolsForTest({ central: pool })
@@ -71,8 +71,8 @@ describe('public catalog', () => {
 
   it('merges central entries by slug, preserves other mocks, and uses Bears playback state', async () => {
     const pool = makePool(() => ({ rows: [
-      { channel_id: 'bears', program_name: 'Bears live', station_name: 'Wildlife', scheduled_live: true, next_start: null },
-      { channel_id: 'night-shift', program_name: 'Night Shift Central', station_name: null, scheduled_live: false, next_start: null },
+      { slug: 'bears', program_name: 'Bears live', station_name: 'Wildlife', scheduled_live: true, next_start: null },
+      { slug: 'night-shift', program_name: 'Night Shift Central', station_name: null, scheduled_live: false, next_start: null },
     ] }))
     const { setPoolsForTest } = await import('../lib/admin/db')
     setPoolsForTest({ central: pool })
@@ -217,7 +217,7 @@ describe('channel viewer proxy', () => {
 
 describe('registered channel apps', () => {
   it('lists a second app with its own bundle, preview, and public assets', async () => {
-    vi.stubEnv('ADMIN_CENTRAL_DATABASE_URL', '')
+    vi.stubEnv('CENTRAL_DATABASE_URL', '')
     vi.stubEnv('CHANNELS_APPS', JSON.stringify({
       garden: {
         origin: 'https://garden.test', name: 'Garden', backdrop: true, poster: 'images/garden.webp',
@@ -261,7 +261,7 @@ describe('registered channel apps', () => {
   })
 
   it('applies the 25th Chapter defaults so its entry only needs an origin', async () => {
-    vi.stubEnv('ADMIN_CENTRAL_DATABASE_URL', '')
+    vi.stubEnv('CENTRAL_DATABASE_URL', '')
     vi.stubEnv('CHANNELS_APPS', JSON.stringify({ '25th-chapter': { origin: 'https://chapter.test' } }))
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
       playback: { playbackManifestUrl: '/live/main/index.m3u8' },
@@ -292,7 +292,7 @@ describe('registered channel apps', () => {
     vi.stubEnv('CHANNELS_APPS', JSON.stringify({ '25th-chapter': { origin: 'https://stale-env.test' } }))
     const pool = makePool((text) => {
       if (text.includes('app_origin')) return { rows: [{
-        channel_id: '25th-chapter', app_origin: 'https://chapter.test/',
+        slug: '25th-chapter', app_origin: 'https://chapter.test/',
         app_config: { publicAssets: ['preview/3.png'] },
       }] }
       return { rows: [] }

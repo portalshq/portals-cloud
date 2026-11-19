@@ -3,9 +3,9 @@
 import { ArrowUpRight } from 'lucide-react'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { createRoomSound } from '@/lib/room-controls'
-import { FollowButton, ShareButton } from '@/components/channels/actions'
-import { ChannelAppRoom } from '@/components/channels/ChannelAppRoom'
+import { createRoomSound, type FollowDialogOutcome } from '@/lib/room-controls'
+import { FollowButton, ShareButton, settleFollowDialog } from '@/components/channels/actions'
+import { ChannelAppRoom, ChannelProgramSurface } from '@/components/channels/ChannelAppRoom'
 import { ChannelHeadingFonts } from '@/components/channels/ChannelHeadingFonts'
 import { ChannelMeta } from '@/components/channels/ChannelMeta'
 import { AmbientChat } from '@/components/channels/RoomChat'
@@ -36,6 +36,19 @@ function ChannelPanel({
   const active = live && visible
   const panelId = `channel-${channel.slug}`
   const headingId = `${panelId}-title`
+  // A preview that registers its own styled follow dialog gets it: the Follow
+  // button opens it instead of the channels default reminders prompt. Until a
+  // bundle registers (or after it retracts), the default applies.
+  const [styledFollow, setStyledFollow] = useState<(() => void) | null>(null)
+  const publishStyledFollow = useCallback((open: (() => void) | null) => {
+    setStyledFollow(open ? () => open : null)
+  }, [])
+  const handleFollowSettled = useCallback(
+    (outcome: FollowDialogOutcome) => {
+      if (channel.programId) void settleFollowDialog(channel.slug, channel.programId, outcome)
+    },
+    [channel.slug, channel.programId],
+  )
 
   useEffect(() => {
     if (visible) onVisible(channel.slug)
@@ -46,7 +59,7 @@ function ChannelPanel({
     [onRoomSound, channel.slug],
   )
 
-  const fallback = <RoomPreviewFallback channel={channel} active={active} muted={muted} noteClassName={styles.videoNote} />
+  const fallbackContent = <RoomPreviewFallback channel={channel} active={active} muted={muted} noteClassName={styles.videoNote} />
   const href = channelEntryHref(channel)
 
   return (
@@ -55,11 +68,14 @@ function ChannelPanel({
         <div className={styles.videoFrame}>
           <div className={styles.video}>
             {active && channel.app ? (
-              <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title}
+              <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title} programId={channel.programId}
                 heading={channel.heading} sound={sound} onAccountChange={ignoreAccount}
-                onSoundAvailable={publishRoomSound} variant="preview" chatMessages={channel.preview?.chatMessages} fallback={fallback} />
-            ) : fallback}
-            <AmbientChat limit={channel.preview?.chatMessages ?? 3} active={active} />
+                onSoundAvailable={publishRoomSound} variant="preview" chatMessages={channel.preview?.chatMessages} fallback={fallbackContent}
+                onFollowDialog={publishStyledFollow} onFollowSettled={handleFollowSettled} />
+            ) : (
+              <ChannelProgramSurface app={channel.app} heading={channel.heading} variant="preview">{fallbackContent}</ChannelProgramSurface>
+            )}
+            <AmbientChat programId={channel.programId} limit={channel.preview?.chatMessages ?? 3} active={active} />
             <ChannelMeta channel={channel} className={styles.meta} />
           </div>
         </div>
@@ -72,7 +88,7 @@ function ChannelPanel({
             Enter channel
             <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden="true" />
           </Link>
-          <FollowButton channel={channel.slug} programId={channel.programId} />
+          <FollowButton channel={channel.slug} programId={channel.programId} styledFollow={styledFollow} />
           <ShareButton channel={channel.slug} url={href} />
         </div>
       </div>

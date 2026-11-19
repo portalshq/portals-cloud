@@ -1,12 +1,12 @@
 'use client'
 
 import { ChevronDown, UserRound } from 'lucide-react'
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { consumeUsernamePrompt, finishSignIn, getViewer, setDisplayName, signOut, startSignIn, subscribeViewer, viewerFetch } from '@/lib/viewer'
 import type { RoomAccount } from '@/lib/room-controls'
 import styles from './ViewerAccount.module.css'
 
-export function ViewerAccount({ roomAccount }: { roomAccount?: RoomAccount | null }) {
+export function ViewerAccount({ roomAccount, menuAction }: { roomAccount?: RoomAccount | null; menuAction?: ReactNode }) {
   const menuId = `channels-account-menu-${useId().replace(/:/g, '')}`
   const viewer = useSyncExternalStore(subscribeViewer, getViewer, () => null)
   const root = useRef<HTMLDivElement>(null)
@@ -106,6 +106,8 @@ export function ViewerAccount({ roomAccount }: { roomAccount?: RoomAccount | nul
     }
   }
 
+  const action = menuAction ? <div className={styles.menuAction}>{menuAction}</div> : null
+
   return (
     <div className={styles.root} ref={root} data-account-menu-open={menuOpen ? 'true' : undefined} onClick={event => {
       // A click that starts on the trigger and ends on the moving spacer
@@ -140,6 +142,7 @@ export function ViewerAccount({ roomAccount }: { roomAccount?: RoomAccount | nul
         <div className={styles.menuInner} inert={!menuOpen}>
           {viewer ? (
             <>
+              {action}
               {roomAccount?.invite && (
                 <button type="button" className={styles.action} onClick={() => {
                   roomAccount.invite?.run()
@@ -174,7 +177,10 @@ export function ViewerAccount({ roomAccount }: { roomAccount?: RoomAccount | nul
               }}>Sign out</button>
             </>
           ) : (
-            <button type="button" className={styles.action} disabled={busy} onClick={() => void perform(startSignIn)}>Sign in</button>
+            <>
+              {action}
+              <button type="button" className={styles.action} disabled={busy} onClick={() => void perform(startSignIn)}>Sign in</button>
+            </>
           )}
           {notice && <p className={styles.notice} role="alert">{notice}</p>}
         </div>

@@ -70,7 +70,7 @@ describe("GET /api/admin/schedules", () => {
   });
 
   it("returns 503 when the central DB is unconfigured", async () => {
-    stubAdminEnv({ ADMIN_CENTRAL_DATABASE_URL: undefined });
+    stubAdminEnv({ CENTRAL_DATABASE_URL: undefined });
     const res = await GET(adminRequest("/api/admin/schedules"));
     expect(res.status).toBe(503);
   });

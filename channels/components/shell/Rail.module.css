@@ -4,9 +4,10 @@
   display: flex;
   width: 100%;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-1);
   margin: var(--space-7) 0;
-  padding: 0 var(--space-7);
+  padding-block: 0;
+  padding-inline: var(--space-7) calc(var(--space-10) - var(--text-inset));
   height: 38px;
   @media (min-width: 1401px) and (orientation: landscape) and (pointer: coarse) {
     padding-block-start: calc(var(--space-2) + env(safe-area-inset-top, 0px));
@@ -16,27 +17,8 @@
     margin-block: var(--space-6);
     margin-inline: 0;
     padding-block: 0;
-    padding-inline: max(var(--space-6), env(safe-area-inset-left, 0px)) max(var(--space-6), env(safe-area-inset-right, 0px));
+    padding-inline: max(var(--space-4), env(safe-area-inset-left, 0px)) max(var(--space-6), env(safe-area-inset-right, 0px));
   }
-}
-
-/* Reveal auxiliary labels on hover or keyboard focus. */
-.rail :is(.wordmark, .link span, .counter, [data-rail-label]) {
-  opacity: 0;
-  transform: translateX(-6px);
-  transition: opacity var(--duration) var(--ease-out),
-    transform var(--duration) var(--ease-out);
-}
-
-.rail:focus-within :is(.wordmark, .link span, .counter, [data-rail-label]) {
-  opacity: 1;
-  transform: none;
-}
-
-/* No drawer on mobile, so the remaining labels are always shown. */
-.rail :is(.link span, [data-rail-label]) {
-    opacity: 1;
-    transform: none;
 }
 
 .wordmark {
@@ -48,12 +30,13 @@
     display: none;
 }
 
-.links {
+.links,
+.foot {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
-  gap: var(--space-1);
+  gap: var(--space-2);
   height: 100%;
 }
 
@@ -61,28 +44,17 @@
   font: var(--font-normal);
   display: flex;
   align-items: center;
+  place-items: center;
+  place-content: center;
   gap: var(--space-2);
   height: 100%;
+  aspect-ratio: 1/1;
+  justify-content: center;
   padding-inline: var(--space-3);
   border-radius: var(--radius-pill);
   color: var(--color-muted);
   text-decoration: none;
   white-space: nowrap;
-  transition: background var(--duration) var(--ease-out),
-  color var(--duration) var(--ease-out),
-  var(--press-transition);
-  svg {
-    display: none;
-  }
-  @media (max-width: 640px) {
-    gap: var(--space-1);
-    flex-direction: column;
-    &[data-hide-icon="true"] {
-      aspect-ratio: 1/1;
-    }
-    justify-content: center;
-    padding-inline: var(--space-2);
-  }
 }
 
 .link[aria-current] {
@@ -98,7 +70,6 @@
   margin-left: auto;
   flex-direction: row;
   align-items: center;
-  gap: var(--space-2);
 }
 
 .counter {
@@ -107,12 +78,7 @@
   }
 }
 
-@media (hover: hover) {
-  .rail:hover :is(.wordmark, .link span, .counter, [data-rail-label]) {
-    opacity: 1;
-    transform: none;
-  }
-
+@media (hover: hover) and (min-width: 1201px) and (pointer: fine) {
   .link:hover {
     background: var(--color-fg-fade);
     color: var(--color-fg);
@@ -125,10 +91,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rail :is(.wordmark, .link span, .counter, [data-rail-label]),
-  .link,
-  .profile,
-  .profile svg {
+  .profile {
     transition: none;
   }
 }
@@ -165,7 +128,7 @@
   gap: var(--space-2);
   min-height: 0;
   height: 100%;
-  aspect-ratio: 1/1;
+  width: max-content;
   padding-inline: var(--space-3);
   border: 0;
   color: var(--color-fg);
@@ -203,13 +166,33 @@
   cursor: default;
 }
 
+/* Mobile and tablet: buttons are icon-only, text collapses to zero size
+   rather than display:none so the control keeps its accessible name. Links
+   stay text-only. The account button keeps its text by living inside
+   ViewerAccount's root (not a direct child of .foot), as do the account
+   dropdown contents and the panel-style group control's inner buttons. */
 @media (max-width: 1200px), (max-width: 1400px) and (pointer: coarse) {
-  .sound {
+  .links button,
+  .foot > button:not(.follow),
+  .foot > a {
+    display: inline-flex;
     padding: 0;
     width: auto;
+    height: 100%;
+    aspect-ratio: 1/1;
+    font-size: 0;
+    line-height: 0;
+    gap: 0;
+    overflow: clip;
+    justify-content: center;
+    place-items: center;
   }
 
-  .sound span {
-    display: none;
+  .foot .follow {
+    width: max-content;
+    padding-inline: 0;
+    gap: 0;
+    font-size: 0;
+    line-height: 0;
   }
 }

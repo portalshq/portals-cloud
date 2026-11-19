@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, Compass, Home, Volume2, VolumeX } from 'lucide-react'
+import { ChevronLeft, Volume2, VolumeX } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -13,24 +13,32 @@ import { signInWithinFrame } from '@/lib/viewer'
 import styles from './Rail.module.css'
 
 const links = [
-  { href: '/', label: 'Home', Icon: Home, hideIcon: true },
-  { href: '/channels', label: 'Browse', Icon: Compass, hideIcon: false },
+  { href: '/', label: 'Home' },
+  { href: '/channels', label: 'Browse' },
 ] as const
 
 type RailProps = {
   roomSlug?: string
   /** The program the room is showing; powers the global follow button. */
   program?: { id?: string; slug: string }
+  /** Opens the program's styled follow dialog when the room provides one. */
+  styledFollow?: (() => void) | null
   sound?: { muted: boolean; toggle: () => void; disabled?: boolean }
   account?: RoomAccount | null
   /** X Player Card room: no in-app navigation or account menu. The wordmark
    *  opens the full room, and sign-in requests hand off to it. */
   surface?: RoomSurface
   roomHref?: string
+  /** Panel-style control rendered in the bar itself (e.g. the member group
+   *  menu); it cannot live in the account dropdown because the menu clips
+   *  overflow. */
   groupControl?: ReactNode
+  /** Single-action group control rendered inside the account dropdown
+   *  (Start group / Join group). */
+  menuAction?: ReactNode
 }
 
-export function Rail({ roomSlug, program, sound, account, surface, groupControl, roomHref }: RailProps) {
+export function Rail({ roomSlug, program, styledFollow, sound, account, surface, groupControl, menuAction, roomHref }: RailProps) {
   const router = useRouter()
   const pathname = usePathname()
   const embed = surface !== undefined
@@ -93,7 +101,7 @@ export function Rail({ roomSlug, program, sound, account, surface, groupControl,
               <ChevronLeft size={18} aria-hidden="true" />
             </button>
           </li>
-        ) : links.map(({ href, label, hideIcon, Icon }) => {
+        ) : links.map(({ href, label }) => {
           // `/` is exact, but every channel room belongs to browse, so the
           // index and its children both keep browse highlighted.
           const exact = pathname === href
@@ -102,8 +110,7 @@ export function Rail({ roomSlug, program, sound, account, surface, groupControl,
 
           return (
             <li key={href}>
-              <Link className={styles.link} href={href} aria-current={current} data-hide-icon={hideIcon}>
-                <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+              <Link className={styles.link} href={href} aria-current={current}>
                 <span>{label}</span>
               </Link>
             </li>
@@ -114,7 +121,7 @@ export function Rail({ roomSlug, program, sound, account, surface, groupControl,
       <div className={styles.foot}>
         {groupControl}
         {program && (
-          <FollowButton className={styles.follow} channel={program.slug} programId={program.id} />
+          <FollowButton className={styles.follow} channel={program.slug} programId={program.id} styledFollow={styledFollow} />
         )}
         {sound && (
           <button type="button" className={styles.sound} aria-label="Stage sound"
@@ -125,7 +132,7 @@ export function Rail({ roomSlug, program, sound, account, surface, groupControl,
         )}
         {!embed && (
           <>
-            <ViewerAccount roomAccount={account} />
+            <ViewerAccount roomAccount={account} menuAction={menuAction} />
             <span className={styles.wordmark}>channels</span>
           </>
         )}

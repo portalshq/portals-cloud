@@ -102,7 +102,6 @@ describe("GET /api/admin/channels", () => {
   });
 
   it("works without the optional app database (no checkpoint enrichment)", async () => {
-    stubAdminEnv({ ADMIN_APP_DATABASE_URL: undefined });
     usePools({ central: makePool(centralHandler) });
     const res = await GET(adminRequest("/api/admin/channels"));
     expect(res.status).toBe(200);
@@ -210,7 +209,7 @@ describe("GET /api/admin/info", () => {
   });
 
   it("reports unconfigured databases", async () => {
-    stubAdminEnv({ ADMIN_APP_DATABASE_URL: undefined, ADMIN_CENTRAL_DATABASE_URL: undefined });
+    stubAdminEnv({ CENTRAL_DATABASE_URL: undefined });
     const res = await INFO(adminRequest("/api/admin/info"));
     const body = await res.json();
     expect(body.databases).toEqual({

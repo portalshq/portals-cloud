@@ -4,9 +4,9 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { getViewer, requestSignIn, subscribeViewer, viewerFetch } from '@/lib/viewer'
 import { createRoomSound, type RoomAccount } from '@/lib/room-controls'
-import type { groupSnapshot } from '@/lib/groups'
+import type { groupSnapshot, GroupDestinations } from '@/lib/groups'
 import { Rail } from '@/components/shell/Rail'
-import { ChannelAppRoom } from './ChannelAppRoom'
+import { ChannelAppRoom, ChannelProgramSurface } from './ChannelAppRoom'
 import { ChannelHeadingFonts } from './ChannelHeadingFonts'
 import { RoomPreviewFallback } from './ChannelPreview'
 import { RoomChat } from './RoomChat'
@@ -17,7 +17,9 @@ type Snapshot = NonNullable<Awaited<ReturnType<typeof groupSnapshot>>>
 const serverViewer = () => null
 const serverMuted = () => true
 
-export function GroupRoom({ code, initial, framed = false }: { code: string; initial: Snapshot; framed?: boolean }) {
+export function GroupRoom({ code, initial, framed = false, destinations }: {
+  code: string; initial: Snapshot; framed?: boolean; destinations?: GroupDestinations
+}) {
   const router = useRouter()
   const viewer = useSyncExternalStore(subscribeViewer, getViewer, serverViewer)
   const [sound] = useState(() => createRoomSound(framed))
@@ -31,8 +33,9 @@ export function GroupRoom({ code, initial, framed = false }: { code: string; ini
   const [pending, setPending] = useState(false)
   const [inviteLink, setInviteLink] = useState<string>()
   const [invite, setInvite] = useState<string>()
-  const [tuneTarget, setTuneTarget] = useState('')
-  const [tuneMode, setTuneMode] = useState<'programId' | 'stationId'>('programId')
+  const [tuneTarget, setTuneTarget] = useState(() => initial.stationId
+    ? `station:${initial.stationId}`
+    : initial.programId ? `program:${initial.programId}` : '')
   const channel = tuning.channel
   const href = `/g/${code}`
   const api = `/api/groups/${code}`
@@ -90,7 +93,7 @@ export function GroupRoom({ code, initial, framed = false }: { code: string; ini
   }, [api])
 
   useEffect(() => {
-    if (framed || !viewer?.userId || pending) return
+    if (!viewer?.userId || pending) return
     const userId = viewer.userId
     const abort = new AbortController()
     const refresh = async () => {
@@ -104,9 +107,9 @@ export function GroupRoom({ code, initial, framed = false }: { code: string; ini
     void refresh()
     const timer = window.setInterval(refresh, 10_000)
     return () => { abort.abort(); clearInterval(timer) }
-  }, [api, framed, pending, viewer?.userId])
+  }, [api, pending, viewer?.userId])
 
-  async function change(action: 'join' | 'leave' | 'invite' | 'tune') {
+  async function change(action: 'join' | 'leave' | 'end' | 'invite' | 'tune') {
     if (pending) return
     if (!viewer?.userId) {
       requestSignIn()
@@ -115,14 +118,20 @@ export function GroupRoom({ code, initial, framed = false }: { code: string; ini
     setPending(true)
     setMembershipError(false)
     try {
+      const separator = tuneTarget.indexOf(':')
+      const tuneKind = tuneTarget.slice(0, separator)
+      const tuneId = tuneTarget.slice(separator + 1)
       const response = await viewerFetch(`${api}/${action === 'tune' ? 'tuning' : 'membership'}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(action === 'tune' ? { [tuneMode]: tuneTarget, revision: tuning.revision } :
+        body: JSON.stringify(action === 'tune' ? {
+          [tuneKind === 'station' ? 'stationId' : 'programId']: tuneId,
+          revision: tuning.revision,
+        } :
           action === 'join' ? { action, invite } : { action }),
       })
       if (!response.ok) throw new Error(`Group action returned ${response.status}`)
       const value = await response.json()
-      if (action === 'leave') {
+      if (action === 'leave' || action === 'end') {
         setMembership(undefined)
         router.replace(channel ? `/${channel.slug}` : '/')
       } else if (action === 'join') {
@@ -130,6 +139,8 @@ export function GroupRoom({ code, initial, framed = false }: { code: string; ini
         router.replace(href)
       } else if (action === 'invite' && typeof value.invite === 'string') {
         setInviteLink(`${location.origin}${href}#invite=${encodeURIComponent(value.invite)}`)
+      } else if (action === 'tune' && typeof value.revision === 'number') {
+        setTuning(value as Snapshot)
       }
     } catch { setMembershipError(true) }
     finally { setPending(false) }
@@ -139,8 +150,9 @@ export function GroupRoom({ code, initial, framed = false }: { code: string; ini
     {channel && <ChannelHeadingFonts channels={[channel]} />}
     <Rail roomSlug={channel?.slug} roomHref={href} surface={framed ? 'embed' : undefined}
       account={account} sound={{ muted, toggle: sound.toggle, disabled: !soundAvailable && !channel?.stream }}
-      groupControl={!framed && (member ? <details className={styles.groupControl}>
-        <summary>Group</summary>
+      menuAction={!framed && !member && invite ? <button type="button" disabled={pending} onClick={() => void change('join')}>Join group</button> : undefined}
+      groupControl={!framed && member ? <details className={styles.groupControl}>
+        <summary>{tuning.name} · {tuning.memberCount}</summary>
         <div>
           <details>
             <summary>Invite</summary>
@@ -150,15 +162,22 @@ export function GroupRoom({ code, initial, framed = false }: { code: string; ini
             {inviteLink && owner && <input aria-label="Membership link" readOnly value={inviteLink} onFocus={event => event.target.select()} />}
           </details>
           {owner && <>
-            <select aria-label="Tune to" value={tuneMode} onChange={event => setTuneMode(event.target.value === 'stationId' ? 'stationId' : 'programId')}>
-              <option value="programId">Program</option><option value="stationId">Station</option>
+            <select aria-label="Move group to" value={tuneTarget} onChange={event => setTuneTarget(event.target.value)}>
+              <option value="" disabled>Choose a station or program</option>
+              {destinations?.stations.length ? <optgroup label="Stations">
+                {destinations.stations.map(station => <option key={station.id} value={`station:${station.id}`}>{station.name}</option>)}
+              </optgroup> : null}
+              {destinations?.programs.length ? <optgroup label="Programs">
+                {destinations.programs.map(program => <option key={program.id} value={`program:${program.id}`}>{program.name}</option>)}
+              </optgroup> : null}
             </select>
-            <input aria-label={tuneMode === 'stationId' ? 'Station ID' : 'Program ID'} value={tuneTarget} onChange={event => setTuneTarget(event.target.value)} />
-            <button type="button" disabled={pending || !tuneTarget.trim()} onClick={() => void change('tune')}>Move group</button>
+            <button type="button" disabled={pending || !tuneTarget} onClick={() => void change('tune')}>Move group</button>
           </>}
-          <button type="button" disabled={pending} onClick={() => void change('leave')}>Leave group</button>
+          <button type="button" disabled={pending} onClick={() => void change(owner ? 'end' : 'leave')}>
+            {owner ? 'End group' : 'Leave group'}
+          </button>
         </div>
-      </details> : invite ? <button type="button" disabled={pending} onClick={() => void change('join')}>Join group</button> : undefined)}
+      </details> : undefined}
     />
     {membershipError && <p role="alert">Could not update the group. Please try again.</p>}
     {failed && <p role="status">Could not refresh group tuning. Retrying.</p>}
@@ -166,17 +185,18 @@ export function GroupRoom({ code, initial, framed = false }: { code: string; ini
       <div className={styles.groupStage}>
         {channel?.app ? <ChannelAppRoom key={channel.slug} app={channel.app} name={channel.title}
           heading={channel.heading} sound={sound} onSoundAvailable={setSoundAvailable} onAccountChange={setAccount} shellChat
+          captions={framed ? 'on' : undefined}
           fallback={<RoomPreviewFallback channel={channel} active muted={muted} />} />
-          : channel ? <RoomPreviewFallback channel={channel} active muted={muted} /> :
+          : channel ? <ChannelProgramSurface app={channel.app} heading={channel.heading} variant="preview"><RoomPreviewFallback channel={channel} active muted={muted} /></ChannelProgramSurface> :
             <p>{tuning.nextSession ? <>Next session <time dateTime={tuning.nextSession}>{formatSessionTime(tuning.nextSession)}</time></>
               : 'No upcoming session scheduled.'}</p>}
       </div>
-      <RoomChat groupCode={code} member={member} />
+      <RoomChat programId={channel?.programId} groupCode={code} member={member} />
     </main>
   </>
 }
 
-export function StartGroup({ programId }: { programId: string }) {
+export function StartGroup({ programId, className }: { programId: string; className?: string }) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -195,7 +215,7 @@ export function StartGroup({ programId }: { programId: string }) {
     finally { setPending(false) }
   }
   return <>
-    <button type="button" disabled={pending} onClick={() => void start()}>Start group</button>
+    <button type="button" className={className} disabled={pending} onClick={() => void start()}>Start group</button>
     {failed && <p role="alert">Could not start a group. Please try again.</p>}
   </>
 }

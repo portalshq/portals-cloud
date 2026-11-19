@@ -2,6 +2,10 @@ import type { NextConfig } from 'next'
 import { resolve } from 'node:path'
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [
+    'bryantss-macbook-pro.tail8ab839.ts.net',
+    '*.tail8ab839.ts.net',
+  ],
   async headers() {
     return [{ source: '/notifications/verify', headers: [
       { key: 'Referrer-Policy', value: 'no-referrer' },

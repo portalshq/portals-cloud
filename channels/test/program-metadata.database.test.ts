@@ -16,11 +16,13 @@ describe('central program descriptions', () => {
     const db = new PGlite()
     try {
       await db.exec(`
-        CREATE TABLE programs (id text PRIMARY KEY, name text NOT NULL);
+        CREATE TABLE tenants (id text PRIMARY KEY, name text NOT NULL);
+        CREATE TABLE programs (id text PRIMARY KEY, name text NOT NULL, tenant_id text REFERENCES tenants(id), app_origin text, app_config jsonb);
         CREATE TABLE stations (id text PRIMARY KEY, name text NOT NULL);
         CREATE TABLE station_schedule_rules (channel_id text, program_id text, station_id text);
         CREATE TABLE station_program_slots (channel_id text, program_id text, station_id text, status text, starts_at timestamptz, ends_at timestamptz, metadata jsonb);
-        INSERT INTO programs VALUES ('bears-live', 'Bears'), ('other', 'Other');
+        INSERT INTO tenants VALUES ('bears', 'Bear Country');
+        INSERT INTO programs (id, name, tenant_id) VALUES ('bears-live', 'Bears', 'bears'), ('other', 'Other', 'bears');
         INSERT INTO stations VALUES ('station', 'Station');
         INSERT INTO station_schedule_rules VALUES ('bears', 'bears-live', 'station'), ('bears', 'other', 'station');
       `)
@@ -41,7 +43,7 @@ describe('central program descriptions', () => {
       }), { params: Promise.resolve({ id: 'bears-live' }) })
       expect(edited.status).toBe(200)
       expect((await getChannelCatalog()).find((channel) => channel.slug === 'bears')).toMatchObject({
-        programId: 'bears-live', description: 'A shared description.', tagline: 'Shared tagline.', metadataDescription: '',
+        programId: 'bears-live', by: 'Bear Country', description: 'A shared description.', tagline: 'Shared tagline.', metadataDescription: '',
       })
       const preview = await previewChannel(new Request('https://channels.example/api/channels/bears/preview'), {
         params: Promise.resolve({ slug: 'bears' }),

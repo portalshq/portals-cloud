@@ -4,13 +4,13 @@ import { ArrowUpRight, Check, Search, Sparkles, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { createRoomSound, type RoomAccount } from '@/lib/room-controls'
+import { createRoomSound, type FollowDialogOutcome, type RoomAccount } from '@/lib/room-controls'
 import { experienceEvents } from '@/lib/analytics-contract'
 import { recordChannelEvent } from '@/lib/analytics-client'
 import { Rail } from '@/components/shell/Rail'
 import { AnalyticsPrivacy } from '@/components/analytics/AnalyticsPrivacy'
-import { FollowButton, ShareButton } from './actions'
-import { ChannelAppRoom } from './ChannelAppRoom'
+import { FollowButton, ShareButton, settleFollowDialog } from './actions'
+import { ChannelAppRoom, ChannelProgramSurface } from './ChannelAppRoom'
 import { ChannelHeadingFonts } from './ChannelHeadingFonts'
 import { ChannelMeta } from './ChannelMeta'
 import { ChannelPreview, RoomPreviewFallback, useChannelPreview } from './ChannelPreview'
@@ -380,15 +380,15 @@ function BrowseIndex({ channels }: { channels: Channel[] }) {
                   setQuery('')
                 }}
               >
-                Clear the filters
+                Clear
               </button>
             </div>
           )}
         </section>
 
         <footer className={styles.footer}>
-          <span>© 2026</span>
           <AnalyticsPrivacy />
+          <span>© 2026</span>
         </footer>
       </main>
     </>
@@ -426,6 +426,16 @@ function ChannelDetail({ channel, surface }: { channel: Channel; surface?: 'embe
   const muted = useSyncExternalStore(sound.subscribe, sound.getMuted, () => true)
   const [account, setAccount] = useState<RoomAccount | null>(null)
   const [appSoundAvailable, setAppSoundAvailable] = useState(false)
+  const [styledFollow, setStyledFollow] = useState<(() => void) | null>(null)
+  const publishStyledFollow = useCallback((open: (() => void) | null) => {
+    setStyledFollow(open ? () => open : null)
+  }, [])
+  const handleFollowSettled = useCallback(
+    (outcome: FollowDialogOutcome) => {
+      if (channel.programId) void settleFollowDialog(channel.slug, channel.programId, outcome)
+    },
+    [channel.slug, channel.programId],
+  )
   const hasSound = preview ? appSoundAvailable || Boolean(channel.stream || channel.previewVideo)
     : channel.app ? appSoundAvailable : Boolean(channel.stream)
 
@@ -437,20 +447,21 @@ function ChannelDetail({ channel, surface }: { channel: Channel; surface?: 'embe
 
   return (
     <>
-      <Rail roomSlug={channel.slug} surface={surface} program={preview ? undefined : { id: channel.programId, slug: channel.slug }} sound={{ muted, toggle: sound.toggle, disabled: !hasSound }} account={account}
-        groupControl={!embed && channel.creatorId && channel.programId ? <StartGroup programId={channel.programId} /> : undefined} />
+      <Rail roomSlug={channel.slug} surface={surface} program={preview ? undefined : { id: channel.programId, slug: channel.slug }} styledFollow={styledFollow} sound={{ muted, toggle: sound.toggle, disabled: !hasSound }} account={account}
+        menuAction={!embed && channel.creatorId && channel.programId ? <StartGroup programId={channel.programId} /> : undefined} />
       {preview ? (
         <main className={styles.previewEmbed}>
-          {channel.app ? <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title}
+          {channel.app ? <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title} programId={channel.programId}
             heading={channel.heading} sound={sound} onAccountChange={setAccount} onSoundAvailable={setAppSoundAvailable}
             variant="preview" chatMessages={channel.preview?.chatMessages}
             fallback={<RoomPreviewFallback channel={channel} active muted={muted} />} />
-            : <RoomPreviewFallback channel={channel} active muted={muted} />}
-          <AmbientChat active limit={channel.preview?.chatMessages ?? 3} />
+            : <ChannelProgramSurface app={channel.app} heading={channel.heading} variant="preview"><RoomPreviewFallback channel={channel} active muted={muted} /></ChannelProgramSurface>}
+          <AmbientChat programId={channel.programId} active limit={channel.preview?.chatMessages ?? 3} />
         </main>
       ) : channel.app ? (
-        <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title}
-          heading={channel.heading} sound={sound} onAccountChange={setAccount} onSoundAvailable={setAppSoundAvailable} />
+        <ChannelAppRoom app={channel.app} name={channel.preview?.name ?? channel.title} programId={channel.programId}
+          heading={channel.heading} sound={sound} onAccountChange={setAccount} onSoundAvailable={setAppSoundAvailable}
+          onFollowDialog={publishStyledFollow} onFollowSettled={handleFollowSettled} />
       ) : (
         <main className={styles.detail} data-channel-room>
           <div className={styles.detailHead}>
@@ -461,7 +472,7 @@ function ChannelDetail({ channel, surface }: { channel: Channel; surface?: 'embe
           </div>
 
           {channel.stream && <Stage channel={{ ...channel, stream: channel.stream }} muted={muted} />}
-          <RoomChat />
+          <RoomChat programId={channel.programId} />
         </main>
       )}
     </>

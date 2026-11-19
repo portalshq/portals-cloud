@@ -1,5 +1,44 @@
 # Portals Mac production bootstrap
 
+## Public application Auth endpoint via Tailscale Funnel
+
+`scripts/auth-grpc-funnel.mjs` exposes the same Auth Gateway through one public
+TLS endpoint carrying both HTTP/1.1 and HTTP/2 gRPC. Tailscale terminates the
+public `*.ts.net` certificate; the local bridge selects HTTP/1.1 or HTTP/2 and
+forwards to Caddy on `127.0.0.1:8443`, verifying Caddy's
+`auth.portals.works` certificate. Caddy continues to enforce its Auth route.
+
+The application endpoints use the hostname printed by `on`:
+
+- Auth endpoint for Lore/PX: `ucs-auth://<device>.<tailnet>.ts.net:10000`
+- HTTPS base URL: `https://<device>.<tailnet>.ts.net:10000`
+- JWKS: `https://<device>.<tailnet>.ts.net:10000/.well-known/jwks.json`
+
+Run on andresb as the user controlling Tailscale:
+
+```sh
+node /Users/Shared/portals-auth-grpc-funnel.mjs on
+node /Users/Shared/portals-auth-grpc-funnel.mjs status
+node /Users/Shared/portals-auth-grpc-funnel.mjs off
+```
+
+It exposes gRPC on the Tailscale hostname at port 10000 and sends HTTP/2 to
+the existing Caddy Auth route with verified TLS. HTTP requests use this same
+hostname and port. `on` and `off` refuse to replace or remove an unrelated
+Tailscale mapping. The local bridge must be restarted with `on` after reboot.
+
+Auth retains `https://auth.portals.works` as its JWT issuer and registered OIDC
+callback. This is intentional: a client starts and polls the Auth session over
+the Funnel endpoint, the browser returns through the canonical callback, and
+the resulting token keeps the stable production issuer. The callback must
+remain publicly reachable and registered in ZITADEL. Funnel supports only its
+tailnet `*.ts.net` name, so a CNAME cannot turn this into
+`auth.portals.works`.
+
+Requires a logged-in Tailscale client, MagicDNS, HTTPS and Funnel permission in
+the tailnet policy, Node.js and running Caddy/Auth. Public exposure is subject
+to Funnel bandwidth limits. This changes neither DNS nor JWT issuer semantics.
+
 This module runs only the Mac services. Next.js stays on Vercel. The current
 host is Intel, so the deployment needs `linux/amd64`. Auth Gateway now has a
 multi-architecture Docker Hub build; ARM64 is available for a future host, but

@@ -258,21 +258,16 @@ is worth stating as a rule rather than a fix: **the gutter is for scrollers, and
   `reconnecting` and restarting the video every few seconds. `onstalled` is now
   left unbound. A real outage still surfaces as `waiting` (underrun) or a fatal
   hls.js `NETWORK_ERROR`, and both are still handled.
-- **Off-air panels are the channel room.** A channel with nothing to play
-  drops the media frame entirely — no poster, backdrop, or status overlay —
-  and the panel mounts the program's own room inside it: the same bundle the
-  room route mounts, held in the frame slot the video would take, so the
-  app's own off-air stage (its title, off-air line, next-session card, and
-  reminder-form follow) is exactly the room's. The room mounts lazily when the panel is
-  first seen and stays mounted, the feed's one rail serves it through the
-  same room controls the room route wires, and the panel still owns the
-  playback slot while visible — the preview poll turns the panel back into a
-  player the moment a session starts. A channel without a program gets the
-  room card instead: title, off-air line, and next-session card centred
-  where the player would be, the accent reserved for the follow action.
-  Off-air browse entries and room URLs both land on that panel —
-  `/#channel-<slug>` — so the program room only exists while the program is
-  on air, and the rail's back target and the room URL stay one surface.
+- **Off-air panels preview the program room.** The active feed panel mounts
+  the same program stage/lobby in read-only preview mode, so its title,
+  backdrop, off-air line, and next-session information remain program-owned.
+  Preview removes reminder forms, votes, reactions, chat input, and other
+  write actions; Channels adds at most three recent public messages over the
+  stage. A legacy bundle receives the poster/schedule fallback, never an
+  unrestricted full-room mount. Only the active panel runs media and chat
+  polling. Browse entries and room links always use `/<program-slug>`, which
+  serves the full program room with a 200 response before, during, and after
+  air.
 - **Channel room.** The page *is* the channel, so there is no gate: no "enter
   the room" button, no `aria-pressed` toggle, and no primary action anywhere on
   this route. The stage is a presence surface, not an entry point, and it

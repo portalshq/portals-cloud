@@ -14,7 +14,7 @@ afterEach(() => {
 
 describe("authenticateAdmin", () => {
   it("returns 503 when neither the env token nor the central database is configured", async () => {
-    stubAdminEnv({ CHANNELS_ADMIN_TOKEN: undefined, ADMIN_CENTRAL_DATABASE_URL: undefined });
+    stubAdminEnv({ CHANNELS_ADMIN_TOKEN: undefined, CENTRAL_DATABASE_URL: undefined });
     const auth = await authenticateAdmin(new Request("https://x.test/api/admin/info"));
     expect(auth.ok).toBe(false);
     expect(!auth.ok && auth.response.status).toBe(503);
@@ -214,5 +214,15 @@ describe("adminErrorResponse", () => {
     const res = adminErrorResponse(new Error("postgres://secret@host/db failed"));
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ message: "Internal server error" });
+  });
+
+  it("reports creator/program ownership conflicts without leaking database detail", async () => {
+    const res = adminErrorResponse({
+      code: "23503",
+      constraint: "station_program_slots_program_channel_owner",
+      detail: "Key (program_id, channel_id)=(show, wrong-owner) is not present",
+    });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ message: "The program does not belong to that creator channel." });
   });
 });

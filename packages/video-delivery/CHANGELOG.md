@@ -1,5 +1,11 @@
 # @portalshq/capability-video-delivery
 
+## 0.2.0
+
+### Minor Changes
+
+- b9af545: Provide reusable scheduled program opening phases for channel presentations.
+
 ## 0.1.10
 
 ### Patch Changes

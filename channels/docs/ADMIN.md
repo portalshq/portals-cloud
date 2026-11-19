@@ -6,9 +6,10 @@ schema used by `bears-live-app`. Read `SCHEDULING.md` first for the scheduling
 model and `CHANNEL-APPS.md` for the app registry.
 
 The public room key is `programs.slug`, not the tenant ID or a station ID.
-Existing admin scopes still refer to the stored `channel_id` on legacy
-bindings. When an admin slot write overlaps another scheduled or live slot
-on the same station, the database rejects it and the API returns `409`.
+Admin scope `channel_id` values are creator tenant IDs. Migration `0013`
+requires each new rule or slot to pair a program with its owning creator
+channel. When an admin slot write overlaps another scheduled or live slot on
+the same station, the database rejects it and the API returns `409`.
 
 The admin manages **any app in the channels registry** — not just bears. A
 channel appears in the admin when a program is bound to it (schedule rules or
@@ -34,7 +35,7 @@ scope:
   (created by `packages/channel-registry/sql/003_channel_admin.sql`).
   `token_hash` is `sha256(token)` hex (compute it with
   `printf %s "$TOKEN" | shasum -a 256`); `channel_ids` lists the channel
-  slugs the token may view and mutate; `revoked_at` soft-revokes.
+  tenant IDs the token may view and mutate; `revoked_at` soft-revokes.
 
 Scoped tokens only see and edit their channels' programs, schedules, and
 sessions; `GET /api/admin/info` reports the scope (the SPA shows it in the
@@ -51,8 +52,7 @@ stay gitignored.
 | Var | Purpose |
 |---|---|
 | `CHANNELS_ADMIN_TOKEN` | Platform superuser bearer for `/api/admin/*`. Scoped tokens come from the `channel_admin_tokens` table instead. |
-| `ADMIN_CENTRAL_DATABASE_URL` | Central platform database — the channel source of truth (`stations`, `programs`, `station_schedule_rules`, `station_program_slots`, `channel_admin_tokens`, `channel_app_control_tokens`). |
-| `ADMIN_APP_DATABASE_URL` | Optional app database enrichment: `production_checkpoints` for the Channels list/Production tab (the bears server's `DATABASE_URL`). Any single app's database; not required. |
+| `CENTRAL_DATABASE_URL` | Central platform database — the channel source of truth (`stations`, `programs`, `station_schedule_rules`, `station_program_slots`, `channel_admin_tokens`, `channel_app_control_tokens`). |
 | `BEARS_API_BASE_URL` | Bears server origin: registers the bears app in the registry and acts as its production origin. |
 | `BEARS_PRODUCTION_CONTROL_TOKEN` | Legacy fallback forwarded to bears `POST /api/production/*`. Prefer the `channel_app_control_tokens` table. Never reaches the browser. |
 

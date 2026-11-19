@@ -14,7 +14,14 @@ session windows get created, and how operators revise the grid.
 | `production_checkpoints` | app DB | Last reconcile mode (`stopped`/`ambient`/`preparing`/`episode`) |
 
 A station is one curated stream. Its ID is separate from both the program
-ID and its creator tenant ID. Central migration `0011` rejects overlapping
+ID and its creator channel/tenant ID. `station_program_slots.channel_id` and
+`station_schedule_rules.channel_id` retain the creator channel for scope and
+billing; they are not a second program slug. Central migration `0013` enforces
+that `(program_id, channel_id)` matches `programs(id, tenant_id)` for new
+schedule writes, so one creator may own many programs without a program ever
+being scheduled under another creator's channel.
+
+Central migration `0011` rejects overlapping
 `scheduled` or `live` slots on the same station, including simultaneous
 writes from the scheduler and admin. Windows are half-open, so a second
 program may start exactly when the first ends. Before deploying, resolve

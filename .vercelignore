@@ -1,0 +1,10 @@
+# Keep deploys focused on source and assets; these local build outputs are not
+# inputs to the Channels production build.
+**/node_modules
+**/.next
+**/.turbo
+**/.env*
+**/*.local
+control-plane/target
+coverage
+.pnpm-store

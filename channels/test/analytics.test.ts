@@ -9,14 +9,14 @@ const request = (events: unknown[]) => new Request('https://channels.example/api
 afterEach(() => {vi.unstubAllEnvs(); vi.unstubAllGlobals()})
 describe('channel event ingestion', () => {
   it('validates and forwards an anonymous action with the stable message id', async () => {
-    vi.stubEnv('CHANNELS_ANALYTICS_ENABLED', 'true'); vi.stubEnv('CHANNELS_SEGMENT_WRITE_KEY', 'testkey'); vi.stubEnv('CHANNELS_ANALYTICS_TENANT_ID', 'portals'); vi.stubEnv('CHANNELS_ANALYTICS_APP_ID', 'channels'); vi.stubEnv('ADMIN_CENTRAL_DATABASE_URL', 'postgres://central/test')
+    vi.stubEnv('CHANNELS_ANALYTICS_ENABLED', 'true'); vi.stubEnv('CHANNELS_SEGMENT_WRITE_KEY', 'testkey'); vi.stubEnv('CHANNELS_ANALYTICS_TENANT_ID', 'portals'); vi.stubEnv('CHANNELS_ANALYTICS_APP_ID', 'channels'); vi.stubEnv('CENTRAL_DATABASE_URL', 'postgres://central/test')
     const fetchMock = vi.fn().mockResolvedValue({ok: true}); vi.stubGlobal('fetch', fetchMock)
     expect((await POST(request([event]))).status).toBe(204)
     const sent = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(sent).toMatchObject({messageId: event.id, event: event.name, anonymousId, properties: {following: true, portals_event_id: event.id, portals_provenance: 'client', portals_tenant_id: 'portals', portals_app_id: 'channels'}})
   })
   it('rejects fabricated server events, extra properties and user identity', async () => {
-    vi.stubEnv('CHANNELS_ANALYTICS_ENABLED', 'true'); vi.stubEnv('CHANNELS_SEGMENT_WRITE_KEY', 'testkey'); vi.stubEnv('CHANNELS_ANALYTICS_TENANT_ID', 'portals'); vi.stubEnv('CHANNELS_ANALYTICS_APP_ID', 'channels'); vi.stubEnv('ADMIN_CENTRAL_DATABASE_URL', 'postgres://central/test')
+    vi.stubEnv('CHANNELS_ANALYTICS_ENABLED', 'true'); vi.stubEnv('CHANNELS_SEGMENT_WRITE_KEY', 'testkey'); vi.stubEnv('CHANNELS_ANALYTICS_TENANT_ID', 'portals'); vi.stubEnv('CHANNELS_ANALYTICS_APP_ID', 'channels'); vi.stubEnv('CENTRAL_DATABASE_URL', 'postgres://central/test')
     const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock)
     for (const invalid of [{...event, name: 'billing.purchase_settled'}, {...event, properties: {...event.properties, message: 'private'}}, {...event, identity: {anonymousId, userId: 'forged'}}, {...event, properties: {}}]) {
       expect((await POST(request([invalid]))).status).toBe(400)
@@ -24,7 +24,7 @@ describe('channel event ingestion', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
   it('reports vendor outages so the browser can retry', async () => {
-    vi.stubEnv('CHANNELS_ANALYTICS_ENABLED', 'true'); vi.stubEnv('CHANNELS_SEGMENT_WRITE_KEY', 'testkey'); vi.stubEnv('CHANNELS_ANALYTICS_TENANT_ID', 'portals'); vi.stubEnv('CHANNELS_ANALYTICS_APP_ID', 'channels'); vi.stubEnv('ADMIN_CENTRAL_DATABASE_URL', 'postgres://central/test')
+    vi.stubEnv('CHANNELS_ANALYTICS_ENABLED', 'true'); vi.stubEnv('CHANNELS_SEGMENT_WRITE_KEY', 'testkey'); vi.stubEnv('CHANNELS_ANALYTICS_TENANT_ID', 'portals'); vi.stubEnv('CHANNELS_ANALYTICS_APP_ID', 'channels'); vi.stubEnv('CENTRAL_DATABASE_URL', 'postgres://central/test')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ok: false, status: 503}))
     expect((await POST(request([event]))).status).toBe(502)
   })

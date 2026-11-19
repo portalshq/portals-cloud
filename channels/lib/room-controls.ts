@@ -3,8 +3,21 @@ export type RoomAccount = {
   invite?: { label: string; run: () => void }
 }
 
+/** Outcome of an app-owned follow dialog, using the same outcome vocabulary as
+ *  the analytics registry: a committed follow, a dismissed dialog, or a failed
+ *  save. */
+export type FollowDialogOutcome = 'succeeded' | 'cancelled' | 'failed'
+
 export type RoomSurface = 'embed' | 'preview'
-export { previewElements, type PreviewElements } from './room-preview'
+export {
+  PREVIEW_ELEMENTS,
+  previewElements,
+  roomElementsFor,
+  type PreviewElements,
+  type ResolvedRoomElements,
+  type RoomElements,
+  type RoomVariant,
+} from './room-preview'
 
 const SOUND_MUTED_KEY = 'channels:sound-muted'
 

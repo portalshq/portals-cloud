@@ -37,8 +37,7 @@ export function resetPools(): void {
 
 export function stubAdminEnv(overrides: Record<string, string | undefined> = {}): void {
   vi.stubEnv("CHANNELS_ADMIN_TOKEN", ADMIN_TOKEN);
-  vi.stubEnv("ADMIN_APP_DATABASE_URL", "postgres://localhost/bears-app");
-  vi.stubEnv("ADMIN_CENTRAL_DATABASE_URL", "postgres://localhost/portals-central");
+  vi.stubEnv("CENTRAL_DATABASE_URL", "postgres://localhost/portals-central");
   vi.stubEnv("BEARS_API_BASE_URL", "http://bears.test");
   vi.stubEnv("BEARS_PRODUCTION_CONTROL_TOKEN", "control-token");
   for (const [key, value] of Object.entries(overrides)) {

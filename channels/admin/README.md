@@ -28,8 +28,8 @@ channels/public/admin  ← build output, served at /admin (gitignored)
 - **Data**: channel identity is database-driven — central bindings
   (`station_schedule_rules`/`station_program_slots`) plus the app registry
   (central `programs.app_origin`). Route handlers query the central platform
-  database (`ADMIN_CENTRAL_DATABASE_URL`) directly; an app database
-  (`ADMIN_APP_DATABASE_URL`) is optional checkpoint enrichment. See
+  database (`CENTRAL_DATABASE_URL`) directly; an app database
+  (`CENTRAL_DATABASE_URL`) is optional checkpoint enrichment. See
   `../docs/ADMIN.md` for the env reference, token scoping, and
   `../docs/SCHEDULING.md` for scheduling semantics.
 - **No deletes**: rules are disabled (`enabled=false`), sessions are cancelled

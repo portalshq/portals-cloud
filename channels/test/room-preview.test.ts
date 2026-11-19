@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { embedSurface, frameAncestors, previewElements } from '../lib/room-preview'
+import { embedSurface, frameAncestors, previewElements, roomElementsFor } from '../lib/room-preview'
 
 describe('room previews', () => {
   it('requires exactly one preview selector', () => {
@@ -25,5 +25,12 @@ describe('room previews', () => {
     for (const invalid of [-1, 1.3, 11, '3', null, Infinity]) {
       expect(() => previewElements(invalid)).toThrow()
     }
+  })
+
+  it('keeps non-preview overrides narrow instead of inventing preview limits', () => {
+    expect(roomElementsFor(undefined, { reactions: false })).toEqual({ reactions: false })
+    expect(roomElementsFor('preview', { chatMessages: 5 })).toEqual({
+      chatMessages: 5, input: false, reactions: false, forms: false, actions: false,
+    })
   })
 })

@@ -5,8 +5,54 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { experienceEvents } from '@/lib/analytics-contract'
 import { recordChannelEvent } from '@/lib/analytics-client'
 import { ensureFollowsLoaded, followsSnapshot, setFollow, settleReminderFollow, subscribeFollows } from '@/lib/follows'
+import type { FollowDialogOutcome } from '@/lib/room-controls'
 import { getViewer, subscribeViewer, viewerFetch } from '@/lib/viewer'
 import styles from './actions.module.css'
+
+export type FollowReminderResult = { ok: boolean; verified?: boolean; error?: string; settingsUrl?: string }
+
+/** Submits the reminders form that commits a follow. Shared by the default
+ *  prompt and any preview-provided styled dialog so the subscription write,
+ *  follow settlement, and analytics stay in one place. */
+export async function submitFollowReminder(programId: string, { email }: { email?: string } = {}): Promise<FollowReminderResult> {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const payload: Record<string, unknown> = { programId, episode: true, weekly: false, timezone, ensureFollow: true }
+  const viewer = getViewer()
+  if (!viewer && email?.trim()) payload.email = email.trim()
+  try {
+    const response = await viewerFetch('/api/notifications/subscriptions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    })
+    const result = await response.json().catch(() => null)
+    if (response.ok) {
+      const verified = result?.verified === true
+      await settleReminderFollow(programId, verified).catch(() => {})
+      recordChannelEvent(experienceEvents.reminderSaveResult, {surface: 'channels_room', program_id: programId, outcome: 'succeeded', episode: true, weekly: false, verification_required: !verified})
+      return { ok: true, verified }
+    }
+    const settingsUrl = typeof result?.settingsUrl === 'string' ? result.settingsUrl : undefined
+    recordChannelEvent(experienceEvents.reminderSaveResult, {surface: 'channels_room', program_id: programId, outcome: response.status === 401 ? 'unauthorized' : 'failed', episode: true, weekly: false, verification_required: !viewer})
+    return { ok: false, error: result?.error || 'Could not save reminders.', settingsUrl }
+  } catch {
+    recordChannelEvent(experienceEvents.reminderSaveResult, {surface: 'channels_room', program_id: programId, outcome: 'unavailable', episode: true, weekly: false, verification_required: !getViewer()})
+    return { ok: false, error: 'Could not save reminders.' }
+  }
+}
+
+/** Settles follow state and analytics after a follow dialog completes.
+ *  Shared by the reminders prompt and a preview-provided styled dialog so the
+ *  bell and the funnel read the same outcome. `succeeded` means the dialog's
+ *  flow committed the follow — the same transaction settle as the reminders
+ *  form; dismissed or failed dialogs write nothing. */
+export async function settleFollowDialog(channel: string, programId: string, outcome: FollowDialogOutcome): Promise<boolean> {
+  if (outcome !== 'succeeded') {
+    recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: false, outcome})
+    return false
+  }
+  const applied = await settleReminderFollow(programId, true)
+  recordChannelEvent(experienceEvents.followResult, {surface: 'channels_room', channel_id: channel, program_id: programId, following: applied, outcome: 'succeeded'})
+  return applied
+}
 
 /** Following turns the icon chip, not the label. The word stays in normal ink
  *  outside the accent, and the button keeps a fixed width so swapping
@@ -20,15 +66,19 @@ import styles from './actions.module.css'
  *  into program_follows on sign-in. Following is gated by the reminders
  *  form: the click opens it and the follow commits only when the form
  *  completes — dismissing it cancels the process and the button stays
- *  "Follow". Unfollow is a single immediate write. */
-export function FollowButton({ channel, programId, className }: { channel: string; programId?: string; className?: string }) {
+ *  "Follow". Unfollow is a single immediate write.
+ *
+ *  When the mounted preview provides its own styled follow dialog, pass
+ *  `styledFollow` — the click opens that dialog instead of the default
+ *  reminders prompt, and `settleFollowDialog` carries the outcome. */
+export function FollowButton({ channel, programId, className, styledFollow }: { channel: string; programId?: string; className?: string; styledFollow?: (() => void) | null }) {
   // The gate is hook-free so a programId arriving after mount — a preview
   // resolving the binding late — cannot reorder the action's hooks.
   if (!programId) return null
-  return <FollowAction channel={channel} programId={programId} className={className} />
+  return <FollowAction channel={channel} programId={programId} className={className} styledFollow={styledFollow ?? undefined} />
 }
 
-function FollowAction({ channel, programId, className }: { channel: string; programId: string; className?: string }) {
+function FollowAction({ channel, programId, className, styledFollow }: { channel: string; programId: string; className?: string; styledFollow?: () => void }) {
   const following = useSyncExternalStore(
     subscribeFollows,
     () => followsSnapshot().has(programId),
@@ -50,6 +100,11 @@ function FollowAction({ channel, programId, className }: { channel: string; prog
         disabled={busy}
         onClick={() => {
           if (!following) {
+            if (styledFollow) {
+              recordChannelEvent(experienceEvents.reminderPromptOpened, {surface: 'channels_room', program_id: programId})
+              styledFollow()
+              return
+            }
             setPromptOpen(true)
             return
           }
@@ -61,7 +116,7 @@ function FollowAction({ channel, programId, className }: { channel: string; prog
         }}
       >
         <Bell className={following ? "filled" : ""} size={16} strokeWidth={1.75} />
-        {following ? 'Following' : 'Follow'}
+        <span>{following ? 'Following' : 'Follow'}</span>
       </button>
       <ReminderPrompt
         programId={programId}

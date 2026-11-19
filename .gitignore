@@ -20,3 +20,5 @@ infra/mac-bootstrap/ssh-activity.log
 
 # OS
 .DS_Store
+.vercel
+.env*

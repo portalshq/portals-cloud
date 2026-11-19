@@ -102,17 +102,16 @@ const appDefaults: Record<string, Record<string, unknown>> = {
 }
 
 type RegistrationRow = {
-  channel_id: string
+  slug: string
   program_id?: string
   app_origin: string
   app_config: Record<string, unknown> | null
 }
 
-/* Channel app registrations live on the central `programs` row bound to a
-   channel: an app publishes `app_origin` (its public http(s) origin) during
-   central sync, and optional presentation overrides in `app_config`. A row
-   wins over CHANNELS_APPS for the same slug — the central record is the
-   authoritative registration. */
+/* Program-app registrations live on the central `programs` row. A program
+   publishes its immutable public slug, `app_origin` and optional presentation
+   overrides in `app_config`. Its creator channel is `programs.tenant_id`, not
+   the room key. A central row wins over CHANNELS_APPS for the same slug. */
 async function readRegistrations(): Promise<RegistrationRow[]> {
   if (!adminEnv().centralDatabaseUrl) return []
   try {
@@ -126,7 +125,7 @@ async function readRegistrations(): Promise<RegistrationRow[]> {
          SELECT channel_id, min(program_id) AS program_id
          FROM bindings GROUP BY channel_id HAVING count(*) = 1
        )
-       SELECT coalesce(to_jsonb(p)->>'slug', b.channel_id) AS channel_id,
+       SELECT coalesce(to_jsonb(p)->>'slug', b.channel_id) AS slug,
               p.id AS program_id, p.app_origin, p.app_config
        FROM programs p
        LEFT JOIN legacy b ON b.program_id = p.id AND to_jsonb(p)->>'slug' IS NULL
@@ -163,18 +162,18 @@ export function getChannelApps(): Promise<Map<string, RegisteredApp>> {
         if (app) apps.set(slug, slug === 'bears' ? { ...app, legacyMountExport: 'mountBears' } : app)
       }
     } catch {
-      console.error('[channels] CHANNELS_APPS must be a JSON object keyed by channel slug')
+      console.error('[channels] CHANNELS_APPS must be a JSON object keyed by program slug')
     }
 
     for (const row of await readRegistrations()) {
-      const defaults = appDefaults[row.channel_id]
-      const app = register(row.channel_id, {
+      const defaults = appDefaults[row.slug]
+      const app = register(row.slug, {
         ...defaults,
         ...(row.app_config && typeof row.app_config === 'object' ? row.app_config : {}),
         origin: row.app_origin,
       })
       if (app) apps.set(app.slug, { ...app, programId: row.program_id, ...(app.slug === 'bears' ? { legacyMountExport: 'mountBears' } : {}) })
-      else if (typeof row.app_origin === 'string') apps.delete(row.channel_id)
+      else if (typeof row.app_origin === 'string') apps.delete(row.slug)
     }
     return apps
   })()

@@ -21,7 +21,7 @@ const checkpointRow = {
   updated_at: new Date("2026-11-06T18:00:00Z"),
 };
 
-const gardenRegistration = { channel_id: "garden", app_origin: "https://garden.test", app_config: {} };
+const gardenRegistration = { slug: "garden", channel_id: "garden", app_origin: "https://garden.test", app_config: {} };
 
 /** Central handler covering admin-scope, registry, and control-token reads. */
 function centralHandler(text: string) {
@@ -99,7 +99,6 @@ describe("GET /api/admin/production/status", () => {
   });
 
   it("works without the optional app database", async () => {
-    stubAdminEnv({ ADMIN_APP_DATABASE_URL: undefined });
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })));
     usePools({ central: makePool(centralHandler) });
     const res = await GET(adminRequest("/api/admin/production/status"));

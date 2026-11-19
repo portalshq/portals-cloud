@@ -2,7 +2,9 @@
 
 A program room link (`/<slug>`) posted on X renders as a Player Card: the room
 plays inside the post on supported X clients. Registered program apps get a
-card, including links copied with the room's Share button.
+card, including links copied with the room's Share button. A public viewer-group
+link (`/g/<code>`) gets a stable card whose player follows the group's current
+program instead of baking one program into the post.
 
 ## How it works
 
@@ -28,6 +30,11 @@ card, including links copied with the room's Share button.
   tab or window and polls for completion. If sign-in cannot start, the full
   room is the fallback. When the player itself is top-level, sign-in uses the
   full room in the same tab. Normal rooms keep the in-page account dialog.
+- **Conversation.** Full program and group cards use the same program-scoped
+  public chat as the standalone app and Channels room. Preview embeds show only
+  a bounded read-only tail. An already-authorized group member also gets the
+  Group/Public selector after signing in; the public watch link never grants
+  membership.
 
 ## Known limits
 
@@ -62,20 +69,38 @@ card, including links copied with the room's Share button.
 
 ## Watch parties in X Spaces
 
-1. Start a group from a program room after signing in. The host can tune the
+This puts Channels inside the X Space experience; it does not put Space audio
+inside Channels. X documents that a host, co-host, or speaker can use a post's
+share menu to **Share to Space**, and that hosts or speakers can pin a post at
+the top of a Space: [How to host an X Space](https://help.x.com/en/using-x/spaces-hosting).
+Neither action requires the X developer API.
+
+1. Start a group from a program room after signing in. The owner can tune the
    group to a station or directly to a program. A station follows its current
    scheduled slot, then shows the next session during a gap.
 2. Under **Invite**, copy the group watch link or share it in a post on X.
-   Within the Space, share that post to the Space using X's own controls.
+   Within the Space, use the post's X-native **Share to Space** control and pin
+   it when that control is available to the host.
 3. The watch link opens the current program directly at `/g/<code>`. The
    Player Card uses `/embed/g/<code>` and follows the same tuning without a
    new post. Viewers can watch without signing in. The host issues a separate
    membership link for private group chat; joining requires verified sign-in.
-4. X remains the audio host. The group card starts with its stage muted. Test
-   before rollout that each target X client opens the card inline and retains
-   Space audio through a station transition, including on iOS and Android.
-   When X chooses not to render the card inline, the watch link still opens
-   the current program. Channels does not use the X API or import Space audio.
+4. X remains the audio host. The group card starts with its stage muted and
+   selects the first program caption track when the source provides one. A viewer
+   may opt into stage sound; Channels never starts it automatically in the
+   group card.
+5. Before rollout, verify that each target X client opens the card inline and
+   retains Space audio through a station transition, including desktop web,
+   iOS, and Android. X's help page establishes the post-sharing and pinning
+   workflow, not inline Player Card playback or mobile audio-focus behavior.
+   When X chooses not to render the card inline, the watch link still opens the
+   current program. Do not claim uninterrupted Space audio until this matrix
+   passes against a real test post.
+
+Channels does not use the X API, scrape Space state, discover active Spaces, or
+import Space audio. The group tuning endpoint is a cacheable public snapshot,
+so a large Space audience follows one pointer without creating group membership
+or exposing the private thread.
 
 Reverse discovery, such as showing an active Space link on Channels, is a
 possible future feature and is not implemented here.

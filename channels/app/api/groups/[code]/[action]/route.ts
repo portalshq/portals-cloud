@@ -18,7 +18,7 @@ export function GET(request: Request, { params }: Context) {
     const member = viewer && await groupMember(code, viewer.userId)
     if (action === 'membership') return audienceJson({ member: Boolean(member), owner: Boolean(member && member.owner) })
     if (!member) audienceError(403, 'Group membership required.')
-    return readChat(request, member.id)
+    return readChat(request, { kind: 'group', groupId: member.id })
   })
 }
 
@@ -31,10 +31,15 @@ export function POST(request: Request, { params }: Context) {
     if (action === 'chat') {
       const member = await groupMember(code, viewer.userId)
       if (!member) audienceError(403, 'Group membership required.')
-      return writeChat(request, member.id)
+      return writeChat(request, { kind: 'group', groupId: member.id })
     }
     const body = await bodyObject(request)
-    if (action === 'tuning') return audienceJson(await tuneGroup(viewer.userId, viewer.displayName, body, code))
+    if (action === 'tuning') {
+      await tuneGroup(viewer.userId, viewer.displayName, body, code)
+      const tuning = await groupSnapshot(code)
+      if (!tuning) audienceError(404, 'Group not found.')
+      return audienceJson(tuning)
+    }
     if (action === 'membership') return audienceJson(await changeMembership(code, viewer.userId, viewer.displayName, body))
     return audienceError(404, 'Not found.')
   })

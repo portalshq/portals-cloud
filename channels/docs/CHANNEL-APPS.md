@@ -35,17 +35,44 @@ chat overlay once, including for old bundles with a read-only fallback. Set
 defaults to 3. `data-channel-room-variant="preview"` is a layout hook, not a
 substitute for suppressing interactive elements.
 
-After central migration `0012`, set `CHANNELS_CHAT_ORIGIN` on Bears and the
+The shared host contract is `controls.elements`:
+
+```ts
+type RoomElements = {
+  chatMessages?: number
+  input?: boolean
+  reactions?: boolean
+  forms?: boolean
+  actions?: boolean
+}
+```
+
+Omitted fields preserve the program's normal behavior. The `preview` preset is
+`{ chatMessages: 3, input: false, reactions: false, forms: false, actions:
+false }`; a validated host override may change the message count without
+re-enabling writes. Preview-capable bundles render the program's real stage or
+off-air lobby. Channels owns the bounded chat overlay, so the same contract is
+used in the feed and `/embed/<slug>?variant=preview` without a second player.
+
+After central migrations `0012` and `0013`, set `CHANNELS_CHAT_ORIGIN` on Bears and the
 25th Chapter to the Channels origin. Set the same server-only
 `CHANNELS_CHAT_SERVICE_TOKEN` on those servers and Channels. Configure the two
 apps together so standalone and framed viewers use the same public chat.
-The public tail reads the central committed log; the legacy app histories and
-external or paid chat feeds are not republished to the global thread.
+Each adapter reads and writes `/api/programs/<program-id>/chat`; the durable
+thread is shared by every surface of that program and isolated from every other
+program. Legacy app histories and external or paid chat feeds are not
+republished into it.
 `CHANNELS_CHAT_BLOCKED_TERMS` adds comma-separated shared blocked terms.
 Groups use the same chat window for public and private scopes and require
 separate membership authorization. Bundles can export `supportsShellChat =
 true` and honor `controls.shellChat` to suppress their own window in group
 rooms.
+
+Migration `0013` deliberately does not guess which program owns an older
+unscoped public row. Those rows remain stored with `program_id IS NULL` but are
+not returned by any program thread. Backfill only rows with trustworthy
+provenance; otherwise retain them for audit or remove them under the normal
+data-retention policy before validating the scope constraint.
 
 Program descriptions and taglines are stored on the central `programs` row,
 not in `CHANNELS_APPS`. In Channels admin, use **Edit program details** and
@@ -108,7 +135,7 @@ follow the Channels theme instead.
 
 A registered app provides the following interfaces:
 
-- `/channel-app/watch.js` exports `mountChannel(host, viewer)`. Mount into
+- `/channel-app/watch.js` exports `mountChannel(host, viewer, controls)`. Mount into
   the supplied element and return a cleanup function. The viewer provides
   `getSnapshot`, `subscribe`, `fetch`, and `requestSignIn` for the shared
   Channels session. Use `/api/channels/<slug>/...` for app API requests.
@@ -116,13 +143,29 @@ A registered app provides the following interfaces:
   `supportsRoomSound = true` and subscribe to `controls.sound` to let the
   rail mute or unmute the room. Apps can publish a balance and an optional
   invite action through `controls.onAccountChange` for the central account dialog.
+  A room that renders its own branded follow dialog can register an opener
+  with `controls.onFollowDialog(open)` — call it again with `null` to retract
+  — and report the outcome with
+  `controls.onFollowSettled('succeeded' | 'cancelled' | 'failed')`. When a
+  preview registers, the feed's Follow button opens the room's styled dialog
+  instead of the channels default reminders prompt, and the host syncs the
+  bell and follow analytics from the reported outcome (`succeeded` means the
+  follow committed; dismissed or failed dialogs write nothing). Unfollow
+  stays a single immediate write. `controls.submitFollow({ email? })` performs
+  the standard reminders submission and follow settlement (using the real
+  viewer session even from a read-only preview) and returns
+  `{ ok, verified?, error?, settingsUrl? }`, so a styled dialog can reuse the
+  host's write path. `controls.programName` and `controls.programId` carry
+  the catalog (database-sourced) program identity for the mounted room; use
+  them to populate follow dialogs and room copy without hard-coded values.
+  Rooms that register nothing keep the channels default.
 - `/api/channel` returns `playback` and optionally
   `nextSession.startsAt`. Playback may be null, progressive video
   (`{kind:"video",url}`), HLS (`{playbackManifestUrl}`), or a Reactor
   descriptor (`{kind:"reactor"}`). The public preview returns only playback
-  and scheduling fields. A null playback marks the channel off-air: its feed
-  panel mounts the app's room — its own off-air stage — instead of a preview,
-  and the room URL hands off to that panel until playback returns.
+  and scheduling fields. A null playback keeps the preview in the program's
+  read-only off-air lobby, including its next-session information. The
+  canonical room URL remains `/<program-slug>` before, during, and after air.
 - If `backdrop` is true, `/channel-app/backdrop.js` exports
   `mountBackdrop(host)` and returns a cleanup function. The optional
   `poster` and `publicAssets` paths are served by the app at its root and

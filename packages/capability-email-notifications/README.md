@@ -26,7 +26,7 @@ CRM delivery is disabled by default and is not needed for reminders. To enable
 it separately, set `NOTIFICATIONS_CRM_ENABLED=true`,
 `CONSUMER_CRM_INTAKE_URL` and `CONSUMER_CRM_INGEST_SECRET`.
 
-The Channels service needs the central database (`ADMIN_CENTRAL_DATABASE_URL`),
+The Channels service needs the central database (`CENTRAL_DATABASE_URL`),
 Resend credentials, the public URL and unsubscribe secret above, and the auth
 gateway settings. Set `NOTIFICATIONS_TRUSTED_CLIENT_IP_HEADER` only to a
 header overwritten by the trusted edge; without it verification requests use

@@ -5,8 +5,13 @@ import { getProgramRoom } from './catalog'
 
 const newCode = () => randomBytes(24).toString('base64url')
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
+const defaultGroupName = (displayName: string) => `${displayName.trim().slice(0, 64) || 'Viewer'}’s group`.slice(0, 80)
 
 type Tune = { stationId: string; programId?: never } | { programId: string; stationId?: never }
+export type GroupDestinations = {
+  stations: Array<{ id: string; name: string }>
+  programs: Array<{ id: string; name: string; slug: string }>
+}
 
 function readTune(body: Record<string, unknown>): Tune {
   const id = (value: unknown) => typeof value === 'string' && value.trim() && value.length <= 128 ? value.trim() : undefined
@@ -41,8 +46,9 @@ export async function tuneGroup(userId: string, displayName: string, body: Recor
     const id = randomUUID()
     const watchCode = newCode()
     const invite = newCode()
-    await db.query('INSERT INTO viewer_groups (id, watch_code, invite_digest, owner_id, station_id, program_id) VALUES ($1,$2,$3,$4,$5,$6)',
-      [id, watchCode, digest(invite), userId, tune.stationId, tune.programId])
+    await db.query(`INSERT INTO viewer_groups (id, watch_code, invite_digest, name, owner_id, station_id, program_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    [id, watchCode, digest(invite), defaultGroupName(displayName), userId, tune.stationId, tune.programId])
     await db.query('INSERT INTO viewer_group_members (group_id, user_id) VALUES ($1,$2)', [id, userId])
     return { code: watchCode, invite, revision: 1 }
   })
@@ -60,9 +66,33 @@ export async function groupMember(code: string, userId: string) {
 
 export async function changeMembership(code: string, userId: string, displayName: string, body: Record<string, unknown>) {
   if (body.action === 'leave') {
-    await centralDb().query(`UPDATE viewer_group_members m SET active = false
-      FROM viewer_groups g WHERE m.group_id = g.id AND g.watch_code = $1 AND m.user_id = $2`, [code, userId])
-    return { member: false }
+    return transaction(async db => {
+      const membership = await db.query<{ id: string; owner: boolean }>(`
+        SELECT g.id, g.owner_id = m.user_id AS owner FROM viewer_groups g
+        JOIN viewer_group_members m ON m.group_id = g.id AND m.user_id = $2 AND m.active
+        WHERE g.watch_code = $1 FOR UPDATE OF g, m
+      `, [code, userId])
+      if (!membership.rowCount) return { member: false }
+      if (membership.rows[0].owner) audienceError(409, 'The owner must end the group.')
+      await db.query('UPDATE viewer_group_members SET active = false WHERE group_id = $1 AND user_id = $2',
+        [membership.rows[0].id, userId])
+      return { member: false }
+    })
+  }
+  if (body.action === 'end') {
+    return transaction(async db => {
+      const group = await db.query<{ id: string }>(`
+        SELECT g.id FROM viewer_groups g JOIN viewer_group_members m
+          ON m.group_id = g.id AND m.user_id = g.owner_id AND m.active
+        JOIN users u ON u.id = m.user_id AND u.status = 'active'
+        WHERE g.watch_code = $1 AND g.owner_id = $2 FOR UPDATE OF g
+      `, [code, userId])
+      if (!group.rowCount) audienceError(403, 'Only the group owner can end the group.')
+      await db.query('DELETE FROM audience_chat WHERE group_id = $1', [group.rows[0].id])
+      await db.query('DELETE FROM viewer_group_members WHERE group_id = $1', [group.rows[0].id])
+      await db.query('DELETE FROM viewer_groups WHERE id = $1', [group.rows[0].id])
+      return { member: false, ended: true }
+    })
   }
   if (body.action === 'invite') {
     const invite = newCode()
@@ -112,28 +142,40 @@ export async function changeMembership(code: string, userId: string, displayName
 
 export async function groupTuning(code: string) {
   const { rows } = await centralDb().query<{
-    revision: number; slug: string | null; slot_id: string | null; boundary: Date | null; next_start: Date | null
+    revision: number; name: string; station_id: string | null; program_id: string | null; slug: string | null
+    slot_id: string | null; boundary: Date | null; next_start: Date | null; member_count: number
   }>(`
-    SELECT g.revision, coalesce(direct.slug, current_slot.slug) AS slug,
-           current_slot.id AS slot_id, coalesce(current_slot.ends_at, next_slot.starts_at) AS boundary,
-           next_slot.starts_at AS next_start
+    SELECT g.revision, g.name, g.station_id,
+           coalesce(direct.id, current_slot.program_id, next_slot.program_id) AS program_id,
+           coalesce(direct.slug, current_slot.slug, next_slot.slug) AS slug,
+           coalesce(current_slot.id, next_slot.id) AS slot_id,
+           CASE WHEN g.program_id IS NULL THEN coalesce(current_slot.ends_at, next_slot.starts_at) END AS boundary,
+           next_slot.starts_at AS next_start, members.member_count
     FROM viewer_groups g LEFT JOIN programs direct ON direct.id = g.program_id
     LEFT JOIN LATERAL (
-      SELECT s.id, p.slug, s.ends_at FROM station_program_slots s JOIN programs p ON p.id = s.program_id
+      SELECT s.id, s.program_id, p.slug, s.ends_at FROM station_program_slots s JOIN programs p ON p.id = s.program_id
       WHERE s.station_id = g.station_id AND s.status IN ('scheduled', 'live')
         AND s.starts_at <= now() AND now() < s.ends_at
       ORDER BY s.starts_at DESC LIMIT 1
     ) current_slot ON true
     LEFT JOIN LATERAL (
-      SELECT s.starts_at FROM station_program_slots s JOIN programs p ON p.id = s.program_id AND p.slug IS NOT NULL
+      SELECT s.id, s.program_id, p.slug, s.starts_at FROM station_program_slots s
+      JOIN programs p ON p.id = s.program_id AND p.slug IS NOT NULL
       WHERE s.station_id = g.station_id AND s.status IN ('scheduled', 'live') AND s.starts_at > now()
       ORDER BY s.starts_at LIMIT 1
     ) next_slot ON true
+    LEFT JOIN LATERAL (
+      SELECT count(*)::int AS member_count FROM viewer_group_members m
+      JOIN users u ON u.id = m.user_id AND u.status = 'active'
+      WHERE m.group_id = g.id AND m.active
+    ) members ON true
     WHERE g.watch_code = $1
   `, [code])
   const row = rows[0]
   return row && {
-    revision: row.revision, slug: row.slug ?? undefined, slotId: row.slot_id ?? undefined,
+    revision: row.revision, name: row.name, memberCount: row.member_count,
+    stationId: row.station_id ?? undefined, programId: row.program_id ?? undefined,
+    slug: row.slug ?? undefined, slotId: row.slot_id ?? undefined,
     boundary: row.boundary?.toISOString(), nextSession: row.next_start?.toISOString(),
   }
 }
@@ -141,4 +183,15 @@ export async function groupTuning(code: string) {
 export async function groupSnapshot(code: string) {
   const tuning = await groupTuning(code)
   return tuning && { ...tuning, channel: tuning.slug ? await getProgramRoom(tuning.slug) : undefined }
+}
+
+export async function groupDestinations(): Promise<GroupDestinations> {
+  const db = centralDb()
+  const [stations, programs] = await Promise.all([
+    db.query<{ id: string; name: string }>('SELECT id, name FROM stations ORDER BY name, id'),
+    db.query<{ id: string; name: string; slug: string }>(
+      'SELECT id, name, slug FROM programs WHERE slug IS NOT NULL ORDER BY name, id',
+    ),
+  ])
+  return { stations: stations.rows, programs: programs.rows }
 }

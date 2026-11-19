@@ -49,6 +49,11 @@ export function adminErrorResponse(error: unknown): Response {
     && "constraint" in error && error.constraint === "station_program_slots_no_overlap") {
     return jsonError(409, "The station already has a slot in this time window.");
   }
+  if (error && typeof error === "object" && "code" in error && error.code === "23503"
+    && "constraint" in error && (error.constraint === "station_program_slots_program_channel_owner"
+      || error.constraint === "station_schedule_rules_program_channel_owner")) {
+    return jsonError(409, "The program does not belong to that creator channel.");
+  }
   console.error("[admin] request failed:", error);
   return jsonError(500, "Internal server error");
 }

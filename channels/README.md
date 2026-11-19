@@ -1,42 +1,6 @@
 # Channels
 
-Channels is the Next.js service and operator console for Portals channels. The
-operator console lives in `admin/`; the Bears live experience is developed in
-the sibling `bears-live-app/` project.
-
-## Run the local development stack
-
-With the Portals workspace root open in VS Code, run `Tasks: Run Task` →
-`Start Channels + Bears (all)`. VS Code launches each process in its own
-dedicated terminal panel.
-
-From this directory, the same stack can also be started from a terminal:
-
-```bash
-node scripts/dev-all.mjs
-```
-
-The launcher starts Channels, its admin UI, the Bears client on localhost, the
-Bears dry-run server, and a second Bears client bound to `100.125.2.45`. It
-requires `100.125.2.45` to be assigned to this machine. Press Ctrl+C to stop
-the stack; if any process exits, the launcher stops the remaining processes.
-
-| Service | URL |
-|---|---|
-| Channels | `http://100.125.2.45:4000` |
-| Channels admin | `http://localhost:5174/admin/` |
-| Bears client (localhost) | `http://localhost:5173` |
-| Bears client (network host) | `http://100.125.2.45:5175` |
-| Bears dry-run API | `http://localhost:3001` |
-
-The dry-run script requires the Docker CLI and its configured remote SSH Docker
-context. It may create or start the dry-run Postgres containers, apply database
-migrations, seed dry-run data, build the Channels client bundle, and open SSH
-forwards on ports `55432` and `55433`. The SSH tunnel closes when the stack
-stops; the dry-run database containers remain running. See the
-[Bears dry-run documentation](../../bears-live-app/README.md#dry-run-mode) and
-[`run-dryrun.sh`](../../bears-live-app/scripts/run-dryrun.sh) for configuration
-and lifecycle details.
+Channels is the Next.js service and operator console for Portals channels. The operator console lives in `admin/`.
 
 ## Routes at a glance
 
@@ -57,8 +21,10 @@ and lifecycle details.
 A channel is a creator tenant, not a program or a station. Programs have their
 own public slugs and app registrations. Stations schedule programs without
 overlapping live or scheduled slots. Apply central migrations `0011` and
-`0012` before enabling groups and the shared conversation. See
-[program registration](docs/CHANNEL-APPS.md) and [X Player Cards](docs/X-PLAYER-CARD.md)
+`0012`, then `0013`, before enabling groups and the shared conversation.
+Migration `0013` enforces program-to-creator ownership on new schedule writes
+and scopes public chat to a program. See [program registration](docs/CHANNEL-APPS.md),
+[viewer groups](docs/GROUPS.md), and [X Player Cards](docs/X-PLAYER-CARD.md)
 for rollout details.
 
 See [Channel content by page](docs/CHANNEL-CONTENT.md) for the full diagram.
