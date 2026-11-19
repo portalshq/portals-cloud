@@ -1,6 +1,6 @@
 {
   "name": "channels",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@portalshq/analytics": "0.3.0",
+    "@portalshq/analytics": "0.4.0",
     "@portalshq/capability-email-notifications": "^0.1.0",
     "@portalshq/capability-identity": "^0.6.0",
     "@portalshq/capability-video-delivery": "^0.1.8",
