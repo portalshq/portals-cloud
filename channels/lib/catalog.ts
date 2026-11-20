@@ -42,9 +42,9 @@ function readCentral(slug?: string): Promise<CatalogRow[]> {
           WHERE status IN ('scheduled', 'live') AND ends_at > now()
           GROUP BY channel_id, program_id, station_id
         )
-        SELECT DISTINCT ON (coalesce(to_jsonb(p)->>'slug', b.channel_id))
-          coalesce(to_jsonb(p)->>'slug', b.channel_id) AS slug, p.id AS program_id,
-          to_jsonb(p)->>'tenant_id' AS tenant_id, t.name AS creator_name, p.name AS program_name,
+        SELECT DISTINCT ON (coalesce(p.slug, b.channel_id))
+          coalesce(p.slug, b.channel_id) AS slug, p.id AS program_id,
+          p.tenant_id, t.name AS creator_name, p.name AS program_name,
           p.description AS program_description, p.tagline AS program_tagline, s.name AS station_name,
           coalesce(ss.scheduled_live, false) AS scheduled_live, ss.next_start
         FROM programs p
@@ -53,11 +53,11 @@ function readCentral(slug?: string): Promise<CatalogRow[]> {
         LEFT JOIN stations s ON s.id = b.station_id
         LEFT JOIN slot_state ss ON ss.channel_id = b.channel_id AND ss.program_id = b.program_id
           AND ss.station_id IS NOT DISTINCT FROM b.station_id
-        WHERE coalesce(to_jsonb(p)->>'slug', b.channel_id) IS NOT NULL
-          AND ($2::text IS NULL OR coalesce(to_jsonb(p)->>'slug', b.channel_id) = $2)
+        WHERE coalesce(p.slug, b.channel_id) IS NOT NULL
+          AND ($2::text IS NULL OR coalesce(p.slug, b.channel_id) = $2)
           AND ($1::text IS NULL OR b.station_id = $1)
-        ORDER BY coalesce(to_jsonb(p)->>'slug', b.channel_id),
-                 (to_jsonb(p)->>'slug' IS NOT NULL) DESC, scheduled_live DESC, ss.next_start NULLS LAST,
+        ORDER BY coalesce(p.slug, b.channel_id),
+                 (p.slug IS NOT NULL) DESC, scheduled_live DESC, ss.next_start NULLS LAST,
                  b.program_id, b.station_id NULLS LAST
       `, [slug ? null : process.env.CHANNELS_CATALOG_STATION_ID?.trim() || null, slug ?? null])
       for (const row of rows) lastProgramRows.set(row.slug, row)
@@ -161,3 +161,9 @@ async function catalog(slug?: string): Promise<Channel[]> {
 export const getChannelCatalog = cache(() => catalog())
 export const getProgramRoom = cache(async (slug: string) =>
   (await catalog(slug)).find(channel => channel.slug === slug))
+
+export function invalidateCatalog() {
+  centralCache = undefined
+  centralSlugCache.clear()
+  lastProgramRows.clear()
+}

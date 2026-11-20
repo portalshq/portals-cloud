@@ -1,5 +1,11 @@
 # @portalshq/capability-identity
 
+## 0.7.0
+
+### Minor Changes
+
+- b9af545: Add shared program follows and verified email reminder delivery primitives.
+
 ## 0.6.0
 
 ### Minor Changes

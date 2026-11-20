@@ -71,18 +71,18 @@ export default function SessionsTab() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const fetchChannels = useCallback(() => adminFetch<AdminChannel[]>('/channels', token), [token])
+  const fetchChannels = useCallback((signal: AbortSignal) => adminFetch<AdminChannel[]>('/channels', token, { signal }), [token])
   const { data: channels } = usePolling(fetchChannels, 30000, [token])
 
-  const fetchMeta = useCallback(() => adminFetch<AdminMeta>('/meta', token), [token])
+  const fetchMeta = useCallback((signal: AbortSignal) => adminFetch<AdminMeta>('/meta', token, { signal }), [token])
   const { data: meta } = usePolling(fetchMeta, 60000, [token])
 
-  const fetchSessions = useCallback(() => {
+  const fetchSessions = useCallback((signal: AbortSignal) => {
     const query = new URLSearchParams()
     if (filters.channelId) query.set('channelId', filters.channelId)
     if (filters.status) query.set('status', filters.status)
     if (filters.scope === 'all') query.set('scope', 'all')
-    return adminFetch<ProgramSlot[]>(`/sessions?${query}`, token)
+    return adminFetch<ProgramSlot[]>(`/sessions?${query}`, token, { signal })
   }, [token, filters])
   const { data: sessions, loading, error: fetchError, refresh, lastUpdated } = usePolling(
     fetchSessions,

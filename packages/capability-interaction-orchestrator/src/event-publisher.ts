@@ -26,8 +26,28 @@ export interface IEventPublisher {
   ): Promise<InteractionEvent[]>;
   drainOutbox(): Promise<void>;
 }
+
+type StreamState = {
+  cursor: number;
+  initialized: boolean;
+  closed: boolean;
+  page: InteractionEvent[];
+  waiting?: () => void;
+  error?: unknown;
+};
+
+type TopicPump = {
+  worldId: string;
+  streams: Set<StreamState>;
+  timer?: ReturnType<typeof setTimeout>;
+  unsubscribe?: () => void;
+  starting?: Promise<void>;
+  polling: boolean;
+};
+
 /** PostgreSQL is the replay source; fanout is a wake-up hint, so reordered/duplicated delivery is harmless. */
 export class EventPublisher implements IEventPublisher {
+  private readonly topics = new Map<string, TopicPump>();
   constructor(
     private readonly fanout: InteractionFanout,
     private readonly repository: InteractionRepository,
@@ -55,6 +75,80 @@ export class EventPublisher implements IEventPublisher {
   private topic(worldId: string) {
     return `interaction:${worldId}`;
   }
+  private wake(stream: StreamState) {
+    const resolve = stream.waiting;
+    stream.waiting = undefined;
+    resolve?.();
+  }
+  private stopPump(pump: TopicPump) {
+    clearTimeout(pump.timer);
+    pump.timer = undefined;
+    pump.unsubscribe?.();
+    pump.unsubscribe = undefined;
+    this.topics.delete(pump.worldId);
+  }
+  private remove(pump: TopicPump, stream: StreamState) {
+    pump.streams.delete(stream);
+    if (pump.streams.size === 0) this.stopPump(pump);
+  }
+  private schedule(pump: TopicPump, delay = this.pollIntervalMs) {
+    if (pump.timer || pump.polling || pump.streams.size === 0) return;
+    pump.timer = setTimeout(() => {
+      pump.timer = undefined;
+      void this.poll(pump);
+    }, delay);
+    pump.timer.unref();
+  }
+  private async startPump(pump: TopicPump) {
+    if (pump.unsubscribe || pump.starting) return pump.starting;
+    pump.starting = this.fanout
+      .subscribe(this.topic(pump.worldId), () => {
+        if (pump.timer) clearTimeout(pump.timer);
+        pump.timer = undefined;
+        this.schedule(pump, 0);
+      })
+      .then((unsubscribe) => {
+        if (pump.streams.size === 0 || this.topics.get(pump.worldId) !== pump)
+          unsubscribe();
+        else pump.unsubscribe = unsubscribe;
+      })
+      .finally(() => {
+        pump.starting = undefined;
+      });
+    return pump.starting;
+  }
+  private async poll(pump: TopicPump) {
+    if (
+      pump.polling ||
+      pump.streams.size === 0 ||
+      this.topics.get(pump.worldId) !== pump
+    )
+      return;
+    pump.polling = true;
+    try {
+      await this.startPump(pump);
+      if (pump.streams.size === 0) return;
+      const cursor = Math.min(...[...pump.streams].map((stream) => stream.cursor));
+      const events = await this.repository.getEvents(pump.worldId, cursor);
+      for (const stream of pump.streams) {
+        const fresh = events.filter((event) => event.sequence > stream.cursor);
+        if (!fresh.length) continue;
+        stream.page.push(...fresh);
+        stream.cursor = fresh.at(-1)!.sequence;
+        this.wake(stream);
+      }
+      this.schedule(pump, events.length ? 0 : this.pollIntervalMs);
+    } catch (cause) {
+      for (const stream of pump.streams) {
+        stream.error = cause;
+        this.wake(stream);
+      }
+      this.stopPump(pump);
+    } finally {
+      pump.polling = false;
+      if (this.topics.get(pump.worldId) === pump) this.schedule(pump);
+    }
+  }
   subscribe(
     worldId: string,
     afterSequence?: number,
@@ -62,61 +156,51 @@ export class EventPublisher implements IEventPublisher {
   ): AsyncIterableIterator<InteractionEvent> {
     text(worldId, "worldId");
     if (afterSequence !== undefined) integer(afterSequence, "afterSequence", 0);
-    let cursor = afterSequence ?? 0;
-    let initialized = false;
-    let closed = false;
-    let unsubscribe: (() => void) | undefined;
-    let waiting: (() => void) | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let page: InteractionEvent[] = [];
+    const state: StreamState = {
+      cursor: afterSequence ?? 0,
+      initialized: false,
+      closed: false,
+      page: [],
+    };
+    let pump: TopicPump | undefined;
     let serial = Promise.resolve<IteratorResult<InteractionEvent>>({
       done: true,
       value: undefined,
     });
-    const wake = () => {
-      const resolve = waiting;
-      waiting = undefined;
-      clearTimeout(timer);
-      resolve?.();
-    };
     const close = () => {
-      closed = true;
-      page = [];
-      unsubscribe?.();
-      unsubscribe = undefined;
-      wake();
+      state.closed = true;
+      state.page = [];
+      if (pump) this.remove(pump, state);
+      this.wake(state);
       options.signal?.removeEventListener("abort", close);
     };
     options.signal?.addEventListener("abort", close, { once: true });
     if (options.signal?.aborted) close();
     const pull = async (): Promise<IteratorResult<InteractionEvent>> => {
       try {
-        if (!initialized && !closed) {
+        if (!state.initialized && !state.closed) {
           if (afterSequence === undefined)
-            cursor = await this.repository.eventHead(worldId);
-          // Head is read first. A write between head and subscribe is caught by the subsequent replay query.
-          const stop = await this.fanout.subscribe(this.topic(worldId), wake);
-          if (closed) stop();
-          else unsubscribe = stop;
-          initialized = true;
+            state.cursor = await this.repository.eventHead(worldId);
+          if (state.closed) return { done: true, value: undefined };
+          pump = this.topics.get(worldId) ?? {
+            worldId,
+            streams: new Set(),
+            polling: false,
+          };
+          this.topics.set(worldId, pump);
+          pump.streams.add(state);
+          state.initialized = true;
+          this.schedule(pump, 0);
         }
-        while (!closed) {
-          if (page.length) {
-            const value = page.shift()!;
-            cursor = value.sequence;
+        while (!state.closed) {
+          if (state.error) throw state.error;
+          if (state.page.length) {
+            const value = state.page.shift()!;
             return { done: false, value };
           }
-          // Install the wake-up before the database read to cover publication during that read.
-          const awakened = new Promise<void>((resolve) => {
-            waiting = resolve;
-            timer = setTimeout(wake, this.pollIntervalMs);
+          await new Promise<void>((resolve) => {
+            state.waiting = resolve;
           });
-          page = await this.repository.getEvents(worldId, cursor);
-          if (page.length || closed) {
-            wake();
-            continue;
-          }
-          await awakened;
         }
         return { done: true, value: undefined };
       } catch (cause) {

@@ -3,6 +3,7 @@ import { authenticateAdmin } from "../../../../../lib/admin/auth";
 import { centralDb } from "../../../../../lib/admin/db";
 import { adminErrorResponse, badRequest, json, notFound } from "../../../../../lib/admin/http";
 import { assertProgramEditable } from "../../../../../lib/admin/scope";
+import { invalidateCatalog } from "../../../../../lib/catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const pool = centralDb();
     const result = await updateProgramDetails((sql, values) => pool.query(sql, values), id, patch);
     if (!result) throw notFound("Program not found");
+    invalidateCatalog();
     return json({ id, ...result });
   } catch (error) {
     return adminErrorResponse(error);

@@ -128,13 +128,18 @@ export function createAuthGatewayClient(config: AuthGatewayClientConfig): AuthGa
   function mapUserToken(response: WireAuthSession): AuthSessionTokens | null {
     const token = response.user_token;
     if (token === null || token === undefined) return null;
-    if (typeof token.user_token !== "string" || !token.user_token.trim()) return null;
     const expiresAt = Number(token.expires_at);
+    if (typeof token.user_token !== "string" || !token.user_token.trim()
+      || !Number.isSafeInteger(expiresAt) || expiresAt <= 0
+      || typeof token.user_id !== "string" || !token.user_id.trim()
+      || typeof token.user_name !== "string" || !token.user_name.trim()) {
+      throw new Error("Auth-gateway returned an invalid user token");
+    }
     return {
       userToken: token.user_token,
-      expiresAt: Number.isFinite(expiresAt) ? expiresAt : 0,
-      userId: typeof token.user_id === "string" ? token.user_id : "",
-      userName: typeof token.user_name === "string" ? token.user_name : "",
+      expiresAt,
+      userId: token.user_id,
+      userName: token.user_name,
       ...(typeof token.refresh_token === "string" && token.refresh_token ? { refreshToken: token.refresh_token } : {}),
     };
   }

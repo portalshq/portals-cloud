@@ -1,5 +1,81 @@
 # Portals Mac production bootstrap
 
+## Public Channels app origins via Cloudflare Tunnel
+
+One remotely managed Cloudflare Tunnel named `portals-andresb-web` publishes
+the two Channels application backends without opening an inbound port on the
+Mac:
+
+| Public origin | Loopback service |
+| --- | --- |
+| `https://bears.portals.works` | `http://127.0.0.1:3001` |
+| `https://25thchapter.portals.works` | `http://127.0.0.1:5001` |
+
+Cloudflare owns this hostname map, so Caddy must not duplicate it. The app
+processes remain separately managed by `portals-svc`; the connector runs as
+`andresb`. Tailscale remains available for private administration and the
+existing Auth/Lore routes.
+
+In the Cloudflare dashboard, create the remotely managed tunnel, then add two
+**Published application** routes with the exact hostnames and service URLs in
+the table. Do not add a path filter. Do not enable Access, Load Balancing,
+Stream, Argo, Advanced Certificates, Workers, or another paid add-on.
+
+Copy only the tunnel connector token to the Mac. Do not put it in chat, Git,
+the Portals release environment, or a command argument:
+
+```sh
+install -d -m 700 /Users/andresb/.config/cloudflared
+umask 077
+read -r -s 'token?Cloudflare tunnel token: '
+printf '%s\n' "$token" > /Users/andresb/.config/cloudflared/portals-andresb-web.token
+unset token
+chmod 600 /Users/andresb/.config/cloudflared/portals-andresb-web.token
+```
+
+Install and manage the connector from the checkout as `andresb`:
+
+```sh
+brew install cloudflared
+infra/mac-bootstrap/scripts/manage-cloudflare-tunnel.sh install
+infra/mac-bootstrap/scripts/manage-cloudflare-tunnel.sh status
+infra/mac-bootstrap/scripts/manage-cloudflare-tunnel.sh stop
+infra/mac-bootstrap/scripts/manage-cloudflare-tunnel.sh start
+```
+
+The installed LaunchAgent is owned by and runs as `andresb` with
+`--token-file`; it starts whenever that account logs in and reconnects after a
+process failure. The production recovery sequence must therefore log in to
+`andresb` after a reboot. The token stays mode `0600` and is not readable by
+`portals-svc`. Uninstalling the service deliberately preserves the token so
+accidental service removal does not destroy the only connector credential.
+
+The DNS routes may be pre-provisioned before the apps; Cloudflare then returns
+`502` and that is **not** an application-readiness signal. Do not advertise the
+origins or update the Channels registry until Bears answers
+`http://127.0.0.1:3001/api/health` and the Ebook answers
+`http://127.0.0.1:5001/health`. Both services must be bound only to loopback.
+Then run:
+
+```sh
+infra/mac-bootstrap/scripts/check-cloudflare-app-origins.sh
+```
+
+The check covers both health endpoints, both Channels bundles, both channel
+APIs and the Ebook WebSocket upgrade. `manage-cloudflare-tunnel.sh status`
+also reports whether ports `3001` and `5001` are absent, loopback-only, or
+exposed on another interface; do not activate a route reported as exposed.
+
+Then set the central `programs.app_origin` values to the two HTTPS origins.
+Central registrations override `CHANNELS_APPS` and `BEARS_API_BASE_URL`, so
+verify the stored rows. Preserve the previous values before changing them.
+Finally verify the Channels-owned bundle and API paths for both slugs.
+
+The tunnel carries HTML, APIs, auth, SSE and WebSockets. It must not carry HLS
+or generated video bytes: playback descriptors must continue to point at the
+existing media-delivery origin. The Cloudflare Free plan has no uptime SLA;
+the Mac, home connection and single connector remain one failure domain.
+
 ## Public application Auth endpoint via Tailscale Funnel
 
 `scripts/auth-grpc-funnel.mjs` exposes the same Auth Gateway through one public

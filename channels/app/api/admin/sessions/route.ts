@@ -4,6 +4,7 @@ import { centralDb } from "../../../../lib/admin/db";
 import { adminErrorResponse, badRequest, json } from "../../../../lib/admin/http";
 import { assertChannelInScope, scopedChannelClause } from "../../../../lib/admin/scope";
 import { SLOT_STATUSES, type ProgramSlotDto, type SlotStatus } from "../../../../lib/admin/types";
+import { invalidateCatalog } from "../../../../lib/catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -119,6 +120,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!result.rows.length) {
       return json({ message: "A slot already exists for this station/program at startsAt" }, 409);
     }
+    invalidateCatalog();
     return json(toProgramSlotDto(result.rows[0]), 201);
   } catch (error) {
     return adminErrorResponse(error);

@@ -2,15 +2,23 @@
 
 import { useEffect, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { getViewer, requestSignIn, subscribeViewer, viewerFetch } from '@/lib/viewer'
+import { emptyLiveMessages, getLiveMessages, subscribeLiveMessages, type ChatMessage } from './chat-live'
 import styles from './RoomChat.module.css'
 
-type Message = { id: string; name: string; text: string }
+type Message = ChatMessage
 const noViewer = () => null
 
 function useMessages(endpoint: string | undefined, limit: number, active: boolean, privateRead: boolean) {
+  const live = useSyncExternalStore(
+    listener => endpoint && active
+      ? subscribeLiveMessages(endpoint, privateRead ? viewerFetch : fetch, listener)
+      : () => undefined,
+    () => endpoint ? getLiveMessages(endpoint) : emptyLiveMessages,
+    () => emptyLiveMessages,
+  )
   const [snapshot, setSnapshot] = useState<{ endpoint: string; messages: Message[] }>()
   useEffect(() => {
-    if (!endpoint || !limit || !active) return
+    if (!endpoint || !limit || !active || (live.messages && !live.failed)) return
     const abort = new AbortController()
     let timer: number | undefined
     let running = false
@@ -80,7 +88,8 @@ function useMessages(endpoint: string | undefined, limit: number, active: boolea
       document.removeEventListener('visibilitychange', refresh)
       window.removeEventListener('channels:chat-written', written)
     }
-  }, [active, endpoint, limit, privateRead])
+  }, [active, endpoint, limit, live.messages, privateRead])
+  if (active && limit && live.messages && !live.failed) return live.messages.slice(-limit)
   return active && limit && snapshot && snapshot.endpoint === endpoint ? snapshot.messages.slice(-limit) : []
 }
 

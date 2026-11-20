@@ -146,16 +146,16 @@ export default function SchedulesTab() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const fetchChannels = useCallback(() => adminFetch<AdminChannel[]>('/channels', token), [token])
+  const fetchChannels = useCallback((signal: AbortSignal) => adminFetch<AdminChannel[]>('/channels', token, { signal }), [token])
   const { data: channels } = usePolling(fetchChannels, 30000, [token])
 
-  const fetchMeta = useCallback(() => adminFetch<AdminMeta>('/meta', token), [token])
+  const fetchMeta = useCallback((signal: AbortSignal) => adminFetch<AdminMeta>('/meta', token, { signal }), [token])
   const { data: meta } = usePolling(fetchMeta, 60000, [token])
 
-  const fetchSchedules = useCallback(() => {
+  const fetchSchedules = useCallback((signal: AbortSignal) => {
     const query = new URLSearchParams()
     if (channelFilter) query.set('channelId', channelFilter)
-    return adminFetch<ScheduleRule[]>(`/schedules?${query}`, token)
+    return adminFetch<ScheduleRule[]>(`/schedules?${query}`, token, { signal })
   }, [token, channelFilter])
   const { data: schedules, loading, error: fetchError, refresh, lastUpdated } = usePolling(
     fetchSchedules,

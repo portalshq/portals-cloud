@@ -3,6 +3,7 @@ import { centralDb } from "../../../../../lib/admin/db";
 import { adminErrorResponse, badRequest, json, notFound } from "../../../../../lib/admin/http";
 import { assertChannelInScope } from "../../../../../lib/admin/scope";
 import { SLOT_STATUSES, type ProgramSlotDto } from "../../../../../lib/admin/types";
+import { invalidateCatalog } from "../../../../../lib/catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,6 +92,7 @@ export async function PATCH(
         hasTitle && body.title !== null ? JSON.stringify({ title: body.title }) : null,
       ],
     );
+    invalidateCatalog();
     return json(toDto(result.rows[0]));
   } catch (error) {
     return adminErrorResponse(error);

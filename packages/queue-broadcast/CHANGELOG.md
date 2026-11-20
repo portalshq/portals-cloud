@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [b9af545]
+  - @portalshq/capability-video-delivery@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes

@@ -80,12 +80,20 @@ export class CentralIdentityStore implements SyncableIdentityStore {
    * preferences must be managed by the application.
    */
   async syncFromAuthGateway(userId: string, displayName: string): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO users (id, display_name) VALUES ($1, $2)
-       ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = now()
-       WHERE users.display_name IS DISTINCT FROM EXCLUDED.display_name`,
+    const result = await this.pool.query(
+      `WITH synced AS (
+         INSERT INTO users (id, display_name) VALUES ($1, $2)
+         ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = now()
+         WHERE users.display_name IS DISTINCT FROM EXCLUDED.display_name
+         RETURNING status
+       )
+       SELECT status FROM synced
+       UNION ALL
+       SELECT status FROM users WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM synced)
+       LIMIT 1`,
       [userId, displayName],
     );
+    if (result.rows[0]?.status !== "active") throw new Error(INACTIVE_ACCOUNT_ERROR);
   }
 
   async updateUserInfo(userId: string, displayName: string): Promise<void> {

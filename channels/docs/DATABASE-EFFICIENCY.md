@@ -17,13 +17,17 @@ Responses include `ETag` and `X-Chat-Cursor`. Public clients load one bounded
 snapshot, request only newer positions, and back off from 2.5 to 30 seconds
 while idle. A successful local send wakes the reader immediately. Public reads
 are coalesced for two seconds per process and may be served by the CDN; private
-group reads remain `private, no-store`.
+group reads remain `private, no-store`. Accepted writes use one atomic SQL
+statement for scope checks, idempotency, rate limiting, locking, and insertion.
 
-Neon Realtime is available on the Free plan during beta, but it is not required
-for this path. Connected logical-replication subscribers keep database compute
-active. Enable a Realtime transport only after measuring that active audience
-traffic justifies its compute and egress; cursor reads remain the recovery and
-rollback path.
+Set `CHANNELS_REALTIME_CHAT_ENABLED=true`, `NEON_REALTIME_SECRET`,
+`NEON_REALTIME_DB`, and `NEXT_PUBLIC_NEON_REALTIME_URL` only for an approved
+branch canary. The server seals bounded program queries and group queries that
+include active membership; the secret never reaches the browser. One browser
+client and one subscription per thread are shared on a page. Capability,
+subscription, or transport failure automatically returns the UI to the complete
+cursor/ETag path. Realtime is still beta and has no RLS support, so production
+activation and allowed-origin changes remain a separate operator gate.
 
 ## Stable public data
 
@@ -31,7 +35,8 @@ Catalog and program-scoped reads share in-flight promises and 15-second
 process-local snapshots. Public preview responses use a five-second CDN cache,
 30-second stale-while-revalidate window, and ETags. The last valid public
 program copy remains available if the central database or app origin is
-temporarily unavailable.
+temporarily unavailable. Admin program, schedule, and session mutations clear
+the affected process-local catalog snapshots immediately.
 
 ## Connections and workers
 

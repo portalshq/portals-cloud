@@ -95,7 +95,7 @@ export default function ChannelsTab() {
   const { token } = useAdminToken()
   const [error, setError] = useState<string | null>(null)
 
-  const fetchChannels = useCallback(() => adminFetch<AdminChannel[]>('/channels', token), [token])
+  const fetchChannels = useCallback((signal: AbortSignal) => adminFetch<AdminChannel[]>('/channels', token, { signal }), [token])
   const { data: channels, loading, error: fetchError, refresh, lastUpdated } = usePolling(
     fetchChannels,
     10000,

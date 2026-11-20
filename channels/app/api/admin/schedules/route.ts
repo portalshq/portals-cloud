@@ -5,6 +5,7 @@ import { adminErrorResponse, badRequest, json } from "../../../../lib/admin/http
 import { assertChannelInScope, scopedChannelClause } from "../../../../lib/admin/scope";
 import { parseScheduleConfig, type ScheduleConfig } from "../../../../lib/admin/schedule";
 import type { ScheduleRuleDto } from "../../../../lib/admin/types";
+import { invalidateCatalog } from "../../../../lib/catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,6 +89,7 @@ export async function POST(request: Request): Promise<Response> {
        RETURNING id, station_id, program_id, channel_id, schedule, enabled, next_run_at, created_at, updated_at`,
       [randomUUID(), stationId, programId, channelId, JSON.stringify(schedule), enabled],
     );
+    invalidateCatalog();
     return json(toScheduleRuleDto(result.rows[0]), 201);
   } catch (error) {
     return adminErrorResponse(error);

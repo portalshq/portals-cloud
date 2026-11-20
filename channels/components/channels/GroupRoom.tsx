@@ -58,15 +58,23 @@ export function GroupRoom({ code, initial, framed = false, destinations }: {
     let timer: number
     let running = false
     let boundary = tuning.boundary
+    let etag: string | undefined
     async function refresh() {
       if (document.hidden || abort.signal.aborted || running) return
       running = true
       clearTimeout(timer)
       try {
-        const response = await fetch(`${api}/tuning`, { credentials: 'omit', signal: abort.signal })
+        const headers = new Headers()
+        if (etag) headers.set('If-None-Match', etag)
+        const response = await fetch(`${api}/tuning`, { credentials: 'omit', signal: abort.signal, headers })
+        if (response.status === 304) {
+          setFailed(false)
+          return
+        }
         if (!response.ok) throw new Error(`Tuning returned ${response.status}`)
         const next = await response.json() as Snapshot
         if (!abort.signal.aborted) {
+          etag = response.headers.get('etag') ?? undefined
           boundary = next.boundary
           setTuning(current => next.revision >= current.revision ? next : current)
           setFailed(false)

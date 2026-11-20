@@ -28,6 +28,8 @@ describe("auth-gateway wire integration", () => {
       },
       getAuthSession(call: grpc.ServerUnaryCall<{ session_code: string; client_state: string }, unknown>, callback: grpc.sendUnaryData<unknown>) {
         if (call.request.session_code === PENDING_SESSION) return callback(null, {});
+        if (call.request.session_code === "invalid-expiry") return callback(null, { user_token: { user_token: "jwt", expires_at: "nope", user_id: "u1", user_name: "Ada" } });
+        if (call.request.session_code === "invalid-user") return callback(null, { user_token: { user_token: "jwt", expires_at: 1893456000, user_id: "", user_name: "" } });
         callback(null, {
           user_token: {
             user_token: "jwt-1", expires_at: 1893456000, user_id: "u1", user_name: "Ada", refresh_token: "rt-1",
@@ -117,6 +119,8 @@ describe("auth-gateway wire integration", () => {
     await expect(client.getAuthSession(AUTHORIZED_SESSION, CLIENT_STATE)).resolves.toEqual({
       userToken: "jwt-1", expiresAt: 1893456000, userId: "u1", userName: "Ada", refreshToken: "rt-1",
     });
+    await expect(client.getAuthSession("invalid-expiry", CLIENT_STATE)).rejects.toThrow("invalid user token");
+    await expect(client.getAuthSession("invalid-user", CLIENT_STATE)).rejects.toThrow("invalid user token");
   });
   it("passes the post-login redirect URI to the gateway for same-tab sign-in", async () => {
     const started = await client.startAuthSession(CLIENT_STATE, "https://bears.test/auth/complete");

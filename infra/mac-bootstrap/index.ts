@@ -4,7 +4,7 @@ const config = new pulumi.Config()
 const manifest = {
   architecture: 'mac-amd64',
   nextHosting: 'vercel',
-  services: ['auth-gateway', 'lore', 'caddy', 'pinggy'],
+  services: ['auth-gateway', 'lore', 'caddy', 'pinggy', 'cloudflared'],
   ports: {
     authGrpc: 8084,
     authHttp: 8085,
@@ -32,6 +32,8 @@ const manifest = {
     auth: config.require('authDomain'),
     lore: config.require('loreDomain'),
     quic: config.require('loreQuicDomain'),
+    bears: 'bears.portals.works',
+    ebook: '25thchapter.portals.works',
   },
 }
 

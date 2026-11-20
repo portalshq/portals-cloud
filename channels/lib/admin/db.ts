@@ -23,6 +23,13 @@ const POOL_OPTIONS: pg.PoolConfig = {
 let poolAppDb: pg.Pool | null = null;
 let poolCentralDb: pg.Pool | null = null;
 
+function requirePooledNeonUrl(value: string): void {
+  const host = new URL(value).hostname;
+  if (process.env.NODE_ENV === "production" && host.endsWith(".neon.tech") && !host.includes("-pooler")) {
+    throw serviceUnavailable("Application traffic requires a pooled Neon database URL");
+  }
+}
+
 export function appDb(): pg.Pool {
   if (poolAppDb) return poolAppDb;
   const { appDatabaseUrl } = adminEnv();
@@ -30,7 +37,9 @@ export function appDb(): pg.Pool {
     throw serviceUnavailable("Admin app database is not configured");
   }
   if (appDatabaseUrl === adminEnv().centralDatabaseUrl) return centralDb();
+  requirePooledNeonUrl(appDatabaseUrl);
   poolAppDb = new pg.Pool({ connectionString: appDatabaseUrl, ...POOL_OPTIONS });
+  poolAppDb.on("error", (error) => console.error("[channels] App database connection lost", error.message));
   return poolAppDb;
 }
 
@@ -40,6 +49,7 @@ export function centralDb(): pg.Pool {
   if (!centralDatabaseUrl) {
     throw serviceUnavailable("Admin central database is not configured");
   }
+  requirePooledNeonUrl(centralDatabaseUrl);
   poolCentralDb = new pg.Pool({ connectionString: centralDatabaseUrl, ...POOL_OPTIONS });
   poolCentralDb.on("error", (error) => console.error("[channels] Central database connection lost", error.message));
   return poolCentralDb;

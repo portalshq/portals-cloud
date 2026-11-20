@@ -125,12 +125,12 @@ async function readRegistrations(): Promise<RegistrationRow[]> {
          SELECT channel_id, min(program_id) AS program_id
          FROM bindings GROUP BY channel_id HAVING count(*) = 1
        )
-       SELECT coalesce(to_jsonb(p)->>'slug', b.channel_id) AS slug,
+       SELECT coalesce(p.slug, b.channel_id) AS slug,
               p.id AS program_id, p.app_origin, p.app_config
        FROM programs p
-       LEFT JOIN legacy b ON b.program_id = p.id AND to_jsonb(p)->>'slug' IS NULL
-       WHERE p.app_origin IS NOT NULL AND coalesce(to_jsonb(p)->>'slug', b.channel_id) IS NOT NULL
-       ORDER BY (to_jsonb(p)->>'slug' IS NOT NULL), p.id`,
+       LEFT JOIN legacy b ON b.program_id = p.id AND p.slug IS NULL
+       WHERE p.app_origin IS NOT NULL AND coalesce(p.slug, b.channel_id) IS NOT NULL
+       ORDER BY (p.slug IS NOT NULL), p.id`,
     )
     return rows
   } catch (error) {

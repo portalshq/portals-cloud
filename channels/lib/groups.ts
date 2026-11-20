@@ -6,6 +6,8 @@ import { getProgramRoom } from './catalog'
 const newCode = () => randomBytes(24).toString('base64url')
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 const defaultGroupName = (displayName: string) => `${displayName.trim().slice(0, 64) || 'Viewer'}’s group`.slice(0, 80)
+const groupSnapshotCache = new Map<string, { until: number; result: Promise<Awaited<ReturnType<typeof loadGroupSnapshot>>> }>()
+let destinationsCache: { until: number; result: Promise<GroupDestinations> } | undefined
 
 type Tune = { stationId: string; programId?: never } | { programId: string; stationId?: never }
 export type GroupDestinations = {
@@ -23,6 +25,7 @@ function readTune(body: Record<string, unknown>): Tune {
 }
 
 export async function tuneGroup(userId: string, displayName: string, body: Record<string, unknown>, code?: string) {
+  if (code) groupSnapshotCache.delete(code)
   const tune = readTune(body)
   return transaction(async db => {
     await db.query("INSERT INTO users (id, display_name) VALUES ($1,$2) ON CONFLICT (id) DO NOTHING", [userId, displayName])
@@ -65,6 +68,7 @@ export async function groupMember(code: string, userId: string) {
 }
 
 export async function changeMembership(code: string, userId: string, displayName: string, body: Record<string, unknown>) {
+  groupSnapshotCache.delete(code)
   if (body.action === 'leave') {
     return transaction(async db => {
       const membership = await db.query<{ id: string; owner: boolean }>(`
@@ -180,12 +184,23 @@ export async function groupTuning(code: string) {
   }
 }
 
-export async function groupSnapshot(code: string) {
+async function loadGroupSnapshot(code: string) {
   const tuning = await groupTuning(code)
   return tuning && { ...tuning, channel: tuning.slug ? await getProgramRoom(tuning.slug) : undefined }
 }
 
-export async function groupDestinations(): Promise<GroupDestinations> {
+export function groupSnapshot(code: string) {
+  const cached = groupSnapshotCache.get(code)
+  if (cached && cached.until > Date.now()) return cached.result
+  const result = loadGroupSnapshot(code)
+  groupSnapshotCache.set(code, { until: Date.now() + 2_000, result })
+  void result.catch(() => {
+    if (groupSnapshotCache.get(code)?.result === result) groupSnapshotCache.delete(code)
+  })
+  return result
+}
+
+async function loadGroupDestinations(): Promise<GroupDestinations> {
   const db = centralDb()
   const [stations, programs] = await Promise.all([
     db.query<{ id: string; name: string }>('SELECT id, name FROM stations ORDER BY name, id'),
@@ -194,4 +209,14 @@ export async function groupDestinations(): Promise<GroupDestinations> {
     ),
   ])
   return { stations: stations.rows, programs: programs.rows }
+}
+
+export function groupDestinations(): Promise<GroupDestinations> {
+  if (destinationsCache && destinationsCache.until > Date.now()) return destinationsCache.result
+  const result = loadGroupDestinations()
+  destinationsCache = { until: Date.now() + 30_000, result }
+  void result.catch(() => {
+    if (destinationsCache?.result === result) destinationsCache = undefined
+  })
+  return result
 }

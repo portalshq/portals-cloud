@@ -4,7 +4,7 @@ import { ApplicationIdentityStore } from "./postgres-store.js";
 import { CentralIdentityStore } from "./central-store.js";
 
 const gateway = () => ({ getUserInfo: vi.fn(async (_resource: string, _userId: string) => ({ userId: "u", displayName: "Ada" })) });
-const query = () => vi.fn(async (_text: string, _values?: unknown[]) => ({ rowCount: 1, rows: [] as Record<string, unknown>[] }));
+const query = () => vi.fn(async (_text: string, _values?: unknown[]) => ({ rowCount: 1, rows: [{ status: "active" }] as Record<string, unknown>[] }));
 describe("explicit profile sync", () => {
   it.each([ApplicationIdentityStore, CentralIdentityStore])("persists through %s", async (Store) => {
     const db = { query: query() }; const auth = gateway();

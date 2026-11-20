@@ -1,6 +1,6 @@
 {
   "name": "@portalshq/capability-queue-broadcast",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/portalshq/portals-cloud.git",
@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@portalshq/capability-realtime-fanout": "^0.1.8",
-    "@portalshq/capability-video-delivery": "^0.2.0"
+    "@portalshq/capability-video-delivery": "^0.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

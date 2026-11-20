@@ -58,7 +58,7 @@ describe.skipIf(!url)("isolated PostgreSQL central identity", () => {
   it("syncs, preserves local fields and suspension, reads preferences", async () => {
     await store.syncFromAuthGateway("u", "Ada");
     await pool.query("UPDATE users SET email='a@example.test', status='suspended' WHERE id='u'");
-    await store.syncFromAuthGateway("u", "New name");
+    await expect(store.syncFromAuthGateway("u", "New name")).rejects.toThrow();
     expect(await store.getIdentity("u")).toBeUndefined();
     await expect(store.recordInteraction("u", { channelId: "c", sessionId: "s" })).rejects.toThrow();
     await pool.query("UPDATE users SET status='active' WHERE id='u'");

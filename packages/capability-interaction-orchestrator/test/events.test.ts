@@ -90,6 +90,23 @@ describe("durable event publication and replay", () => {
     expect(await pending).toEqual({ done: true, value: undefined });
     expect(bus.getSubscriberCount()).toBe(0);
   });
+  it("shares one replay poll and fanout subscription per world", async () => {
+    const world = crypto.randomUUID();
+    const bus = new InMemoryFanoutBus();
+    const publisher = new EventPublisher(bus, db.repository, 5000);
+    const reads = vi.spyOn(db.repository, "getEvents");
+    const first = publisher.subscribe(world, 0);
+    const second = publisher.subscribe(world, 0);
+    const firstPending = first.next();
+    const secondPending = second.next();
+    await vi.waitFor(() => expect(reads).toHaveBeenCalledTimes(1));
+    expect(bus.getSubscriberCount()).toBe(1);
+    await Promise.all([first.return!(), second.return!()]);
+    expect(await firstPending).toEqual({ done: true, value: undefined });
+    expect(await secondPending).toEqual({ done: true, value: undefined });
+    expect(bus.getSubscriberCount()).toBe(0);
+    reads.mockRestore();
+  });
   it("cleans up aborts both before and after subscription starts", async () => {
     const bus = new InMemoryFanoutBus();
     const publisher = new EventPublisher(bus, db.repository, 5);
@@ -184,7 +201,7 @@ describe("stream cleanup during asynchronous failures", () => {
       await stream.return!();
       release(stopped);
       expect((await pending).done).toBe(true);
-      expect(stopped).toHaveBeenCalledTimes(1);
+      await vi.waitFor(() => expect(stopped).toHaveBeenCalledTimes(1));
     } finally {
       await db.close();
     }

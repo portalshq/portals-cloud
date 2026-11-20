@@ -104,7 +104,7 @@ export default function ProductionTab() {
   const { token } = useAdminToken()
   const [actionResults, setActionResults] = useState<Record<string, string>>({})
 
-  const fetchStatus = useCallback(() => adminFetch<ProductionStatus>('/production/status', token), [token])
+  const fetchStatus = useCallback((signal: AbortSignal) => adminFetch<ProductionStatus>('/production/status', token, { signal }), [token])
   const { data: status, loading, error, refresh, lastUpdated } = usePolling(fetchStatus, 10000, [token])
 
   const runAction = async (app: ProductionAppStatus, action: ProductionAction) => {

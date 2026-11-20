@@ -4,6 +4,7 @@ import { adminErrorResponse, badRequest, json, notFound } from "../../../../../l
 import { assertChannelInScope } from "../../../../../lib/admin/scope";
 import { mergeSchedulePatch, type ScheduleConfig } from "../../../../../lib/admin/schedule";
 import type { ScheduleRuleDto } from "../../../../../lib/admin/types";
+import { invalidateCatalog } from "../../../../../lib/catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,6 +81,7 @@ export async function PATCH(
        WHERE id = $1 ${RETURNING}`,
       [id, JSON.stringify(schedule), enabled ?? null],
     );
+    invalidateCatalog();
     return json(toDto(result.rows[0]));
   } catch (error) {
     return adminErrorResponse(error);
@@ -107,6 +109,7 @@ export async function DELETE(
       [id],
     );
     if (!result.rows.length) throw notFound("Schedule not found");
+    invalidateCatalog();
     return json(toDto(result.rows[0]));
   } catch (error) {
     return adminErrorResponse(error);

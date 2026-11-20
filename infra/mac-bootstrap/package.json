@@ -5,6 +5,7 @@
   "scripts": {
     "check": "node scripts/check-release.mjs",
     "test:architecture": "sh scripts/test-amd64-contract.sh",
+    "test:cloudflare": "sh scripts/test-cloudflare-tunnel-contract.sh",
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {

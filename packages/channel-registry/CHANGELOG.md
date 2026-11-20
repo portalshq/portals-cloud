@@ -1,5 +1,11 @@
 # @portalshq/channel-registry
 
+## 0.3.0
+
+### Minor Changes
+
+- b9af545: Add central program metadata reads and promotional copy updates.
+
 ## Unreleased
 
 - Add `updateProgramDetails(query, programId, patch)` for partial updates of a program's public `name`, `description`, and `tagline`.

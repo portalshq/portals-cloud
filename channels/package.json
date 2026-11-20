@@ -1,6 +1,6 @@
 {
   "name": "channels",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,11 +12,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@portalshq/analytics": "0.3.0",
-    "@portalshq/capability-email-notifications": "^0.1.0",
-    "@portalshq/capability-identity": "^0.6.0",
-    "@portalshq/capability-video-delivery": "^0.2.0",
-    "@portalshq/channel-registry": "0.2.3",
+    "@neon/realtime": "^0.2.1",
+    "@portalshq/analytics": "0.4.0",
+    "@portalshq/capability-email-notifications": "^0.2.0",
+    "@portalshq/capability-identity": "^0.7.0",
+    "@portalshq/capability-video-delivery": "^0.3.0",
+    "@portalshq/channel-registry": "0.3.0",
     "hls.js": "^1.5.0",
     "lucide-react": "^1.24.0",
     "next": "^16.2.12",

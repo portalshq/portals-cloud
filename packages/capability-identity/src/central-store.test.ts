@@ -27,9 +27,11 @@ describe("central store", () => {
     expect(connection.query).toHaveBeenCalledWith(expect.stringContaining("UPDATE users"), ["u", "Ada"]);
   });
   it("does not churn the central user row when the gateway name is unchanged", async () => {
-    const connection = db();
+    const connection = db([{ status: "active" }]);
     await new CentralIdentityStore(connection).syncFromAuthGateway("u", "Ada");
     expect(connection.query).toHaveBeenCalledWith(expect.stringContaining("IS DISTINCT FROM"), ["u", "Ada"]);
+    await expect(new CentralIdentityStore(db([{ status: "suspended" }])).syncFromAuthGateway("u", "Ada"))
+      .rejects.toThrow(INACTIVE_ACCOUNT_ERROR);
   });
 });
 describe("soft references", () => {

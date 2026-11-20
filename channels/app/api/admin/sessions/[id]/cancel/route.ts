@@ -2,6 +2,7 @@ import { authenticateAdmin } from "../../../../../../lib/admin/auth";
 import { centralDb } from "../../../../../../lib/admin/db";
 import { adminErrorResponse, json, notFound } from "../../../../../../lib/admin/http";
 import { assertChannelInScope } from "../../../../../../lib/admin/scope";
+import { invalidateCatalog } from "../../../../../../lib/catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export async function POST(
       [id],
     );
     if (!result.rows.length) throw notFound("Session not found");
+    invalidateCatalog();
     return json({ id, status: "cancelled" });
   } catch (error) {
     return adminErrorResponse(error);

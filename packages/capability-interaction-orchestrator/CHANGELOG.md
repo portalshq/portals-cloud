@@ -1,5 +1,12 @@
 # @portalshq/capability-interaction-orchestrator
 
+## 0.7.0
+
+### Minor Changes
+
+- b9af545: Preserve choice image URLs and final vote counts in the production handoff, support a per-choice PX image representation setting, and preserve dynamic PX entity types for newly proposed choices.
+- f8179f1: Add `user-submissions-per-window` guide config and `userSubmissionsPerWindow` window flag: a window carrying the cap counts an actor's pending _and_ fulfilled submissions toward it, so a claimed-and-consumed guide still occupies the slot and per-window submission limits (e.g. one guide per viewer per window) hold — extending the mechanism `feedbackEvent` windows already use.
+
 ## 0.6.0
 
 ### Minor Changes
