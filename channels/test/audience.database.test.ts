@@ -158,6 +158,18 @@ afterAll(async () => { resetPools(); vi.unstubAllEnvs(); await db.close() })
       'Hello from Bears', 'Hello from Channels',
     ])
     expect(tail.messages.map((message: { id: string }) => message.id)).toEqual(['1', '3'])
+    const deltaResponse = await publicChat('bears-live', '/api/programs/bears-live/chat?limit=3&after=1')
+    expect(deltaResponse.headers.get('x-chat-cursor')).toBe('3')
+    expect((await deltaResponse.json()).messages.map((message: { id: string }) => message.id)).toEqual(['3'])
+    const unchangedRequest = request('/api/programs/bears-live/chat?limit=3&after=3')
+    const unchangedContext = programContext('bears-live')
+    const unchanged = await readProgramChat(unchangedRequest, unchangedContext)
+    expect(await unchanged.json()).toEqual({ messages: [] })
+    const conditional = await readProgramChat(new Request(unchangedRequest, {
+      headers: { 'If-None-Match': unchanged.headers.get('etag')! },
+    }), unchangedContext)
+    expect(conditional.status).toBe(304)
+    expect((await publicChat('bears-live', '/api/programs/bears-live/chat?after=-1')).status).toBe(400)
     expect((await (await publicChat('25th-chapter')).json()).messages.map((message: { text: string }) => message.text))
       .toEqual(['Hello from the ebook'])
     expect((await legacyPublicChat(request('/api/chat'))).status).toBe(400)

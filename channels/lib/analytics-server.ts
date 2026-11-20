@@ -7,6 +7,15 @@ import { centralDb } from './admin/db'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 let gateway: ReturnType<typeof createAuthGatewayClient> | undefined
+let analyticsPreferenceMigration: Promise<void> | undefined
+
+function ensureAnalyticsPreferences() {
+  analyticsPreferenceMigration ??= migrateAnalyticsPreferences(centralDb()).catch(error => {
+    analyticsPreferenceMigration = undefined
+    throw error
+  })
+  return analyticsPreferenceMigration
+}
 
 function configured() {
   if (process.env.CHANNELS_ANALYTICS_ENABLED !== 'true') return null
@@ -35,7 +44,7 @@ export async function ingestChannelAnalytics(request: Request): Promise<Response
   const sink = createSegmentSink(createSegmentHttpTransport({writeKey: config.writeKey}))
   const isSuppressed = async (userId: string) => {
     const db = centralDb()
-    await migrateAnalyticsPreferences(db)
+    await ensureAnalyticsPreferences()
     return createAnalyticsPreferenceStore(db).isSuppressed(userId)
   }
   const ingest = createAnonymousIngestion({
@@ -60,7 +69,7 @@ export async function identifyChannelAnalytics(request: Request): Promise<Respon
   const sink = createSegmentSink(createSegmentHttpTransport({writeKey: config.writeKey}))
   try {
     const db = centralDb()
-    await migrateAnalyticsPreferences(db)
+    await ensureAnalyticsPreferences()
     return createVerifiedIdentifyIngestion({provider: identityProvider(), sink, isSuppressed: createAnalyticsPreferenceStore(db).isSuppressed})(request)
   } catch (error) {
     console.error('[channels analytics preference]', error)
@@ -75,7 +84,7 @@ export async function readChannelAnalyticsPreference(request: Request): Promise<
     if (!token) return new Response(JSON.stringify({suppressed: false}), {status: 200, headers: {'Content-Type': 'application/json'}})
     const {userId} = await identityProvider().getIdentity(token)
     const db = centralDb()
-    await migrateAnalyticsPreferences(db)
+    await ensureAnalyticsPreferences()
     const suppressed = await createAnalyticsPreferenceStore(db).isSuppressed(userId)
     return Response.json({suppressed})
   } catch (error) {
@@ -93,7 +102,7 @@ export async function updateChannelAnalyticsPreference(request: Request): Promis
     if (typeof body.suppressed !== 'boolean') return new Response(null, {status: 400})
     const {userId} = await identityProvider().getIdentity(token)
     const db = centralDb()
-    await migrateAnalyticsPreferences(db)
+    await ensureAnalyticsPreferences()
     await createAnalyticsPreferenceStore(db).setSuppressed(userId, body.suppressed)
     return new Response(null, {status: 204})
   } catch (error) {

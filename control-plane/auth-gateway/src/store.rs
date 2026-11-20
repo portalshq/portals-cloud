@@ -624,6 +624,20 @@ impl SecurityStore {
         }))
     }
 
+    pub async fn active_principal(
+        &self,
+        subject_type: &str,
+        subject_id: &str,
+    ) -> anyhow::Result<Option<Principal>> {
+        let row = sqlx::query("SELECT subject_id,display_name,preferred_username FROM auth_principals WHERE subject_type=$1 AND subject_id=$2 AND disabled_at IS NULL")
+            .bind(subject_type).bind(subject_id).fetch_optional(&self.pool).await?;
+        Ok(row.map(|r| Principal {
+            subject_id: r.get("subject_id"),
+            display_name: r.get("display_name"),
+            preferred_username: r.get("preferred_username"),
+        }))
+    }
+
     pub async fn principal_by_username(&self, username: &str) -> anyhow::Result<Option<Principal>> {
         let row = sqlx::query("SELECT subject_type,subject_id,display_name,preferred_username FROM auth_principals WHERE preferred_username=$1 LIMIT 1")
             .bind(username).fetch_optional(&self.pool).await?;

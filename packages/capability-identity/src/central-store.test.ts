@@ -26,6 +26,11 @@ describe("central store", () => {
     await new CentralIdentityStore(connection).updateUserInfo("u", "Ada");
     expect(connection.query).toHaveBeenCalledWith(expect.stringContaining("UPDATE users"), ["u", "Ada"]);
   });
+  it("does not churn the central user row when the gateway name is unchanged", async () => {
+    const connection = db();
+    await new CentralIdentityStore(connection).syncFromAuthGateway("u", "Ada");
+    expect(connection.query).toHaveBeenCalledWith(expect.stringContaining("IS DISTINCT FROM"), ["u", "Ada"]);
+  });
 });
 describe("soft references", () => {
   const provider = new IdentityProvider(async () => "u", new CentralIdentityStore(db()));

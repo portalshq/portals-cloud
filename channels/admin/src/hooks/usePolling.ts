@@ -9,9 +9,12 @@ export function usePolling<T>(
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const runningRef = useRef(false)
 
   const refresh = useCallback(async () => {
+    if (runningRef.current) return
+    runningRef.current = true
     try {
       setError(null)
       const result = await fetchFn()
@@ -23,6 +26,7 @@ export function usePolling<T>(
       console.error('[usePolling] Fetch failed:', error);
       setError(error);
     } finally {
+      runningRef.current = false
       setLoading(false)
     }
   }, [fetchFn])
@@ -33,19 +37,24 @@ export function usePolling<T>(
   }, [refresh, ...deps])
 
   useEffect(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
+    let stopped = false
+    const schedule = () => {
+      if (stopped || interval <= 0) return
+      timerRef.current = setTimeout(async () => {
+        if (typeof document === 'undefined' || !document.hidden) await refresh()
+        schedule()
+      }, interval)
     }
-
-    if (interval > 0) {
-      // Use global setInterval (works in both browser and Node environments)
-      intervalRef.current = setInterval(refresh, interval)
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && !document.hidden) void refresh()
     }
+    schedule()
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
+      stopped = true
+      if (timerRef.current) clearTimeout(timerRef.current)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [interval, refresh])
 

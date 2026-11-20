@@ -18,11 +18,14 @@ type CatalogRow = {
 }
 
 let centralCache: { until: number; result: Promise<CatalogRow[]> } | undefined
+const centralSlugCache = new Map<string, { until: number; result: Promise<CatalogRow[]> }>()
 let lastProgramRows = new Map<string, CatalogRow>()
 
 function readCentral(slug?: string): Promise<CatalogRow[]> {
   if (!adminEnv().centralDatabaseUrl) return Promise.resolve([])
   if (!slug && centralCache && centralCache.until > Date.now()) return centralCache.result
+  const cachedSlug = slug ? centralSlugCache.get(slug) : undefined
+  if (cachedSlug && cachedSlug.until > Date.now()) return cachedSlug.result
   const result = (async () => {
     try {
       const { rows } = await centralDb().query<CatalogRow>(`
@@ -30,7 +33,7 @@ function readCentral(slug?: string): Promise<CatalogRow[]> {
           SELECT channel_id, program_id, station_id FROM station_schedule_rules
           UNION
           SELECT channel_id, program_id, station_id FROM station_program_slots
-          WHERE status IN ('scheduled', 'live', 'completed')
+          WHERE status IN ('scheduled', 'live') AND ends_at > now()
         ), slot_state AS (
           SELECT channel_id, program_id, station_id,
                  bool_or(starts_at <= now()) AS scheduled_live,
@@ -65,6 +68,18 @@ function readCentral(slug?: string): Promise<CatalogRow[]> {
     }
   })()
   if (!slug) centralCache = { until: Date.now() + 15_000, result }
+  else {
+    if (centralSlugCache.size >= 250) {
+      const now = Date.now()
+      for (const [key, value] of centralSlugCache) if (value.until <= now) centralSlugCache.delete(key)
+      while (centralSlugCache.size >= 250) centralSlugCache.delete(centralSlugCache.keys().next().value!)
+    }
+    centralSlugCache.set(slug, { until: Date.now() + 15_000, result })
+  }
+  void result.catch(() => {
+    if (slug && centralSlugCache.get(slug)?.result === result) centralSlugCache.delete(slug)
+    else if (!slug && centralCache?.result === result) centralCache = undefined
+  })
   return result
 }
 

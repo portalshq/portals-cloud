@@ -12,32 +12,73 @@ function useMessages(endpoint: string | undefined, limit: number, active: boolea
   useEffect(() => {
     if (!endpoint || !limit || !active) return
     const abort = new AbortController()
+    let timer: number | undefined
     let running = false
+    let cursor = '0'
+    let etag: string | undefined
+    let idleReads = 0
+    const schedule = (delay: number) => {
+      clearTimeout(timer)
+      if (!abort.signal.aborted) timer = window.setTimeout(read, delay)
+    }
     async function read() {
-      if (document.hidden || running || abort.signal.aborted) return
+      if (abort.signal.aborted) return
+      if (document.hidden || running) {
+        schedule(5_000)
+        return
+      }
       running = true
       try {
-        const path = `${endpoint}?limit=${limit}`
-        const response = privateRead ? await viewerFetch(path, { signal: abort.signal })
-          : await fetch(path, { signal: abort.signal, credentials: 'omit' })
+        const search = new URLSearchParams({ limit: String(limit) })
+        if (cursor !== '0') search.set('after', cursor)
+        const headers = new Headers()
+        if (etag) headers.set('If-None-Match', etag)
+        const path = `${endpoint}?${search}`
+        const init = { signal: abort.signal, headers }
+        const response = privateRead ? await viewerFetch(path, init)
+          : await fetch(path, { ...init, credentials: 'omit' })
         if (abort.signal.aborted) return
+        if (response.status === 304) {
+          idleReads++
+          return
+        }
         if (!response.ok) {
           if (privateRead) setSnapshot(undefined)
           return
         }
         const value = await response.json() as { messages: Message[] }
-        if (!abort.signal.aborted) setSnapshot({ endpoint: endpoint!, messages: value.messages })
+        etag = response.headers.get('etag') ?? undefined
+        const responseCursor = response.headers.get('x-chat-cursor')
+        if (responseCursor && /^(?:0|[1-9]\d*)$/.test(responseCursor)) cursor = responseCursor
+        idleReads = value.messages.length ? 0 : idleReads + 1
+        if (!abort.signal.aborted) setSnapshot(current => {
+          if (!current || current.endpoint !== endpoint || cursor === '0') return { endpoint: endpoint!, messages: value.messages }
+          const merged = new Map(current.messages.map(message => [message.id, message]))
+          for (const message of value.messages) merged.set(message.id, message)
+          return { endpoint: endpoint!, messages: [...merged.values()].slice(-limit) }
+        })
       } catch {
         if (!abort.signal.aborted && privateRead) setSnapshot(undefined)
-      } finally { running = false }
+      } finally {
+        running = false
+        schedule(Math.min(30_000, 2_500 * 2 ** Math.min(idleReads, 4)))
+      }
     }
     void read()
-    const timer = window.setInterval(read, 2500)
-    document.addEventListener('visibilitychange', read)
+    const refresh = () => {
+      idleReads = 0
+      void read()
+    }
+    const written = (event: Event) => {
+      if ((event as CustomEvent<{ endpoint?: string }>).detail?.endpoint === endpoint) refresh()
+    }
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('channels:chat-written', written)
     return () => {
       abort.abort()
-      clearInterval(timer)
-      document.removeEventListener('visibilitychange', read)
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('channels:chat-written', written)
     }
   }, [active, endpoint, limit, privateRead])
   return active && limit && snapshot && snapshot.endpoint === endpoint ? snapshot.messages.slice(-limit) : []
@@ -86,6 +127,7 @@ function Thread({ endpoint, privateRead, signedIn }: { endpoint: string; private
         body: JSON.stringify({ text: draft, clientId: crypto.randomUUID() }) })
       if (!response.ok) throw new Error(`Chat send returned ${response.status}`)
       setDraft('')
+      window.dispatchEvent(new CustomEvent('channels:chat-written', { detail: { endpoint } }))
     } catch { setFailed(true) }
     finally { setPending(false) }
   }

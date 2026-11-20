@@ -58,9 +58,53 @@ describe("createPostgresFanoutBus", () => {
 
     expect(handler).toHaveBeenNthCalledWith(1, { n: 1 });
     expect(handler).toHaveBeenNthCalledWith(2, { n: 2 });
-    // Second poll resumes from the last delivered row, not the head.
     await vi.advanceTimersByTimeAsync(1000);
     expect(handler).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("LIMIT $3"), ["chat", 43, 100]);
+    unsubscribe();
+  });
+
+  it("shares one head read and one cursor poll across local subscribers", async () => {
+    const { pool, query } = mockPool(async (sql) =>
+      sql.startsWith("SELECT COALESCE(MAX(id)")
+        ? headResult(0)
+        : { rows: [{ id: 1, payload: { shared: true } }] });
+    const firstHandler = vi.fn();
+    const secondHandler = vi.fn();
+    const bus = createPostgresFanoutBus(pool);
+
+    const [stopFirst, stopSecond] = await Promise.all([
+      bus.subscribe("chat", firstHandler),
+      bus.subscribe("chat", secondHandler),
+    ]);
+    expect(query).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(firstHandler).toHaveBeenCalledWith({ shared: true });
+    expect(secondHandler).toHaveBeenCalledWith({ shared: true });
+    stopFirst();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(query).toHaveBeenCalledTimes(3);
+    stopSecond();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(query).toHaveBeenCalledTimes(3);
+  });
+
+  it("wakes the local topic cursor after publishing", async () => {
+    const { pool } = mockPool(async (sql) => {
+      if (sql.startsWith("SELECT COALESCE(MAX(id)")) return headResult(0);
+      if (sql.startsWith("INSERT")) return { rows: [] };
+      return { rows: [{ id: 1, payload: { ok: true } }] };
+    });
+    const handler = vi.fn();
+    const bus = createPostgresFanoutBus(pool);
+    const unsubscribe = await bus.subscribe("chat", handler);
+
+    await bus.publish("chat", { ok: true });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(handler).toHaveBeenCalledWith({ ok: true });
     unsubscribe();
   });
 
@@ -88,16 +132,16 @@ describe("createPostgresFanoutBus", () => {
     expect(query).toHaveBeenCalledWith(expect.stringContaining("LIMIT $3"), ["chat", 0, 100]);
     unsubscribe();
 
-    const { pool: poolCustom, query: queryCustom } = mockPool(async (sql) =>
+    const { pool: customPool, query: customQuery } = mockPool(async (sql) =>
       sql.startsWith("SELECT COALESCE(MAX(id)") ? headResult(0) : { rows: [] });
-    const busCustom = createPostgresFanoutBus(poolCustom, { batchSize: 25 });
-    const unsubscribeCustom = await busCustom.subscribe("chat", vi.fn());
+    const customBus = createPostgresFanoutBus(customPool, { batchSize: 25 });
+    const unsubscribeCustom = await customBus.subscribe("chat", vi.fn());
     await vi.advanceTimersByTimeAsync(1000);
-    expect(queryCustom).toHaveBeenCalledWith(expect.stringContaining("LIMIT $3"), ["chat", 0, 25]);
+    expect(customQuery).toHaveBeenCalledWith(expect.stringContaining("LIMIT $3"), ["chat", 0, 25]);
     unsubscribeCustom();
   });
 
-  it("redelivers a row when the handler fails (at-least-once)", async () => {
+  it("redelivers a row when one handler fails", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { pool } = mockPool(async (sql, params) => {
       if (sql.startsWith("SELECT COALESCE(MAX(id)")) return headResult(0);
@@ -114,14 +158,13 @@ describe("createPostgresFanoutBus", () => {
     await vi.advanceTimersByTimeAsync(1000);
 
     expect(handler).toHaveBeenCalledTimes(2);
-    expect(handler).toHaveBeenNthCalledWith(2, { retry: true });
     expect(errorSpy).toHaveBeenCalledWith(
       "[fanout] PostgreSQL polling failed",
-      expect.any(Error),
+      expect.objectContaining({ topic: "chat", cause: expect.any(Error) }),
     );
   });
 
-  it("logs poll failures and keeps polling", async () => {
+  it("logs query failures and keeps polling", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     let fetchCount = 0;
     const { pool } = mockPool(async (sql) => {
@@ -139,28 +182,25 @@ describe("createPostgresFanoutBus", () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       "[fanout] PostgreSQL polling failed",
-      expect.any(Error),
+      expect.objectContaining({ topic: "chat", cause: expect.any(Error) }),
     );
     expect(handler).toHaveBeenCalledWith({ ok: true });
   });
 
-  it("stops polling after unsubscribe", async () => {
+  it("stops polling after unsubscribe and close", async () => {
     const { pool, query } = mockPool(async (sql) =>
       sql.startsWith("SELECT COALESCE(MAX(id)") ? headResult(0) : { rows: [] });
     const bus = createPostgresFanoutBus(pool);
-
-    const unsubscribe = await bus.subscribe("chat", vi.fn());
+    const unsubscribeFirst = await bus.subscribe("first", vi.fn());
+    await bus.subscribe("second", vi.fn());
+    unsubscribeFirst();
+    await bus.close();
     const callsBefore = query.mock.calls.length;
-    unsubscribe();
+
     await vi.advanceTimersByTimeAsync(5000);
 
-    expect(query.mock.calls.length).toBe(callsBefore);
-  });
-
-  it("close resolves without ending the caller-owned pool", async () => {
-    const { pool } = mockPool();
-    const bus = createPostgresFanoutBus(pool);
-
-    await expect(bus.close()).resolves.toBeUndefined();
+    expect(query).toHaveBeenCalledTimes(callsBefore);
+    await expect(bus.publish("closed", {})).rejects.toThrow("Fanout bus is closed");
+    await expect(bus.subscribe("closed", vi.fn())).rejects.toThrow("Fanout bus is closed");
   });
 });

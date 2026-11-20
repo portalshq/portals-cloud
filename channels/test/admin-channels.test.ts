@@ -209,7 +209,7 @@ describe("GET /api/admin/info", () => {
   });
 
   it("reports unconfigured databases", async () => {
-    stubAdminEnv({ CENTRAL_DATABASE_URL: undefined });
+    stubAdminEnv({ APP_DATABASE_URL: undefined, CENTRAL_DATABASE_URL: undefined });
     const res = await INFO(adminRequest("/api/admin/info"));
     const body = await res.json();
     expect(body.databases).toEqual({

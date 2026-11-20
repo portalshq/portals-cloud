@@ -2,31 +2,54 @@ import { getChannelApps, getChannelPreview } from '../../../../../lib/channel-ap
 import { readProgramMetadata } from '@portalshq/channel-registry'
 import { centralDb } from '../../../../../lib/admin/db'
 import { adminEnv } from '../../../../../lib/admin/env'
+import { createHash } from 'node:crypto'
 
-export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
-  const app = (await getChannelApps()).get(slug)
-  let preview = app ? await getChannelPreview(app) : null
-  // The program row wins over a stale app cache. If central is unavailable,
-  // the app's last known public copy is still usable.
-  if (preview?.program && adminEnv().centralDatabaseUrl) {
-    try {
-      const pool = centralDb()
-      const metadata = await readProgramMetadata((sql, values) => {
-        const request = { text: sql, values, query_timeout: 1_500 }
-        return pool.query(request)
-      }, preview.program.id)
-      if (metadata) preview = { ...preview, program: {
-        ...preview.program,
-        ...(metadata.description !== null ? { description: metadata.description } : {}),
-        ...(metadata.tagline !== null ? { tagline: metadata.tagline } : {}),
-      } }
-    } catch {
-      // Playback and the last known public metadata remain available.
+const previews = new Map<string, { until: number; result: Promise<{ body: unknown; status: number }> }>()
+
+async function loadPreview(slug: string) {
+  const cached = previews.get(slug)
+  if (cached && cached.until > Date.now()) return cached.result
+  const result = (async () => {
+    const app = (await getChannelApps()).get(slug)
+    let preview = app ? await getChannelPreview(app) : null
+    // The program row wins over a stale app cache. If central is unavailable,
+    // the app's last known public copy is still usable.
+    if (preview?.program && adminEnv().centralDatabaseUrl) {
+      try {
+        const pool = centralDb()
+        const metadata = await readProgramMetadata((sql, values) => {
+          const request = { text: sql, values, query_timeout: 1_500 }
+          return pool.query(request)
+        }, preview.program.id)
+        if (metadata) preview = { ...preview, program: {
+          ...preview.program,
+          ...(metadata.description !== null ? { description: metadata.description } : {}),
+          ...(metadata.tagline !== null ? { tagline: metadata.tagline } : {}),
+        } }
+      } catch {
+        // Playback and the last known public metadata remain available.
+      }
     }
+    return { body: preview, status: !app ? 404 : preview ? 200 : 503 }
+  })()
+  if (previews.size >= 250) {
+    const now = Date.now()
+    for (const [key, value] of previews) if (value.until <= now) previews.delete(key)
+    while (previews.size >= 250) previews.delete(previews.keys().next().value!)
   }
-  return Response.json(preview, {
-    status: !app ? 404 : preview ? 200 : 503,
-    headers: { 'Cache-Control': 'no-store' },
+  previews.set(slug, { until: Date.now() + 5_000, result })
+  void result.catch(() => {
+    if (previews.get(slug)?.result === result) previews.delete(slug)
   })
+  return result
+}
+
+export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const { body, status } = await loadPreview(slug)
+  const serialized = JSON.stringify(body)
+  const etag = `"${createHash('sha256').update(serialized).digest('base64url')}"`
+  const headers = { ETag: etag, 'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=30' }
+  if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers })
+  return new Response(serialized, { status, headers: { ...headers, 'Content-Type': 'application/json' } })
 }

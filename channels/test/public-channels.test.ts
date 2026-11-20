@@ -123,8 +123,13 @@ describe('channel app preview', () => {
       const { GET } = await import('../app/api/channels/[slug]/preview/route')
       const preview = () => GET(new Request('https://channels.test/api/channels/bears/preview'), { params: Promise.resolve({ slug: 'bears' }) })
       const demo = await preview()
-      expect(demo.headers.get('cache-control')).toBe('no-store')
+      expect(demo.headers.get('cache-control')).toBe('public, s-maxage=5, stale-while-revalidate=30')
+      expect(demo.headers.get('etag')).toBeTruthy()
       expect(await demo.json()).toEqual({ live: true, previewVideo: 'https://media.test/demo.mp4' })
+      const unchanged = await GET(new Request('https://channels.test/api/channels/bears/preview', {
+        headers: { 'If-None-Match': demo.headers.get('etag')! },
+      }), { params: Promise.resolve({ slug: 'bears' }) })
+      expect(unchanged.status).toBe(304)
       expect(await (await preview()).json()).toEqual({ live: true, previewVideo: 'https://media.test/demo.mp4' })
       expect(fetch).toHaveBeenCalledTimes(1)
 

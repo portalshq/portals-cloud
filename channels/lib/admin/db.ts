@@ -17,6 +17,7 @@ const POOL_OPTIONS: pg.PoolConfig = {
   max: 2,
   idleTimeoutMillis: 10_000,
   connectionTimeoutMillis: 5_000,
+  allowExitOnIdle: true,
 };
 
 let poolAppDb: pg.Pool | null = null;
@@ -28,6 +29,7 @@ export function appDb(): pg.Pool {
   if (!appDatabaseUrl) {
     throw serviceUnavailable("Admin app database is not configured");
   }
+  if (appDatabaseUrl === adminEnv().centralDatabaseUrl) return centralDb();
   poolAppDb = new pg.Pool({ connectionString: appDatabaseUrl, ...POOL_OPTIONS });
   return poolAppDb;
 }

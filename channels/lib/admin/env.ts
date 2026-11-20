@@ -21,7 +21,7 @@ export interface AdminEnv {
 export function adminEnv(): AdminEnv {
   return {
     adminToken: process.env.CHANNELS_ADMIN_TOKEN?.trim() || null,
-    appDatabaseUrl: process.env.CENTRAL_DATABASE_URL?.trim() || null,
+    appDatabaseUrl: process.env.APP_DATABASE_URL?.trim() || null,
     centralDatabaseUrl: process.env.CENTRAL_DATABASE_URL?.trim() || null,
     bearsApiBaseUrl: process.env.BEARS_API_BASE_URL?.trim().replace(/\/+$/, "") || null,
     bearsProductionControlToken: process.env.BEARS_PRODUCTION_CONTROL_TOKEN?.trim() || null,

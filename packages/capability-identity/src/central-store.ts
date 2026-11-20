@@ -82,7 +82,8 @@ export class CentralIdentityStore implements SyncableIdentityStore {
   async syncFromAuthGateway(userId: string, displayName: string): Promise<void> {
     await this.pool.query(
       `INSERT INTO users (id, display_name) VALUES ($1, $2)
-       ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = now()`,
+       ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = now()
+       WHERE users.display_name IS DISTINCT FROM EXCLUDED.display_name`,
       [userId, displayName],
     );
   }

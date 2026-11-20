@@ -18,7 +18,7 @@ export function GET(request: Request, { params }: Context) {
     const member = viewer && await groupMember(code, viewer.userId)
     if (action === 'membership') return audienceJson({ member: Boolean(member), owner: Boolean(member && member.owner) })
     if (!member) audienceError(403, 'Group membership required.')
-    return readChat(request, { kind: 'group', groupId: member.id })
+    return readChat(request, { kind: 'group', groupId: member.id, userId: viewer.userId })
   })
 }
 

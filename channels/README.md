@@ -1,6 +1,8 @@
 # Channels
 
 Channels is the Next.js service and operator console for Portals channels. The operator console lives in `admin/`.
+Database request and Neon Free plan operating guidance is documented in
+[`docs/DATABASE-EFFICIENCY.md`](docs/DATABASE-EFFICIENCY.md).
 
 ## Routes at a glance
 

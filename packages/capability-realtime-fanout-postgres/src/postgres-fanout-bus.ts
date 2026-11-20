@@ -36,61 +36,106 @@ export function createPostgresFanoutBus(
   options?: PostgresFanoutBusOptions,
 ): PostgresFanoutBus {
   const batchSize = options?.batchSize ?? DEFAULT_BATCH_SIZE;
+  type TopicPump = {
+    cursor: number;
+    handlers: Set<FanoutHandler>;
+    timer?: ReturnType<typeof setTimeout>;
+    polling: boolean;
+    closed: boolean;
+  };
+  const topics = new Map<string, TopicPump>();
+  const initializing = new Map<string, Promise<TopicPump>>();
+  let busClosed = false;
+
+  function schedule(topic: string, state: TopicPump, delay = POLL_INTERVAL_MS): void {
+    if (state.closed || state.timer || state.handlers.size === 0) return;
+    state.timer = setTimeout(() => {
+      state.timer = undefined;
+      void poll(topic, state);
+    }, delay);
+    state.timer.unref();
+  }
+
+  async function poll(topic: string, state: TopicPump): Promise<void> {
+    if (state.closed || state.polling || state.handlers.size === 0) return;
+    state.polling = true;
+    try {
+      const result = await pool.query(
+        "SELECT id, payload FROM fanout_messages WHERE topic = $1 AND id > $2 ORDER BY id LIMIT $3",
+        [topic, state.cursor, batchSize],
+      );
+      for (const row of result.rows) {
+        const payload = typeof row.payload === "string" ? JSON.parse(row.payload) : row.payload;
+        await Promise.all([...state.handlers].map(handler => handler(payload)));
+        state.cursor = Number(row.id);
+      }
+    } catch (cause) {
+      console.error("[fanout] PostgreSQL polling failed", { topic, cause });
+    } finally {
+      state.polling = false;
+      schedule(topic, state);
+    }
+  }
 
   return {
     async publish(topic, message) {
+      if (busClosed) throw new Error("Fanout bus is closed");
       await pool.query("INSERT INTO fanout_messages (topic, payload) VALUES ($1, $2)", [
         topic,
         JSON.stringify(message),
       ]);
+      const state = topics.get(topic);
+      if (state?.timer) {
+        clearTimeout(state.timer);
+        state.timer = undefined;
+        schedule(topic, state, 0);
+      }
     },
 
     async subscribe(topic, handler) {
-      // Start at the current head: a browser joining now wants live chat, not
-      // the backlog of a channel that has been running all week.
-      const latest = await pool.query(
-        "SELECT COALESCE(MAX(id), 0) AS id FROM fanout_messages WHERE topic = $1",
-        [topic],
-      );
-      let cursor = Number(latest.rows[0].id);
-      let closed = false;
-      let busy = false;
-
-      async function poll(): Promise<void> {
-        if (closed || busy) return;
-        busy = true;
-        try {
-          const result = await pool.query(
-            "SELECT id, payload FROM fanout_messages WHERE topic = $1 AND id > $2 ORDER BY id LIMIT $3",
-            [topic, cursor, batchSize],
-          );
-          for (const row of result.rows) {
-            const payload = typeof row.payload === "string" ? JSON.parse(row.payload) : row.payload;
-            await handler(payload);
-            cursor = Number(row.id);
-          }
-        } finally {
-          busy = false;
+      if (busClosed) throw new Error("Fanout bus is closed");
+      let state = topics.get(topic);
+      if (!state) {
+        let pending = initializing.get(topic);
+        if (!pending) {
+          pending = pool.query(
+            "SELECT COALESCE(MAX(id), 0) AS id FROM fanout_messages WHERE topic = $1",
+            [topic],
+          ).then(latest => {
+            const created = { cursor: Number(latest.rows[0].id), handlers: new Set<FanoutHandler>(), polling: false, closed: false };
+            topics.set(topic, created);
+            return created;
+          }).finally(() => initializing.delete(topic));
+          initializing.set(topic, pending);
+        }
+        state = await pending;
+        if (busClosed) {
+          state.closed = true;
+          topics.delete(topic);
+          throw new Error("Fanout bus is closed");
         }
       }
-
-      const timer = setInterval(() => {
-        void poll().catch((cause) => {
-          console.error("[fanout] PostgreSQL polling failed", cause);
-        });
-      }, POLL_INTERVAL_MS);
-      // Without unref the poll timer alone would hold the process open and
-      // SIGTERM would wait on it.
-      timer.unref();
-
+      state.handlers.add(handler);
+      schedule(topic, state);
       return () => {
-        closed = true;
-        clearInterval(timer);
+        state!.handlers.delete(handler);
+        if (state!.handlers.size === 0) {
+          state!.closed = true;
+          if (state!.timer) clearTimeout(state!.timer);
+          topics.delete(topic);
+        }
       };
     },
 
     async close() {
-      // The pool is owned by the caller, so we don't close it here
+      busClosed = true;
+      for (const state of topics.values()) {
+        state.closed = true;
+        state.handlers.clear();
+        if (state.timer) clearTimeout(state.timer);
+      }
+      topics.clear();
+      initializing.clear();
     },
   };
 }

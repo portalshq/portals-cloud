@@ -76,7 +76,10 @@ fn subject_type(claims: &Claims) -> &'static str {
     }
 }
 
-async fn require_active(state: &GatewayState, claims: &Claims) -> Result<(), Status> {
+async fn require_originating_key_active(
+    state: &GatewayState,
+    claims: &Claims,
+) -> Result<(), Status> {
     if let Some(key_id) = claims.originating_key_id {
         if !claims.is_service_account
             || !state
@@ -88,6 +91,11 @@ async fn require_active(state: &GatewayState, claims: &Claims) -> Result<(), Sta
             return Err(Status::permission_denied("originating API key is inactive"));
         }
     }
+    Ok(())
+}
+
+async fn require_active(state: &GatewayState, claims: &Claims) -> Result<(), Status> {
+    require_originating_key_active(state, claims).await?;
     if state
         .store
         .principal_active(subject_type(claims), &claims.sub)
@@ -391,16 +399,16 @@ impl UrcAuthApi for AuthService {
             .signer
             .verify_authentication(&token)
             .map_err(|_| Status::unauthenticated("invalid authentication token"))?;
-        require_active(&self.state, &claims).await?;
-        // Live principal read, not the token's mint-time snapshot: a display
-        // name chosen after this token was issued is visible immediately.
+        require_originating_key_active(&self.state, &claims).await?;
+        // One live read returns both activation state and the current display
+        // name, avoiding two database transactions for every verification.
         let principal = self
             .state
             .store
-            .principal(subject_type(&claims), &claims.sub)
+            .active_principal(subject_type(&claims), &claims.sub)
             .await
             .map_err(internal_error)?
-            .ok_or_else(|| Status::unauthenticated("principal not found"))?;
+            .ok_or_else(|| Status::permission_denied("principal is disabled"))?;
         Ok(Response::new(VerifyUserResponse {
             user_info: Some(UserInfo {
                 user_id: claims.sub,

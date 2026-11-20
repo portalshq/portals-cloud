@@ -53,6 +53,7 @@ stay gitignored.
 |---|---|
 | `CHANNELS_ADMIN_TOKEN` | Platform superuser bearer for `/api/admin/*`. Scoped tokens come from the `channel_admin_tokens` table instead. |
 | `CENTRAL_DATABASE_URL` | Central platform database — the channel source of truth (`stations`, `programs`, `station_schedule_rules`, `station_program_slots`, `channel_admin_tokens`, `channel_app_control_tokens`). |
+| `APP_DATABASE_URL` | Optional Bears application database used for checkpoint enrichment. Keep this separate from `CENTRAL_DATABASE_URL`; use a pooled Neon URL when applicable. |
 | `BEARS_API_BASE_URL` | Bears server origin: registers the bears app in the registry and acts as its production origin. |
 | `BEARS_PRODUCTION_CONTROL_TOKEN` | Legacy fallback forwarded to bears `POST /api/production/*`. Prefer the `channel_app_control_tokens` table. Never reaches the browser. |
 
