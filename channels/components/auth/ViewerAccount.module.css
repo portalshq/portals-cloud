@@ -130,6 +130,10 @@
     transform var(--account-menu-content) var(--account-menu-spring) var(--account-menu-content-delay);
 }
 
+.menuInner .notice {
+  text-align: center;
+}
+
 .account[aria-expanded='false'] + .menu .menuInner {
   opacity: 0;
   transform: translateY(calc(-1 * var(--space-2)));

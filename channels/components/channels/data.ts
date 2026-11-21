@@ -56,17 +56,15 @@ export function formatSessionStart(iso: string): string {
     .format(new Date(iso)) + ' UTC'
 }
 
-/* The session card speaks like the program's off-air card: a day the viewer
-   already owns ("Today 8:00 PM") before a dated one — both in the viewer's
-   own zone, which a one-line card can trust. The meta line keeps the stated
-   UTC form. */
-export function formatSessionTime(iso: string, now = new Date()): string {
+/* This is rendered by client components during SSR. Keep the initial value
+   independent of the server clock and browser locale so hydration is stable. */
+export function formatSessionTime(iso: string): string {
   const start = new Date(iso)
   if (Number.isNaN(start.getTime())) return ''
-  const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(start)
-  if (start.toDateString() === now.toDateString()) return `Today ${time}`
-  const day = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(start)
-  return `${day}, ${time}`
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZone: 'UTC',
+  }).format(start) + ' UTC'
 }
 
 /* A channel is off-air when there is nothing to watch. App channels learn it

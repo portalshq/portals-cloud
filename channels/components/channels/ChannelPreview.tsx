@@ -129,7 +129,9 @@ export function RoomPreviewFallback({ channel: initial, active, muted, noteClass
   channel: Channel; active: boolean; muted: boolean; noteClassName?: string
 }) {
   const channel = useChannelPreview(initial, active)
-  const startsAt = channel.nextSession && Date.parse(channel.nextSession) > Date.now() ? channel.nextSession : undefined
+  // The server has already selected the next session. Filtering it against the
+  // browser clock here would make the initial SSR and hydration trees diverge.
+  const startsAt = channel.nextSession
   return (
     <>
       <ChannelPreview channel={channel} active={active} playVideo={active} muted={muted} noteClassName={noteClassName} />

@@ -85,15 +85,8 @@ describe('formatSessionStart', () => {
 })
 
 describe('formatSessionTime', () => {
-  it('says Today for a session later the same day, like the program card', () => {
-    const session = formatSessionTime('2027-01-03T20:00:00', new Date('2027-01-03T10:00:00'))
-    expect(session.startsWith('Today')).toBe(true)
-  })
-
-  it('dates a session on another day', () => {
-    const session = formatSessionTime('2027-01-03T20:00:00', new Date('2027-01-01T10:00:00'))
-    expect(session.startsWith('Today')).toBe(false)
-    expect(session).toContain(',')
+  it('renders a stable UTC value for SSR and browser hydration', () => {
+    expect(formatSessionTime('2027-01-03T20:00:00.000Z')).toBe('Sun, Jan 3, 2027, 8:00 PM UTC')
   })
 
   it('returns an empty string for a start it cannot parse', () => {

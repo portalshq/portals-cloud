@@ -1,20 +1,31 @@
 'use client'
 
-import { useEffect, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
+import React, { useCallback, useEffect, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { getViewer, requestSignIn, subscribeViewer, viewerFetch } from '@/lib/viewer'
 import { emptyLiveMessages, getLiveMessages, subscribeLiveMessages, type ChatMessage } from './chat-live'
 import styles from './RoomChat.module.css'
 
 type Message = ChatMessage
 const noViewer = () => null
+const getServerSnapshot = () => emptyLiveMessages
+const emptyMessages: Message[] = []
 
 function useMessages(endpoint: string | undefined, limit: number, active: boolean, privateRead: boolean) {
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      if (!endpoint || !active) return () => undefined
+      return subscribeLiveMessages(endpoint, privateRead ? viewerFetch : fetch, listener)
+    },
+    [active, endpoint, privateRead],
+  )
+  const getSnapshot = useCallback(
+    () => (endpoint ? getLiveMessages(endpoint) : emptyLiveMessages),
+    [endpoint],
+  )
   const live = useSyncExternalStore(
-    listener => endpoint && active
-      ? subscribeLiveMessages(endpoint, privateRead ? viewerFetch : fetch, listener)
-      : () => undefined,
-    () => endpoint ? getLiveMessages(endpoint) : emptyLiveMessages,
-    () => emptyLiveMessages,
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
   )
   const [snapshot, setSnapshot] = useState<{ endpoint: string; messages: Message[] }>()
   useEffect(() => {
@@ -88,9 +99,9 @@ function useMessages(endpoint: string | undefined, limit: number, active: boolea
       document.removeEventListener('visibilitychange', refresh)
       window.removeEventListener('channels:chat-written', written)
     }
-  }, [active, endpoint, limit, live.messages, privateRead])
+  }, [active, endpoint, limit, live.failed, live.messages, privateRead])
   if (active && limit && live.messages && !live.failed) return live.messages.slice(-limit)
-  return active && limit && snapshot && snapshot.endpoint === endpoint ? snapshot.messages.slice(-limit) : []
+  return active && limit && snapshot && snapshot.endpoint === endpoint ? snapshot.messages.slice(-limit) : emptyMessages
 }
 
 function publicChatEndpoint(programId: string | undefined) {

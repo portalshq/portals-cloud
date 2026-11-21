@@ -18,7 +18,12 @@ const stores = new Map<string, Store>()
 let client: RealtimeClient | undefined
 let clientUrl: string | undefined
 
+export const emptyLiveMessages: Snapshot = { failed: false }
+export const failedLiveMessages: Snapshot = { failed: true }
+
 function publish(store: Store, snapshot: Snapshot) {
+  if (store.snapshot === snapshot) return
+  if (store.snapshot.failed === snapshot.failed && store.snapshot.messages === snapshot.messages) return
   store.snapshot = snapshot
   for (const listener of store.listeners) listener()
 }
@@ -43,7 +48,7 @@ async function start(endpoint: string, fetcher: Fetcher, store: Store) {
     store.subscription = subscription
     subscription.onChange(({ data, status }) => {
       if (status === 'error') {
-        publish(store, { messages: store.snapshot.messages, failed: true })
+        publish(store, store.snapshot.messages ? { messages: store.snapshot.messages, failed: true } : failedLiveMessages)
         return
       }
       if (data) publish(store, { messages: [...data].reverse(), failed: false })
@@ -60,19 +65,21 @@ async function start(endpoint: string, fetcher: Fetcher, store: Store) {
           scheduleRenewal(next.query.expiresAt)
         }
       } catch {
-        if (!store.abort.signal.aborted) publish(store, { messages: store.snapshot.messages, failed: true })
+        if (!store.abort.signal.aborted) {
+          publish(store, store.snapshot.messages ? { messages: store.snapshot.messages, failed: true } : failedLiveMessages)
+        }
       }
     }
     scheduleRenewal(payload.query.expiresAt)
   } catch {
-    if (!store.abort.signal.aborted) publish(store, { failed: true })
+    if (!store.abort.signal.aborted) publish(store, failedLiveMessages)
   }
 }
 
 export function subscribeLiveMessages(endpoint: string, fetcher: Fetcher, listener: () => void) {
   let store = stores.get(endpoint)
   if (!store) {
-    store = { snapshot: { failed: false }, listeners: new Set(), abort: new AbortController() }
+    store = { snapshot: emptyLiveMessages, listeners: new Set(), abort: new AbortController() }
     stores.set(endpoint, store)
     void start(endpoint, fetcher, store)
   }
@@ -88,7 +95,5 @@ export function subscribeLiveMessages(endpoint: string, fetcher: Fetcher, listen
 }
 
 export function getLiveMessages(endpoint: string): Snapshot {
-  return stores.get(endpoint)?.snapshot ?? { failed: false }
+  return stores.get(endpoint)?.snapshot ?? emptyLiveMessages
 }
-
-export const emptyLiveMessages: Snapshot = { failed: false }

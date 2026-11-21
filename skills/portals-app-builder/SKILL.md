@@ -18,22 +18,22 @@ Build application code only. Do not modify Portals packages. Keep secrets, token
 
 Load every relevant generated package module below; these are composable guidance modules, not mutually exclusive subskills.
 
-- [analytics.md](references/package-agents/analytics.md) - `@portalshq/analytics` `0.3.0`
+- [analytics.md](references/package-agents/analytics.md) - `@portalshq/analytics` `0.4.0`
 - [capabilities-redirect.md](references/package-agents/capabilities-redirect.md) - `@portalshq/capabilities-redirect` `0.0.5`
 - [capability-realtime-fanout-postgres.md](references/package-agents/capability-realtime-fanout-postgres.md) - `@portalshq/capability-realtime-fanout-postgres` `0.1.0`
 - [contracts.md](references/package-agents/contracts.md) - `@portalshq/contracts` `0.0.5`
-- [identity.md](references/package-agents/identity.md) - `@portalshq/capability-identity` `0.6.0`
+- [identity.md](references/package-agents/identity.md) - `@portalshq/capability-identity` `0.7.0`
 - [monetization.md](references/package-agents/monetization.md) - `@portalshq/monetization` `0.3.0`
 - [platform-billing.md](references/package-agents/platform-billing.md) - `@portalshq/platform-billing` `0.0.5`
 - [policy.md](references/package-agents/policy.md) - `@portalshq/policy` `0.0.5`
-- [queue-broadcast.md](references/package-agents/queue-broadcast.md) - `@portalshq/capability-queue-broadcast` `0.1.9`
+- [queue-broadcast.md](references/package-agents/queue-broadcast.md) - `@portalshq/capability-queue-broadcast` `0.3.0`
 - [realtime-fanout.md](references/package-agents/realtime-fanout.md) - `@portalshq/capability-realtime-fanout` `0.1.8`
 - [registry.md](references/package-agents/registry.md) - `@portalshq/registry` `0.0.5`
 - [resolver.md](references/package-agents/resolver.md) - `@portalshq/resolver` `0.0.5`
 - [runtime-core.md](references/package-agents/runtime-core.md) - `@portalshq/runtime-core` `0.0.9`
 - [sdk.md](references/package-agents/sdk.md) - `@portalshq/sdk` `0.0.5`
 - [text-image-delivery.md](references/package-agents/text-image-delivery.md) - `@portalshq/capability-text-image-delivery` `0.1.3`
-- [video-delivery.md](references/package-agents/video-delivery.md) - `@portalshq/capability-video-delivery` `0.1.10`
+- [video-delivery.md](references/package-agents/video-delivery.md) - `@portalshq/capability-video-delivery` `0.3.0`
 
 Use `references/channel-registry.schema.json` when creating or editing a channel registry. It accepts only environment-variable references for sensitive configuration and supports optional YouTube and Twitch live-chat settings. If a channel declares PX entities and PX tooling is configured, load the PX resolver/update skills to work with them; the Portals resolver package alone is only an application boundary.
 

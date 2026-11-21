@@ -1,7 +1,7 @@
 'use client'
 
 import { Bell, Forward, X } from 'lucide-react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { experienceEvents } from '@/lib/analytics-contract'
 import { recordChannelEvent } from '@/lib/analytics-client'
 import { ensureFollowsLoaded, followsSnapshot, setFollow, settleReminderFollow, subscribeFollows } from '@/lib/follows'
@@ -78,11 +78,14 @@ export function FollowButton({ channel, programId, className, styledFollow }: { 
   return <FollowAction channel={channel} programId={programId} className={className} styledFollow={styledFollow ?? undefined} />
 }
 
+const getServerFollows = () => false
+
 function FollowAction({ channel, programId, className, styledFollow }: { channel: string; programId: string; className?: string; styledFollow?: () => void }) {
+  const getSnapshot = useCallback(() => followsSnapshot().has(programId), [programId])
   const following = useSyncExternalStore(
     subscribeFollows,
-    () => followsSnapshot().has(programId),
-    () => false,
+    getSnapshot,
+    getServerFollows,
   )
   const [busy, setBusy] = useState(false)
   const [promptOpen, setPromptOpen] = useState(false)
