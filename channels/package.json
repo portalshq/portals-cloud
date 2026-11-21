@@ -9,7 +9,8 @@
     "build": "npm run build --workspace=@portalshq/channel-registry && npm run build --workspace=@portalshq/capability-email-notifications && npm --prefix admin install --include=dev --include=optional && npm --prefix admin run build && next build",
     "start": "next start -H 100.125.2.45 -p 4000",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "update:portals": "npx npm-check-updates '/^@portalshq\\//' -u && npm install"
   },
   "dependencies": {
     "@neon/realtime": "^0.2.1",
