@@ -11,6 +11,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'channels',
   description: 'Rooms to gather, play, watch, and make your mark.',
+  icons: {icon: '/favicon.svg'},
 }
 
 export default function RootLayout({

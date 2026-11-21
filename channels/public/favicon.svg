@@ -1,0 +1,15 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="coralGradient" x1="0" y1="90" x2="180" y2="90" gradientUnits="userSpaceOnUse" gradientTransform="rotate(-11 90 90)">
+      <stop offset="0%" stop-color="#F06C49"/>
+      <stop offset="15%" stop-color="#ED6145"/>
+      <stop offset="30%" stop-color="#EA5641"/>
+      <stop offset="45%" stop-color="#E74B3D"/>
+      <stop offset="60%" stop-color="#E43F3A"/>
+      <stop offset="75%" stop-color="#E03638"/>
+      <stop offset="90%" stop-color="#DD333C"/>
+      <stop offset="100%" stop-color="#DB303F"/>
+    </linearGradient>
+  </defs>
+  <circle cx="90" cy="90" r="90" fill="url(#coralGradient)"/>
+</svg>

@@ -54,6 +54,14 @@ stay gitignored.
 | `CHANNELS_ADMIN_TOKEN` | Platform superuser bearer for `/api/admin/*`. Scoped tokens come from the `channel_admin_tokens` table instead. |
 | `CENTRAL_DATABASE_URL` | Central platform database — the channel source of truth (`stations`, `programs`, `station_schedule_rules`, `station_program_slots`, `channel_admin_tokens`, `channel_app_control_tokens`). |
 | `APP_DATABASE_URL` | Optional Bears application database used for checkpoint enrichment. Keep this separate from `CENTRAL_DATABASE_URL`; use a pooled Neon URL when applicable. |
+
+Both URLs use a bounded pool of two connections per warm Vercel function. Neon
+production URLs must use the `-pooler` hostname. A non-Neon production database
+is supported when its matching `*_DATABASE_SSL_CA`, `*_DATABASE_SSL_CERT`, and
+`*_DATABASE_SSL_KEY` environment variables contain the client mTLS material;
+the pool verifies the server certificate and hostname. Use `CENTRAL_...` for
+the Channels database and `APP_...` for the optional Bears database. Values may
+contain literal newlines or `\\n` escapes.
 | `BEARS_API_BASE_URL` | Bears server origin: registers the bears app in the registry and acts as its production origin. |
 | `BEARS_PRODUCTION_CONTROL_TOKEN` | Legacy fallback forwarded to bears `POST /api/production/*`. Prefer the `channel_app_control_tokens` table. Never reaches the browser. |
 

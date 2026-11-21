@@ -3,6 +3,7 @@ import { authenticateAdmin } from "../lib/admin/auth";
 import { assertChannelInScope, assertProgramEditable, channelInScope, scopedChannelClause } from "../lib/admin/scope";
 import { mergeSchedulePatch, parseScheduleConfig } from "../lib/admin/schedule";
 import { AdminApiError, adminErrorResponse, badRequest } from "../lib/admin/http";
+import { databasePoolConfig } from "../lib/admin/db";
 import { ADMIN_TOKEN, SCOPED_CHANNEL_IDS, SCOPED_TOKEN, makePool, resetPools, sha256Hex, stubAdminEnv, usePools } from "./helpers";
 
 beforeEach(() => stubAdminEnv());
@@ -90,6 +91,30 @@ describe("authenticateAdmin", () => {
     const auth = await authenticateAdmin(req);
     expect(auth.ok).toBe(false);
     expect(!auth.ok && auth.response.status).toBe(401);
+  });
+});
+
+describe("databasePoolConfig", () => {
+  it("allows a non-Neon database with complete mTLS material", () => {
+    const config = databasePoolConfig("postgresql://db.portals.works:5432/channels", "CENTRAL", {
+      NODE_ENV: "production",
+      CENTRAL_DATABASE_SSL_CA: "-----BEGIN CERTIFICATE-----\\nca\\n-----END CERTIFICATE-----",
+      CENTRAL_DATABASE_SSL_CERT: "client-cert",
+      CENTRAL_DATABASE_SSL_KEY: "client-key",
+    });
+    expect(config.max).toBe(2);
+    expect(config.ssl).toEqual({
+      ca: "-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----",
+      cert: "client-cert",
+      key: "client-key",
+      rejectUnauthorized: true,
+    });
+  });
+
+  it("rejects production non-Neon connections without mTLS", () => {
+    expect(() => databasePoolConfig("postgresql://db.portals.works:5432/channels", "CENTRAL", {
+      NODE_ENV: "production",
+    })).toThrow(/non-Neon database requires mTLS/);
   });
 });
 
