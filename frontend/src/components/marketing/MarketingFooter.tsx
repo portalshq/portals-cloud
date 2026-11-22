@@ -6,12 +6,13 @@ import Link from 'next/link'
 export function MarketingFooter() {
   const pathname = usePathname()
   const isPx = pathname === '/px' || pathname === '/px/'
+  const isNewsletter = pathname === "/newsletter" || pathname === "/newsletter/";
 
   return (
     <footer
       data-marketing-footer
       className="ui-grid relative z-(--z-footer) min-h-[52vh] pb-(--spacing-sms) text-white lg:pt-50"
-      style={isPx ? { backgroundColor: '#000', isolation: 'isolate' } : undefined}
+      style={isPx ? { backgroundColor: '#000', isolation: 'isolate' } : isNewsletter ? { display: "none" } : undefined}
     >
       {!isPx && <div
         className="pointer-events-none absolute inset-x-0 -top-128 bottom-0 z-0"

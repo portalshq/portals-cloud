@@ -89,6 +89,7 @@
     "@react-pdf/renderer": "^4.5.1",
     "dotenv": "^17.4.2",
     "fflate": "^0.8.2",
+    "loops": "^7.5.0",
     "next-sanity": "^13.2.2",
     "pg": "^8.22.0",
     "stripe": "^22.4.0",

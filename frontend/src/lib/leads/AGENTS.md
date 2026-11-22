@@ -123,6 +123,18 @@ Role entries are only emitted when both name and email are present. The mapped r
 
 The pilot controlled fields include `productionOwnerEmail`. Preserve an explicit owner email; infer the applicant only when the named owner is absent or exactly matches the applicant. Other owners are confirmed/invited in the room, not guessed from the submitting identity. This email is persisted in the `lead_pilots` table, used for reviewer invitations, and projected to the Apollo Contact custom field `Production owner email`.
 
+## Newsletter subscription
+
+`/newsletter` (`app/(marketing)/newsletter/page.tsx`) renders `NewsletterForm` (`src/components/leads/NewsletterForm.tsx`), the only acquisition form that posts to `POST /api/newsletter/subscribe` instead of `/api/leads`. It collects `email` plus last-touch UTMs, extended tracking params (`content_id`, `product`, `topic`, `placement`, `cta`), `referrer`, `landing_page`, `signup_ts`, and first-touch mirrors read from the `portals_first_touch` localStorage record (written by `analytics-client.ts` on the initial site visit). The route validates with its own zod schema (`email` trimmed, ≤254; all tracking fields trimmed and length-capped), enforces an origin allowlist in production, and caps the body at 8 KB.
+
+Unlike every other lead flow, the newsletter route writes **directly to Apollo** — it does not persist to the application database, `lead_outbox`, encrypted submissions, or `crm_outbox`. It upserts a Contact (POST `/api/v1/contacts`), re-applies the `Massive Reality subscribers` list label via PATCH, and adds the contact to that list explicitly (POST `/api/v1/labels/add_entity_ids_to_label_names`). `APOLLO_API_KEY` is required; without it the route returns 503.
+
+The route also upserts the subscriber into Loops (the newsletter send path) via the `loops` SDK: `LoopsClient.updateContact` with `mailingLists: { [LOOPS_NEWSLETTER_LIST_ID]: true }`. `LOOPS_API_KEY` and `LOOPS_NEWSLETTER_LIST_ID` are required; missing either returns 503 alongside the Apollo check. `updateContact` is an upsert, so repeat submissions re-subscribe idempotently. Loops receives only the email and list subscription — no tracking properties are forwarded (custom properties must be created in the Loops dashboard before they can be sent).
+
+There is no server-side consent check, no scoring, and no deal/account work — subscribers are a marketing list projection only. Client-side, the form emits `form_started` and `newsletter_subscribed` through `trackEvent` (`analytics-client.ts`), which remains consent-gated as usual; the `newsletter_subscribed` payload carries only `email_domain` (never the full address) plus attribution fields.
+
+When changing the form, keep the route schema, `collectTrackingPayload` fields, and the Apollo list name in sync; add any new tracked field to both the zod schema and the compact PATCH body if it should reach Apollo.
+
 ## Progressive qualification
 
 The workflow assessment is the single prospect-facing qualification flow. It asks about a real creative-production workflow, the pain it creates, the desired outcome, and only the practical context needed to recommend a next step. Do not reintroduce a separate "pilot readiness" form after the assessment result.

@@ -40,6 +40,10 @@ type Props = {
 
 export function MarketingHeader({ detailLabels = {} }: Props) {
   const pathname = usePathname()
+  if (pathname === '/newsletter' || pathname.startsWith('/newsletter/')) {
+    return null
+  }
+
   const match = findHeader(pathname)
 
   const resolved: {header: PortalsHeaderProps; leafSlug?: string} = match || { header: {}, leafSlug: undefined }
