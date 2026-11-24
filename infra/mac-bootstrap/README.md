@@ -1,5 +1,14 @@
 # Portals Mac production bootstrap
 
+## Planned Auth/Lore ingress replacement
+
+[`VPS-TAILSCALE-INGRESS.md`](VPS-TAILSCALE-INGRESS.md) records the planned
+low-cost replacement for Pinggy: a public VPS with managed Tailscale private
+transport, Cloudflare's ordinary gRPC-capable proxy for TCP, and a separate
+DNS-only UDP route for Lore QUIC. It is deliberately a design document: do not
+change the active Pinggy/Funnel deployment until its staging and rollback gates
+pass.
+
 ## Public Channels app origins via Cloudflare Tunnel
 
 One remotely managed Cloudflare Tunnel named `portals-andresb-web` publishes
@@ -248,7 +257,8 @@ Start from `templates/release.env.example`, `templates/auth.env.example`,
 outside the checkout; replace every `__REPLACE_*__` marker. Live checks reject
 placeholders. They are preparation files, not permission to deploy incomplete
 provider settings. The release file also defines `AUTH_DOMAIN` and
-`LORE_DOMAIN`, matching Caddy's environment exactly.
+`LORE_DOMAIN`, matching Caddy's environment exactly, plus
+`RELAY_WIREGUARD_IP=10.77.0.2` for the private relay path.
 
 The selected production endpoints are recorded in both
 `infra/pulumi/Pulumi.prod.yaml` and `Pulumi.dev.yaml`:
@@ -257,10 +267,10 @@ The selected production endpoints are recorded in both
 | --- | --- |
 | Auth Gateway HTTPS issuer and callback host | `auth.portals.works` |
 | Lore gRPC over TLS | `lore.portals.works` (`grpcs://lore.portals.works:443`) |
-| Lore QUIC | Not set in Pulumi; use the actual Pinggy persistent UDP hostname and port until a supported production UDP DNS route is verified. |
+| Lore QUIC | `quic.lore.portals.works:443` through the AWS relay after external QUIC acceptance passes. |
 
 These Pulumi values establish the intended names, not proof that DNS currently
-resolves to the Mac/Pinggy route or that certificates are issued. The templates
+resolves to the Mac/relay route or that certificates are issued. The templates
 use the established Auth and Lore names; staging may override them with
 Pinggy-assigned names only in a separate staging release file.
 
@@ -268,19 +278,54 @@ Pinggy-assigned names only in a separate staging release file.
 AUTH_GATEWAY_IMAGE_DIGEST=portalshq/auth-gateway@sha256:<64 hex chars>
 LORE_IMAGE_DIGEST=portalshq/lore@sha256:<64 hex chars>
 CADDY_IMAGE_DIGEST=caddy@sha256:<64 hex chars>
+POSTGRES_IMAGE_DIGEST=postgres@sha256:<64 hex chars>
 AUTH_ENV_FILE=/private/path/auth.env
 AUTH_SECRET_DIR=/private/path/auth-secrets
+AUTH_DB_TLS_DIR=/Users/portals-svc/secrets/auth-db-tls
 LORE_ENV_FILE=/private/path/lore.env
 LORE_AWS_ENV_FILE=/Users/portals-svc/.config/portals/lore-aws.env
 CADDY_ENV_FILE=/private/path/caddy.env
 CADDY_CERT_DIR=/private/path/dns01-issued-caddy-certs
 LORE_QUIC_CERT_DIR=/private/path/dns01-issued-lore-quic-certs
+RELAY_WIREGUARD_IP=10.77.0.2
+POSTGRES_ENV_FILE=/Users/portals-svc/secrets/postgres.env
+POSTGRES_SECRET_DIR=/Users/portals-svc/secrets/postgres
+POSTGRES_TLS_DIR=/Users/portals-svc/secrets/postgres-tls
 ```
 
 The Caddy environment defines `AUTH_DOMAIN=auth.portals.works` and
 `LORE_DOMAIN=lore.portals.works`, matching Pulumi's production configuration.
 The Caddyfile remains parameterized so a staging-only release can use Pinggy's
 assigned names without changing production settings.
+
+## Production PostgreSQL
+
+The production Compose profile includes one fresh PostgreSQL 15 container with
+an encrypted Docker volume. It binds only to the Mac WireGuard address
+`10.77.0.2:5432`; the public relay forwards to that address and no Mac LAN or
+wildcard binding exists. PostgreSQL requires TLS 1.3, client-certificate
+verification, and SCRAM passwords. The database password is read from
+`POSTGRES_SECRET_DIR/password`; it is never placed in the release file.
+
+The AWS relay keeps PostgreSQL disabled by default. A database certificate in
+`POSTGRES_TLS_DIR/server.crt` and `server.key` must be issued for the chosen
+database hostname and must be separate from Caddy's private key.
+
+The current relay deliberately permits public TCP `5432`. The local
+PostgreSQL instance owns separate `channels` and `auth_gateway` logical
+databases, each with a distinct role and mTLS certificate. PostgreSQL rejects
+every connection without the matching private client certificate and SCRAM
+password. The server certificate is issued for `db.portals.works`; create a
+DNS-only record for that name pointing at the relay EIP before configuring a
+connection string. Replace the public rule with static egress CIDRs when the
+calling platform provides them.
+
+Auth’s `DATABASE_URL` is cut over only by
+`scripts/cutover-auth-to-local-postgres.sh`. It preserves the prior `auth.env`
+as a timestamped rollback file, creates the isolated local role/database, runs
+the Auth service’s restart-safe migrations, then waits for Auth health. A
+failed cutover restores the prior `DATABASE_URL` and attempts the prior
+deployment; it never deletes the new local database.
 
 Auth production uses sealed files, not embedded secrets:
 
@@ -454,6 +499,44 @@ launchd services run as `portals-svc`; a service-owned runtime (e.g. colima)
 remains the path if that boundary must not be shared. `deploy.sh` and the
 service plists set `DOCKER_HOST` to the andresb socket, so no per-user docker
 context is needed.
+
+### Application deployments
+
+Application workloads use the same service-account Docker path; do not run
+ad-hoc Compose commands as `andresb`. After the application checkout, secret
+file, registry file, and immutable image digest are in place, run the canonical
+helper as `portals-svc`:
+
+```bash
+APP_PROJECT=bears \
+APP_COMPOSE_FILE=/Users/portals-svc/deploy/bears/compose.yaml \
+APP_SERVICE=bears \
+APP_HEALTH_URL=http://127.0.0.1:3001/api/health \
+DOCKER_HOST=unix:///Users/andresb/.docker/run/docker.sock \
+/Users/portals-svc/portals/infra/mac-bootstrap/scripts/deploy-app.sh
+```
+
+The helper refuses unresolved image placeholders, validates the complete
+Compose model, starts the requested service, prints its state, and (when
+provided) waits for its health URL. The same helper can deploy another app by
+changing only `APP_PROJECT`, `APP_COMPOSE_FILE`, `APP_SERVICE`, and
+`APP_HEALTH_URL`.
+
+The application source repository stays in source control/CI. The Mac needs
+only the immutable image in its registry, the checked-in Compose manifest under
+`/Users/portals-svc/deploy/<app>/`, and the service-owned environment and
+runtime-state files.
+
+Before the first bind-mounted application deployment, grant Docker Desktop
+read access only to the non-secret registry file:
+
+```bash
+APP_REGISTRY_FILE=/Users/portals-svc/state/bears/channel-registry.json \
+/Users/portals-svc/portals/infra/mac-bootstrap/scripts/prepare-app-runtime.sh
+```
+
+This adds traversal/read ACLs for `andresb` on the registry path only; it does
+not grant access to `bears.env` or any other secret.
 
 ### 5. Promote and pin release images
 
@@ -640,7 +723,7 @@ MAC_RELEASE_ENV=/private/path/portals-release.env scripts/deploy.sh
 ```
 
 `bootstrap.sh` is fail-closed and does not silently repair security state.
-`deploy.sh` starts and verifies services in this order:
+`deploy.sh` force-recreates Auth Gateway, then starts and verifies services in this order:
 
 1. Auth HTTP `/healthz` and local JWKS availability.
 2. Caddy TLS and HTTPS JWKS, verified with the production hostname against

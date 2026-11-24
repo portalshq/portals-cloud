@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "deployment-patterns": {
+      "source": "affaan-m/ecc",
+      "sourceType": "github",
+      "skillPath": "skills/deployment-patterns/SKILL.md",
+      "computedHash": "e57b83943c1f9477924720aaefd9caf5bc69d3e8b6875d85559d6e545b3cc5cc"
+    }
+  }
+}

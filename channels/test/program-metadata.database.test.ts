@@ -17,7 +17,7 @@ describe('central program descriptions', () => {
     try {
       await db.exec(`
         CREATE TABLE tenants (id text PRIMARY KEY, name text NOT NULL);
-        CREATE TABLE programs (id text PRIMARY KEY, slug text, name text NOT NULL, tenant_id text REFERENCES tenants(id), app_origin text, app_config jsonb);
+        CREATE TABLE programs (id text PRIMARY KEY, name text NOT NULL, tenant_id text REFERENCES tenants(id), app_origin text, app_config jsonb);
         CREATE TABLE stations (id text PRIMARY KEY, name text NOT NULL);
         CREATE TABLE station_schedule_rules (channel_id text, program_id text, station_id text);
         CREATE TABLE station_program_slots (channel_id text, program_id text, station_id text, status text, starts_at timestamptz, ends_at timestamptz, metadata jsonb);

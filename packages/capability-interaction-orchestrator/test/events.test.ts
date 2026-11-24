@@ -107,6 +107,21 @@ describe("durable event publication and replay", () => {
     expect(bus.getSubscriberCount()).toBe(0);
     reads.mockRestore();
   });
+  it("backs idle world polling off instead of repeating at the base interval", async () => {
+    const bus = new InMemoryFanoutBus();
+    const reads = vi.fn().mockResolvedValue([]);
+    const publisher = new EventPublisher(bus, {
+      eventHead: vi.fn().mockResolvedValue(0),
+      getEvents: reads,
+    } as never, 200);
+    const stream = publisher.subscribe(crypto.randomUUID(), 0);
+    const pending = stream.next();
+    await vi.waitFor(() => expect(reads).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(reads).toHaveBeenCalledTimes(1);
+    await stream.return!();
+    expect((await pending).done).toBe(true);
+  });
   it("cleans up aborts both before and after subscription starts", async () => {
     const bus = new InMemoryFanoutBus();
     const publisher = new EventPublisher(bus, db.repository, 5);

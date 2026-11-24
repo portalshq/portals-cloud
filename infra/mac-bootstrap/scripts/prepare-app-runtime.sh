@@ -6,7 +6,6 @@ set -eu
 docker_user=${APP_DOCKER_USER:-andresb}
 registry=${APP_REGISTRY_FILE:?APP_REGISTRY_FILE is required}
 registry_dir=$(CDPATH= cd -- "$(dirname -- "$registry")" && pwd)
-state_dir=$(CDPATH= cd -- "$registry_dir/.." && pwd)
 service_root=/Users/portals-svc
 
 test "$(id -un)" = portals-svc || { echo 'Run prepare-app-runtime.sh as portals-svc' >&2; exit 1; }
@@ -26,7 +25,6 @@ grant_file() {
     /bin/chmod +a "$docker_user allow read,readattr,readextattr" "$path"
 }
 grant_dir "$service_root"
-grant_dir "$state_dir"
 grant_dir "$registry_dir"
 grant_file "$registry"
 

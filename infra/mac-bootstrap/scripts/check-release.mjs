@@ -7,13 +7,19 @@ const required = [
   'CADDY_IMAGE_DIGEST',
   'AUTH_ENV_FILE',
   'AUTH_SECRET_DIR',
+  'AUTH_DB_TLS_DIR',
   'LORE_ENV_FILE',
   'LORE_AWS_ENV_FILE',
   'CADDY_ENV_FILE',
   'CADDY_CERT_DIR',
   'LORE_QUIC_CERT_DIR',
+  'POSTGRES_IMAGE_DIGEST',
+  'POSTGRES_ENV_FILE',
+  'POSTGRES_SECRET_DIR',
+  'POSTGRES_TLS_DIR',
   'AUTH_DOMAIN',
   'LORE_DOMAIN',
+  'RELAY_WIREGUARD_IP',
 ]
 const missing = required.filter((name) => !process.env[name])
 if (missing.length) throw new Error(`missing release inputs: ${missing.join(', ')}`)
@@ -21,12 +27,19 @@ const placeholder = /__REPLACE_[A-Z0-9_]+__|<[^\n>]+>/
 for (const name of required) {
   if (placeholder.test(process.env[name])) throw new Error(`${name} contains a deployment placeholder`)
 }
+if (process.env.RELAY_WIREGUARD_IP !== '10.77.0.2') {
+  throw new Error('RELAY_WIREGUARD_IP must be the configured WireGuard-only address 10.77.0.2')
+}
 for (const name of required.filter((value) => value.endsWith('_ENV_FILE'))) {
   if (!existsSync(resolve(process.cwd(), process.env[name]))) throw new Error(`${name} does not point to an existing file`)
 }
 const authSecretDir = resolve(process.cwd(), process.env.AUTH_SECRET_DIR)
 for (const file of ['signing-key', 'api-key-pepper']) {
   if (!existsSync(resolve(authSecretDir, file))) throw new Error(`AUTH_SECRET_DIR is missing ${file}`)
+}
+const authDbTlsDir = resolve(process.cwd(), process.env.AUTH_DB_TLS_DIR)
+for (const file of ['ca.crt', 'client.crt', 'client.key']) {
+  if (!existsSync(resolve(authDbTlsDir, file))) throw new Error(`AUTH_DB_TLS_DIR is missing ${file}`)
 }
 const certDir = resolve(process.cwd(), process.env.CADDY_CERT_DIR)
 for (const file of ['fullchain.pem', 'privkey.pem']) {
@@ -36,9 +49,25 @@ const loreQuicCertDir = resolve(process.cwd(), process.env.LORE_QUIC_CERT_DIR)
 for (const file of ['fullchain.pem', 'privkey.pem']) {
   if (!existsSync(resolve(loreQuicCertDir, file))) throw new Error(`LORE_QUIC_CERT_DIR is missing ${file}`)
 }
+const postgresSecretDir = resolve(process.cwd(), process.env.POSTGRES_SECRET_DIR)
+if (!existsSync(resolve(postgresSecretDir, 'password'))) throw new Error('POSTGRES_SECRET_DIR is missing password')
+const postgresTlsDir = resolve(process.cwd(), process.env.POSTGRES_TLS_DIR)
+for (const file of ['ca.crt', 'server.crt', 'server.key', 'pg_hba.conf']) {
+  if (!existsSync(resolve(postgresTlsDir, file))) throw new Error(`POSTGRES_TLS_DIR is missing ${file}`)
+}
+const postgresEnv = readFileSync(resolve(process.cwd(), process.env.POSTGRES_ENV_FILE), 'utf8')
+for (const setting of [
+  'POSTGRES_DB=channels',
+  'POSTGRES_USER=channels_app',
+  'POSTGRES_PASSWORD_FILE=/run/secrets/postgres/password',
+  'POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256',
+]) {
+  if (!postgresEnv.includes(setting)) throw new Error(`POSTGRES_ENV_FILE must define ${setting}`)
+}
 for (const name of required.filter((value) => value.endsWith('_IMAGE_DIGEST'))) {
   if (!/^.+@sha256:[a-f0-9]{64}$/.test(process.env[name])) throw new Error(`${name} must be an immutable image digest`)
 }
+if (!/^postgres@sha256:[a-f0-9]{64}$/.test(process.env.POSTGRES_IMAGE_DIGEST)) throw new Error('POSTGRES_IMAGE_DIGEST must be an immutable official postgres digest')
 const compose = readFileSync(resolve(process.cwd(), 'templates/compose.prod.yaml'), 'utf8')
 const authEnv = readFileSync(resolve(process.cwd(), process.env.AUTH_ENV_FILE), 'utf8')
 const loreEnv = readFileSync(resolve(process.cwd(), process.env.LORE_ENV_FILE), 'utf8')
@@ -59,7 +88,10 @@ for (const line of loreAwsEnv.split(/\r?\n/)) {
   const assignment = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/)
   if (!assignment) continue
   const [, key, value] = assignment
-  if (!requiredLoreAwsKeys.includes(key)) throw new Error(`LORE_AWS_ENV_FILE may contain only scoped AWS credential keys; unexpected ${key}`)
+  if (!requiredLoreAwsKeys.includes(key)) {
+    const guidance = key === 'AWS_REGION' ? '; AWS_REGION belongs only in LORE_ENV_FILE' : ''
+    throw new Error(`LORE_AWS_ENV_FILE may contain only scoped AWS credential keys; unexpected ${key}${guidance}`)
+  }
   if (seenLoreAwsKeys.has(key)) throw new Error(`LORE_AWS_ENV_FILE duplicates ${key}`)
   if (!value || placeholder.test(value)) throw new Error(`LORE_AWS_ENV_FILE must define ${key} without a placeholder`)
   if (loreKeys.has(key)) throw new Error(`Lore configuration and AWS credentials both define ${key}`)
@@ -127,7 +159,13 @@ const loreConfigEnvIndex = compose.indexOf('- ${LORE_ENV_FILE:?LORE_ENV_FILE is 
 const loreAwsEnvIndex = compose.indexOf('- ${LORE_AWS_ENV_FILE:?LORE_AWS_ENV_FILE is required}')
 if (loreConfigEnvIndex < 0 || loreAwsEnvIndex < 0 || loreConfigEnvIndex > loreAwsEnvIndex) throw new Error('Lore Compose service must load general configuration before the separate scoped AWS credential file')
 if (/next/i.test(compose)) throw new Error('Next.js must remain Vercel-hosted')
-if (!compose.includes('127.0.0.1:41337:41337/udp')) throw new Error('Lore QUIC must remain UDP-mapped')
+if (!compose.includes('POSTGRES_TLS_DIR')) throw new Error('PostgreSQL must use a dedicated TLS secret directory')
+for (const setting of ['ssl_min_protocol_version=TLSv1.3', 'ssl_ca_file=/run/secrets/postgres-tls/ca.crt', 'hba_file=/run/secrets/postgres-tls/pg_hba.conf']) {
+  if (!compose.includes(setting)) throw new Error(`PostgreSQL must configure ${setting}`)
+}
+if (!compose.includes('${RELAY_WIREGUARD_IP:?RELAY_WIREGUARD_IP is required}:5432:5432')) throw new Error('PostgreSQL must bind only to the WireGuard address')
+if (!compose.includes('127.0.0.1:41337:41337/udp')) throw new Error('Lore QUIC must remain loopback UDP-mapped')
+if (!compose.includes('${RELAY_WIREGUARD_IP:?RELAY_WIREGUARD_IP is required}:41337:41337/udp')) throw new Error('Lore QUIC must bind to the WireGuard address')
 if (!compose.includes('127.0.0.1:41339:41339')) throw new Error('Lore health must remain loopback-only')
 if (compose.includes('delivery-worker')) throw new Error('ProductCharacters delivery worker must not gate the Portals MVP deployment')
 if (/0\.0\.0\.0/.test(compose)) throw new Error('Mac services must not bind wildcard host ports')
@@ -149,6 +187,7 @@ if (loreEnv.match(/^LORE__SERVER__AUTH__JWK__ENDPOINT=(.+)$/m)?.[1] !== `https:/
 if (!/^LORE_ENV=prod$/m.test(loreEnv) || !/^LORE_SECURITY_MODE=strict$/m.test(loreEnv)) throw new Error('Lore must use production strict security')
 if (caddy.includes('auto_https disable')) throw new Error('Caddy TLS cannot be disabled in production')
 if (!caddy.includes('/run/secrets/caddy/fullchain.pem') || !caddy.includes('/run/secrets/caddy/privkey.pem')) throw new Error('Caddy must require provisioned TLS certificates')
-if (!compose.includes('127.0.0.1:8443:443')) throw new Error('Caddy TLS must be exposed only through the loopback Pinggy target')
-if (!compose.includes(':/run/secrets/auth:ro')) throw new Error('Auth sealed secrets must be mounted read-only')
+if (!compose.includes('127.0.0.1:8443:443')) throw new Error('Caddy TLS must remain loopback-mapped')
+if (!compose.includes('${RELAY_WIREGUARD_IP:?RELAY_WIREGUARD_IP is required}:8443:443')) throw new Error('Caddy TLS must bind to the WireGuard address')
+if (!compose.includes(':/run/secrets/auth:ro') || !compose.includes(':/run/secrets/auth-db:ro')) throw new Error('Auth sealed secrets and database mTLS material must be mounted read-only')
 console.log('Mac release manifest checks passed')
