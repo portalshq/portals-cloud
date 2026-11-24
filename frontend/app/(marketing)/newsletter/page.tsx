@@ -3,8 +3,8 @@ import { marketingMetadata } from '@/lib/seo'
 import { NewsletterForm } from '@/components/leads/NewsletterForm'
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'Subscribe to our newsletter',
-    description: `We're launching Massive Reality — a newsletter on the interactive entertainment industry, consumer fanship, and AI, with original research and experiments.`,
+    title: 'Experiments in interactive entertainment formats | Newsletter',
+    description: 'Consumer fanship, platform economics, and the science of retention, tested live.',
     path: '/newsletter',
     image: null,
 })
