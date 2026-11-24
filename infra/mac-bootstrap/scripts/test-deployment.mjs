@@ -16,18 +16,18 @@ try {
   fixture(join(runtime, 'scripts/bootstrap.sh'), '#!/bin/sh\nexit 0\n')
   const envFile = join(temp, 'release with spaces.env')
   writeFileSync(envFile, 'AUTH_DOMAIN=auth.example.test\n')
-  fixture(join(temp, 'docker'), '#!/bin/sh\n[ "$1" = compose ] && [ "$2" = --env-file ] && [ "$3" = "$MAC_RELEASE_ENV" ] && [ "$4" = -f ] && [ "$6" = up ] || exit 99\nprintf "%s\\n" "$8" >> "$TEST_LOG"\n')
+  fixture(join(temp, 'docker'), '#!/bin/sh\n[ "$1" = compose ] && [ "$2" = --env-file ] && [ "$3" = "$MAC_RELEASE_ENV" ] && [ "$4" = -f ] && [ "$6" = up ] || exit 99\nservice=$8\n[ "$8" = --wait ] && service=$9\nprintf "%s\\n" "$service" >> "$TEST_LOG"\n')
   fixture(join(temp, 'curl'), '#!/bin/sh\nprintf "%s\\n" "$*" >> "$TEST_CURL_LOG"\n')
   const log = join(temp, 'services.log')
   const curlLog = join(temp, 'curl.log')
   const result = spawnSync('sh', [join(runtime, 'scripts/deploy.sh')], {env: {...process.env, PATH: `${temp}:${process.env.PATH}`, MAC_RELEASE_ENV: envFile, TEST_LOG: log, TEST_CURL_LOG: curlLog}, encoding: 'utf8'})
   assert.equal(result.status, 0, result.stderr)
-  assert.equal(readFileSync(log, 'utf8'), 'auth-gateway\ncaddy\nlore\n')
+  assert.equal(readFileSync(log, 'utf8'), 'postgres\nauth-gateway\ncaddy\nlore\n')
   const probes = readFileSync(curlLog, 'utf8')
   assert.match(probes, /https:\/\/auth\.example\.test:8443\/\.well-known\/jwks\.json/)
   assert.match(probes, /41339\/health_check/)
   assert.doesNotMatch(probes, /41339\/health(?:\s|$)/)
-  const inputs = ['AUTH_GATEWAY_IMAGE_DIGEST', 'LORE_IMAGE_DIGEST', 'CADDY_IMAGE_DIGEST', 'AUTH_ENV_FILE', 'AUTH_SECRET_DIR', 'LORE_ENV_FILE', 'LORE_AWS_ENV_FILE', 'CADDY_ENV_FILE', 'CADDY_CERT_DIR', 'LORE_QUIC_CERT_DIR', 'AUTH_DOMAIN', 'LORE_DOMAIN']
+  const inputs = ['AUTH_GATEWAY_IMAGE_DIGEST', 'LORE_IMAGE_DIGEST', 'CADDY_IMAGE_DIGEST', 'POSTGRES_IMAGE_DIGEST', 'AUTH_ENV_FILE', 'AUTH_SECRET_DIR', 'AUTH_DB_TLS_DIR', 'LORE_ENV_FILE', 'LORE_AWS_ENV_FILE', 'CADDY_ENV_FILE', 'CADDY_CERT_DIR', 'LORE_QUIC_CERT_DIR', 'POSTGRES_ENV_FILE', 'POSTGRES_SECRET_DIR', 'POSTGRES_TLS_DIR', 'AUTH_DOMAIN', 'LORE_DOMAIN', 'RELAY_WIREGUARD_IP']
   const rejected = spawnSync(process.execPath, [join(root, 'scripts/check-release.mjs')], {env: {...process.env, ...Object.fromEntries(inputs.map(name => [name, '__REPLACE_VALUE__']))}, encoding: 'utf8'})
   assert.notEqual(rejected.status, 0)
   assert.match(rejected.stderr, /deployment placeholder/)
@@ -39,18 +39,19 @@ try {
   for (const file of ['compose.prod.yaml', 'Caddyfile']) {
     writeFileSync(join(runtime, 'templates', file), readFileSync(join(root, 'templates', file)))
   }
-  const positive = {AUTH_DOMAIN: 'auth.portals.works', LORE_DOMAIN: 'lore.portals.works'}
+  const positive = {AUTH_DOMAIN: 'auth.portals.works', LORE_DOMAIN: 'lore.portals.works', RELAY_WIREGUARD_IP: '10.77.0.2'}
   const pulumiProd = readFileSync(resolve(root, '../pulumi/Pulumi.prod.yaml'), 'utf8')
   assert.match(pulumiProd, /^  portals-platform:authHostname: auth\.portals\.works$/m)
   assert.match(pulumiProd, /^  portals-platform:loreHostname: lore\.portals\.works$/m)
   const images = readFileSync(join(root, 'templates/release.env.example'), 'utf8')
-  for (const name of inputs.filter(name => name.endsWith('_IMAGE_DIGEST'))) positive[name] = images.match(new RegExp(`^${name}=(.+)$`, 'm'))[1]
-  for (const name of ['AUTH_SECRET_DIR', 'CADDY_CERT_DIR', 'LORE_QUIC_CERT_DIR']) {
+  for (const name of inputs.filter(name => name.endsWith('_IMAGE_DIGEST'))) positive[name] = name === 'POSTGRES_IMAGE_DIGEST' ? 'postgres@sha256:' + 'e'.repeat(64) : images.match(new RegExp(`^${name}=(.+)$`, 'm'))[1]
+  for (const name of ['AUTH_SECRET_DIR', 'AUTH_DB_TLS_DIR', 'CADDY_CERT_DIR', 'LORE_QUIC_CERT_DIR', 'POSTGRES_SECRET_DIR', 'POSTGRES_TLS_DIR']) {
     positive[name] = join(temp, name)
     mkdirSync(positive[name])
-    for (const file of name === 'AUTH_SECRET_DIR' ? ['signing-key', 'api-key-pepper'] : ['fullchain.pem', 'privkey.pem']) writeFileSync(join(positive[name], file), 'test-only fixture')
+    const files = name === 'AUTH_SECRET_DIR' ? ['signing-key', 'api-key-pepper'] : name === 'AUTH_DB_TLS_DIR' ? ['ca.crt', 'client.crt', 'client.key'] : name === 'POSTGRES_SECRET_DIR' ? ['password'] : name === 'POSTGRES_TLS_DIR' ? ['ca.crt', 'server.crt', 'server.key', 'pg_hba.conf'] : ['fullchain.pem', 'privkey.pem']
+    for (const file of files) writeFileSync(join(positive[name], file), 'test-only fixture')
   }
-  for (const [name, template] of [['AUTH_ENV_FILE', 'auth.env.example'], ['LORE_ENV_FILE', 'lore.env.example'], ['LORE_AWS_ENV_FILE', 'lore-aws.env.example'], ['CADDY_ENV_FILE', 'caddy.env.example']]) {
+  for (const [name, template] of [['AUTH_ENV_FILE', 'auth.env.example'], ['LORE_ENV_FILE', 'lore.env.example'], ['LORE_AWS_ENV_FILE', 'lore-aws.env.example'], ['CADDY_ENV_FILE', 'caddy.env.example'], ['POSTGRES_ENV_FILE', 'postgres.env.example']]) {
     positive[name] = join(temp, name)
     const contents = readFileSync(join(root, 'templates', template), 'utf8')
       .replace(/__REPLACE_[A-Z0-9_]+__/g, 'fixture-value-with-at-least-32-bytes')

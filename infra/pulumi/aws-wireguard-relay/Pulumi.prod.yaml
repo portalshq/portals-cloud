@@ -1,0 +1,7 @@
+config:
+  portals-aws-wireguard-relay:wireGuardServerPrivateKey:
+    secure: AAABAKgzflywVEn0BDBvJMqJ2ORFDtFD+z5oRKnhKFTf/6lZJZfG5PpCAjGn10i5BoEjs3Iow1t9NB78T4PEcKxO40oErk9k62vEDA==
+  portals-aws-wireguard-relay:wireGuardServerPublicKey: WnWXajP69PUjDyIcp8SYlD5NFH8ZeWs1Xd9iNphTUB8=
+  portals-aws-wireguard-relay:wireGuardMacPublicKey: Tg0NK2mDJrhOoMTAFCanxcM2jD6/ZRYWtnhPLxzTg10=
+  aws:region: us-east-2
+  portals-aws-wireguard-relay:postgresAllowedCidrs: 0.0.0.0/0

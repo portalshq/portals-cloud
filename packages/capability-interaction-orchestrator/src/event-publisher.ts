@@ -43,6 +43,7 @@ type TopicPump = {
   unsubscribe?: () => void;
   starting?: Promise<void>;
   polling: boolean;
+  idleDelayMs: number;
 };
 
 /** PostgreSQL is the replay source; fanout is a wake-up hint, so reordered/duplicated delivery is harmless. */
@@ -105,12 +106,16 @@ export class EventPublisher implements IEventPublisher {
       .subscribe(this.topic(pump.worldId), () => {
         if (pump.timer) clearTimeout(pump.timer);
         pump.timer = undefined;
+        pump.idleDelayMs = this.pollIntervalMs;
         this.schedule(pump, 0);
       })
       .then((unsubscribe) => {
         if (pump.streams.size === 0 || this.topics.get(pump.worldId) !== pump)
           unsubscribe();
-        else pump.unsubscribe = unsubscribe;
+        else {
+          pump.unsubscribe = unsubscribe;
+          pump.idleDelayMs = this.pollIntervalMs;
+        }
       })
       .finally(() => {
         pump.starting = undefined;
@@ -125,6 +130,7 @@ export class EventPublisher implements IEventPublisher {
     )
       return;
     pump.polling = true;
+    let nextDelay = this.pollIntervalMs;
     try {
       await this.startPump(pump);
       if (pump.streams.size === 0) return;
@@ -137,7 +143,10 @@ export class EventPublisher implements IEventPublisher {
         stream.cursor = fresh.at(-1)!.sequence;
         this.wake(stream);
       }
-      this.schedule(pump, events.length ? 0 : this.pollIntervalMs);
+      pump.idleDelayMs = events.length
+        ? this.pollIntervalMs
+        : Math.min(pump.idleDelayMs * 2, 30_000);
+      nextDelay = events.length ? 0 : pump.idleDelayMs;
     } catch (cause) {
       for (const stream of pump.streams) {
         stream.error = cause;
@@ -146,7 +155,7 @@ export class EventPublisher implements IEventPublisher {
       this.stopPump(pump);
     } finally {
       pump.polling = false;
-      if (this.topics.get(pump.worldId) === pump) this.schedule(pump);
+      if (this.topics.get(pump.worldId) === pump) this.schedule(pump, nextDelay);
     }
   }
   subscribe(
@@ -186,6 +195,7 @@ export class EventPublisher implements IEventPublisher {
             worldId,
             streams: new Set(),
             polling: false,
+            idleDelayMs: this.pollIntervalMs,
           };
           this.topics.set(worldId, pump);
           pump.streams.add(state);

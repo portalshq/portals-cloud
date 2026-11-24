@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+# macOS does not provide C.UTF-8; use the portable POSIX locale for deployment tools.
+LC_ALL=C
+LANG=C
+export LC_ALL LANG
+
 PATH="$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin"
 export PATH
 
@@ -32,7 +37,8 @@ wait_http() {
   return 1
 }
 
-compose up -d auth-gateway
+compose up -d --wait postgres
+compose up -d --force-recreate auth-gateway
 wait_http http://127.0.0.1:8085/healthz
 wait_http http://127.0.0.1:8085/.well-known/jwks.json
 

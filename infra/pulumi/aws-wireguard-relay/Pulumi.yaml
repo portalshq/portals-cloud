@@ -1,0 +1,32 @@
+name: portals-aws-wireguard-relay
+runtime: nodejs
+description: Network-only EC2 relay for the Mac-hosted Portals services.
+main: index.ts
+config:
+  projectName:
+    default: portals
+  environment:
+    default: prod
+  vpcCidr:
+    default: 10.86.0.0/16
+  publicSubnetCidr:
+    default: 10.86.1.0/24
+  instanceType:
+    default: t3.micro
+  amiSsmParameter:
+    default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+  wireGuardServerAddress:
+    default: 10.77.0.1/24
+  wireGuardMacAddress:
+    default: 10.77.0.2
+  wireGuardListenPort:
+    default: "51820"
+  postgresAllowedCidrs:
+    description: Comma-separated approved client IPv4 CIDRs for PostgreSQL 5432; leave empty to keep public PostgreSQL disabled.
+    default: ""
+  wireGuardMacPublicKey:
+    description: WireGuard public key for andresb. This is not secret.
+  wireGuardServerPublicKey:
+    description: WireGuard public key for the EC2 relay. This is not secret.
+  wireGuardServerPrivateKey:
+    description: WireGuard private key for the EC2 relay. Set with `pulumi config set --secret`.
