@@ -6,6 +6,7 @@ export const metadata: Metadata = marketingMetadata({
     title: 'Subscribe to our newsletter',
     description: `We're launching Massive Reality — a newsletter on the interactive entertainment industry, consumer fanship, and AI, with original research and experiments.`,
     path: '/newsletter',
+    image: null,
 })
 
 export default function NewsletterEnrollmentPage() {

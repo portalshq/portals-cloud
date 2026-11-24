@@ -32,7 +32,7 @@ type SeoInput = {
   path: string
   keywords?: string[]
   type?: 'website' | 'article'
-  image?: string
+  image?: string | null
   shareTitle?: string
   shareDescription?: string
   noIndex?: boolean
@@ -88,7 +88,7 @@ export function marketingMetadata({
       ...(modifiedTime ? {modifiedTime} : {}),
     },
     twitter: {
-      card: 'summary_large_image',
+      card: image ? 'summary_large_image' : 'summary',
       title: shareTitle || ogTitle,
       description: shareDescription || description,
       ...(image ? {images: [image]} : undefined),
