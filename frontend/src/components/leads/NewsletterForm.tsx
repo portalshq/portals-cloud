@@ -66,6 +66,7 @@ function collectTrackingPayload(): Record<string, string> {
 
 export function NewsletterForm() {
   const [step, setStep] = useState<FormStep>('subscribe')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
@@ -97,6 +98,7 @@ export function NewsletterForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: name.trim(),
           email: email.trim(),
           ...tracking,
         }),
@@ -159,6 +161,23 @@ export function NewsletterForm() {
         experiments in building formats people return to. 
       </p>
       <p className="t-p-sm-sans text-white">Subscribe to the monthly newsletter.</p>
+
+      <div className="w-full flex flex-col gap-y-6">
+        <label htmlFor="newsletter-name" className="t-p-sm-sans text-white text-sm">
+          name
+        </label>
+        <input
+          id="newsletter-name"
+          name="name"
+          type="text"
+          required
+          autoComplete="name"
+          placeholder="Your name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          className="w-full h-48 px-16 bg-transparent border border-white  rounded-sm text-white t-p-sm-sans placeholder:text-white/50 outline-none focus:border-white transition-colors"
+        />
+      </div>
 
       <div className="w-full flex flex-col gap-y-6">
         <label htmlFor="newsletter-email" className="t-p-sm-sans text-white text-sm">

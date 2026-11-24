@@ -5,6 +5,7 @@ import { z } from 'zod'
 export const runtime = 'nodejs'
 
 const subscribeSchema = z.object({
+  name: z.string().trim().max(160).default(''),
   email: z.string().trim().email().max(254),
   // UTM & attribution
   utm_source: z.string().trim().max(160).default(''),
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
     const loops = new LoopsClient(loopsApiKey)
     await loops.updateContact({
       email: data.email,
+      properties: data.name ? { firstName: data.name } : undefined,
       mailingLists: { [loopsNewsletterListId]: true },
     })
 
@@ -128,6 +130,7 @@ export async function POST(request: Request) {
     // Upsert contact
     const contactBody = compact({
       email: data.email,
+      name: data.name || undefined,
       label_names: [NEWSLETTER_LIST],
     })
     const result = await apolloRequest<ApolloContact>('/api/v1/contacts', 'POST', contactBody)
@@ -141,6 +144,7 @@ export async function POST(request: Request) {
     await apolloRequest(`/api/v1/contacts/${encodeURIComponent(contactId)}`, 'PATCH', compact({
       // The label_names on POST already added to the list, but PATCH gives us
       // a second chance if the contact already existed.
+      name: data.name || undefined,
       label_names: [NEWSLETTER_LIST],
     }))
 
